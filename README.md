@@ -4,6 +4,8 @@ AI-powered remote connection manager with built-in MCP server support.
 
 Manage SSH, RDP, VNC, and web sessions from a single app — with an integrated AI assistant that can interact with your connections in real-time.
 
+[![Conduit MCP server](https://glama.ai/mcp/servers/advenimus/conduit-desktop/badges/card.svg)](https://glama.ai/mcp/servers/advenimus/conduit-desktop)
+
 ## Download
 
 Download the latest version for your platform from the [Releases](https://github.com/advenimus/conduit-desktop/releases/latest) page.
