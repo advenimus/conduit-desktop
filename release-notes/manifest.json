@@ -2,6 +2,21 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.10.0",
+      "date": "2026-03-19",
+      "title": "New Homepage & What's New",
+      "summary": "A completely redesigned dashboard homepage and a new What's New dialog to keep you in the loop on every release.",
+      "highlights": [
+        { "text": "Redesigned dashboard with connection stats, recent entries, and vault status", "category": "feature" },
+        { "text": "What's New dialog — see release highlights after each update", "category": "feature" },
+        { "text": "Homepage search delegates to sidebar with keyboard shortcut support", "category": "feature" },
+        { "text": "Simplified sidebar — removed pin mode, smoother resize behavior", "category": "improvement" },
+        { "text": "Homepage button in sidebar for quick navigation back to dashboard", "category": "improvement" },
+        { "text": "Fixed RDP framebuffer toRgba returning reference instead of documented copy", "category": "fix" }
+      ],
+      "hasMedia": true
+    },
+    {
       "version": "0.9.6",
       "date": "2026-03-15",
       "title": "SSH Auth & Download Progress",
