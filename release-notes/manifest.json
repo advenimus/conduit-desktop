@@ -1,4 +1,45 @@
 {
   "schema_version": 1,
-  "releases": []
+  "releases": [
+    {
+      "version": "0.9.6",
+      "date": "2026-03-15",
+      "title": "SSH Auth & Download Progress",
+      "summary": "Choose your SSH auth method and watch updates download in real-time.",
+      "highlights": [
+        { "text": "SSH auth method selection — pick key, password, or keyboard-interactive", "category": "feature" },
+        { "text": "Update download progress bar with speed and ETA", "category": "feature" },
+        { "text": "FreeRDP bundle uses local persistent cache on CI runners", "category": "improvement" },
+        { "text": "Faster cold starts with cached engine models", "category": "improvement" }
+      ],
+      "hasMedia": false
+    },
+    {
+      "version": "0.9.5",
+      "date": "2026-03-10",
+      "title": "Cloud Backup & Vault Hub",
+      "summary": "Back up your vault to the cloud and manage multiple vaults from one place.",
+      "highlights": [
+        { "text": "Cloud backup and restore for personal vaults", "category": "feature" },
+        { "text": "Vault Hub — switch between personal and team vaults instantly", "category": "feature" },
+        { "text": "Local backup scheduler with configurable retention", "category": "feature" },
+        { "text": "Improved VNC connection stability", "category": "fix" },
+        { "text": "Fixed web session tab switching flicker", "category": "fix" }
+      ],
+      "hasMedia": false
+    },
+    {
+      "version": "0.9.4",
+      "date": "2026-03-01",
+      "title": "Dynamic RDP Resize",
+      "summary": "Resize RDP sessions in real-time without reconnecting.",
+      "highlights": [
+        { "text": "Dynamic RDP resize — drag the window and the remote desktop follows", "category": "feature" },
+        { "text": "FreeRDP 3.x engine with hardware-accelerated decoding", "category": "feature" },
+        { "text": "Per-entry RDP engine selection (built-in or FreeRDP)", "category": "improvement" },
+        { "text": "Fixed clipboard sync dropping large payloads", "category": "fix" }
+      ],
+      "hasMedia": false
+    }
+  ]
 }
