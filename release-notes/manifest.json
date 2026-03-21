@@ -4,14 +4,14 @@
     {
       "version": "0.12.0",
       "date": "2026-03-21",
-      "title": "macOS Tahoe Native Corners",
-      "summary": "Upgraded to Electron 41 for native macOS Tahoe window corner rounding and smoother UI curves.",
+      "title": "Platform Upgrades & Bug Fixes",
+      "summary": "Under-the-hood platform upgrades for better performance, security, and native macOS Tahoe styling.",
       "highlights": [
-        { "text": "Native macOS Tahoe window corners — upgraded to Electron 41 (SDK 26.2) for proper rounded corners", "category": "improvement" },
-        { "text": "Squircle corner smoothing — interior UI elements use macOS-native superellipse curves", "category": "improvement" },
+        { "text": "Native macOS Tahoe window styling — smoother corners and UI curves that match the OS", "category": "improvement" },
+        { "text": "Under-the-hood platform upgrades for improved performance and security", "category": "improvement" },
         { "text": "Improved sidebar readability in light mode with stronger blur and opacity", "category": "improvement" },
-        { "text": "Fixed FreeRDP dylib loading failure on macOS (v0.11.0 regression)", "category": "fix" },
-        { "text": "Fixed web session native view staying on top when switching tabs", "category": "fix" },
+        { "text": "Fixed RDP connection failure on macOS", "category": "fix" },
+        { "text": "Fixed web session view staying on top when switching tabs", "category": "fix" },
         { "text": "Fixed What's New dialog not appearing on Windows after updates", "category": "fix" }
       ],
       "hasMedia": false
