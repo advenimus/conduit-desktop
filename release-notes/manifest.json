@@ -2,6 +2,21 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.12.0",
+      "date": "2026-03-21",
+      "title": "macOS Tahoe Native Corners",
+      "summary": "Upgraded to Electron 41 for native macOS Tahoe window corner rounding and smoother UI curves.",
+      "highlights": [
+        { "text": "Native macOS Tahoe window corners — upgraded to Electron 41 (SDK 26.2) for proper rounded corners", "category": "improvement" },
+        { "text": "Squircle corner smoothing — interior UI elements use macOS-native superellipse curves", "category": "improvement" },
+        { "text": "Improved sidebar readability in light mode with stronger blur and opacity", "category": "improvement" },
+        { "text": "Fixed FreeRDP dylib loading failure on macOS (v0.11.0 regression)", "category": "fix" },
+        { "text": "Fixed web session native view staying on top when switching tabs", "category": "fix" },
+        { "text": "Fixed What's New dialog not appearing on Windows after updates", "category": "fix" }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.11.0",
       "date": "2026-03-20",
       "title": "Platform Themes & Password History",
