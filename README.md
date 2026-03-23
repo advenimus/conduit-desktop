@@ -45,4 +45,4 @@ Conduit includes automatic updates. When a new version is available, you'll be n
 
 ## License
 
-Proprietary. All rights reserved.
+This project is licensed under the [Elastic License 2.0 (ELv2)](LICENSE).
