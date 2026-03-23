@@ -2,6 +2,21 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.12.1",
+      "date": "2026-03-23",
+      "title": "Clipboard & Stability Fixes",
+      "summary": "Improved RDP directory clipboard transfers, fixed AI loading state issues, and resolved IPC listener cleanup races.",
+      "highlights": [
+        { "text": "Fixed RDP directory clipboard transfers — nested folders now preserve structure on paste", "category": "fix" },
+        { "text": "Fixed file data corruption in clipboard transfers caused by incorrect data length field", "category": "fix" },
+        { "text": "Fixed AI engine loading spinner getting stuck after switching sessions", "category": "fix" },
+        { "text": "Fixed IPC event listener cleanup race condition in clipboard hooks", "category": "fix" },
+        { "text": "Increased max cursor size for high-DPI remote desktops", "category": "improvement" },
+        { "text": "Updated MCP server to use active vault for multi-vault support", "category": "improvement" }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.12.0",
       "date": "2026-03-21",
       "title": "Platform Upgrades & Bug Fixes",
