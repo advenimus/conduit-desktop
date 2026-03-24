@@ -2,6 +2,18 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.12.2",
+      "date": "2026-03-24",
+      "title": "Bug Fix Patch",
+      "summary": "Fixes for RDP clipboard notifications, macOS dialog styling, and Windows terminal keyboard shortcuts.",
+      "highlights": [
+        { "text": "Fixed duplicate toast notifications when copying files from remote clipboard in RDP sessions", "category": "fix" },
+        { "text": "Improved dialog backdrop opacity and blur effect on macOS light mode", "category": "fix" },
+        { "text": "Fixed Ctrl+V paste and Ctrl+C copy not working in terminal on Windows", "category": "fix" }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.12.1",
       "date": "2026-03-23",
       "title": "Clipboard & Stability Fixes",
