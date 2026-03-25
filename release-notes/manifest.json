@@ -2,6 +2,19 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.12.3",
+      "date": "2026-03-24",
+      "title": "Quick Unlock",
+      "summary": "Unlock your vault with Touch ID or Apple Watch instead of typing your master password every time.",
+      "highlights": [
+        { "text": "Biometric Quick Unlock — use Touch ID, Apple Watch, or system password to unlock your vault", "category": "feature" },
+        { "text": "Setup prompt after first password unlock — one tap to enable", "category": "feature" },
+        { "text": "Fingerprint badge on biometric-enabled vaults in Vault Hub", "category": "improvement" },
+        { "text": "Settings > Security tab for managing Quick Unlock", "category": "improvement" }
+      ],
+      "hasMedia": true
+    },
+    {
       "version": "0.12.2",
       "date": "2026-03-24",
       "title": "Bug Fix Patch",
