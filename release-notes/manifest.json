@@ -2,6 +2,20 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.12.4",
+      "date": "2026-03-25",
+      "title": "Global Auto-Type",
+      "summary": "Auto-type credentials into any application on your desktop, not just Conduit sessions.",
+      "highlights": [
+        { "text": "Global auto-type — type credentials into any focused app (browser, terminal, etc.)", "category": "feature" },
+        { "text": "OS-level keystroke simulation via AppleScript (macOS) and PowerShell SendKeys (Windows)", "category": "feature" },
+        { "text": "macOS Accessibility permission auto-prompt on first use", "category": "improvement" },
+        { "text": "3-second delay for external apps gives time to switch to the target field", "category": "improvement" },
+        { "text": "Fixed double-paste in Windows terminal when using Ctrl+V", "category": "fix" }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.12.3",
       "date": "2026-03-24",
       "title": "Quick Unlock",
