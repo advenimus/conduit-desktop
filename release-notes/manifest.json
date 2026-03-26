@@ -2,6 +2,21 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.12.7",
+      "date": "2026-03-26",
+      "title": "Close to Tray & Web Downloads",
+      "summary": "Conduit now stays running when you close the window, and web sessions get proper download management.",
+      "highlights": [
+        { "text": "Close to tray/dock — closing the window hides the app instead of quitting", "category": "feature" },
+        { "text": "Download management for web sessions — browser-like save prompts", "category": "feature" },
+        { "text": "Vault auto-locks and sessions close when window is hidden", "category": "improvement" },
+        { "text": "Fixed SSH key authentication with generated keys", "category": "fix" },
+        { "text": "Fixed SSH private key CRLF line ending issues", "category": "fix" },
+        { "text": "SSH username now defaults to current OS user instead of root", "category": "fix" }
+      ],
+      "hasMedia": true
+    },
+    {
       "version": "0.12.6",
       "date": "2026-03-26",
       "title": "Copy OTP & Linked Credentials",
@@ -122,20 +137,6 @@
         { "text": "Update download progress bar with speed and ETA", "category": "feature" },
         { "text": "FreeRDP bundle uses local persistent cache on CI runners", "category": "improvement" },
         { "text": "Faster cold starts with cached engine models", "category": "improvement" }
-      ],
-      "hasMedia": false
-    },
-    {
-      "version": "0.9.5",
-      "date": "2026-03-10",
-      "title": "Cloud Backup & Vault Hub",
-      "summary": "Back up your vault to the cloud and manage multiple vaults from one place.",
-      "highlights": [
-        { "text": "Cloud backup and restore for personal vaults", "category": "feature" },
-        { "text": "Vault Hub — switch between personal and team vaults instantly", "category": "feature" },
-        { "text": "Local backup scheduler with configurable retention", "category": "feature" },
-        { "text": "Improved VNC connection stability", "category": "fix" },
-        { "text": "Fixed web session tab switching flicker", "category": "fix" }
       ],
       "hasMedia": false
     }
