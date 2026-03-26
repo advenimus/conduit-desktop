@@ -2,6 +2,18 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.12.6",
+      "date": "2026-03-26",
+      "title": "Copy OTP & Linked Credentials",
+      "summary": "Copy TOTP codes from the context menu and use credential actions with linked credentials.",
+      "highlights": [
+        { "text": "Copy OTP — right-click credential entries with TOTP to copy the current code", "category": "feature" },
+        { "text": "Copy Username and Auto-type now resolve linked credentials automatically", "category": "improvement" },
+        { "text": "Windows auto-type upgraded to native Win32 SendInput for full Unicode support", "category": "improvement" }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.12.4",
       "date": "2026-03-25",
       "title": "Global Auto-Type",
@@ -124,19 +136,6 @@
         { "text": "Local backup scheduler with configurable retention", "category": "feature" },
         { "text": "Improved VNC connection stability", "category": "fix" },
         { "text": "Fixed web session tab switching flicker", "category": "fix" }
-      ],
-      "hasMedia": false
-    },
-    {
-      "version": "0.9.4",
-      "date": "2026-03-01",
-      "title": "Dynamic RDP Resize",
-      "summary": "Resize RDP sessions in real-time without reconnecting.",
-      "highlights": [
-        { "text": "Dynamic RDP resize — drag the window and the remote desktop follows", "category": "feature" },
-        { "text": "FreeRDP 3.x engine with hardware-accelerated decoding", "category": "feature" },
-        { "text": "Per-entry RDP engine selection (built-in or FreeRDP)", "category": "improvement" },
-        { "text": "Fixed clipboard sync dropping large payloads", "category": "fix" }
       ],
       "hasMedia": false
     }
