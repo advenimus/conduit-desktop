@@ -20,11 +20,15 @@
           "category": "feature"
         },
         {
-          "text": "Vault file watcher detects external changes from file sync services automatically",
+          "text": "Dashboard text is now selectable and secrets show a copy button when revealed",
           "category": "improvement"
         },
         {
-          "text": "Fixed duplicate download toast notifications in web sessions",
+          "text": "Fixed auto-updater restart being blocked by close-to-tray",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed Windows tray icon — left-click now shows the window properly",
           "category": "fix"
         }
       ],
