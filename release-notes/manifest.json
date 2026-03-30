@@ -2,17 +2,64 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.13.0",
+      "date": "2026-03-30",
+      "title": "Conduit Mobile",
+      "summary": "Conduit is now available on iPhone and iPad — manage your connections on the go.",
+      "highlights": [
+        {
+          "text": "Conduit Mobile — now available for iPhone and iPad on the App Store. [Download it here](conduit://settings/mobile)",
+          "category": "feature"
+        },
+        {
+          "text": "Cross-device vault sync — your vault stays in sync via Conduit Cloud Sync, iCloud Drive, OneDrive, or Dropbox",
+          "category": "feature"
+        },
+        {
+          "text": "Recursive folder deletion — deleting a folder removes all contents with a count confirmation",
+          "category": "feature"
+        },
+        {
+          "text": "Vault file watcher detects external changes from file sync services automatically",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed duplicate download toast notifications in web sessions",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": true
+    },
+    {
       "version": "0.12.7",
       "date": "2026-03-26",
       "title": "Close to Tray & Web Downloads",
       "summary": "Conduit now stays running when you close the window, and web sessions get proper download management.",
       "highlights": [
-        { "text": "Close to tray/dock — closing the window hides the app instead of quitting", "category": "feature" },
-        { "text": "Download management for web sessions — browser-like save prompts", "category": "feature" },
-        { "text": "Vault auto-locks and sessions close when window is hidden", "category": "improvement" },
-        { "text": "Fixed SSH key authentication with generated keys", "category": "fix" },
-        { "text": "Fixed SSH private key CRLF line ending issues", "category": "fix" },
-        { "text": "SSH username now defaults to current OS user instead of root", "category": "fix" }
+        {
+          "text": "Close to tray/dock — closing the window hides the app instead of quitting",
+          "category": "feature"
+        },
+        {
+          "text": "Download management for web sessions — browser-like save prompts",
+          "category": "feature"
+        },
+        {
+          "text": "Vault auto-locks and sessions close when window is hidden",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed SSH key authentication with generated keys",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed SSH private key CRLF line ending issues",
+          "category": "fix"
+        },
+        {
+          "text": "SSH username now defaults to current OS user instead of root",
+          "category": "fix"
+        }
       ],
       "hasMedia": true
     },
@@ -22,9 +69,18 @@
       "title": "Copy OTP & Linked Credentials",
       "summary": "Copy TOTP codes from the context menu and use credential actions with linked credentials.",
       "highlights": [
-        { "text": "Copy OTP — right-click credential entries with TOTP to copy the current code", "category": "feature" },
-        { "text": "Copy Username and Auto-type now resolve linked credentials automatically", "category": "improvement" },
-        { "text": "Windows auto-type upgraded to native Win32 SendInput for full Unicode support", "category": "improvement" }
+        {
+          "text": "Copy OTP — right-click credential entries with TOTP to copy the current code",
+          "category": "feature"
+        },
+        {
+          "text": "Copy Username and Auto-type now resolve linked credentials automatically",
+          "category": "improvement"
+        },
+        {
+          "text": "Windows auto-type upgraded to native Win32 SendInput for full Unicode support",
+          "category": "improvement"
+        }
       ],
       "hasMedia": false
     },
@@ -34,11 +90,26 @@
       "title": "Global Auto-Type",
       "summary": "Auto-type credentials into any application on your desktop, not just Conduit sessions.",
       "highlights": [
-        { "text": "Global auto-type — type credentials into any focused app (browser, terminal, etc.)", "category": "feature" },
-        { "text": "OS-level keystroke simulation via AppleScript (macOS) and PowerShell SendKeys (Windows)", "category": "feature" },
-        { "text": "macOS Accessibility permission auto-prompt on first use", "category": "improvement" },
-        { "text": "3-second delay for external apps gives time to switch to the target field", "category": "improvement" },
-        { "text": "Fixed double-paste in Windows terminal when using Ctrl+V", "category": "fix" }
+        {
+          "text": "Global auto-type — type credentials into any focused app (browser, terminal, etc.)",
+          "category": "feature"
+        },
+        {
+          "text": "OS-level keystroke simulation via AppleScript (macOS) and PowerShell SendKeys (Windows)",
+          "category": "feature"
+        },
+        {
+          "text": "macOS Accessibility permission auto-prompt on first use",
+          "category": "improvement"
+        },
+        {
+          "text": "3-second delay for external apps gives time to switch to the target field",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed double-paste in Windows terminal when using Ctrl+V",
+          "category": "fix"
+        }
       ],
       "hasMedia": false
     },
@@ -48,10 +119,22 @@
       "title": "Quick Unlock",
       "summary": "Unlock your vault with Touch ID or Apple Watch instead of typing your master password every time.",
       "highlights": [
-        { "text": "Biometric Quick Unlock — use Touch ID, Apple Watch, or system password to unlock your vault", "category": "feature" },
-        { "text": "Setup prompt after first password unlock — one tap to enable", "category": "feature" },
-        { "text": "Fingerprint badge on biometric-enabled vaults in Vault Hub", "category": "improvement" },
-        { "text": "Settings > Security tab for managing Quick Unlock", "category": "improvement" }
+        {
+          "text": "Biometric Quick Unlock — use Touch ID, Apple Watch, or system password to unlock your vault",
+          "category": "feature"
+        },
+        {
+          "text": "Setup prompt after first password unlock — one tap to enable",
+          "category": "feature"
+        },
+        {
+          "text": "Fingerprint badge on biometric-enabled vaults in Vault Hub",
+          "category": "improvement"
+        },
+        {
+          "text": "Settings > Security tab for managing Quick Unlock",
+          "category": "improvement"
+        }
       ],
       "hasMedia": true
     },
@@ -61,9 +144,18 @@
       "title": "Bug Fix Patch",
       "summary": "Fixes for RDP clipboard notifications, macOS dialog styling, and Windows terminal keyboard shortcuts.",
       "highlights": [
-        { "text": "Fixed duplicate toast notifications when copying files from remote clipboard in RDP sessions", "category": "fix" },
-        { "text": "Improved dialog backdrop opacity and blur effect on macOS light mode", "category": "fix" },
-        { "text": "Fixed Ctrl+V paste and Ctrl+C copy not working in terminal on Windows", "category": "fix" }
+        {
+          "text": "Fixed duplicate toast notifications when copying files from remote clipboard in RDP sessions",
+          "category": "fix"
+        },
+        {
+          "text": "Improved dialog backdrop opacity and blur effect on macOS light mode",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed Ctrl+V paste and Ctrl+C copy not working in terminal on Windows",
+          "category": "fix"
+        }
       ],
       "hasMedia": false
     },
@@ -73,12 +165,30 @@
       "title": "Clipboard & Stability Fixes",
       "summary": "Improved RDP directory clipboard transfers, fixed AI loading state issues, and resolved IPC listener cleanup races.",
       "highlights": [
-        { "text": "Fixed RDP directory clipboard transfers — nested folders now preserve structure on paste", "category": "fix" },
-        { "text": "Fixed file data corruption in clipboard transfers caused by incorrect data length field", "category": "fix" },
-        { "text": "Fixed AI engine loading spinner getting stuck after switching sessions", "category": "fix" },
-        { "text": "Fixed IPC event listener cleanup race condition in clipboard hooks", "category": "fix" },
-        { "text": "Increased max cursor size for high-DPI remote desktops", "category": "improvement" },
-        { "text": "Updated MCP server to use active vault for multi-vault support", "category": "improvement" }
+        {
+          "text": "Fixed RDP directory clipboard transfers — nested folders now preserve structure on paste",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed file data corruption in clipboard transfers caused by incorrect data length field",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed AI engine loading spinner getting stuck after switching sessions",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed IPC event listener cleanup race condition in clipboard hooks",
+          "category": "fix"
+        },
+        {
+          "text": "Increased max cursor size for high-DPI remote desktops",
+          "category": "improvement"
+        },
+        {
+          "text": "Updated MCP server to use active vault for multi-vault support",
+          "category": "improvement"
+        }
       ],
       "hasMedia": false
     },
@@ -88,12 +198,30 @@
       "title": "Platform Upgrades & Bug Fixes",
       "summary": "Under-the-hood platform upgrades for better performance, security, and native macOS Tahoe styling.",
       "highlights": [
-        { "text": "Native macOS Tahoe window styling — smoother corners and UI curves that match the OS", "category": "improvement" },
-        { "text": "Under-the-hood platform upgrades for improved performance and security", "category": "improvement" },
-        { "text": "Improved sidebar readability in light mode with stronger blur and opacity", "category": "improvement" },
-        { "text": "Fixed RDP connection failure on macOS", "category": "fix" },
-        { "text": "Fixed web session view staying on top when switching tabs", "category": "fix" },
-        { "text": "Fixed What's New dialog not appearing on Windows after updates", "category": "fix" }
+        {
+          "text": "Native macOS Tahoe window styling — smoother corners and UI curves that match the OS",
+          "category": "improvement"
+        },
+        {
+          "text": "Under-the-hood platform upgrades for improved performance and security",
+          "category": "improvement"
+        },
+        {
+          "text": "Improved sidebar readability in light mode with stronger blur and opacity",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed RDP connection failure on macOS",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed web session view staying on top when switching tabs",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed What's New dialog not appearing on Windows after updates",
+          "category": "fix"
+        }
       ],
       "hasMedia": false
     },
@@ -103,12 +231,30 @@
       "title": "Platform Themes & Password History",
       "summary": "Conduit now adapts its entire look and feel to match macOS, Windows, or Ubuntu with platform-native themes, icons, and color schemes.",
       "highlights": [
-        { "text": "Platform themes — choose Default, macOS Tahoe, Windows 11, or Ubuntu for a fully native look", "category": "feature" },
-        { "text": "Themed icon system — 127 icons per platform, lazy-loaded with code splitting", "category": "feature" },
-        { "text": "Password history — track credential password changes with tier-gated limits", "category": "feature" },
-        { "text": "Team sync improvements — per-item upload backoff and sync failure indicators", "category": "improvement" },
-        { "text": "Tab bar redesign — replaced sidebar rail with hamburger toggle for cleaner navigation", "category": "improvement" },
-        { "text": "Fixed overlay color schemes, AI engine preferences across vault switches, and admin role checks", "category": "fix" }
+        {
+          "text": "Platform themes — choose Default, macOS Tahoe, Windows 11, or Ubuntu for a fully native look",
+          "category": "feature"
+        },
+        {
+          "text": "Themed icon system — 127 icons per platform, lazy-loaded with code splitting",
+          "category": "feature"
+        },
+        {
+          "text": "Password history — track credential password changes with tier-gated limits",
+          "category": "feature"
+        },
+        {
+          "text": "Team sync improvements — per-item upload backoff and sync failure indicators",
+          "category": "improvement"
+        },
+        {
+          "text": "Tab bar redesign — replaced sidebar rail with hamburger toggle for cleaner navigation",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed overlay color schemes, AI engine preferences across vault switches, and admin role checks",
+          "category": "fix"
+        }
       ],
       "hasMedia": true
     },
@@ -118,27 +264,32 @@
       "title": "New Homepage & What's New",
       "summary": "A completely redesigned dashboard homepage and a new What's New dialog to keep you in the loop on every release.",
       "highlights": [
-        { "text": "Redesigned dashboard with connection stats, recent entries, and vault status", "category": "feature" },
-        { "text": "What's New dialog — see release highlights after each update", "category": "feature" },
-        { "text": "Homepage search delegates to sidebar with keyboard shortcut support", "category": "feature" },
-        { "text": "Simplified sidebar — removed pin mode, smoother resize behavior", "category": "improvement" },
-        { "text": "Homepage button in sidebar for quick navigation back to dashboard", "category": "improvement" },
-        { "text": "Fixed RDP framebuffer toRgba returning reference instead of documented copy", "category": "fix" }
+        {
+          "text": "Redesigned dashboard with connection stats, recent entries, and vault status",
+          "category": "feature"
+        },
+        {
+          "text": "What's New dialog — see release highlights after each update",
+          "category": "feature"
+        },
+        {
+          "text": "Homepage search delegates to sidebar with keyboard shortcut support",
+          "category": "feature"
+        },
+        {
+          "text": "Simplified sidebar — removed pin mode, smoother resize behavior",
+          "category": "improvement"
+        },
+        {
+          "text": "Homepage button in sidebar for quick navigation back to dashboard",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed RDP framebuffer toRgba returning reference instead of documented copy",
+          "category": "fix"
+        }
       ],
       "hasMedia": true
-    },
-    {
-      "version": "0.9.6",
-      "date": "2026-03-15",
-      "title": "SSH Auth & Download Progress",
-      "summary": "Choose your SSH auth method and watch updates download in real-time.",
-      "highlights": [
-        { "text": "SSH auth method selection — pick key, password, or keyboard-interactive", "category": "feature" },
-        { "text": "Update download progress bar with speed and ETA", "category": "feature" },
-        { "text": "FreeRDP bundle uses local persistent cache on CI runners", "category": "improvement" },
-        { "text": "Faster cold starts with cached engine models", "category": "improvement" }
-      ],
-      "hasMedia": false
     }
   ]
 }
