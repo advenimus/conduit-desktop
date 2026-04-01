@@ -2,6 +2,19 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.13.2",
+      "date": "2026-04-01",
+      "title": "Updater Restart Fix",
+      "summary": "Fixes the Restart Now button so updates actually install and relaunch.",
+      "highlights": [
+        {
+          "text": "Fixed \"Restart Now\" not quitting the app after downloading an update — close-to-tray was keeping the process alive",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.13.1",
       "date": "2026-04-01",
       "title": "Local Network Fix",
@@ -245,39 +258,6 @@
         }
       ],
       "hasMedia": false
-    },
-    {
-      "version": "0.11.0",
-      "date": "2026-03-20",
-      "title": "Platform Themes & Password History",
-      "summary": "Conduit now adapts its entire look and feel to match macOS, Windows, or Ubuntu with platform-native themes, icons, and color schemes.",
-      "highlights": [
-        {
-          "text": "Platform themes — choose Default, macOS Tahoe, Windows 11, or Ubuntu for a fully native look",
-          "category": "feature"
-        },
-        {
-          "text": "Themed icon system — 127 icons per platform, lazy-loaded with code splitting",
-          "category": "feature"
-        },
-        {
-          "text": "Password history — track credential password changes with tier-gated limits",
-          "category": "feature"
-        },
-        {
-          "text": "Team sync improvements — per-item upload backoff and sync failure indicators",
-          "category": "improvement"
-        },
-        {
-          "text": "Tab bar redesign — replaced sidebar rail with hamburger toggle for cleaner navigation",
-          "category": "improvement"
-        },
-        {
-          "text": "Fixed overlay color schemes, AI engine preferences across vault switches, and admin role checks",
-          "category": "fix"
-        }
-      ],
-      "hasMedia": true
     }
   ]
 }
