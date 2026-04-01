@@ -2,6 +2,23 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.13.1",
+      "date": "2026-04-01",
+      "title": "Local Network Fix",
+      "summary": "Fixes SSH and VNC connections to devices on your local network.",
+      "highlights": [
+        {
+          "text": "Fixed SSH and VNC connections failing on macOS when connecting to LAN devices — macOS now properly prompts for local network access",
+          "category": "fix"
+        },
+        {
+          "text": "Added network entitlements for helper processes to ensure all connection types work in production builds",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.13.0",
       "date": "2026-03-30",
       "title": "Conduit Mobile",
@@ -257,39 +274,6 @@
         },
         {
           "text": "Fixed overlay color schemes, AI engine preferences across vault switches, and admin role checks",
-          "category": "fix"
-        }
-      ],
-      "hasMedia": true
-    },
-    {
-      "version": "0.10.0",
-      "date": "2026-03-19",
-      "title": "New Homepage & What's New",
-      "summary": "A completely redesigned dashboard homepage and a new What's New dialog to keep you in the loop on every release.",
-      "highlights": [
-        {
-          "text": "Redesigned dashboard with connection stats, recent entries, and vault status",
-          "category": "feature"
-        },
-        {
-          "text": "What's New dialog — see release highlights after each update",
-          "category": "feature"
-        },
-        {
-          "text": "Homepage search delegates to sidebar with keyboard shortcut support",
-          "category": "feature"
-        },
-        {
-          "text": "Simplified sidebar — removed pin mode, smoother resize behavior",
-          "category": "improvement"
-        },
-        {
-          "text": "Homepage button in sidebar for quick navigation back to dashboard",
-          "category": "improvement"
-        },
-        {
-          "text": "Fixed RDP framebuffer toRgba returning reference instead of documented copy",
           "category": "fix"
         }
       ],
