@@ -2,6 +2,23 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.13.3",
+      "date": "2026-04-01",
+      "title": "MCP Entry Notes Fix",
+      "summary": "Fixes MCP entry notes always returning null and improves vault stability.",
+      "highlights": [
+        {
+          "text": "Fixed MCP entry_info tool always returning null for notes even with include_notes enabled",
+          "category": "fix"
+        },
+        {
+          "text": "Added SQLite busy timeout to prevent vault disk I/O errors during concurrent access",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.13.2",
       "date": "2026-04-01",
       "title": "Updater Restart Fix",
@@ -222,39 +239,6 @@
         {
           "text": "Updated MCP server to use active vault for multi-vault support",
           "category": "improvement"
-        }
-      ],
-      "hasMedia": false
-    },
-    {
-      "version": "0.12.0",
-      "date": "2026-03-21",
-      "title": "Platform Upgrades & Bug Fixes",
-      "summary": "Under-the-hood platform upgrades for better performance, security, and native macOS Tahoe styling.",
-      "highlights": [
-        {
-          "text": "Native macOS Tahoe window styling — smoother corners and UI curves that match the OS",
-          "category": "improvement"
-        },
-        {
-          "text": "Under-the-hood platform upgrades for improved performance and security",
-          "category": "improvement"
-        },
-        {
-          "text": "Improved sidebar readability in light mode with stronger blur and opacity",
-          "category": "improvement"
-        },
-        {
-          "text": "Fixed RDP connection failure on macOS",
-          "category": "fix"
-        },
-        {
-          "text": "Fixed web session view staying on top when switching tabs",
-          "category": "fix"
-        },
-        {
-          "text": "Fixed What's New dialog not appearing on Windows after updates",
-          "category": "fix"
         }
       ],
       "hasMedia": false
