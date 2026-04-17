@@ -82,3 +82,10 @@ coverage/
 *.pem
 *.key
 .security-key
+
+# Local Claude Code state (skills + commands with internal paths, runtime state)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/commands/featureadd.md
+.claude/commands/pushupdates.md
+.claude/skills/
