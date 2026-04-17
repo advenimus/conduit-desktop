@@ -1,7 +1,7 @@
 {
   "name": "conduit",
   "private": true,
-  "version": "0.13.3",
+  "version": "0.14.0-rc.1",
   "description": "AI-powered remote connection manager with MCP server support",
   "author": {
     "name": "Advenimus",
