@@ -39,7 +39,7 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
   lockedEntryIds: new Set<string>(),
   maxConnections: -1,
 
-  cliAgentsEnabled: true, // free tier supports BYOK CLI agents
+  cliAgentsEnabled: true, // free tier runs Claude Code / Codex under the user's own subscription
   mcpEnabled: true, // free tier has MCP with daily quota
   mcpDailyQuota: 50,
   cloudSyncEnabled: false, // Team-only

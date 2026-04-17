@@ -286,7 +286,7 @@ capabilities to those agents via an MCP server. There is no built-in
 Conduit AI model — users bring their own agent subscription.
 
 ### Engine Architecture
-- Two engines: **Claude Code** (Anthropic) and **Codex** (OpenAI), both via BYOK CLI subscriptions
+- Two engines: **Claude Code** (Anthropic) and **Codex** (OpenAI), each running under the user's own subscription
 - Engine selector tabs in chat panel header with brand icons (Claude spark, OpenAI knot)
 - Claude Agent SDK integration: async generator streaming with rich structured output
 - Codex App Server integration: JSON-RPC over stdin/stdout child process
@@ -321,11 +321,11 @@ Conduit AI model — users bring their own agent subscription.
 - Last sync timestamp tracking
 
 ### Tier System
-- `cli_agents_enabled`: Claude Code / Codex access (all tiers — BYOK)
+- `cli_agents_enabled`: Claude Code / Codex access (all tiers — under the user's own Anthropic / OpenAI subscription)
 - `mcp_enabled`: MCP tool access (all tiers — Free is daily-quota capped at 50/day)
 - `mcp_daily_quota`: per-day MCP tool call cap (Free = 50, Pro/Team = -1 unlimited)
-- `cloud_sync_enabled`: vault cloud sync across devices (Team only)
-- `chat_cloud_sync_enabled`: engine chat history sync across devices (Team only)
+- `cloud_sync_enabled`: vault cloud sync across devices (Pro + Team)
+- `chat_cloud_sync_enabled`: engine chat history sync across devices (Pro + Team)
 - `shared_vaults`: multi-user shared vaults (Team only)
 - `is_team_member`: team membership flag (UI/team vault logic only)
 - Cached tier capabilities for offline mode

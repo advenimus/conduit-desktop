@@ -106,7 +106,7 @@ Both dev and prod instances can run simultaneously without socket or data confli
 ## Architecture Notes
 
 ### AI Agent Integration
-AI inference is **bring-your-own-key (BYOK)** via CLI agents (Claude Code, Codex). The desktop app does **not** proxy AI calls. Users install the CLI agent of their choice and the chat panel shells out to it.
+AI inference is **bring-your-own-subscription** via CLI agents (Claude Code, Codex). The desktop app does **not** proxy AI calls. Users install the CLI agent of their choice and the chat panel shells out to it under their own Anthropic or OpenAI plan.
 
 Relevant code:
 - `electron/services/ai/engines/` — Claude Code + Codex engine adapters

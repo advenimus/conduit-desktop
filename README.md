@@ -29,7 +29,7 @@ Conduit does not ship its own AI. You bring your own: **Claude Code** (Anthropic
 ## Why Conduit
 
 - **MCP-native.** The MCP server is not an add-on — it is the product's first-class interface. Anything you can do in the UI, an agent can do through a tool call.
-- **BYOK, no proxy.** Claude Code and Codex authenticate directly with their providers using your own account. Conduit never sees your API keys, tokens, or prompts.
+- **Bring your own subscription, no proxy.** Claude Code and Codex authenticate directly with Anthropic and OpenAI using your own account. Conduit never sees your API keys, tokens, or prompts.
 - **Local-first.** Credentials live in a local AES-256 vault. Cloud sync is optional and zero-knowledge.
 - **Open source client.** The Electron app, protocol handlers, FreeRDP helper, and MCP server are Apache 2.0. You can read exactly what AI agents can see and do.
 - **Multi-protocol.** SSH, RDP, VNC, web — one app, one vault, one MCP endpoint.
@@ -122,8 +122,8 @@ Supported agents:
 
 | Agent | Integration |
 |-------|-------------|
-| **Claude Code** (Anthropic) | Full MCP tool access. BYOK — your Claude subscription. |
-| **Codex CLI** (OpenAI) | Full MCP tool access. BYOK — your OpenAI subscription. |
+| **Claude Code** (Anthropic) | Full MCP tool access. Runs under your own Claude subscription. |
+| **Codex CLI** (OpenAI) | Full MCP tool access. Runs under your own OpenAI subscription. |
 | Any MCP-compatible client | Standard MCP over local socket / named pipe. |
 
 > Conduit does not proxy AI requests and does not see your API keys, tokens, or conversation content. Claude Code and Codex connect directly to their respective providers using credentials you manage.
@@ -219,7 +219,7 @@ Dark + light modes, plus Ocean, Ember, Forest, Amethyst, Rose, Midnight, and OS-
 
 | Plan | Monthly | Annual | What you get |
 |------|---------|--------|--------------|
-| **Free** | $0 | $0 | Unlimited local connections, MCP with **50 tool calls/day**, Claude Code + Codex (BYOK), 1-day cloud backup. No credit card. |
+| **Free** | $0 | $0 | Unlimited local connections, MCP with **50 tool calls/day**, Claude Code + Codex under your own subscription, 1-day cloud backup. No credit card. |
 | **Pro** | $10/mo | $8/mo ($96/yr) | Unlimited MCP, cloud sync across devices, 14-day backup |
 | **Team** | $20/seat/mo | $16/seat/mo ($192/yr) | Shared team vaults, 6-month backup, beta features |
 
@@ -245,7 +245,7 @@ Download the latest release from [GitHub Releases](https://github.com/advenimus/
 |---|---|---|---|---|---|
 | SSH / RDP / VNC / Web | Yes | Yes | Yes | SSH + limited | Yes (Windows) |
 | **Built-in MCP server for AI agents** | **Yes** | No | No | No | No |
-| Claude Code / Codex integration | Yes (BYOK) | No | No | No | No |
+| Claude Code / Codex integration | Yes (your own subscription) | No | No | No | No |
 | macOS native app | Yes | Limited | No (Windows-first) | Yes | No |
 | Zero-knowledge team vaults | Yes | Requires DVLS server | Requires server | Yes | N/A |
 | Open-source client | **Yes (Apache 2.0)** | No | No | No | Partial |
