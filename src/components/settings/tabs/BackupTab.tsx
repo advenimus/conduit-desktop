@@ -290,7 +290,7 @@ export default function BackupTab() {
               )}
               <label className="text-sm font-medium">Cloud Sync</label>
               {!cloudSyncAllowed && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Team</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Pro</span>
               )}
             </div>
             <button
@@ -387,7 +387,7 @@ export default function BackupTab() {
           <p className="text-xs text-ink-muted">
             {cloudSyncAllowed
               ? "Your vault is encrypted before upload. Zero-knowledge architecture — your data cannot be read by anyone but you."
-              : "Upgrade to Team to sync your vault across devices with zero-knowledge encryption."}
+              : "Upgrade to Pro or Team to sync your vault across devices with zero-knowledge encryption."}
           </p>
         </div>
       )}
@@ -400,7 +400,7 @@ export default function BackupTab() {
               <MessageIcon size={16} className={chatSyncState?.enabled ? "text-conduit-400" : "text-ink-muted"} />
               <label className="text-sm font-medium">Chat History Sync</label>
               {!chatCloudSyncEnabled && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Team</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Pro</span>
               )}
             </div>
             <button
@@ -505,7 +505,7 @@ export default function BackupTab() {
           <p className="text-xs text-ink-muted">
             {chatCloudSyncEnabled
               ? "Chat conversations are encrypted before sync. Zero-knowledge — only your master password can decrypt them."
-              : "Upgrade to Team to sync chat history across devices with zero-knowledge encryption."}
+              : "Upgrade to Pro or Team to sync chat history across devices with zero-knowledge encryption."}
           </p>
         </div>
       )}

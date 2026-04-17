@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { invoke } from "../../../lib/electron";
 import { useAuthStore } from "../../../stores/authStore";
 import { useTierStore } from "../../../stores/tierStore";
-import { UsageBar } from "../SettingsHelpers";
-import type { UsageData } from "../SettingsHelpers";
 import { UserIcon } from "../../../lib/icons";
 
 interface AccountTabProps {
@@ -14,25 +12,6 @@ export default function AccountTab({ onClose }: AccountTabProps) {
   const { user, profile, authMode, signOut } = useAuthStore();
   const { isTrialing, trialDaysRemaining } = useTierStore();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const [usageData, setUsageData] = useState<UsageData | null>(null);
-  const [usageLoading, setUsageLoading] = useState(false);
-
-  const fetchUsage = useCallback(async () => {
-    if (!user) return;
-    setUsageLoading(true);
-    try {
-      const data = await invoke<UsageData>("auth_get_usage");
-      setUsageData(data);
-    } catch (err) {
-      console.error("Failed to fetch usage:", err);
-    } finally {
-      setUsageLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchUsage();
-  }, [fetchUsage]);
 
   return (
     <div className="space-y-4">
@@ -127,40 +106,6 @@ export default function AccountTab({ onClose }: AccountTabProps) {
               >
                 Subscribe
               </button>
-            </div>
-          )}
-
-          {authMode === 'authenticated' && (
-            <div className="pt-4 border-t border-stroke space-y-3">
-              <label className="block text-sm font-medium">Token Usage</label>
-              {usageLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-xs text-ink-muted">Loading usage...</span>
-                </div>
-              ) : usageData ? (
-                <>
-                  <UsageBar
-                    used={usageData.usage.total_used}
-                    limit={usageData.usage.monthly_limit}
-                    label="Monthly"
-                    resetsAt={usageData.usage.monthly_resets_at}
-                  />
-                  {usageData.usage.daily_limit !== -1 && (
-                    <UsageBar
-                      used={usageData.usage.daily_used}
-                      limit={usageData.usage.daily_limit}
-                      label="Daily"
-                      resetsAt={usageData.usage.daily_resets_at}
-                    />
-                  )}
-                  <p className="text-[10px] text-ink-muted">
-                    {usageData.usage.request_count} requests this month
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-ink-muted">Usage data unavailable</p>
-              )}
             </div>
           )}
 

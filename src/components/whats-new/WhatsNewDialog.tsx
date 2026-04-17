@@ -13,35 +13,55 @@ interface WhatsNewDialogProps {
 }
 
 /**
- * Parse highlight text for inline links: `[label](conduit://settings/tab)`.
- * Renders plain text as-is and links as clickable buttons that dispatch
- * in-app navigation events.
+ * Parse inline markdown: `**bold**`, `[label](conduit://settings/tab)` for
+ * in-app navigation, and `[label](https://…)` for external links that open
+ * in the default browser.
  */
 function renderHighlightText(text: string): React.ReactNode {
-  const linkPattern = /\[([^\]]+)\]\(conduit:\/\/settings\/([^)]+)\)/g;
+  const pattern = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(((?:conduit:\/\/settings\/|https?:\/\/)[^)]+)\)/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  let key = 0;
 
-  while ((match = linkPattern.exec(text)) !== null) {
+  while ((match = pattern.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
-    const label = match[1];
-    const tab = match[2];
-    parts.push(
-      <button
-        key={match.index}
-        className="text-conduit-400 hover:text-conduit-300 underline underline-offset-2 transition-colors"
-        onClick={() => {
-          document.dispatchEvent(
-            new CustomEvent("conduit:settings", { detail: { tab } })
-          );
-        }}
-      >
-        {label}
-      </button>
-    );
+    if (match[1] !== undefined) {
+      parts.push(<strong key={key++} className="font-semibold text-ink">{match[1]}</strong>);
+    } else {
+      const label = match[2];
+      const href = match[3];
+      if (href.startsWith('conduit://settings/')) {
+        const tab = href.slice('conduit://settings/'.length);
+        parts.push(
+          <button
+            key={key++}
+            className="text-conduit-400 hover:text-conduit-300 underline underline-offset-2 transition-colors"
+            onClick={() => {
+              document.dispatchEvent(
+                new CustomEvent("conduit:settings", { detail: { tab } })
+              );
+            }}
+          >
+            {label}
+          </button>
+        );
+      } else {
+        parts.push(
+          <a
+            key={key++}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-conduit-400 hover:text-conduit-300 underline underline-offset-2 transition-colors"
+          >
+            {label}
+          </a>
+        );
+      }
+    }
     lastIndex = match.index + match[0].length;
   }
 
