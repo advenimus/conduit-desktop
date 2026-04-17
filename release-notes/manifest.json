@@ -2,6 +2,43 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.14.0",
+      "date": "2026-04-17",
+      "title": "Conduit is now open source",
+      "summary": "Apache 2.0, new pricing, and bring-your-own AI agents on every tier — including Free.",
+      "highlights": [
+        {
+          "text": "**Conduit is open source** — the desktop client is now Apache 2.0 and lives at [github.com/advenimus/conduit-desktop](https://github.com/advenimus/conduit-desktop). Audit, fork, contribute, or self-host.",
+          "category": "feature"
+        },
+        {
+          "text": "**Use Claude Code & Codex on any tier** — run Claude Code or Codex CLI against Conduit's MCP server with your own Anthropic or OpenAI subscription, no paid plan required.",
+          "category": "feature"
+        },
+        {
+          "text": "**Free tier now includes MCP** — 50 tool calls per day on the built-in MCP server (was Pro-only). Pro and Team remain unlimited.",
+          "category": "feature"
+        },
+        {
+          "text": "**New pricing** — Free $0 (unlimited connections, 50 MCP calls/day), Pro $10/mo (unlimited MCP), Team $20/seat/mo (shared vaults + cloud sync).",
+          "category": "feature"
+        },
+        {
+          "text": "**Cloud sync is now a Team feature** — existing Pro users keep local vault + local backups; upgrade to Team to sync vaults and chat history across devices.",
+          "category": "improvement"
+        },
+        {
+          "text": "Removed the built-in AI chat — the app now shells out to your installed Claude Code or Codex CLI. Install either to enable the chat panel. [Configure in Settings](conduit://settings/ai)",
+          "category": "improvement"
+        },
+        {
+          "text": "Daily MCP quota enforcement in the MCP server — Free hits 50/day cleanly with a clear upgrade prompt.",
+          "category": "improvement"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.13.3",
       "date": "2026-04-01",
       "title": "MCP Entry Notes Fix",

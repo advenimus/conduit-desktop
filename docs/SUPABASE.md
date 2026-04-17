@@ -68,7 +68,8 @@ Two tables are queried (read-only from the app):
 | `cli_agents_enabled` | bool | true | true | true |
 | `mcp_enabled` | bool | true | true | true |
 | `mcp_daily_quota` | number | 50 | -1 | -1 |
-| `chat_cloud_sync_enabled` | bool | false | true | true |
+| `cloud_sync_enabled` | bool | false | false | true |
+| `chat_cloud_sync_enabled` | bool | false | false | true |
 | `cloud_backup_days` | number | 1 | 14 | 180 |
 | `shared_vaults` | bool | false | false | true |
 | `password_history_limit` | number | 3 | -1 | -1 |

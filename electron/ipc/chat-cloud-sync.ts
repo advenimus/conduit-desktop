@@ -23,6 +23,12 @@ export function registerChatCloudSyncHandlers(): void {
       throw new Error('Vault is locked');
     }
 
+    // Tier gate — chat cloud sync is a Team-only feature.
+    const features = authState.profile?.tier?.features as Record<string, unknown> | undefined;
+    if (!features?.chat_cloud_sync_enabled) {
+      throw new Error('Chat history sync requires the Team plan. Upgrade your subscription to sync chat across devices.');
+    }
+
     // Store preference in vault_meta
     state.vault.setChatCloudSyncEnabled(true);
 

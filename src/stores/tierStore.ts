@@ -14,7 +14,9 @@ interface TierStoreState {
   cliAgentsEnabled: boolean;
   mcpEnabled: boolean;
   mcpDailyQuota: number; // -1 = unlimited
+  cloudSyncEnabled: boolean;
   chatCloudSyncEnabled: boolean;
+  sharedVaults: boolean;
 
   // Trial state
   isTrialing: boolean;
@@ -40,7 +42,9 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
   cliAgentsEnabled: true, // free tier supports BYOK CLI agents
   mcpEnabled: true, // free tier has MCP with daily quota
   mcpDailyQuota: 50,
-  chatCloudSyncEnabled: false,
+  cloudSyncEnabled: false, // Team-only
+  chatCloudSyncEnabled: false, // Team-only
+  sharedVaults: false, // Team-only
 
   isTrialing: false,
   trialDaysRemaining: -1,
@@ -64,7 +68,9 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
         cliAgentsEnabled: true,
         mcpEnabled: true,
         mcpDailyQuota: 50,
+        cloudSyncEnabled: false,
         chatCloudSyncEnabled: false,
+        sharedVaults: false,
         isTrialing: false,
         trialDaysRemaining: -1,
         trialEligible: false,
@@ -102,7 +108,9 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
     const cliAgentsEnabled = canAccessFeature(profile, 'cli_agents_enabled');
     const mcpEnabled = canAccessFeature(profile, 'mcp_enabled');
     const mcpDailyQuota = getFeatureLimit(profile, 'mcp_daily_quota') || 50;
+    const cloudSyncEnabled = canAccessFeature(profile, 'cloud_sync_enabled');
     const chatCloudSyncEnabled = canAccessFeature(profile, 'chat_cloud_sync_enabled');
+    const sharedVaults = canAccessFeature(profile, 'shared_vaults');
 
     // Trial state
     const isTrialing = profile.subscription_status === 'trialing';
@@ -152,7 +160,9 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
       cliAgentsEnabled,
       mcpEnabled,
       mcpDailyQuota,
+      cloudSyncEnabled,
       chatCloudSyncEnabled,
+      sharedVaults,
       isTrialing,
       trialDaysRemaining,
       trialEligible,

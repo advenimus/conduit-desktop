@@ -22,6 +22,7 @@ export default function BackupTab() {
   const tierCapabilities = useAiStore((s) => s.tierCapabilities);
   const chatSyncState = useAiStore((s) => s.chatSyncState);
   const { enableChatSync, disableChatSync, syncChatNow, deleteChatCloudData, fetchChatSyncState } = useAiStore();
+  const cloudSyncAllowed = tierCapabilities?.cloud_sync_enabled ?? false;
   const chatCloudSyncEnabled = tierCapabilities?.chat_cloud_sync_enabled ?? false;
 
   const [showBackupManager, setShowBackupManager] = useState(false);
@@ -287,10 +288,14 @@ export default function BackupTab() {
               ) : (
                 <CloudOffIcon size={16} className="text-ink-muted" />
               )}
-              <label className="text-sm font-medium">Cloud Backup</label>
+              <label className="text-sm font-medium">Cloud Sync</label>
+              {!cloudSyncAllowed && (
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Team</span>
+              )}
             </div>
             <button
               onClick={async () => {
+                if (!cloudSyncAllowed) return;
                 setCloudSyncing(true);
                 try {
                   if (cloudSyncState?.enabled) {
@@ -304,10 +309,10 @@ export default function BackupTab() {
                   setCloudSyncing(false);
                 }
               }}
-              disabled={cloudSyncing}
+              disabled={cloudSyncing || !cloudSyncAllowed}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 cloudSyncState?.enabled ? "bg-conduit-600" : "bg-well"
-              }`}
+              } ${!cloudSyncAllowed ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -380,7 +385,9 @@ export default function BackupTab() {
           )}
 
           <p className="text-xs text-ink-muted">
-            Your vault is encrypted before upload. We use zero-knowledge architecture — your data cannot be read by anyone but you.
+            {cloudSyncAllowed
+              ? "Your vault is encrypted before upload. Zero-knowledge architecture — your data cannot be read by anyone but you."
+              : "Upgrade to Team to sync your vault across devices with zero-knowledge encryption."}
           </p>
         </div>
       )}
@@ -393,7 +400,7 @@ export default function BackupTab() {
               <MessageIcon size={16} className={chatSyncState?.enabled ? "text-conduit-400" : "text-ink-muted"} />
               <label className="text-sm font-medium">Chat History Sync</label>
               {!chatCloudSyncEnabled && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Pro</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Team</span>
               )}
             </div>
             <button
@@ -498,7 +505,7 @@ export default function BackupTab() {
           <p className="text-xs text-ink-muted">
             {chatCloudSyncEnabled
               ? "Chat conversations are encrypted before sync. Zero-knowledge — only your master password can decrypt them."
-              : "Upgrade to Pro to sync chat history across devices with zero-knowledge encryption."}
+              : "Upgrade to Team to sync chat history across devices with zero-knowledge encryption."}
           </p>
         </div>
       )}

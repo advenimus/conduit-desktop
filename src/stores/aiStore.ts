@@ -24,7 +24,9 @@ export interface AiTierCapabilities {
   cli_agents_enabled: boolean;
   mcp_enabled: boolean;
   mcp_daily_quota: number;
+  cloud_sync_enabled: boolean;
   chat_cloud_sync_enabled: boolean;
+  shared_vaults: boolean;
   tier_name: string;
   tier_display_name: string;
   is_team_member: boolean;
@@ -253,7 +255,9 @@ export const useAiStore = create<AiState>((set, get) => ({
         cli_agents_enabled: true,
         mcp_enabled: true,
         mcp_daily_quota: 50,
+        cloud_sync_enabled: false,
         chat_cloud_sync_enabled: false,
+        shared_vaults: false,
         tier_name: 'local',
         tier_display_name: 'Local',
         is_team_member: false,

@@ -34,6 +34,12 @@ export function registerCloudSyncHandlers(): void {
       throw new Error('Vault is locked');
     }
 
+    // Tier gate — cloud sync is a Team-only feature.
+    const features = authState.profile?.tier?.features as Record<string, unknown> | undefined;
+    if (!features?.cloud_sync_enabled) {
+      throw new Error('Cloud sync requires the Team plan. Upgrade your subscription to enable cloud sync across devices.');
+    }
+
     // Store preference in vault_meta
     state.vault.setCloudSyncEnabled(true);
 
