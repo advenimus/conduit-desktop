@@ -2,6 +2,27 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.14.1",
+      "date": "2026-04-17",
+      "title": "Polish for the open-source release",
+      "summary": "Cloud sync stays on Pro, Account tab drops stale token usage, and What's New now renders markdown.",
+      "highlights": [
+        {
+          "text": "**Cloud sync stays on Pro** — Pro keeps encrypted vault + chat history sync across devices. Team adds shared vaults and 6-month backup retention as the team differentiator.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Account tab cleanup** — removed the legacy Token Usage meter now that AI inference runs under your own Claude Code or Codex subscription.",
+          "category": "improvement"
+        },
+        {
+          "text": "**What's New renders markdown** — release highlights now support **bold** and external links like [GitHub](https://github.com/advenimus/conduit-desktop).",
+          "category": "improvement"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.14.0",
       "date": "2026-04-17",
       "title": "Conduit is now open source",
