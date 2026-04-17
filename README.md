@@ -71,8 +71,6 @@ Then in any Claude Code session:
 
 Codex and other MCP-compatible clients work the same way — Conduit exposes a standard MCP endpoint over a local Unix socket (or named pipe on Windows).
 
-> **Free tier: 50 MCP tool calls per day. Pro and Team: unlimited.** Local mode (no sign-in) also runs under the Free quota.
-
 ---
 
 ## Key Features
@@ -141,7 +139,6 @@ Supported agents:
 - Sensitive argument masking (passwords and tokens redacted in prompts)
 - 120-second auto-deny timeout for unattended prompts
 - Rate limiting and full audit logging
-- Daily quota enforcement (50 calls/day on Free)
 
 <img src="readme/mcp-approval-dialog.gif" alt="MCP approval dialog" width="600">
 
@@ -215,20 +212,6 @@ Dark + light modes, plus Ocean, Ember, Forest, Amethyst, Rose, Midnight, and OS-
 
 ---
 
-## Pricing
-
-| Plan | Monthly | Annual | What you get |
-|------|---------|--------|--------------|
-| **Free** | $0 | $0 | Unlimited local connections, MCP with **50 tool calls/day**, Claude Code + Codex under your own subscription, 1-day cloud backup. No credit card. |
-| **Pro** | $10/mo | $8/mo ($96/yr) | Unlimited MCP, cloud sync across devices, 14-day backup |
-| **Team** | $20/seat/mo | $16/seat/mo ($192/yr) | Shared team vaults, 6-month backup, beta features |
-
-Local mode (no sign-in required) runs under the Free quota. Registration unlocks cloud sync and team features.
-
-Full pricing at [conduitdesktop.com/pricing](https://conduitdesktop.com/pricing).
-
----
-
 ## Installation
 
 Download the latest release from [GitHub Releases](https://github.com/advenimus/conduit-desktop/releases/latest) or [conduitdesktop.com/download](https://conduitdesktop.com/download).
@@ -256,23 +239,9 @@ Conduit's angle: it is the only remote-connection manager built to be driven by 
 
 ---
 
-## What's open source, what's not
+## What's open source
 
-**This repository (Apache 2.0):**
-
-- Electron client and React UI
-- SSH, RDP, VNC, and web session handlers
-- FreeRDP 3.x C helper and dylib bundling
-- **MCP server** (`mcp/`) — tool implementations, IPC client, rate limiter, audit logger
-- Credential vault (local encryption, key derivation, TOTP)
-- Import/export pipelines
-
-**Proprietary (separate private repos):**
-
-- Backend API — billing, Stripe integration, tier enforcement, device fingerprinting, cloud sync
-- Marketing website (`conduitdesktop.com`)
-
-**Why open-core?** Agent-driven remote access is high-trust territory. We think users should be able to read exactly what an AI agent can see and do when it connects to Conduit. Open-sourcing the client and the MCP server makes that auditable. Keeping billing and sync infrastructure proprietary lets us sustain the project.
+The desktop client is open source under Apache 2.0 — this entire repository, including the Electron app, protocol handlers, FreeRDP helper, MCP server, and credential vault.
 
 ---
 
