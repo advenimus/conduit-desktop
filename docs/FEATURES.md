@@ -321,10 +321,12 @@ Conduit AI model — users bring their own agent subscription.
 - Last sync timestamp tracking
 
 ### Tier System
-- `cli_agents_enabled`: Claude Code / Codex access (all tiers)
-- `mcp_enabled`: MCP tool access (all tiers — free tier is daily-quota capped)
+- `cli_agents_enabled`: Claude Code / Codex access (all tiers — BYOK)
+- `mcp_enabled`: MCP tool access (all tiers — Free is daily-quota capped at 50/day)
 - `mcp_daily_quota`: per-day MCP tool call cap (Free = 50, Pro/Team = -1 unlimited)
-- `chat_cloud_sync_enabled`: conversation backup (Pro/Team)
+- `cloud_sync_enabled`: vault cloud sync across devices (Team only)
+- `chat_cloud_sync_enabled`: engine chat history sync across devices (Team only)
+- `shared_vaults`: multi-user shared vaults (Team only)
 - `is_team_member`: team membership flag (UI/team vault logic only)
 - Cached tier capabilities for offline mode
 
