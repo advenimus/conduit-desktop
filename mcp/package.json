@@ -1,0 +1,19 @@
+{
+  "name": "conduit-mcp",
+  "version": "0.12.5",
+  "description": "Conduit MCP Server - AI-powered remote connection manager",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.32",
+    "typescript": "^5.9.3"
+  }
+}

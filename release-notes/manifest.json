@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "releases": [
+    {
+      "version": "0.13.3",
+      "date": "2026-04-01",
+      "title": "MCP Entry Notes Fix",
+      "summary": "Fixes MCP entry notes always returning null and improves vault stability.",
+      "highlights": [
+        {
+          "text": "Fixed MCP entry_info tool always returning null for notes even with include_notes enabled",
+          "category": "fix"
+        },
+        {
+          "text": "Added SQLite busy timeout to prevent vault disk I/O errors during concurrent access",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
+      "version": "0.13.2",
+      "date": "2026-04-01",
+      "title": "Updater Restart Fix",
+      "summary": "Fixes the Restart Now button so updates actually install and relaunch.",
+      "highlights": [
+        {
+          "text": "Fixed \"Restart Now\" not quitting the app after downloading an update — close-to-tray was keeping the process alive",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
+      "version": "0.13.1",
+      "date": "2026-04-01",
+      "title": "Local Network Fix",
+      "summary": "Fixes SSH and VNC connections to devices on your local network.",
+      "highlights": [
+        {
+          "text": "Fixed SSH and VNC connections failing on macOS when connecting to LAN devices — macOS now properly prompts for local network access",
+          "category": "fix"
+        },
+        {
+          "text": "Added network entitlements for helper processes to ensure all connection types work in production builds",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
+      "version": "0.13.0",
+      "date": "2026-03-30",
+      "title": "Conduit Mobile",
+      "summary": "Conduit is now available on iPhone and iPad — manage your connections on the go.",
+      "highlights": [
+        {
+          "text": "Conduit Mobile — now available for iPhone and iPad on the App Store. [Download it here](conduit://settings/mobile)",
+          "category": "feature"
+        },
+        {
+          "text": "Cross-device vault sync — your vault stays in sync via Conduit Cloud Sync, iCloud Drive, OneDrive, or Dropbox",
+          "category": "feature"
+        },
+        {
+          "text": "Recursive folder deletion — deleting a folder removes all contents with a count confirmation",
+          "category": "feature"
+        },
+        {
+          "text": "Dashboard text is now selectable and secrets show a copy button when revealed",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed auto-updater restart being blocked by close-to-tray",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed Windows tray icon — left-click now shows the window properly",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": true
+    },
+    {
+      "version": "0.12.7",
+      "date": "2026-03-26",
+      "title": "Close to Tray & Web Downloads",
+      "summary": "Conduit now stays running when you close the window, and web sessions get proper download management.",
+      "highlights": [
+        {
+          "text": "Close to tray/dock — closing the window hides the app instead of quitting",
+          "category": "feature"
+        },
+        {
+          "text": "Download management for web sessions — browser-like save prompts",
+          "category": "feature"
+        },
+        {
+          "text": "Vault auto-locks and sessions close when window is hidden",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed SSH key authentication with generated keys",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed SSH private key CRLF line ending issues",
+          "category": "fix"
+        },
+        {
+          "text": "SSH username now defaults to current OS user instead of root",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": true
+    },
+    {
+      "version": "0.12.6",
+      "date": "2026-03-26",
+      "title": "Copy OTP & Linked Credentials",
+      "summary": "Copy TOTP codes from the context menu and use credential actions with linked credentials.",
+      "highlights": [
+        {
+          "text": "Copy OTP — right-click credential entries with TOTP to copy the current code",
+          "category": "feature"
+        },
+        {
+          "text": "Copy Username and Auto-type now resolve linked credentials automatically",
+          "category": "improvement"
+        },
+        {
+          "text": "Windows auto-type upgraded to native Win32 SendInput for full Unicode support",
+          "category": "improvement"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
+      "version": "0.12.4",
+      "date": "2026-03-25",
+      "title": "Global Auto-Type",
+      "summary": "Auto-type credentials into any application on your desktop, not just Conduit sessions.",
+      "highlights": [
+        {
+          "text": "Global auto-type — type credentials into any focused app (browser, terminal, etc.)",
+          "category": "feature"
+        },
+        {
+          "text": "OS-level keystroke simulation via AppleScript (macOS) and PowerShell SendKeys (Windows)",
+          "category": "feature"
+        },
+        {
+          "text": "macOS Accessibility permission auto-prompt on first use",
+          "category": "improvement"
+        },
+        {
+          "text": "3-second delay for external apps gives time to switch to the target field",
+          "category": "improvement"
+        },
+        {
+          "text": "Fixed double-paste in Windows terminal when using Ctrl+V",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
+      "version": "0.12.3",
+      "date": "2026-03-24",
+      "title": "Quick Unlock",
+      "summary": "Unlock your vault with Touch ID or Apple Watch instead of typing your master password every time.",
+      "highlights": [
+        {
+          "text": "Biometric Quick Unlock — use Touch ID, Apple Watch, or system password to unlock your vault",
+          "category": "feature"
+        },
+        {
+          "text": "Setup prompt after first password unlock — one tap to enable",
+          "category": "feature"
+        },
+        {
+          "text": "Fingerprint badge on biometric-enabled vaults in Vault Hub",
+          "category": "improvement"
+        },
+        {
+          "text": "Settings > Security tab for managing Quick Unlock",
+          "category": "improvement"
+        }
+      ],
+      "hasMedia": true
+    },
+    {
+      "version": "0.12.2",
+      "date": "2026-03-24",
+      "title": "Bug Fix Patch",
+      "summary": "Fixes for RDP clipboard notifications, macOS dialog styling, and Windows terminal keyboard shortcuts.",
+      "highlights": [
+        {
+          "text": "Fixed duplicate toast notifications when copying files from remote clipboard in RDP sessions",
+          "category": "fix"
+        },
+        {
+          "text": "Improved dialog backdrop opacity and blur effect on macOS light mode",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed Ctrl+V paste and Ctrl+C copy not working in terminal on Windows",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
+      "version": "0.12.1",
+      "date": "2026-03-23",
+      "title": "Clipboard & Stability Fixes",
+      "summary": "Improved RDP directory clipboard transfers, fixed AI loading state issues, and resolved IPC listener cleanup races.",
+      "highlights": [
+        {
+          "text": "Fixed RDP directory clipboard transfers — nested folders now preserve structure on paste",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed file data corruption in clipboard transfers caused by incorrect data length field",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed AI engine loading spinner getting stuck after switching sessions",
+          "category": "fix"
+        },
+        {
+          "text": "Fixed IPC event listener cleanup race condition in clipboard hooks",
+          "category": "fix"
+        },
+        {
+          "text": "Increased max cursor size for high-DPI remote desktops",
+          "category": "improvement"
+        },
+        {
+          "text": "Updated MCP server to use active vault for multi-vault support",
+          "category": "improvement"
+        }
+      ],
+      "hasMedia": false
+    }
+  ]
+}

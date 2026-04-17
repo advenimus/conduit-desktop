@@ -1,0 +1,11 @@
+# FreeRDP source build (created by build-freerdp.sh)
+deps/
+
+# CMake build output
+build/
+build-win/
+
+# Bundle output (keep darwin/ committed)
+bundle/win32/
+bundle/windows/
+bundle/linux/

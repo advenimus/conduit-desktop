@@ -1,0 +1,588 @@
+@import "tailwindcss";
+@import "./themes/platform-macos.css";
+@import "./themes/platform-windows.css";
+@import "./themes/platform-ubuntu.css";
+@plugin "@tailwindcss/typography";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Accent palette — resolved from CSS variables so schemes can override */
+  --color-conduit-50: var(--c-accent-50);
+  --color-conduit-100: var(--c-accent-100);
+  --color-conduit-200: var(--c-accent-200);
+  --color-conduit-300: var(--c-accent-300);
+  --color-conduit-400: var(--c-accent-400);
+  --color-conduit-500: var(--c-accent-500);
+  --color-conduit-600: var(--c-accent-600);
+  --color-conduit-700: var(--c-accent-700);
+  --color-conduit-800: var(--c-accent-800);
+  --color-conduit-900: var(--c-accent-900);
+  --color-conduit-950: var(--c-accent-950);
+
+  /* Team vault accent — derived from theme accent */
+  --color-team: var(--c-team-bg);
+  --color-team-border: var(--c-team-border);
+  --color-team-border-strong: var(--c-team-border-strong);
+
+  /* Semantic theme colors (resolved from CSS custom properties) */
+  --color-canvas: var(--c-canvas);
+  --color-panel: var(--c-panel);
+  --color-raised: var(--c-raised);
+  --color-well: var(--c-well);
+  --color-ink: var(--c-ink);
+  --color-ink-secondary: var(--c-ink-secondary);
+  --color-ink-muted: var(--c-ink-muted);
+  --color-ink-faint: var(--c-ink-faint);
+  --color-stroke: var(--c-stroke);
+  --color-stroke-dim: var(--c-stroke-dim);
+
+  /* Shape tokens — resolved from CSS variables so platform themes can override */
+  --radius-sm: var(--c-radius-sm);
+  --radius-md: var(--c-radius-md);
+  --radius-lg: var(--c-radius-lg);
+  --radius-xl: var(--c-radius-xl);
+  --radius-full: var(--c-radius-full);
+  --shadow-sm: var(--c-shadow-sm);
+  --shadow-md: var(--c-shadow-md);
+  --shadow-lg: var(--c-shadow-lg);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Ocean (default) — Sky blue accent, slate surfaces
+   Base values live here; no [data-scheme="ocean"] block needed.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Platform shape tokens — defaults (Conduit Classic)
+   Overridden by [data-platform] selectors in src/themes/platform-*.css
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Border radii */
+  --c-radius-sm: 4px;
+  --c-radius-md: 6px;
+  --c-radius-lg: 8px;
+  --c-radius-xl: 12px;
+  --c-radius-full: 9999px;
+
+  /* Shadows */
+  --c-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --c-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --c-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+
+  /* Typography */
+  --c-font-ui: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --c-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Component shapes */
+  --c-tab-radius: var(--c-radius-sm);
+  --c-btn-radius: var(--c-radius-md);
+  --c-input-radius: var(--c-radius-md);
+  --c-dialog-radius: var(--c-radius-lg);
+
+  /* Layout */
+  --c-titlebar-height: 36px;
+  --c-scrollbar-width: 8px;
+  --c-scrollbar-radius: 4px;
+
+  /* Effects */
+  --c-sidebar-blur: none;
+  --c-transition-fast: 150ms ease;
+  --c-transition-normal: 200ms ease;
+}
+
+/* Team vault accent — derived from theme accent */
+:root {
+  --c-team-bg: color-mix(in srgb, var(--c-accent-500) 8%, transparent);
+  --c-team-border: color-mix(in srgb, var(--c-accent-500) 30%, transparent);
+  --c-team-border-strong: var(--c-accent-500);
+}
+
+/* Accent defaults (Ocean — sky blue) */
+:root {
+  --c-accent-50: #f0f9ff;
+  --c-accent-100: #e0f2fe;
+  --c-accent-200: #bae6fd;
+  --c-accent-300: #7dd3fc;
+  --c-accent-400: #38bdf8;
+  --c-accent-500: #0ea5e9;
+  --c-accent-600: #0284c7;
+  --c-accent-700: #0369a1;
+  --c-accent-800: #075985;
+  --c-accent-900: #0c4a6e;
+  --c-accent-950: #082f49;
+}
+
+/* Light theme (default — Ocean) */
+:root,
+.light {
+  --c-canvas: #f8fafc;
+  --c-panel: #ffffff;
+  --c-raised: #e2e8f0;
+  --c-well: #f1f5f9;
+  --c-ink: #0f172a;
+  --c-ink-secondary: #334155;
+  --c-ink-muted: #64748b;
+  --c-ink-faint: #94a3b8;
+  --c-stroke: #cbd5e1;
+  --c-stroke-dim: #e2e8f0;
+
+  font-family: var(--c-font-ui);
+}
+
+/* Dark theme (default — Ocean) */
+.dark {
+  --c-canvas: #0f172a;
+  --c-panel: #1e293b;
+  --c-raised: #334155;
+  --c-well: #0f172a;
+  --c-ink: #f1f5f9;
+  --c-ink-secondary: #cbd5e1;
+  --c-ink-muted: #94a3b8;
+  --c-ink-faint: #64748b;
+  --c-stroke: #334155;
+  --c-stroke-dim: #475569;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Ember — Orange accent, true-black dark, warm-white light
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-scheme="ember"] {
+  --c-accent-50: #fff7ed;
+  --c-accent-100: #ffedd5;
+  --c-accent-200: #fed7aa;
+  --c-accent-300: #fdba74;
+  --c-accent-400: #fb923c;
+  --c-accent-500: #f97316;
+  --c-accent-600: #ea580c;
+  --c-accent-700: #c2410c;
+  --c-accent-800: #9a3412;
+  --c-accent-900: #7c2d12;
+  --c-accent-950: #431407;
+}
+
+[data-scheme="ember"].dark {
+  --c-canvas: #000000;
+  --c-panel: #1a1210;
+  --c-raised: #2e2218;
+  --c-well: #0c0a08;
+  --c-ink: #f0ebe4;
+  --c-ink-secondary: #c4b8aa;
+  --c-ink-muted: #8e8478;
+  --c-ink-faint: #615850;
+  --c-stroke: #2e2218;
+  --c-stroke-dim: #3d3020;
+}
+
+[data-scheme="ember"].light {
+  --c-canvas: #fffbf5;
+  --c-panel: #ffffff;
+  --c-raised: #ecdcc8;
+  --c-well: #fff7ed;
+  --c-ink: #1a1005;
+  --c-ink-secondary: #3b3226;
+  --c-ink-muted: #6b6054;
+  --c-ink-faint: #9c9286;
+  --c-stroke: #d4c4b0;
+  --c-stroke-dim: #e8dcd0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Forest — Emerald accent, green-tinted surfaces
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-scheme="forest"] {
+  --c-accent-50: #ecfdf5;
+  --c-accent-100: #d1fae5;
+  --c-accent-200: #a7f3d0;
+  --c-accent-300: #6ee7b7;
+  --c-accent-400: #34d399;
+  --c-accent-500: #10b981;
+  --c-accent-600: #059669;
+  --c-accent-700: #047857;
+  --c-accent-800: #065f46;
+  --c-accent-900: #064e3b;
+  --c-accent-950: #022c22;
+}
+
+[data-scheme="forest"].dark {
+  --c-canvas: #0a1510;
+  --c-panel: #12231a;
+  --c-raised: #1e3828;
+  --c-well: #081210;
+  --c-ink: #e4efe8;
+  --c-ink-secondary: #b0c4b8;
+  --c-ink-muted: #7a9088;
+  --c-ink-faint: #546860;
+  --c-stroke: #1e3828;
+  --c-stroke-dim: #284a38;
+}
+
+[data-scheme="forest"].light {
+  --c-canvas: #f2faf5;
+  --c-panel: #ffffff;
+  --c-raised: #cce4d6;
+  --c-well: #e8f5ee;
+  --c-ink: #0c1c14;
+  --c-ink-secondary: #2c3e32;
+  --c-ink-muted: #566e60;
+  --c-ink-faint: #8aa496;
+  --c-stroke: #b4cec0;
+  --c-stroke-dim: #d0e6d8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Amethyst — Violet accent, purple-tinted surfaces
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-scheme="amethyst"] {
+  --c-accent-50: #f5f3ff;
+  --c-accent-100: #ede9fe;
+  --c-accent-200: #ddd6fe;
+  --c-accent-300: #c4b5fd;
+  --c-accent-400: #a78bfa;
+  --c-accent-500: #8b5cf6;
+  --c-accent-600: #7c3aed;
+  --c-accent-700: #6d28d9;
+  --c-accent-800: #5b21b6;
+  --c-accent-900: #4c1d95;
+  --c-accent-950: #2e1065;
+}
+
+[data-scheme="amethyst"].dark {
+  --c-canvas: #0e0a18;
+  --c-panel: #1a1430;
+  --c-raised: #281e44;
+  --c-well: #0a0814;
+  --c-ink: #ece8f2;
+  --c-ink-secondary: #b8b0c8;
+  --c-ink-muted: #847c98;
+  --c-ink-faint: #5e5870;
+  --c-stroke: #281e44;
+  --c-stroke-dim: #362a58;
+}
+
+[data-scheme="amethyst"].light {
+  --c-canvas: #f8f5ff;
+  --c-panel: #ffffff;
+  --c-raised: #d8d0ec;
+  --c-well: #f0ecfa;
+  --c-ink: #14102a;
+  --c-ink-secondary: #352c4e;
+  --c-ink-muted: #5e5678;
+  --c-ink-faint: #908aa8;
+  --c-stroke: #c4bada;
+  --c-stroke-dim: #dcd4ec;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Rose — Rose accent, warm pink-tinted surfaces
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-scheme="rose"] {
+  --c-accent-50: #fff1f2;
+  --c-accent-100: #ffe4e6;
+  --c-accent-200: #fecdd3;
+  --c-accent-300: #fda4af;
+  --c-accent-400: #fb7185;
+  --c-accent-500: #f43f5e;
+  --c-accent-600: #e11d48;
+  --c-accent-700: #be123c;
+  --c-accent-800: #9f1239;
+  --c-accent-900: #881337;
+  --c-accent-950: #4c0519;
+}
+
+[data-scheme="rose"].dark {
+  --c-canvas: #140a0c;
+  --c-panel: #221418;
+  --c-raised: #381c22;
+  --c-well: #100808;
+  --c-ink: #f0e8ea;
+  --c-ink-secondary: #c8b4b8;
+  --c-ink-muted: #947c82;
+  --c-ink-faint: #685860;
+  --c-stroke: #381c22;
+  --c-stroke-dim: #4a262e;
+}
+
+[data-scheme="rose"].light {
+  --c-canvas: #fef5f6;
+  --c-panel: #ffffff;
+  --c-raised: #eaccd2;
+  --c-well: #fcecee;
+  --c-ink: #2a0e14;
+  --c-ink-secondary: #46222e;
+  --c-ink-muted: #6e4e58;
+  --c-ink-faint: #9c828c;
+  --c-stroke: #d8b4be;
+  --c-stroke-dim: #ecd0d6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Midnight — Cyan accent, true-black dark, cool-white light
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-scheme="midnight"] {
+  --c-accent-50: #ecfeff;
+  --c-accent-100: #cffafe;
+  --c-accent-200: #a5f3fc;
+  --c-accent-300: #67e8f9;
+  --c-accent-400: #22d3ee;
+  --c-accent-500: #06b6d4;
+  --c-accent-600: #0891b2;
+  --c-accent-700: #0e7490;
+  --c-accent-800: #155e75;
+  --c-accent-900: #164e63;
+  --c-accent-950: #083344;
+}
+
+[data-scheme="midnight"].dark {
+  --c-canvas: #000000;
+  --c-panel: #0a1418;
+  --c-raised: #142028;
+  --c-well: #060c10;
+  --c-ink: #e4ecf0;
+  --c-ink-secondary: #a8bcc6;
+  --c-ink-muted: #748c96;
+  --c-ink-faint: #506068;
+  --c-stroke: #142028;
+  --c-stroke-dim: #1e2e38;
+}
+
+[data-scheme="midnight"].light {
+  --c-canvas: #f4fafc;
+  --c-panel: #ffffff;
+  --c-raised: #c8dee8;
+  --c-well: #eaf4f8;
+  --c-ink: #0c1a22;
+  --c-ink-secondary: #263a46;
+  --c-ink-muted: #506a76;
+  --c-ink-faint: #84a0ac;
+  --c-stroke: #b0c8d4;
+  --c-stroke-dim: #cce0e8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Native platform color schemes — MUST come after default accents above
+   so they win the CSS cascade (equal specificity, later position wins)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── macOS: System Blue ───────────────────────────────────────────── */
+[data-scheme="macos-blue"] { --c-accent-50: #e5f2ff; --c-accent-100: #cce5ff; --c-accent-200: #99cbff; --c-accent-300: #66b0ff; --c-accent-400: #3395ff; --c-accent-500: #007AFF; --c-accent-600: #0062cc; --c-accent-700: #004a99; --c-accent-800: #003166; --c-accent-900: #001933; --c-accent-950: #000d1a; }
+[data-scheme="macos-blue"].dark { --c-canvas: #1c1c1e; --c-panel: #2c2c2e; --c-raised: #3a3a3c; --c-well: #1c1c1e; --c-ink: #f5f5f7; --c-ink-secondary: #d1d1d6; --c-ink-muted: #98989d; --c-ink-faint: #636366; --c-stroke: #3a3a3c; --c-stroke-dim: #48484a; }
+[data-scheme="macos-blue"].light { --c-canvas: #f5f5f7; --c-panel: #ffffff; --c-raised: #e5e5ea; --c-well: #f2f2f7; --c-ink: #1d1d1f; --c-ink-secondary: #3a3a3c; --c-ink-muted: #6e6e73; --c-ink-faint: #98989d; --c-stroke: #d1d1d6; --c-stroke-dim: #e5e5ea; }
+
+/* ─── macOS: Graphite ──────────────────────────────────────────────── */
+[data-scheme="macos-graphite"] { --c-accent-50: #f2f2f4; --c-accent-100: #e5e5ea; --c-accent-200: #c7c7cc; --c-accent-300: #aeaeb2; --c-accent-400: #98989d; --c-accent-500: #8E8E93; --c-accent-600: #6e6e73; --c-accent-700: #58585c; --c-accent-800: #48484a; --c-accent-900: #3a3a3c; --c-accent-950: #2c2c2e; }
+[data-scheme="macos-graphite"].dark { --c-canvas: #1c1c1e; --c-panel: #2c2c2e; --c-raised: #3a3a3c; --c-well: #1c1c1e; --c-ink: #f5f5f7; --c-ink-secondary: #d1d1d6; --c-ink-muted: #98989d; --c-ink-faint: #636366; --c-stroke: #3a3a3c; --c-stroke-dim: #48484a; }
+[data-scheme="macos-graphite"].light { --c-canvas: #f5f5f7; --c-panel: #ffffff; --c-raised: #e5e5ea; --c-well: #f2f2f7; --c-ink: #1d1d1f; --c-ink-secondary: #3a3a3c; --c-ink-muted: #6e6e73; --c-ink-faint: #98989d; --c-stroke: #d1d1d6; --c-stroke-dim: #e5e5ea; }
+
+/* ─── Windows: Windows Blue ────────────────────────────────────────── */
+[data-scheme="win-blue"] { --c-accent-50: #e6f2ff; --c-accent-100: #cce5ff; --c-accent-200: #99c9ff; --c-accent-300: #66adff; --c-accent-400: #3391ff; --c-accent-500: #0078D4; --c-accent-600: #006cbf; --c-accent-700: #005a9e; --c-accent-800: #004578; --c-accent-900: #003054; --c-accent-950: #001a2e; }
+[data-scheme="win-blue"].dark { --c-canvas: #202020; --c-panel: #2c2c2c; --c-raised: #383838; --c-well: #1a1a1a; --c-ink: #ffffff; --c-ink-secondary: #d6d6d6; --c-ink-muted: #9a9a9a; --c-ink-faint: #6a6a6a; --c-stroke: #383838; --c-stroke-dim: #444444; }
+[data-scheme="win-blue"].light { --c-canvas: #f3f3f3; --c-panel: #ffffff; --c-raised: #e5e5e5; --c-well: #f9f9f9; --c-ink: #1a1a1a; --c-ink-secondary: #3b3b3b; --c-ink-muted: #6a6a6a; --c-ink-faint: #9a9a9a; --c-stroke: #d6d6d6; --c-stroke-dim: #e5e5e5; }
+
+/* ─── Windows: Sun Valley ──────────────────────────────────────────── */
+[data-scheme="win-sun-valley"] { --c-accent-50: #e0f0ff; --c-accent-100: #b8dcff; --c-accent-200: #8bc6ff; --c-accent-300: #5eafff; --c-accent-400: #3199ff; --c-accent-500: #005FB8; --c-accent-600: #004f9a; --c-accent-700: #003f7c; --c-accent-800: #002f5e; --c-accent-900: #001f40; --c-accent-950: #001020; }
+[data-scheme="win-sun-valley"].dark { --c-canvas: #1a1a1a; --c-panel: #262626; --c-raised: #333333; --c-well: #141414; --c-ink: #f5f5f5; --c-ink-secondary: #cccccc; --c-ink-muted: #8c8c8c; --c-ink-faint: #5c5c5c; --c-stroke: #333333; --c-stroke-dim: #404040; }
+[data-scheme="win-sun-valley"].light { --c-canvas: #f5f5f5; --c-panel: #ffffff; --c-raised: #e0e0e0; --c-well: #fafafa; --c-ink: #191919; --c-ink-secondary: #383838; --c-ink-muted: #666666; --c-ink-faint: #999999; --c-stroke: #d1d1d1; --c-stroke-dim: #e5e5e5; }
+
+/* ─── Ubuntu: Yaru Orange ──────────────────────────────────────────── */
+[data-scheme="ubuntu-yaru"] { --c-accent-50: #fef3ec; --c-accent-100: #fde3d1; --c-accent-200: #fbc5a3; --c-accent-300: #f8a070; --c-accent-400: #f67a42; --c-accent-500: #E95420; --c-accent-600: #c44418; --c-accent-700: #9c3614; --c-accent-800: #7a2c12; --c-accent-900: #5c2110; --c-accent-950: #3a140a; }
+[data-scheme="ubuntu-yaru"].dark { --c-canvas: #242424; --c-panel: #303030; --c-raised: #3d3d3d; --c-well: #1e1e1e; --c-ink: #f6f5f4; --c-ink-secondary: #c0bfbc; --c-ink-muted: #928f8a; --c-ink-faint: #6a6763; --c-stroke: #3d3d3d; --c-stroke-dim: #4a4a4a; }
+[data-scheme="ubuntu-yaru"].light { --c-canvas: #fafafa; --c-panel: #ffffff; --c-raised: #deddda; --c-well: #f6f5f4; --c-ink: #2e3436; --c-ink-secondary: #3d3846; --c-ink-muted: #77767b; --c-ink-faint: #9a9996; --c-stroke: #c0bfbc; --c-stroke-dim: #deddda; }
+
+/* ─── Ubuntu: GNOME Blue ───────────────────────────────────────────── */
+[data-scheme="ubuntu-gnome"] { --c-accent-50: #e8f2fc; --c-accent-100: #d0e4f8; --c-accent-200: #a2c9f1; --c-accent-300: #73aeea; --c-accent-400: #4593e3; --c-accent-500: #3584E4; --c-accent-600: #2a6ab6; --c-accent-700: #205089; --c-accent-800: #15365b; --c-accent-900: #0b1c2e; --c-accent-950: #050e17; }
+[data-scheme="ubuntu-gnome"].dark { --c-canvas: #1e1e1e; --c-panel: #2a2a2a; --c-raised: #363636; --c-well: #181818; --c-ink: #f6f5f4; --c-ink-secondary: #c0bfbc; --c-ink-muted: #928f8a; --c-ink-faint: #6a6763; --c-stroke: #363636; --c-stroke-dim: #434343; }
+[data-scheme="ubuntu-gnome"].light { --c-canvas: #fafafa; --c-panel: #ffffff; --c-raised: #deddda; --c-well: #f6f5f4; --c-ink: #2e3436; --c-ink-secondary: #3d3846; --c-ink-muted: #77767b; --c-ink-faint: #9a9996; --c-stroke: #c0bfbc; --c-stroke-dim: #deddda; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Global styles
+   ═══════════════════════════════════════════════════════════════════════ */
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Hide the scrollbar corner (bottom-right square where tracks meet) */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Remove Chromium's default orange/blue focus outline on buttons & interactive elements */
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: none;
+}
+
+/* Keep a subtle focus ring for keyboard accessibility on inputs */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--c-accent-500);
+  outline-offset: -1px;
+}
+
+/* Re-enable selection in content areas */
+input, textarea, [contenteditable],
+.allow-select {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Custom scrollbar for dark mode — uses CSS variables so schemes + platforms apply */
+.dark ::-webkit-scrollbar {
+  width: var(--c-scrollbar-width);
+  height: var(--c-scrollbar-width);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--c-panel);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--c-stroke-dim);
+  border-radius: var(--c-scrollbar-radius);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--c-ink-muted);
+}
+
+/* Custom scrollbar for light mode */
+.light ::-webkit-scrollbar {
+  width: var(--c-scrollbar-width);
+  height: var(--c-scrollbar-width);
+}
+
+.light ::-webkit-scrollbar-track {
+  background: var(--c-well);
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: var(--c-ink-faint);
+  border-radius: var(--c-scrollbar-radius);
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: var(--c-ink-muted);
+}
+
+/* Auto-hide scrollbars — only visible while actively scrolling.
+   JS toggles .is-scrolling class; scrollbar visibility is driven from JS
+   via inline --sb-opacity on the element for smooth fade. */
+.scrollbar-autohide {
+  overflow: auto;
+}
+
+.scrollbar-autohide::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-autohide::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-autohide::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, var(--sb-opacity, 0));
+  border-radius: 3px;
+}
+
+/* Minimal xterm scrollbar — thin, transparent track, auto-fade */
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 4px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--c-ink-muted) 40%, transparent);
+  border-radius: 2px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--c-ink-muted) 70%, transparent);
+}
+
+/* Toast animation */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+}
+
+.animate-toast-out {
+  animation: toast-out 0.2s ease-in forwards;
+}
+
+/* Sidebar overlay slide-in */
+@keyframes sidebar-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-sidebar-in {
+  animation: sidebar-in 0.2s ease-out;
+}
+
+/* Sidebar overlay slide-out */
+@keyframes sidebar-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-sidebar-out {
+  animation: sidebar-out 0.2s ease-in forwards;
+}
+
+/* Indeterminate progress bar animation */
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.animate-indeterminate {
+  animation: indeterminate 1.5s ease-in-out infinite;
+}
+

@@ -1,0 +1,263 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   macOS Tahoe — Liquid glass, vibrancy, large radii, SF Pro
+   Applied via [data-platform="macos"] on <html>
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-platform="macos"] {
+  /* Border radii — macOS uses large, pill-like corners */
+  --c-radius-sm: 6px;
+  --c-radius-md: 10px;
+  --c-radius-lg: 14px;
+  --c-radius-xl: 18px;
+
+  /* Shadows — soft, diffused, frosted appearance */
+  --c-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --c-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --c-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+
+  /* Typography — SF Pro on macOS, system-ui fallback on others */
+  --c-font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --c-font-mono: "SF Mono", SFMono-Regular, ui-monospace, Menlo, monospace;
+
+  /* Component shapes */
+  --c-tab-radius: var(--c-radius-lg);
+  --c-btn-radius: var(--c-radius-lg);
+  --c-input-radius: var(--c-radius-md);
+  --c-dialog-radius: var(--c-radius-xl);
+
+  /* Layout */
+  --c-titlebar-height: 38px;
+  --c-scrollbar-width: 6px;
+  --c-scrollbar-radius: 3px;
+
+  /* Effects — liquid glass */
+  --c-sidebar-blur: blur(40px) saturate(180%);
+  --c-transition-fast: 200ms ease-out;
+  --c-transition-normal: 250ms ease-out;
+}
+
+/* ─── Dark mode surface overrides ──────────────────────────────────── */
+
+[data-platform="macos"].dark {
+  /* Frosted glass surfaces — opaque enough that text behind is unreadable,
+     just translucent enough for colors/shapes to hint through the blur */
+  --c-panel-glass: rgba(28, 28, 30, 0.94);
+  --c-panel-glass-hover: rgba(28, 28, 30, 0.96);
+  --c-panel-glass-active: rgba(28, 28, 30, 0.98);
+
+  /* Thin glass borders — subtle inner glow */
+  --c-stroke-glass: rgba(255, 255, 255, 0.1);
+  --c-stroke-glass-strong: rgba(255, 255, 255, 0.15);
+}
+
+[data-platform="macos"].light {
+  /* Light frosted glass — white tinted, opaque enough to hide text behind */
+  --c-panel-glass: rgba(245, 245, 247, 0.92);
+  --c-panel-glass-hover: rgba(245, 245, 247, 0.95);
+  --c-panel-glass-active: rgba(245, 245, 247, 0.98);
+
+  /* Light glass borders */
+  --c-stroke-glass: rgba(0, 0, 0, 0.08);
+  --c-stroke-glass-strong: rgba(0, 0, 0, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Liquid Glass — actual visual effects applied to UI elements
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Sidebar — frosted glass panel ────────────────────────────────── */
+
+[data-platform="macos"].dark .animate-sidebar-in,
+[data-platform="macos"].dark .animate-sidebar-out,
+[data-platform="macos"].dark [data-sidebar-panel] {
+  --c-canvas: rgba(28, 28, 30, 0.94);
+  background: rgba(28, 28, 30, 0.94) !important;
+  backdrop-filter: var(--c-sidebar-blur);
+  -webkit-backdrop-filter: var(--c-sidebar-blur);
+  border-color: var(--c-stroke-glass) !important;
+  border-right: 0.5px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-platform="macos"].light .animate-sidebar-in,
+[data-platform="macos"].light .animate-sidebar-out,
+[data-platform="macos"].light [data-sidebar-panel] {
+  --c-canvas: rgba(245, 245, 247, 0.97);
+  background: rgba(245, 245, 247, 0.97) !important;
+  backdrop-filter: blur(60px) saturate(180%);
+  -webkit-backdrop-filter: blur(60px) saturate(180%);
+  border-color: var(--c-stroke-glass) !important;
+  border-right: 0.5px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ─── Tab bar — translucent glass ──────────────────────────────────── */
+
+[data-platform="macos"].dark [data-tabbar] {
+  background: var(--c-panel-glass) !important;
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-color: var(--c-stroke-glass) !important;
+}
+
+[data-platform="macos"].light [data-tabbar] {
+  background: var(--c-panel-glass) !important;
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-color: var(--c-stroke-glass) !important;
+}
+
+/* Active tab — pill shape with frosted background */
+[data-platform="macos"] [data-tab-active] {
+  border-radius: var(--c-tab-radius) !important;
+}
+
+[data-platform="macos"].dark [data-tab-active] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.2), inset 0 0.5px 0 rgba(255, 255, 255, 0.06);
+}
+
+[data-platform="macos"].light [data-tab-active] {
+  background: rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 0.5px 2px rgba(0, 0, 0, 0.08), inset 0 0.5px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* ─── Dialogs / Modals — frosted glass background ──────────────────── */
+
+[data-platform="macos"].dark [data-dialog-content] {
+  background: rgba(36, 36, 40, 0.95) !important;
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  border-radius: var(--c-dialog-radius) !important;
+}
+
+[data-platform="macos"].light [data-dialog-content] {
+  background: rgba(255, 255, 255, 0.97) !important;
+  backdrop-filter: blur(60px) saturate(200%);
+  -webkit-backdrop-filter: blur(60px) saturate(200%);
+  border: 0.5px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  border-radius: var(--c-dialog-radius) !important;
+}
+
+/* ─── Inputs — pill-shaped with glass background ───────────────────── */
+
+[data-platform="macos"].dark input:not([type="range"]):not([type="checkbox"]),
+[data-platform="macos"].dark select,
+[data-platform="macos"].dark textarea {
+  border-radius: var(--c-input-radius) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 0.5px 1.5px rgba(0, 0, 0, 0.3), 0 0.5px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-platform="macos"].light input:not([type="range"]):not([type="checkbox"]),
+[data-platform="macos"].light select,
+[data-platform="macos"].light textarea {
+  border-radius: var(--c-input-radius) !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  box-shadow: inset 0 0.5px 1.5px rgba(0, 0, 0, 0.08), 0 0.5px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ─── Scrollbar — thin, auto-hide feel ─────────────────────────────── */
+
+[data-platform="macos"] ::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+[data-platform="macos"] ::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+[data-platform="macos"].dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 3px !important;
+}
+
+[data-platform="macos"].dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+}
+
+[data-platform="macos"].light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15) !important;
+  border-radius: 3px !important;
+}
+
+[data-platform="macos"].light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ─── Context menus / Dropdowns — glass popover ────────────────────── */
+
+[data-platform="macos"].dark [data-context-menu],
+[data-platform="macos"].dark [data-popover] {
+  background: rgba(40, 40, 44, 0.95) !important;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: var(--c-radius-lg) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+[data-platform="macos"].light [data-context-menu],
+[data-platform="macos"].light [data-popover] {
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 0.5px solid rgba(0, 0, 0, 0.06) !important;
+  border-radius: var(--c-radius-lg) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+/* ─── Toast notifications — glass effect ───────────────────────────── */
+
+[data-platform="macos"].dark [data-toast] {
+  background: rgba(40, 40, 44, 0.85) !important;
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: var(--c-radius-lg) !important;
+}
+
+[data-platform="macos"].light [data-toast] {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid rgba(0, 0, 0, 0.06) !important;
+  border-radius: var(--c-radius-lg) !important;
+}
+
+/* ─── Selection highlight — translucent accent ─────────────────────── */
+
+[data-platform="macos"].dark [data-selected-item] {
+  background: color-mix(in srgb, var(--c-accent-500) 20%, transparent) !important;
+  border-radius: var(--c-radius-md) !important;
+}
+
+[data-platform="macos"].light [data-selected-item] {
+  background: color-mix(in srgb, var(--c-accent-500) 15%, transparent) !important;
+  border-radius: var(--c-radius-md) !important;
+}
+
+/* ─── Font smoothing — macOS subpixel rendering ────────────────────── */
+
+[data-platform="macos"] {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Superellipse corner smoothing — matches macOS system UI curves (Tahoe+).
+   Requires both macOS theme selected AND running on actual macOS. */
+[data-platform="macos"][data-os="macos"] * {
+  -electron-corner-smoothing: system-ui;
+}
+
+[data-platform="macos"] .scrollbar-autohide::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Native color schemes moved to src/themes/native-schemes.css
+   (must be imported after default accents for correct cascade order) */

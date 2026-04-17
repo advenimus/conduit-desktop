@@ -1,0 +1,86 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node.js
+node_modules/
+dist/
+.npm
+package-lock.json
+
+# Tauri
+src-tauri/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs and security keys
+logs/
+*.log
+npm-debug.log*
+
+# Electron
+dist-electron/
+release/
+
+# Build artifacts
+*.dmg
+*.msi
+*.exe
+*.app
+*.deb
+*.AppImage
+
+# Native addon build artifacts
+native/target/
+native/node_modules/
+native/*.node
+native/index.js
+native/index.d.ts
+
+# MCP build output
+mcp/dist/
+
+# FreeRDP helper build artifacts
+freerdp-helper/build/
+freerdp-helper/build-win/
+freerdp-helper/bundle/darwin/
+freerdp-helper/bundle/win32/
+freerdp-helper/bundle/windows/
+freerdp-helper/bundle/linux/
+freerdp-helper/deps/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Worktrees
+.worktrees/
+
+# Superpowers brainstorming
+.superpowers/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Security / secrets
+*.pem
+*.key
+.security-key
+package-lock.json

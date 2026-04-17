@@ -1,0 +1,241 @@
+name: Test Windows Build
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: test-windows
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-windows:
+    runs-on: [self-hosted, Windows, X64]
+    name: Test Windows (npm ci + build + package)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Debug: show what VS installations exist ────────────────────────
+      - name: Debug VS installations
+        shell: powershell
+        run: |
+          Write-Host "=== vswhere (all products, prerelease) ==="
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            & $vswhere -all -prerelease -products * -format json | ConvertFrom-Json | ForEach-Object {
+              Write-Host "  Display: $($_.displayName)"
+              Write-Host "  Path:    $($_.installationPath)"
+              Write-Host "  Version: $($_.installationVersion)"
+              Write-Host "  ---"
+            }
+          } else {
+            Write-Host "vswhere not found at $vswhere"
+          }
+
+          Write-Host ""
+          Write-Host "=== Check vcvarsall.bat locations ==="
+          $paths = @(
+            "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat",
+            "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat",
+            "C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
+          )
+          foreach ($p in $paths) {
+            if (Test-Path $p) {
+              Write-Host "  FOUND: $p"
+            } else {
+              Write-Host "  NOT FOUND: $p"
+            }
+          }
+
+          Write-Host ""
+          Write-Host "=== Current user ==="
+          whoami
+
+      # ── Set up MSVC from known VS path ─────────────────────────────────
+      # ilammy/msvc-dev-cmd can't find VS 2022 Build Tools (path uses \2022\
+      # not \17\, and vswhere needs -products * for Build Tools).
+      # So we call vcvarsall.bat directly from the known path.
+      - name: Set up MSVC environment
+        shell: cmd
+        run: |
+          @echo off
+          REM Try VS 2022 Build Tools first, then VS 2025
+          if exist "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            echo Using VS 2022 Build Tools
+            call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+          ) else if exist "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            echo Using VS 2025 Build Tools
+            call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+          ) else (
+            echo ERROR: No vcvarsall.bat found
+            exit /b 1
+          )
+          REM Export key MSVC env vars to GITHUB_ENV for subsequent steps
+          echo VSINSTALLDIR=%VSINSTALLDIR%>> %GITHUB_ENV%
+          echo VCToolsInstallDir=%VCToolsInstallDir%>> %GITHUB_ENV%
+          echo VCINSTALLDIR=%VCINSTALLDIR%>> %GITHUB_ENV%
+          echo VCToolsVersion=%VCToolsVersion%>> %GITHUB_ENV%
+          echo VisualStudioVersion=%VisualStudioVersion%>> %GITHUB_ENV%
+          echo WindowsSdkDir=%WindowsSdkDir%>> %GITHUB_ENV%
+          echo WindowsSDKVersion=%WindowsSDKVersion%>> %GITHUB_ENV%
+          echo UCRTVersion=%UCRTVersion%>> %GITHUB_ENV%
+          echo INCLUDE=%INCLUDE%>> %GITHUB_ENV%
+          echo LIB=%LIB%>> %GITHUB_ENV%
+          echo LIBPATH=%LIBPATH%>> %GITHUB_ENV%
+          echo PATH=%PATH%>> %GITHUB_PATH%
+          echo MSVC environment configured successfully
+
+      # ── Install Strawberry Perl ────────────────────────────────────────
+      - name: Install Strawberry Perl
+        shell: powershell
+        run: |
+          $perlOk = $false
+          if (Get-Command perl -ErrorAction SilentlyContinue) {
+            try {
+              $null = perl -e "use Socket; print 1" 2>&1
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "Perl already available and working"
+                $perlOk = $true
+              }
+            } catch {}
+          }
+          if (-not $perlOk) {
+            Write-Host "Installing Strawberry Perl Portable..."
+            $installDir = "C:\Strawberry"
+            if (Test-Path $installDir) { Remove-Item -Recurse -Force $installDir }
+            $urls = @(
+              "https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_54001_64bit_UCRT/strawberry-perl-5.40.0.1-64bit-portable.zip",
+              "https://github.com/StrawberryPerl/Perl-Dist-Strawberry/releases/download/SP_53822_64bit/strawberry-perl-5.38.2.2-64bit-portable.zip"
+            )
+            $zipPath = "$env:RUNNER_TEMP\strawberry-perl.zip"
+            $downloaded = $false
+            foreach ($url in $urls) {
+              try {
+                Invoke-WebRequest -Uri $url -OutFile $zipPath -ErrorAction Stop
+                $downloaded = $true; break
+              } catch { Write-Host "Failed: $_" }
+            }
+            if (-not $downloaded) { throw "Could not download Strawberry Perl" }
+            Expand-Archive -Path $zipPath -DestinationPath $installDir -Force
+            "$installDir\perl\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+            Remove-Item $zipPath
+          }
+
+      # ── Setup Node.js ──────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # ── Install Python (for node-gyp) ──────────────────────────────────
+      - name: Install Python
+        shell: powershell
+        run: |
+          $version = "3.11.9"
+          $url = "https://www.python.org/ftp/python/$version/python-$version-embed-amd64.zip"
+          $zipPath = "$env:RUNNER_TEMP\python-embed.zip"
+          $pythonDir = "$env:RUNNER_TEMP\python311"
+          Invoke-WebRequest -Uri $url -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $pythonDir -Force
+          $pthFile = Get-ChildItem "$pythonDir\python*._pth" | Select-Object -First 1
+          (Get-Content $pthFile.FullName) -replace '#import site', 'import site' | Set-Content $pthFile.FullName
+          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "$env:RUNNER_TEMP\get-pip.py"
+          & "$pythonDir\python.exe" "$env:RUNNER_TEMP\get-pip.py" --no-warn-script-location
+          & "$pythonDir\python.exe" -m pip install setuptools --no-warn-script-location
+          "$pythonDir" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+          "$pythonDir\Scripts" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+
+      # ── Tell node-gyp to use VS 2022 ──────────────────────────────────
+      # node-gyp's find-visualstudio.js runs vswhere without -products *,
+      # so it can't find Build Tools. Fix: install latest global node-gyp
+      # (which uses -products *) and tell npm/electron-rebuild to use it.
+      - name: Configure node-gyp for VS 2022
+        shell: powershell
+        run: |
+          # Install latest node-gyp globally (supports -products * for Build Tools)
+          npm install -g node-gyp@latest
+          $globalNodeGyp = Join-Path (npm root -g) "node-gyp\bin\node-gyp.js"
+          Write-Host "Global node-gyp at: $globalNodeGyp"
+          Write-Host "Global node-gyp version: $(node $globalNodeGyp --version)"
+
+          # Set env var so npm/electron-rebuild use the global node-gyp
+          echo "npm_config_node_gyp=$globalNodeGyp" >> $env:GITHUB_ENV
+
+          # Set GYP_MSVS_VERSION so it targets VS 2022
+          echo "GYP_MSVS_VERSION=2022" >> $env:GITHUB_ENV
+
+          Write-Host "Configured npm_config_node_gyp and GYP_MSVS_VERSION=2022"
+
+      # ── Debug: verify everything before npm ci ─────────────────────────
+      - name: Pre-flight check
+        shell: powershell
+        run: |
+          Write-Host "=== MSVC Environment ==="
+          Write-Host "VSINSTALLDIR: $env:VSINSTALLDIR"
+          Write-Host "VCToolsInstallDir: $env:VCToolsInstallDir"
+          Write-Host "VisualStudioVersion: $env:VisualStudioVersion"
+
+          Write-Host ""
+          Write-Host "=== node-gyp config ==="
+          Write-Host "GYP_MSVS_VERSION: $env:GYP_MSVS_VERSION"
+          Write-Host "npm_config_node_gyp: $env:npm_config_node_gyp"
+
+          Write-Host ""
+          Write-Host "=== Verify cl.exe is in PATH ==="
+          if (Get-Command cl -ErrorAction SilentlyContinue) {
+            cl 2>&1 | Select-Object -First 1
+          } else {
+            Write-Host "WARNING: cl.exe not in PATH"
+          }
+
+          Write-Host ""
+          Write-Host "=== Test node-gyp VS discovery ==="
+          try {
+            $nodeGyp = $env:npm_config_node_gyp
+            if ($nodeGyp -and (Test-Path $nodeGyp)) {
+              node $nodeGyp find-vs 2>&1 | ForEach-Object { Write-Host $_ }
+            } else {
+              npx node-gyp find-vs 2>&1 | ForEach-Object { Write-Host $_ }
+            }
+          } catch {
+            Write-Host "node-gyp find-vs failed: $_"
+          }
+
+      # ── npm ci (the step that's been failing) ──────────────────────────
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GYP_MSVS_VERSION: "2022"
+
+      # ── Build MCP server (separate npm project) ────────────────────────
+      - name: Build MCP server
+        working-directory: mcp
+        run: |
+          npm ci
+          npm run build
+
+      # ── Build app ──────────────────────────────────────────────────────
+      - name: Build app
+        run: npm run build
+
+      - name: Package with electron-builder
+        run: npx electron-builder --win --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Show build output
+        if: always()
+        shell: powershell
+        run: |
+          if (Test-Path release) {
+            Get-ChildItem release | ForEach-Object {
+              Write-Host "  $($_.Name) — $([math]::Round($_.Length / 1MB, 1)) MB"
+            }
+          } else {
+            Write-Host "No release directory"
+          }

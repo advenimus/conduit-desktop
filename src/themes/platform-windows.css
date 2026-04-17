@@ -1,0 +1,127 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Windows 11 — Fluent Design, Mica, WinUI 3 controls
+   Applied via [data-platform="windows"] on <html>
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-platform="windows"] {
+  /* Border radii — WinUI3: 4px controls, 8px containers */
+  --c-radius-sm: 4px;
+  --c-radius-md: 6px;
+  --c-radius-lg: 8px;
+  --c-radius-xl: 12px;
+
+  /* Shadows — subtle elevation layers */
+  --c-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --c-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.06);
+  --c-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.14), 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* Typography — Segoe UI Variable (Windows 11 default) */
+  --c-font-ui: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --c-font-mono: "Cascadia Code", "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  /* Component shapes */
+  --c-tab-radius: 0px;
+  --c-btn-radius: var(--c-radius-sm);
+  --c-input-radius: var(--c-radius-sm);
+  --c-dialog-radius: var(--c-radius-lg);
+
+  /* Layout — compact Windows density */
+  --c-titlebar-height: 32px;
+  --c-scrollbar-width: 10px;
+  --c-scrollbar-radius: 5px;
+
+  /* Effects — no translucency by default */
+  --c-sidebar-blur: none;
+  --c-transition-fast: 100ms ease;
+  --c-transition-normal: 167ms cubic-bezier(0, 0, 0, 1);
+}
+
+/* ─── Dark mode — Windows 11 dark surfaces ─────────────────────────── */
+
+[data-platform="windows"].dark {
+  --c-panel-glass: rgba(255, 255, 255, 0.03);
+  --c-panel-glass-hover: rgba(255, 255, 255, 0.05);
+  --c-panel-glass-active: rgba(255, 255, 255, 0.04);
+
+  --c-stroke-glass: rgba(255, 255, 255, 0.06);
+  --c-stroke-glass-strong: rgba(255, 255, 255, 0.09);
+}
+
+[data-platform="windows"].light {
+  --c-panel-glass: rgba(255, 255, 255, 0.5);
+  --c-panel-glass-hover: rgba(249, 249, 249, 0.8);
+  --c-panel-glass-active: rgba(249, 249, 249, 0.9);
+
+  --c-stroke-glass: rgba(0, 0, 0, 0.06);
+  --c-stroke-glass-strong: rgba(0, 0, 0, 0.08);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   WinUI 3 — actual visual effects applied to UI elements
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Tab bar — underline active indicator ─────────────────────────── */
+
+[data-platform="windows"] [data-tab-active] {
+  background: transparent !important;
+  border-radius: 0 !important;
+  border-bottom: 2px solid var(--c-accent-500) !important;
+}
+
+/* ─── Inputs — WinUI 3 style with bottom accent on focus ───────────── */
+
+[data-platform="windows"] input:not([type="range"]):not([type="checkbox"]),
+[data-platform="windows"] select,
+[data-platform="windows"] textarea {
+  border-radius: var(--c-input-radius) !important;
+}
+
+[data-platform="windows"] input:focus:not([type="range"]):not([type="checkbox"]),
+[data-platform="windows"] select:focus,
+[data-platform="windows"] textarea:focus {
+  border-bottom: 2px solid var(--c-accent-500) !important;
+}
+
+/* ─── Dialogs — Mica-like elevated surface ─────────────────────────── */
+
+[data-platform="windows"].dark [data-dialog-content] {
+  background: #2c2c2c !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: var(--c-dialog-radius) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+[data-platform="windows"].light [data-dialog-content] {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-radius: var(--c-dialog-radius) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Context menus / Dropdowns — WinUI elevated ───────────────────── */
+
+[data-platform="windows"].dark [data-context-menu],
+[data-platform="windows"].dark [data-popover] {
+  background: #2c2c2c !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: var(--c-radius-lg) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+[data-platform="windows"].light [data-context-menu],
+[data-platform="windows"].light [data-popover] {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-radius: var(--c-radius-lg) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Scrollbar — wider, Windows-style ─────────────────────────────── */
+
+[data-platform="windows"] ::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+/* Native color schemes moved to src/themes/native-schemes.css
+   (must be imported after default accents for correct cascade order) */

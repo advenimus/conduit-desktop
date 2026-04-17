@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conduit</title>
+    <script>
+      // Apply theme class before first paint to prevent flash
+      (function() {
+        var t = localStorage.getItem('conduit-theme') || 'dark';
+        var resolved = t;
+        if (t === 'system') {
+          resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.classList.add(resolved);
+      })();
+    </script>
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.4s ease;
+      }
+      .light #splash { background: #f8fafc; }
+      .dark #splash { background: #0f172a; }
+      #splash img {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 20px;
+      }
+      #splash .spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      .light #splash .spinner { border-top-color: #0ea5e9; border-right-color: #0ea5e9; }
+      .dark #splash .spinner { border-top-color: #38bdf8; border-right-color: #38bdf8; }
+      .splash-fade-out { opacity: 0 !important; pointer-events: none; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="splash">
+      <img src="/app-icon.png" alt="" />
+      <div class="spinner"></div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,163 @@
+name: Build FreeRDP Helper
+
+on:
+  push:
+    paths:
+      - 'freerdp-helper/**'
+      - '.github/workflows/build-freerdp.yml'
+    tags-ignore:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'freerdp-helper/**'
+      - '.github/workflows/build-freerdp.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: darwin
+            arch: arm64
+            artifact: conduit-freerdp-darwin-arm64
+          - os: macos-13
+            platform: darwin
+            arch: x86_64
+            artifact: conduit-freerdp-darwin-x86_64
+          - os: windows-latest
+            platform: win32
+            arch: x64
+            artifact: conduit-freerdp-win32-x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            artifact: conduit-freerdp-linux-x64
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.platform }}-${{ matrix.arch }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── macOS setup ─────────────────────────────────────────────────
+      - name: Install build tools (macOS)
+        if: matrix.platform == 'darwin'
+        run: |
+          brew install cmake ninja
+          # NASM for OpenSSL x86 asm optimizations
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            brew install nasm
+          fi
+
+      # ── Windows setup ───────────────────────────────────────────────
+      - name: Set up MSVC (Windows)
+        if: matrix.platform == 'win32'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # ── Linux setup ─────────────────────────────────────────────────
+      - name: Install build tools (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build patchelf pkg-config \
+            build-essential nasm libkrb5-dev libicu-dev
+
+      # ── Cache dependencies ──────────────────────────────────────────
+      - name: Cache FreeRDP deps
+        if: matrix.platform != 'win32'
+        uses: actions/cache@v4
+        with:
+          path: freerdp-helper/deps/install
+          key: freerdp-deps-${{ matrix.platform }}-${{ matrix.arch }}-${{ hashFiles('freerdp-helper/build-freerdp.sh') }}
+          restore-keys: |
+            freerdp-deps-${{ matrix.platform }}-${{ matrix.arch }}-
+
+      - name: Cache FreeRDP deps (Windows)
+        if: matrix.platform == 'win32'
+        uses: actions/cache@v4
+        with:
+          path: freerdp-helper/deps/install
+          key: freerdp-deps-win32-x64-${{ hashFiles('freerdp-helper/scripts/build-windows.ps1') }}
+          restore-keys: |
+            freerdp-deps-win32-x64-
+
+      # ── Build ───────────────────────────────────────────────────────
+      - name: Build (macOS)
+        if: matrix.platform == 'darwin'
+        working-directory: freerdp-helper
+        run: |
+          bash build-freerdp.sh
+          bash scripts/build-macos.sh
+          bash scripts/bundle-macos.sh
+
+      - name: Build (Windows)
+        if: matrix.platform == 'win32'
+        working-directory: freerdp-helper
+        shell: cmd
+        run: powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1
+
+      - name: Build (Linux)
+        if: matrix.platform == 'linux'
+        working-directory: freerdp-helper
+        run: |
+          bash build-freerdp.sh
+          bash scripts/build-linux.sh
+
+      # ── Verify bundle ──────────────────────────────────────────────
+      - name: Verify bundle (macOS)
+        if: matrix.platform == 'darwin'
+        run: |
+          ls -lh freerdp-helper/bundle/darwin/
+          file freerdp-helper/bundle/darwin/conduit-freerdp
+          otool -L freerdp-helper/bundle/darwin/conduit-freerdp
+
+      - name: Verify bundle (Windows)
+        if: matrix.platform == 'win32'
+        shell: cmd
+        run: dir freerdp-helper\bundle\win32\
+
+      - name: Verify bundle (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          ls -lh freerdp-helper/bundle/linux/
+          file freerdp-helper/bundle/linux/conduit-freerdp
+          ldd freerdp-helper/bundle/linux/conduit-freerdp
+
+      # ── Upload artifact ─────────────────────────────────────────────
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            freerdp-helper/bundle/${{ matrix.platform }}/
+          retention-days: 30
+
+  # ── Create release on tag push ──────────────────────────────────────
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create archives
+        run: |
+          cd artifacts
+          for dir in conduit-freerdp-*; do
+            tar -czf "${dir}.tar.gz" -C "$dir" .
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/conduit-freerdp-*.tar.gz
+          generate_release_notes: true

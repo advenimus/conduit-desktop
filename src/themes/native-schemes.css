@@ -1,0 +1,259 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Native color schemes — platform-specific accent colors & surfaces.
+
+   IMPORTANT: This file MUST be imported AFTER the default accent colors
+   in index.css, otherwise the :root defaults will override these due to
+   equal CSS specificity + later cascade position.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── macOS: System Blue ───────────────────────────────────────────── */
+
+[data-scheme="macos-blue"] {
+  --c-accent-50: #e5f2ff;
+  --c-accent-100: #cce5ff;
+  --c-accent-200: #99cbff;
+  --c-accent-300: #66b0ff;
+  --c-accent-400: #3395ff;
+  --c-accent-500: #007AFF;
+  --c-accent-600: #0062cc;
+  --c-accent-700: #004a99;
+  --c-accent-800: #003166;
+  --c-accent-900: #001933;
+  --c-accent-950: #000d1a;
+}
+
+[data-scheme="macos-blue"].dark {
+  --c-canvas: #1c1c1e;
+  --c-panel: #2c2c2e;
+  --c-raised: #3a3a3c;
+  --c-well: #1c1c1e;
+  --c-ink: #f5f5f7;
+  --c-ink-secondary: #d1d1d6;
+  --c-ink-muted: #98989d;
+  --c-ink-faint: #636366;
+  --c-stroke: #3a3a3c;
+  --c-stroke-dim: #48484a;
+}
+
+[data-scheme="macos-blue"].light {
+  --c-canvas: #f5f5f7;
+  --c-panel: #ffffff;
+  --c-raised: #e5e5ea;
+  --c-well: #f2f2f7;
+  --c-ink: #1d1d1f;
+  --c-ink-secondary: #3a3a3c;
+  --c-ink-muted: #6e6e73;
+  --c-ink-faint: #98989d;
+  --c-stroke: #d1d1d6;
+  --c-stroke-dim: #e5e5ea;
+}
+
+/* ─── macOS: Graphite ──────────────────────────────────────────────── */
+
+[data-scheme="macos-graphite"] {
+  --c-accent-50: #f2f2f4;
+  --c-accent-100: #e5e5ea;
+  --c-accent-200: #c7c7cc;
+  --c-accent-300: #aeaeb2;
+  --c-accent-400: #98989d;
+  --c-accent-500: #8E8E93;
+  --c-accent-600: #6e6e73;
+  --c-accent-700: #58585c;
+  --c-accent-800: #48484a;
+  --c-accent-900: #3a3a3c;
+  --c-accent-950: #2c2c2e;
+}
+
+[data-scheme="macos-graphite"].dark {
+  --c-canvas: #1c1c1e;
+  --c-panel: #2c2c2e;
+  --c-raised: #3a3a3c;
+  --c-well: #1c1c1e;
+  --c-ink: #f5f5f7;
+  --c-ink-secondary: #d1d1d6;
+  --c-ink-muted: #98989d;
+  --c-ink-faint: #636366;
+  --c-stroke: #3a3a3c;
+  --c-stroke-dim: #48484a;
+}
+
+[data-scheme="macos-graphite"].light {
+  --c-canvas: #f5f5f7;
+  --c-panel: #ffffff;
+  --c-raised: #e5e5ea;
+  --c-well: #f2f2f7;
+  --c-ink: #1d1d1f;
+  --c-ink-secondary: #3a3a3c;
+  --c-ink-muted: #6e6e73;
+  --c-ink-faint: #98989d;
+  --c-stroke: #d1d1d6;
+  --c-stroke-dim: #e5e5ea;
+}
+
+/* ─── Windows: Windows Blue ────────────────────────────────────────── */
+
+[data-scheme="win-blue"] {
+  --c-accent-50: #e6f2ff;
+  --c-accent-100: #cce5ff;
+  --c-accent-200: #99c9ff;
+  --c-accent-300: #66adff;
+  --c-accent-400: #3391ff;
+  --c-accent-500: #0078D4;
+  --c-accent-600: #006cbf;
+  --c-accent-700: #005a9e;
+  --c-accent-800: #004578;
+  --c-accent-900: #003054;
+  --c-accent-950: #001a2e;
+}
+
+[data-scheme="win-blue"].dark {
+  --c-canvas: #202020;
+  --c-panel: #2c2c2c;
+  --c-raised: #383838;
+  --c-well: #1a1a1a;
+  --c-ink: #ffffff;
+  --c-ink-secondary: #d6d6d6;
+  --c-ink-muted: #9a9a9a;
+  --c-ink-faint: #6a6a6a;
+  --c-stroke: #383838;
+  --c-stroke-dim: #444444;
+}
+
+[data-scheme="win-blue"].light {
+  --c-canvas: #f3f3f3;
+  --c-panel: #ffffff;
+  --c-raised: #e5e5e5;
+  --c-well: #f9f9f9;
+  --c-ink: #1a1a1a;
+  --c-ink-secondary: #3b3b3b;
+  --c-ink-muted: #6a6a6a;
+  --c-ink-faint: #9a9a9a;
+  --c-stroke: #d6d6d6;
+  --c-stroke-dim: #e5e5e5;
+}
+
+/* ─── Windows: Sun Valley ──────────────────────────────────────────── */
+
+[data-scheme="win-sun-valley"] {
+  --c-accent-50: #e0f0ff;
+  --c-accent-100: #b8dcff;
+  --c-accent-200: #8bc6ff;
+  --c-accent-300: #5eafff;
+  --c-accent-400: #3199ff;
+  --c-accent-500: #005FB8;
+  --c-accent-600: #004f9a;
+  --c-accent-700: #003f7c;
+  --c-accent-800: #002f5e;
+  --c-accent-900: #001f40;
+  --c-accent-950: #001020;
+}
+
+[data-scheme="win-sun-valley"].dark {
+  --c-canvas: #1a1a1a;
+  --c-panel: #262626;
+  --c-raised: #333333;
+  --c-well: #141414;
+  --c-ink: #f5f5f5;
+  --c-ink-secondary: #cccccc;
+  --c-ink-muted: #8c8c8c;
+  --c-ink-faint: #5c5c5c;
+  --c-stroke: #333333;
+  --c-stroke-dim: #404040;
+}
+
+[data-scheme="win-sun-valley"].light {
+  --c-canvas: #f5f5f5;
+  --c-panel: #ffffff;
+  --c-raised: #e0e0e0;
+  --c-well: #fafafa;
+  --c-ink: #191919;
+  --c-ink-secondary: #383838;
+  --c-ink-muted: #666666;
+  --c-ink-faint: #999999;
+  --c-stroke: #d1d1d1;
+  --c-stroke-dim: #e5e5e5;
+}
+
+/* ─── Ubuntu: Yaru Orange ──────────────────────────────────────────── */
+
+[data-scheme="ubuntu-yaru"] {
+  --c-accent-50: #fef3ec;
+  --c-accent-100: #fde3d1;
+  --c-accent-200: #fbc5a3;
+  --c-accent-300: #f8a070;
+  --c-accent-400: #f67a42;
+  --c-accent-500: #E95420;
+  --c-accent-600: #c44418;
+  --c-accent-700: #9c3614;
+  --c-accent-800: #7a2c12;
+  --c-accent-900: #5c2110;
+  --c-accent-950: #3a140a;
+}
+
+[data-scheme="ubuntu-yaru"].dark {
+  --c-canvas: #242424;
+  --c-panel: #303030;
+  --c-raised: #3d3d3d;
+  --c-well: #1e1e1e;
+  --c-ink: #f6f5f4;
+  --c-ink-secondary: #c0bfbc;
+  --c-ink-muted: #928f8a;
+  --c-ink-faint: #6a6763;
+  --c-stroke: #3d3d3d;
+  --c-stroke-dim: #4a4a4a;
+}
+
+[data-scheme="ubuntu-yaru"].light {
+  --c-canvas: #fafafa;
+  --c-panel: #ffffff;
+  --c-raised: #deddda;
+  --c-well: #f6f5f4;
+  --c-ink: #2e3436;
+  --c-ink-secondary: #3d3846;
+  --c-ink-muted: #77767b;
+  --c-ink-faint: #9a9996;
+  --c-stroke: #c0bfbc;
+  --c-stroke-dim: #deddda;
+}
+
+/* ─── Ubuntu: GNOME Blue ───────────────────────────────────────────── */
+
+[data-scheme="ubuntu-gnome"] {
+  --c-accent-50: #e8f2fc;
+  --c-accent-100: #d0e4f8;
+  --c-accent-200: #a2c9f1;
+  --c-accent-300: #73aeea;
+  --c-accent-400: #4593e3;
+  --c-accent-500: #3584E4;
+  --c-accent-600: #2a6ab6;
+  --c-accent-700: #205089;
+  --c-accent-800: #15365b;
+  --c-accent-900: #0b1c2e;
+  --c-accent-950: #050e17;
+}
+
+[data-scheme="ubuntu-gnome"].dark {
+  --c-canvas: #1e1e1e;
+  --c-panel: #2a2a2a;
+  --c-raised: #363636;
+  --c-well: #181818;
+  --c-ink: #f6f5f4;
+  --c-ink-secondary: #c0bfbc;
+  --c-ink-muted: #928f8a;
+  --c-ink-faint: #6a6763;
+  --c-stroke: #363636;
+  --c-stroke-dim: #434343;
+}
+
+[data-scheme="ubuntu-gnome"].light {
+  --c-canvas: #fafafa;
+  --c-panel: #ffffff;
+  --c-raised: #deddda;
+  --c-well: #f6f5f4;
+  --c-ink: #2e3436;
+  --c-ink-secondary: #3d3846;
+  --c-ink-muted: #77767b;
+  --c-ink-faint: #9a9996;
+  --c-stroke: #c0bfbc;
+  --c-stroke-dim: #deddda;
+}

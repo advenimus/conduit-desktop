@@ -1,0 +1,94 @@
+appId: com.conduit.app
+productName: Conduit
+directories:
+  output: release
+asar: true
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - node_modules/**/*
+  - package.json
+extraResources:
+  - from: resources/icons/
+    to: icons/
+    filter:
+      - "**/*"
+  - from: mcp/dist/
+    to: mcp/dist/
+    filter:
+      - "**/*"
+  - from: mcp/node_modules/
+    to: mcp/node_modules/
+    filter:
+      - "**/*"
+  - from: mcp/package.json
+    to: mcp/package.json
+afterPack: scripts/afterPack.cjs
+mac:
+  category: public.app-category.developer-tools
+  icon: build/icons/icon.icns
+  darkModeSupport: true
+  target:
+    - dmg
+    - zip
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  notarize: true
+  extendInfo:
+    NSLocalNetworkUsageDescription: "Conduit needs access to your local network to connect to devices via SSH, RDP, VNC, and web sessions."
+  extraResources:
+    - from: freerdp-helper/bundle/darwin/
+      to: freerdp/
+      filter:
+        - "**/*"
+win:
+  icon: build/icons/icon.ico
+  artifactName: "${productName}-Setup-${version}.${ext}"
+  target:
+    - nsis
+  forceCodeSigning: false
+  signAndEditExecutable: false
+  extraResources:
+    - from: freerdp-helper/bundle/win32/
+      to: freerdp/
+      filter:
+        - "**/*"
+    - from: webview2-helper/bundle/win-x64/
+      to: webview2/
+      filter:
+        - "**/*"
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icons/icon.ico
+  uninstallerIcon: build/icons/icon.ico
+  installerSidebar: build/installerSidebar.bmp
+  uninstallerSidebar: build/installerSidebar.bmp
+  include: build/installer.nsh
+linux:
+  icon: build/icons/icon.png
+  target:
+    - AppImage
+    - deb
+  extraResources:
+    - from: freerdp-helper/bundle/linux/
+      to: freerdp/
+      filter:
+        - "**/*"
+fileAssociations:
+  - ext: conduit
+    name: Conduit Vault
+    description: Conduit Vault File
+    mimeType: application/x-conduit-vault
+    role: Editor
+protocols:
+  - name: Conduit
+    schemes:
+      - conduit
+publish:
+  provider: github
+  owner: advenimus
+  repo: conduit-desktop
+npmRebuild: true

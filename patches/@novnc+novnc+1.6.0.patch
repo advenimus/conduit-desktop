@@ -1,0 +1,44 @@
+diff --git a/node_modules/@novnc/novnc/lib/rfb.js b/node_modules/@novnc/novnc/lib/rfb.js
+index 068e490..ba852b8 100644
+--- a/node_modules/@novnc/novnc/lib/rfb.js
++++ b/node_modules/@novnc/novnc/lib/rfb.js
+@@ -1617,6 +1617,13 @@ var RFB = exports["default"] = /*#__PURE__*/function (_EventTargetMixin) {
+         try {
+           for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
+             var type = _step3.value;
++            // Patched: skip ARD (type 30) when username is not available,
++            // allowing fallback to VNCAuth (type 2) for password-only connections.
++            // This enables transparent support for both macOS Screen Sharing
++            // (username+password) and standard VNC servers (password only).
++            if (type === 30 && this._rfbCredentials.username === undefined) {
++              continue;
++            }
+             if (this._isSupportedSecurityType(type)) {
+               this._rfbAuthScheme = type;
+               break;
+diff --git a/node_modules/@novnc/novnc/lib/util/browser.js b/node_modules/@novnc/novnc/lib/util/browser.js
+index 8121bc1..1d2847e 100644
+--- a/node_modules/@novnc/novnc/lib/util/browser.js
++++ b/node_modules/@novnc/novnc/lib/util/browser.js
+@@ -176,7 +176,20 @@ function _checkWebCodecsH264DecodeSupport2() {
+   }));
+   return _checkWebCodecsH264DecodeSupport2.apply(this, arguments);
+ }
+-exports.supportsWebCodecsH264Decode = supportsWebCodecsH264Decode = await _checkWebCodecsH264DecodeSupport();
++// Patched: replace top-level await with lazy init (esbuild CJS compat)
++var _h264SupportChecked = false;
++var _h264SupportResult = false;
++async function _lazyCheckH264() {
++  if (!_h264SupportChecked) {
++    _h264SupportChecked = true;
++    _h264SupportResult = await _checkWebCodecsH264DecodeSupport();
++    exports.supportsWebCodecsH264Decode = supportsWebCodecsH264Decode = _h264SupportResult;
++  }
++  return _h264SupportResult;
++}
++exports.supportsWebCodecsH264Decode = supportsWebCodecsH264Decode = false;
++exports._lazyCheckH264 = _lazyCheckH264;
++_lazyCheckH264();
+ 
+ /*
+  * The functions for detection of platforms and browsers below are exported

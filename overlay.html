@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notifications</title>
+    <script>
+      // Apply theme before first paint
+      (function() {
+        var t = localStorage.getItem('conduit-theme') || 'dark';
+        var resolved = t === 'system'
+          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : t;
+        document.documentElement.classList.add(resolved);
+        var scheme = localStorage.getItem('conduit-color-scheme');
+        if (scheme && scheme !== 'ocean') {
+          document.documentElement.setAttribute('data-scheme', scheme);
+        }
+        var platform = localStorage.getItem('conduit-platform-theme');
+        if (platform && platform !== 'default') {
+          document.documentElement.setAttribute('data-platform', platform);
+        }
+        if (navigator.platform.indexOf('Mac') === 0) {
+          document.documentElement.setAttribute('data-os', 'macos');
+        }
+      })();
+    </script>
+    <style>
+      body { margin: 0; overflow: hidden; background: transparent; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/overlay.tsx"></script>
+  </body>
+</html>
