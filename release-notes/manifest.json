@@ -8,27 +8,27 @@
       "summary": "Apache 2.0, new pricing, and bring-your-own AI agents on every tier — including Free.",
       "highlights": [
         {
-          "text": "**Conduit is open source** — the desktop client is now Apache 2.0 and lives at [github.com/advenimus/conduit-desktop](https://github.com/advenimus/conduit-desktop). Audit, fork, contribute, or self-host.",
+          "text": "Conduit is open source — the desktop client is now Apache 2.0 and lives on GitHub at advenimus/conduit-desktop. Audit, fork, contribute, or self-host.",
           "category": "feature"
         },
         {
-          "text": "**Use Claude Code & Codex on any tier** — run Claude Code or Codex CLI against Conduit's MCP server with your own Anthropic or OpenAI subscription, no paid plan required.",
+          "text": "Bring your own AI agent on any tier — run Claude Code or Codex CLI against Conduit's MCP server under your own Anthropic or OpenAI subscription. No paid Conduit plan required. [Configure in Settings](conduit://settings/ai)",
           "category": "feature"
         },
         {
-          "text": "**Free tier now includes MCP** — 50 tool calls per day on the built-in MCP server (was Pro-only). Pro and Team remain unlimited.",
+          "text": "Free tier now includes the MCP server — 50 tool calls per day (was Pro-only). Pro and Team remain unlimited.",
           "category": "feature"
         },
         {
-          "text": "**New pricing** — Free $0 (unlimited connections, 50 MCP calls/day), Pro $10/mo (unlimited MCP), Team $20/seat/mo (shared vaults + cloud sync).",
+          "text": "New pricing: Free $0 (unlimited connections + 50 MCP calls/day), Pro $10/mo (unlimited MCP + 14-day local backups), Team $20/seat/mo (cloud sync + shared vaults + 6-month backups).",
           "category": "feature"
         },
         {
-          "text": "**Cloud sync is now a Team feature** — existing Pro users keep local vault + local backups; upgrade to Team to sync vaults and chat history across devices.",
+          "text": "Cloud sync is now a Team feature — Pro keeps unlimited MCP and local backups; upgrade to Team to sync vaults and chat history across devices.",
           "category": "improvement"
         },
         {
-          "text": "Removed the built-in AI chat — the app now shells out to your installed Claude Code or Codex CLI. Install either to enable the chat panel. [Configure in Settings](conduit://settings/ai)",
+          "text": "Removed the built-in AI chat — the app now shells out to your installed Claude Code or Codex CLI. Install either one to enable the chat panel.",
           "category": "improvement"
         },
         {
