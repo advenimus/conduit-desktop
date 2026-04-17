@@ -199,7 +199,7 @@ jobs:
       # ── Platform setup (only when FreeRDP needs building) ────────────
       - name: Install build tools (macOS)
         if: matrix.platform == 'darwin' && steps.freerdp-bundle-cache.outputs.cache-hit != 'true'
-        run: brew install cmake ninja
+        run: arch -arm64 brew install cmake ninja
 
       # ilammy/msvc-dev-cmd can't find VS 2022 Build Tools (path uses \2022\
       # not \17\, and vswhere needs -products * for Build Tools).
@@ -294,7 +294,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build patchelf pkg-config \
-            build-essential nasm libkrb5-dev libicu-dev
+            build-essential nasm libkrb5-dev libicu-dev \
+            zlib1g-dev libasound2-dev libpulse-dev libssl-dev
 
       # ── Cache FreeRDP compiled deps (OpenSSL, FFmpeg, etc.) ──────────
       - name: Cache FreeRDP deps (Unix)
