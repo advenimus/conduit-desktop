@@ -1,7 +1,13 @@
 {
-  "name": "conduit-mcp",
+  "name": "@advenimus/conduit-mcp",
   "version": "0.12.5",
+  "mcpName": "io.github.advenimus/conduit-desktop",
   "description": "Conduit MCP Server - AI-powered remote connection manager",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/advenimus/conduit-desktop.git"
+  },
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
