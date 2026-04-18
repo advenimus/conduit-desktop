@@ -7,7 +7,7 @@ so we can fix it before it's exploited.
 
 ### Preferred channel
 
-Email: **security@conduitdesktop.com**
+Email: **support@conduitdesktop.com**
 
 Please include:
 - A description of the issue
@@ -37,7 +37,7 @@ Examples of issues we want to hear about:
 - Weaknesses that require an attacker to already have full root on the user's
   machine (at that point, the vault is already theirs)
 - Missing security headers on `conduitdesktop.com` (that's a separate site —
-  report to the same email but it's out of scope for this repo)
+  report to the same address but it's out of scope for this repo)
 
 ### Responsible disclosure
 
