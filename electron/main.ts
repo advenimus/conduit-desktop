@@ -710,17 +710,25 @@ app.whenReady().then(async () => {
     console.warn('[main] Failed to write agent instruction files:', err);
   });
 
-  // Heal stale Conduit MCP entries in ~/.claude.json from prior installs,
-  // then SIGTERM any leftover MCP processes spawned from the old paths so
-  // active CLI sessions respawn from the migrated config (best-effort;
-  // never blocks startup).
+  // Heal anything pointing at a predecessor Conduit MCP from prior installs:
+  //   1. Rewrite stale ~/.claude.json entries.
+  //   2. Refresh the in-app agent .mcp.json files (existing sessions reuse
+  //      their working dir, so this must happen at startup — not just on
+  //      session creation).
+  //   3. SIGTERM any leftover OLD MCP processes; the CLI host will respawn
+  //      from the now-current config on its next tool call.
+  // Best-effort throughout; never blocks startup.
   try {
-    const { migrateStaleConduitMcpEntries, reapStaleConduitMcpProcesses } =
-      await import('./services/mcp-migration.js');
+    const {
+      migrateStaleConduitMcpEntries,
+      refreshAgentMcpConfigs,
+      reapStaleConduitMcpProcesses,
+    } = await import('./services/mcp-migration.js');
     const currentMcpPath = app.isPackaged
       ? path.join(process.resourcesPath, 'mcp', 'dist', 'index.js')
       : path.resolve(app.getAppPath(), 'mcp', 'dist', 'index.js');
     migrateStaleConduitMcpEntries(currentMcpPath);
+    refreshAgentMcpConfigs(currentMcpPath);
     reapStaleConduitMcpProcesses(currentMcpPath);
   } catch (err) {
     console.warn('[main] MCP migration failed:', err);

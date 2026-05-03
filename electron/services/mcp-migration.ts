@@ -22,7 +22,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { getSocketPath } from '../ipc-server/server.js';
-import { getEnvConfig } from './env-config.js';
+import { getDataDir, getEnvConfig } from './env-config.js';
 
 interface StdioMcpServer {
   type?: string;
@@ -137,6 +137,57 @@ export function migrateStaleConduitMcpEntries(currentMcpPath: string): number {
   }
 
   return migrated;
+}
+
+/**
+ * Refresh the project-scoped `.mcp.json` in each in-app agent directory so
+ * it points at the current build's MCP path, not a stale predecessor path.
+ *
+ * Why a startup refresh AND a session-creation refresh? The session-creation
+ * hook in engine.ts only fires when the user explicitly creates a new
+ * session. Existing/cached sessions reuse the same working directory and
+ * its (potentially stale) `.mcp.json`. Doing it here on app startup
+ * guarantees the file is fresh before *any* CLI host can read it, which
+ * is what `reapStaleConduitMcpProcesses` needs to be effective.
+ *
+ * Only ever touches `{getDataDir()}/agent/{engineType}/.mcp.json` — never
+ * user-chosen working directories. We only know about engines we ship.
+ */
+export function refreshAgentMcpConfigs(currentMcpPath: string): void {
+  const engineTypes = ['claude-code', 'codex'] as const;
+  const env = getEnvConfig().environment;
+  const socket = getSocketPath();
+  const config = {
+    mcpServers: {
+      conduit: {
+        type: 'stdio',
+        command: 'node',
+        args: [currentMcpPath],
+        env: {
+          CONDUIT_SOCKET_PATH: socket,
+          CONDUIT_ENV: env,
+          CONDUIT_INTERNAL_AGENT: '1',
+        },
+      },
+    },
+  };
+  const serialized = JSON.stringify(config, null, 2);
+  for (const engineType of engineTypes) {
+    const agentDir = path.join(getDataDir(), 'agent', engineType);
+    if (!fs.existsSync(agentDir)) continue; // No session ever opened — leave alone.
+    const filePath = path.join(agentDir, '.mcp.json');
+    try {
+      // Only write if content differs — preserves mtime when nothing changed.
+      let existing = '';
+      try { existing = fs.readFileSync(filePath, 'utf-8'); } catch { /* missing */ }
+      if (existing.trim() !== serialized.trim()) {
+        fs.writeFileSync(filePath, serialized, 'utf-8');
+        console.log(`[mcp-migration] Refreshed ${engineType} agent .mcp.json → ${currentMcpPath}`);
+      }
+    } catch (err) {
+      console.warn(`[mcp-migration] Could not refresh ${engineType} agent .mcp.json:`, err);
+    }
+  }
 }
 
 /**
