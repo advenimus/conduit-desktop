@@ -5,6 +5,7 @@ import type { EngineType } from "../../stores/aiStore";
 import { invoke } from "../../lib/electron";
 import EngineLogo from "./EngineLogo";
 import EnginePicker from "./EnginePicker";
+import MCPQuotaCounter from "./MCPQuotaCounter";
 import ModelPicker from "./ModelPicker";
 import MessageBlockRenderer from "./blocks/MessageBlockRenderer";
 import ToolApprovalCard from "./ToolApprovalCard";
@@ -285,7 +286,8 @@ export default function ChatPanel() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <MCPQuotaCounter variant="pill" />
           <button
             onClick={handleNewChat}
             className="p-2 hover:bg-panel rounded text-ink-muted hover:text-ink"

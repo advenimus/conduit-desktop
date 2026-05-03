@@ -7,9 +7,72 @@
  */
 
 import { ipcMain, app } from 'electron';
+import fs from 'node:fs';
 import path from 'node:path';
 import type { AppState } from '../services/state.js';
 import { readSettings, writeSettings } from './settings.js';
+import { getDataDir } from '../services/env-config.js';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+interface QuotaUsage {
+  quota: number;
+  count: number;
+  remaining: number;
+  resetAt: number | null;
+}
+
+/**
+ * Resolve the active tier's MCP daily quota.
+ * Returns -1 when the tier is unlimited or auth state is missing (defensive
+ * default mirrors `ai_get_tier_capabilities` fallback below).
+ */
+async function resolveMcpQuota(state: AppState): Promise<number> {
+  const authState = state.authService.getAuthState();
+  let profile = authState.profile;
+  if (!profile && authState.user) {
+    try {
+      profile = await state.authService.getUserProfile();
+    } catch { /* fall through to defaults */ }
+  }
+  if (!profile) return 50;
+  const features = (profile.tier?.features as Record<string, unknown> | undefined) ?? {};
+  return typeof features.mcp_daily_quota === 'number' ? features.mcp_daily_quota : 50;
+}
+
+/**
+ * Read the MCP-side quota ledger and compute current usage.
+ * Mirrors the prune logic in `mcp/src/daily-quota.ts` so the desktop sees the
+ * same rolling-window count the MCP enforces. Missing/corrupt file → zero.
+ */
+function readQuotaUsage(quota: number): QuotaUsage {
+  if (quota === -1) {
+    return { quota: -1, count: 0, remaining: -1, resetAt: null };
+  }
+  const filePath = path.join(getDataDir(), 'mcp-quota.json');
+  let calls: number[] = [];
+  try {
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(raw) as { calls?: unknown };
+      if (Array.isArray(parsed.calls)) {
+        calls = parsed.calls.filter((n): n is number => typeof n === 'number');
+      }
+    }
+  } catch {
+    // Corrupt or unreadable — same posture as MCP: start fresh.
+    calls = [];
+  }
+  const cutoff = Date.now() - DAY_MS;
+  const fresh = calls.filter((ts) => ts > cutoff).sort((a, b) => a - b);
+  const count = fresh.length;
+  return {
+    quota,
+    count,
+    remaining: Math.max(0, quota - count),
+    resetAt: count > 0 ? fresh[0] + DAY_MS : null,
+  };
+}
 
 export function registerAiHandlers(state: AppState): void {
   ipcMain.handle('ai_get_mcp_path', async () => {
@@ -72,6 +135,12 @@ export function registerAiHandlers(state: AppState): void {
     }
 
     return capabilities;
+  });
+
+  /** Returns the user's current MCP daily-quota usage (live count from disk). */
+  ipcMain.handle('mcp_get_quota_usage', async (): Promise<QuotaUsage> => {
+    const quota = await resolveMcpQuota(state);
+    return readQuotaUsage(quota);
   });
 
   /** Returns cached tier capabilities from settings (for offline mode). */

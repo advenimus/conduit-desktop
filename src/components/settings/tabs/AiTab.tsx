@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "../../../lib/electron";
 import { useAiStore } from "../../../stores/aiStore";
 import McpSetupDialog from "../../ai/McpSetupDialog";
+import MCPQuotaCounter from "../../ai/MCPQuotaCounter";
 import { EngineStatusRow } from "../SettingsHelpers";
 import type { TabProps } from "../SettingsHelpers";
 import { FolderIcon } from "../../../lib/icons";
@@ -146,20 +147,20 @@ export default function AiTab({ settings, setSettings }: TabProps) {
       {mcpEnabled && (
         <div className="pt-3 border-t border-stroke">
           <label className="block text-sm font-medium mb-1">MCP Daily Quota</label>
-          <p className="text-xs text-ink-muted">
-            {mcpDailyQuota === -1
-              ? "Unlimited MCP tool calls per day."
-              : `${mcpDailyQuota} MCP tool calls per day on your current tier.`}
-          </p>
-          {mcpDailyQuota !== -1 && (
-            <p className="text-[10px] text-ink-faint mt-2">
-              <button
-                onClick={() => invoke('auth_open_pricing')}
-                className="underline hover:text-ink-muted"
-              >
-                Upgrade to Pro for unlimited MCP tool calls.
-              </button>
-            </p>
+          {mcpDailyQuota === -1 ? (
+            <p className="text-xs text-ink-muted">Unlimited MCP tool calls per day.</p>
+          ) : (
+            <>
+              <MCPQuotaCounter variant="block" />
+              <p className="text-[10px] text-ink-faint mt-2">
+                <button
+                  onClick={() => invoke('auth_open_pricing')}
+                  className="underline hover:text-ink-muted"
+                >
+                  Upgrade to Pro for unlimited MCP tool calls.
+                </button>
+              </p>
+            </>
           )}
         </div>
       )}
