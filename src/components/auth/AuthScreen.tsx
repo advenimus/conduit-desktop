@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAppIcon } from '../../hooks/useAppIcon';
 import { useAuthStore } from '../../stores/authStore';
 import {
-  CloudIcon, DevicesIcon, ExternalLinkIcon, LoaderIcon, MessageChatbotIcon, SparklesIcon
+  BoltIcon, ExternalLinkIcon, LoaderIcon, ServerIcon, ShieldLockIcon, SparklesIcon
 } from "../../lib/icons";
 
 export default function AuthScreen() {
@@ -37,7 +37,7 @@ export default function AuthScreen() {
             <span className="text-sm font-medium text-ink">30-day free trial of Pro</span>
           </div>
           <p className="text-xs text-ink-muted">
-            Full AI assistant, MCP tools, cloud sync — no commitment
+            Unlimited MCP tool calls and cloud sync — no commitment
           </p>
         </div>
 
@@ -82,6 +82,20 @@ export default function AuthScreen() {
                   Create Account
                 </button>
               </p>
+
+              <div className="relative pt-2">
+                <div className="absolute inset-x-0 top-1/2 h-px bg-stroke" />
+                <span className="relative mx-auto block w-fit bg-panel px-2 text-[11px] text-ink-faint uppercase tracking-wide">
+                  or
+                </span>
+              </div>
+
+              <button
+                onClick={enterLocalMode}
+                className="w-full px-4 py-2.5 border border-stroke text-ink hover:bg-raised text-sm font-medium rounded-md transition-colors"
+              >
+                Continue without signing in
+              </button>
             </div>
           )}
         </div>
@@ -91,28 +105,25 @@ export default function AuthScreen() {
           <p className="text-xs text-ink-faint mb-2">Free accounts include</p>
           <div className="flex justify-center gap-6 text-xs text-ink-muted">
             <span className="flex items-center gap-1.5">
-              <MessageChatbotIcon size={13} className="text-conduit-400" />
-              AI Chat
+              <ServerIcon size={13} className="text-conduit-400" />
+              SSH · RDP · VNC · Web
             </span>
             <span className="flex items-center gap-1.5">
-              <CloudIcon size={13} className="text-conduit-400" />
-              Cloud Backup
+              <ShieldLockIcon size={13} className="text-conduit-400" />
+              Encrypted Vault
             </span>
             <span className="flex items-center gap-1.5">
-              <DevicesIcon size={13} className="text-conduit-400" />
-              Cross-device Sync
+              <BoltIcon size={13} className="text-conduit-400" />
+              MCP Tools (50/day)
             </span>
           </div>
         </div>
 
-        {/* Skip sign-in option */}
+        {/* Open-source footer */}
         <div className="text-center mt-8">
-          <button
-            onClick={enterLocalMode}
-            className="text-[11px] text-ink-faint/50 hover:text-ink-muted transition-colors"
-          >
-            Continue without signing in
-          </button>
+          <p className="text-[11px] text-ink-faint/50">
+            Open source · Apache 2.0
+          </p>
         </div>
       </div>
     </div>
