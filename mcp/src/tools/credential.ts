@@ -155,8 +155,9 @@ export async function credentialRead(
   args: { credential_id: string; purpose: string },
   approvalGranted = false,
 ): Promise<unknown> {
-  // Primary gate is in index.ts (ToolApprovalService). This is defense-in-depth:
-  // if this function is ever called outside the gate, block it.
+  // Defense-in-depth: the registry hardcodes approvalGranted=true for the
+  // credential_read tool entry. If this function is ever invoked from another
+  // path that forgets to pass it, block the call so secrets never leak.
   if (!approvalGranted) {
     throw new Error('credential_read requires approval — must be called through the approval gate');
   }

@@ -436,18 +436,35 @@ export class WebSessionManager {
     }
   }
 
-  /** Navigate the active tab to a new URL. */
-  navigate(sessionId: string, url: string): void {
-    // Validate URL
+  /**
+   * Navigate the active tab to a new URL.
+   *
+   * `waitUntil` controls when the returned promise resolves:
+   * - `"load"` (default): after the page's `load` event (loadURL resolves).
+   * - `"domcontentloaded"`: after the `dom-ready` event.
+   * - `"networkidle"`: after `did-stop-loading` plus a brief idle settle.
+   *
+   * WebView2 sessions don't expose lifecycle events through the helper pipe,
+   * so all three modes degrade to a fixed short delay there.
+   */
+  async navigate(
+    sessionId: string,
+    url: string,
+    waitUntil: 'load' | 'domcontentloaded' | 'networkidle' = 'load',
+  ): Promise<void> {
     try {
       new URL(url);
     } catch {
       throw new Error(`Invalid URL: ${url}`);
     }
 
-    // WebView2: navigate via pipe
+    // WebView2: lifecycle events aren't forwarded over the helper pipe — best-effort delay.
     const wv2 = this.wv2Sessions.get(sessionId);
-    if (wv2) { wv2.navigate(url); return; }
+    if (wv2) {
+      wv2.navigate(url);
+      await new Promise((r) => setTimeout(r, 500));
+      return;
+    }
 
     const session = this.getSession(sessionId);
     const tab = session.getActiveTab();
@@ -455,8 +472,28 @@ export class WebSessionManager {
       throw new Error(`No webview for session ${sessionId}`);
     }
 
-    tab.view.webContents.loadURL(url);
+    const wc = tab.view.webContents;
     tab.url = url;
+
+    if (waitUntil === 'domcontentloaded') {
+      const domReady = new Promise<void>((resolve) => wc.once('dom-ready', () => resolve()));
+      wc.loadURL(url).catch(() => { /* navigation interrupted is OK; dom-ready may still fire */ });
+      await domReady;
+      return;
+    }
+
+    if (waitUntil === 'networkidle') {
+      await wc.loadURL(url).catch(() => { /* swallow — page may be partly loaded */ });
+      await new Promise<void>((resolve) => {
+        if (!wc.isLoading()) return resolve();
+        wc.once('did-stop-loading', () => resolve());
+      });
+      await new Promise((r) => setTimeout(r, 500));
+      return;
+    }
+
+    // 'load' — default
+    await wc.loadURL(url).catch(() => { /* navigation may be interrupted by SPAs */ });
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -470,7 +507,7 @@ export class WebSessionManager {
     // WebView2: each tab gets its own helper process
     if (this.wv2Sessions.has(sessionId)) {
       if (session.tabs.length >= MAX_TABS_PER_SESSION) {
-        if (url) this.navigate(sessionId, url);
+        if (url) void this.navigate(sessionId, url);
         return session.getActiveTab()?.id ?? '';
       }
 

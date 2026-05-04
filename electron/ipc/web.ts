@@ -121,7 +121,7 @@ export function registerWebHandlers(): void {
 
   ipcMain.handle('web_session_navigate', async (_e, args) => {
     const { sessionId, url } = args ?? {};
-    state.webManager.navigate(sessionId, url);
+    await state.webManager.navigate(sessionId, url);
   });
 
   ipcMain.handle('web_session_update_position', async (_e, args) => {

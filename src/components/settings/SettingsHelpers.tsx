@@ -20,8 +20,6 @@ export interface Settings {
   session_defaults_web: WebGlobalDefaults;
   session_defaults_terminal: TerminalGlobalDefaults;
   session_defaults_ssh: SshGlobalDefaults;
-  tool_approval_enabled: boolean;
-  tool_approval_always_allow: string[];
 }
 
 export { HARDCODED_RDP_DEFAULTS, HARDCODED_WEB_DEFAULTS, HARDCODED_TERMINAL_DEFAULTS, HARDCODED_SSH_DEFAULTS };
@@ -37,7 +35,6 @@ export type SettingsTab =
   | "sessions/web"
   | "ai"
   | "ai/agent"
-  | "ai/tools"
   | "backup"
   | "mobile"
   | "team"

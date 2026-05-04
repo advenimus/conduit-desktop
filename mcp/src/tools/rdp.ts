@@ -14,6 +14,11 @@ import type { ConduitClient } from '../ipc-client.js';
 // Per-connection scale factors from last screenshot
 const scaleMap = new Map<string, { scaleX: number; scaleY: number }>();
 
+/** Drop cached scale factors for a connection (call on close/reconnect). */
+export function invalidateRdpScale(connectionId: string): void {
+  scaleMap.delete(connectionId);
+}
+
 /** Scale screenshot-space coordinates to native RDP resolution */
 function scaleToNative(connectionId: string, x: number, y: number): { x: number; y: number } {
   const scale = scaleMap.get(connectionId);
@@ -88,15 +93,15 @@ export async function rdpScreenshot(
   }
 
   const result = await client.rdpScreenshot(args.connection_id, format, quality, region, maxWidth);
-  const dims = await client.rdpGetDimensions(args.connection_id);
 
-  // Store scale factors for coordinate auto-scaling
+  // Store scale factors for coordinate auto-scaling. Native dimensions arrive
+  // atomically with the frame so a resize between calls can't desync them.
   const imageWidth = result.imageWidth;
   const imageHeight = result.imageHeight;
-  if (imageWidth > 0 && imageHeight > 0) {
+  if (imageWidth > 0 && imageHeight > 0 && result.nativeWidth > 0 && result.nativeHeight > 0) {
     scaleMap.set(args.connection_id, {
-      scaleX: dims.width / imageWidth,
-      scaleY: dims.height / imageHeight,
+      scaleX: result.nativeWidth / imageWidth,
+      scaleY: result.nativeHeight / imageHeight,
     });
   }
 
@@ -105,8 +110,8 @@ export async function rdpScreenshot(
     format,
     width: imageWidth,
     height: imageHeight,
-    native_width: dims.width,
-    native_height: dims.height,
+    native_width: result.nativeWidth,
+    native_height: result.nativeHeight,
     timestamp: new Date().toISOString(),
   };
 }

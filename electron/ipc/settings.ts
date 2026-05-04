@@ -80,7 +80,6 @@ export interface AppSettings {
   local_backup_enabled: boolean;
   local_backup_path: string | null;
   local_backup_retention_days: number;
-  local_backup_include_chat: boolean;
   // Cached engine models for instant /model on cold start
   cached_engine_models?: Record<string, { models: import('../services/ai/engines/engine.js').EngineModelInfo[]; updatedAt: string }>;
   // Vault Hub: last-used vault context for auto-connect on launch
@@ -99,15 +98,15 @@ export interface AppSettings {
   session_defaults_web: WebGlobalDefaults;
   session_defaults_terminal: TerminalGlobalDefaults;
   session_defaults_ssh: SshGlobalDefaults;
-  // MCP tool approval settings
-  tool_approval_enabled: boolean;
-  tool_approval_always_allow: string[];
   // What's New dialog — track last version user saw release notes for
   last_seen_whats_new_version: string | null;
   // Biometric unlock — vault keys where user dismissed the setup prompt
   biometric_dismissed_vaults: string[];
   // Opt out of anonymous analytics (event-based product telemetry)
   analytics_opt_out: boolean;
+  // Has the user explicitly picked an AI engine via the first-launch picker?
+  // False = picker shows on next agent panel open. True = use default_engine silently.
+  engine_picker_completed: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -127,7 +126,6 @@ const defaultSettings: AppSettings = {
   local_backup_enabled: false,
   local_backup_path: null,
   local_backup_retention_days: 30,
-  local_backup_include_chat: true,
   last_vault_type: null,
   last_team_vault_id: null,
   onboarding_completed: false,
@@ -138,11 +136,10 @@ const defaultSettings: AppSettings = {
   session_defaults_web: { ...HARDCODED_WEB_DEFAULTS },
   session_defaults_terminal: { ...HARDCODED_TERMINAL_DEFAULTS },
   session_defaults_ssh: { ...HARDCODED_SSH_DEFAULTS },
-  tool_approval_enabled: true,
-  tool_approval_always_allow: [],
   last_seen_whats_new_version: null,
   biometric_dismissed_vaults: [],
   analytics_opt_out: false,
+  engine_picker_completed: false,
 };
 
 export function settingsPath(): string {
@@ -169,6 +166,10 @@ export function readSettings(): AppSettings {
     // Remove stale default_ai_model from old settings files
     if ('default_ai_model' in parsed) {
       delete (parsed as Record<string, unknown>).default_ai_model;
+    }
+    // Remove stale local_backup_include_chat (chat history was removed)
+    if ('local_backup_include_chat' in parsed) {
+      delete (parsed as Record<string, unknown>).local_backup_include_chat;
     }
     // Migrate: populate session_defaults_web.engine from legacy default_web_engine
     if (!raw.session_defaults_web && raw.default_web_engine) {

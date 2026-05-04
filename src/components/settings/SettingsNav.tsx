@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   KeyboardIcon, PaletteIcon, RobotIcon, FloppyIcon, UsersIcon, UserIcon,
   TerminalIcon, DesktopIcon, EyeIcon, GlobeIcon, ChevronRightIcon, ChevronDownIcon,
-  ShieldCheckIcon, KeyIcon, FingerprintIcon, DeviceMobileIcon,
+  KeyIcon, FingerprintIcon, DeviceMobileIcon,
 } from "../../lib/icons";
 import type { IconComponent } from "../../lib/icons";
 import type { SettingsTab } from "./SettingsHelpers";
@@ -30,16 +30,7 @@ const NAV_ITEMS: NavItem[] = [
       { kind: "item", id: "sessions/web", icon: GlobeIcon, label: "Web" },
     ],
   },
-  {
-    kind: "group",
-    id: "ai",
-    icon: RobotIcon,
-    label: "AI",
-    children: [
-      { kind: "item", id: "ai/agent", icon: RobotIcon, label: "Agent" },
-      { kind: "item", id: "ai/tools", icon: ShieldCheckIcon, label: "Tool Approvals" },
-    ],
-  },
+  { kind: "item", id: "ai/agent", icon: RobotIcon, label: "AI" },
   { kind: "item", id: "backup", icon: FloppyIcon, label: "Backup" },
   { kind: "item", id: "mobile", icon: DeviceMobileIcon, label: "Mobile" },
   { kind: "item", id: "team", icon: UsersIcon, label: "Team" },

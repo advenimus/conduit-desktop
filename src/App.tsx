@@ -32,7 +32,6 @@ import { useVaultStore } from "./stores/vaultStore";
 import { useSidebarStore } from "./stores/sidebarStore";
 import { useAuthStore } from "./stores/authStore";
 import { useAiStore } from "./stores/aiStore";
-import { useToolApprovalStore } from "./stores/toolApprovalStore";
 import { initTierSubscriptions, useTierStore } from "./stores/tierStore";
 import { useTeamStore } from "./stores/teamStore";
 import AuthScreen from "./components/auth/AuthScreen";
@@ -199,11 +198,6 @@ function App() {
       }
     });
     return unsub;
-  }, []);
-
-  // Initialize tool approval listener (idempotent — safe under StrictMode)
-  useEffect(() => {
-    useToolApprovalStore.getState().initializeListener();
   }, []);
 
   // Check onboarding status for first-time authenticated users

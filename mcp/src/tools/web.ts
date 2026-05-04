@@ -14,6 +14,11 @@ import type { ConduitClient } from '../ipc-client.js';
 // Per-connection scale factors from last screenshot
 const scaleMap = new Map<string, { scaleX: number; scaleY: number }>();
 
+/** Drop cached scale factors for a connection (call on close/reconnect). */
+export function invalidateWebScale(connectionId: string): void {
+  scaleMap.delete(connectionId);
+}
+
 /** Scale screenshot-space coordinates to CSS viewport coordinates */
 function scaleToViewport(connectionId: string, x: number, y: number): { x: number; y: number } {
   const scale = scaleMap.get(connectionId);
@@ -70,16 +75,16 @@ export async function websiteScreenshot(
   const maxWidth = args.max_width === 0 ? null : (args.max_width ?? 1024);
 
   const result = await client.webScreenshot(args.connection_id, fullPage, format, quality, maxWidth);
-  const dims = await client.webGetDimensions(args.connection_id);
   const url = await client.webGetUrl(args.connection_id);
 
-  // Store scale factors for coordinate auto-scaling
+  // Store scale factors for coordinate auto-scaling. Viewport dimensions arrive
+  // atomically with the frame so a resize between calls can't desync them.
   const imageWidth = result.imageWidth;
   const imageHeight = result.imageHeight;
-  if (imageWidth > 0 && imageHeight > 0) {
+  if (imageWidth > 0 && imageHeight > 0 && result.viewportWidth > 0 && result.viewportHeight > 0) {
     scaleMap.set(args.connection_id, {
-      scaleX: dims.width / imageWidth,
-      scaleY: dims.height / imageHeight,
+      scaleX: result.viewportWidth / imageWidth,
+      scaleY: result.viewportHeight / imageHeight,
     });
   }
 
@@ -89,8 +94,8 @@ export async function websiteScreenshot(
     url,
     width: imageWidth,
     height: imageHeight,
-    viewport_width: dims.width,
-    viewport_height: dims.height,
+    viewport_width: result.viewportWidth,
+    viewport_height: result.viewportHeight,
   };
 }
 
@@ -155,14 +160,15 @@ export function websiteNavigateDefinition() {
 
 export async function websiteNavigate(
   client: ConduitClient,
-  args: { connection_id: string; url: string },
+  args: {
+    connection_id: string;
+    url: string;
+    wait_until?: 'load' | 'domcontentloaded' | 'networkidle';
+  },
 ): Promise<unknown> {
   // Invalidate stale scale factors after navigation
   scaleMap.delete(args.connection_id);
-  await client.webNavigate(args.connection_id, args.url);
-
-  // Brief wait for navigation
-  await new Promise((r) => setTimeout(r, 500));
+  await client.webNavigate(args.connection_id, args.url, args.wait_until ?? 'load');
 
   const currentUrl = await client.webGetUrl(args.connection_id);
   const title = await client.webGetTitle(args.connection_id);

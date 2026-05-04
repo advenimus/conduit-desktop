@@ -409,8 +409,6 @@ export function registerEngineHandlers(state: AppState): void {
       controller.abort();
       activeAbortControllers.delete(sessionId);
     }
-    // Deny any pending tool approvals so blocked tool calls unblock immediately
-    state.toolApproval.denyAllPending();
     // Also tell the engine
     await em.cancelTurn(engineType, sessionId);
   });

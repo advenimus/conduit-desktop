@@ -176,9 +176,12 @@ export async function handleRequest(
       }
 
       case 'LocalShellCreate': {
-        const { shell_type } = request.payload as { shell_type: string | null };
+        const { shell_type, working_directory } = request.payload as {
+          shell_type: string | null;
+          working_directory?: string | null;
+        };
         try {
-          const sessionId = state.terminalManager.createLocalShell(shell_type);
+          const sessionId = state.terminalManager.createLocalShell(shell_type, working_directory ?? null);
           state.terminalManager.startReading(sessionId);
 
           // Register in MCP connection registry
@@ -384,29 +387,6 @@ export async function handleRequest(
 
         const approved = await Promise.race([approvalPromise, timeoutPromise]);
         return successResponse({ approved });
-      }
-
-      case 'RequestToolApproval': {
-        const { tool_name, args } = request.payload as {
-          tool_name: string;
-          args: Record<string, unknown>;
-        };
-
-        // Validate tool_name against registry — reject unknown tools
-        const { TOOL_REGISTRY } = await import('../services/ai/tool-registry.js');
-        const registeredTool = TOOL_REGISTRY.find((t) => t.name === tool_name);
-        if (!registeredTool) {
-          return errorResponse('UNKNOWN_TOOL', `Unknown tool: ${tool_name}`);
-        }
-
-        // Use canonical description/category from registry, not caller-supplied values
-        const result = await state.toolApproval.requestApproval(
-          registeredTool.name,
-          registeredTool.description,
-          registeredTool.category,
-          args,
-        );
-        return successResponse({ approved: result.approved });
       }
 
       // ---- Connection operations ----
@@ -789,9 +769,13 @@ export async function handleRequest(
       }
 
       case 'WebSessionNavigate': {
-        const { session_id, url } = request.payload as { session_id: string; url: string };
+        const { session_id, url, wait_until } = request.payload as {
+          session_id: string;
+          url: string;
+          wait_until?: 'load' | 'domcontentloaded' | 'networkidle';
+        };
         try {
-          state.webManager.navigate(session_id, url);
+          await state.webManager.navigate(session_id, url, wait_until ?? 'load');
           return successResponse({ success: true });
         } catch (e) {
           return errorResponse('WEB_ERROR', String(e));
@@ -827,6 +811,9 @@ export async function handleRequest(
           max_width: number | null;
         };
         try {
+          // Capture viewport dimensions atomically with the frame so callers don't
+          // need a separate WebSessionGetDimensions round-trip.
+          const viewport = state.webManager.getViewportDimensions(session_id);
           const result = await state.webManager.screenshot(
             session_id,
             (format || 'png') as 'png' | 'jpeg',
@@ -837,6 +824,8 @@ export async function handleRequest(
             image: result.image,
             image_width: result.imageWidth,
             image_height: result.imageHeight,
+            viewport_width: viewport.width,
+            viewport_height: viewport.height,
           });
         } catch (e) {
           return errorResponse('WEB_ERROR', String(e));
@@ -1071,6 +1060,9 @@ export async function handleRequest(
             : { type: 'png' };
 
           const mw = max_width ?? undefined;
+          // Capture native dimensions atomically with the frame so callers don't
+          // need a separate RdpGetDimensions round-trip (which can race a resize).
+          const nativeDims = session.getDimensions();
           let result: { buffer: Buffer; width: number; height: number };
           if (region) {
             result = await session.screenshotRegion(region[0], region[1], region[2], region[3], fmt, mw);
@@ -1081,6 +1073,8 @@ export async function handleRequest(
             image: result.buffer.toString('base64'),
             image_width: result.width,
             image_height: result.height,
+            native_width: nativeDims.width,
+            native_height: nativeDims.height,
           });
         } catch (e) {
           return errorResponse('RDP_ERROR', String(e));
@@ -1266,11 +1260,18 @@ export async function handleRequest(
           if (!session) return errorResponse('NOT_FOUND', `VNC session not found: ${connection_id}`);
           if (!session.isConnected) return errorResponse('NOT_CONNECTED', 'VNC session not connected');
 
+          // Capture native dimensions atomically with the frame so callers don't
+          // need a separate VncGetDimensions round-trip.
+          const nativeDims = session.getDimensions();
           const image = await state.vncManager.sendMcpRequest(connection_id, 'screenshot', {
             format: format || 'png',
             quality: quality ?? 85,
           });
-          return successResponse({ image });
+          return successResponse({
+            image,
+            native_width: nativeDims.width,
+            native_height: nativeDims.height,
+          });
         } catch (e) {
           return errorResponse('VNC_ERROR', String(e));
         }
@@ -1681,6 +1682,164 @@ export async function handleRequest(
           });
         } catch (e) {
           return errorResponse('ENTRY_ERROR', String(e));
+        }
+      }
+
+      case 'EntryList': {
+        const { entry_type, folder_id, tags, limit } = request.payload as {
+          entry_type: string | null;
+          folder_id: string | null;
+          tags: string[] | null;
+          limit: number | null;
+        };
+        const vault = state.getActiveVault();
+        if (!vault.isUnlocked()) {
+          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+        }
+
+        try {
+          let entries = vault.listEntries();
+          if (entry_type) {
+            entries = entries.filter((e) => e.entry_type === entry_type);
+          }
+          if (folder_id !== null && folder_id !== undefined) {
+            entries = entries.filter((e) => (e.folder_id ?? null) === folder_id);
+          }
+          if (tags && tags.length > 0) {
+            entries = entries.filter((e) => {
+              const entryTags = e.tags ?? [];
+              return tags.every((t) => entryTags.includes(t));
+            });
+          }
+          if (limit && limit > 0) {
+            entries = entries.slice(0, limit);
+          }
+
+          return successResponse({
+            entries: entries.map((e) => ({
+              id: e.id,
+              name: e.name,
+              entry_type: e.entry_type,
+              host: e.host ?? null,
+              port: e.port ?? null,
+              folder_id: e.folder_id ?? null,
+              tags: e.tags ?? [],
+              is_favorite: e.is_favorite ?? false,
+              created_at: e.created_at,
+              updated_at: e.updated_at,
+            })),
+          });
+        } catch (e) {
+          return errorResponse('ENTRY_ERROR', String(e));
+        }
+      }
+
+      case 'EntrySearch': {
+        const { query, entry_type, limit } = request.payload as {
+          query: string;
+          entry_type: string | null;
+          limit: number | null;
+        };
+        const vault = state.getActiveVault();
+        if (!vault.isUnlocked()) {
+          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+        }
+
+        try {
+          const needle = (query ?? '').toLowerCase().trim();
+          if (!needle) {
+            return successResponse({ entries: [] });
+          }
+
+          let entries = vault.listEntries();
+          if (entry_type) {
+            entries = entries.filter((e) => e.entry_type === entry_type);
+          }
+
+          const matches = entries.filter((e) => {
+            const name = (e.name ?? '').toLowerCase();
+            const host = (e.host ?? '').toLowerCase();
+            return name.includes(needle) || host.includes(needle);
+          });
+
+          const capped = limit && limit > 0 ? matches.slice(0, limit) : matches.slice(0, 50);
+
+          return successResponse({
+            entries: capped.map((e) => ({
+              id: e.id,
+              name: e.name,
+              entry_type: e.entry_type,
+              host: e.host ?? null,
+              port: e.port ?? null,
+              folder_id: e.folder_id ?? null,
+              tags: e.tags ?? [],
+            })),
+          });
+        } catch (e) {
+          return errorResponse('ENTRY_ERROR', String(e));
+        }
+      }
+
+      case 'SshKeyGenerate': {
+        const { name, type, bits, curve, comment, tags } = request.payload as {
+          name: string;
+          type: 'ed25519' | 'rsa' | 'ecdsa';
+          bits: number | null;
+          curve: string | null;
+          comment: string | null;
+          tags: string[];
+        };
+        const vault = state.getActiveVault();
+        if (!vault.isUnlocked()) {
+          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+        }
+
+        try {
+          const ssh2 = await import('ssh2');
+          const opts: Record<string, unknown> = {};
+          if (comment) opts.comment = comment;
+          if (type === 'rsa') {
+            opts.bits = bits === 2048 ? 2048 : 4096;
+          } else if (type === 'ecdsa') {
+            const c = curve ?? 'P-256';
+            opts.bits = c === 'P-521' ? 521 : c === 'P-384' ? 384 : 256;
+          }
+          const keyPair = ssh2.utils.generateKeyPairSync(type, opts);
+
+          // Compute SHA-256 fingerprint
+          const parts = keyPair.public.trim().split(/\s+/);
+          let fingerprint = '';
+          if (parts.length >= 2) {
+            const keyData = Buffer.from(parts[1], 'base64');
+            const hash = (await import('node:crypto')).createHash('sha256').update(keyData).digest('base64');
+            fingerprint = `SHA256:${hash.replace(/=+$/, '')}`;
+          }
+
+          // Store as a credential. private_key is passed at top level so the
+          // vault encrypts it at rest; public_key + fingerprint go in config (clear).
+          const credential = vault.createEntry({
+            name,
+            entry_type: 'credential',
+            credential_type: 'ssh_key',
+            private_key: keyPair.private,
+            config: {
+              public_key: keyPair.public,
+              fingerprint,
+            },
+            tags: tags ?? [],
+          });
+          notifyRendererEntryChanged();
+
+          return successResponse({
+            credential_id: credential.id,
+            name: credential.name,
+            type,
+            fingerprint,
+            public_key: keyPair.public,
+            // Private key intentionally omitted — fetch via credential_read with approval.
+          });
+        } catch (e) {
+          return errorResponse('SSH_KEYGEN_ERROR', String(e));
         }
       }
 

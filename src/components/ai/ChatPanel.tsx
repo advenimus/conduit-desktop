@@ -8,8 +8,6 @@ import EnginePicker from "./EnginePicker";
 import MCPQuotaCounter from "./MCPQuotaCounter";
 import ModelPicker from "./ModelPicker";
 import MessageBlockRenderer from "./blocks/MessageBlockRenderer";
-import ToolApprovalCard from "./ToolApprovalCard";
-import { useToolApprovalStore } from "../../stores/toolApprovalStore";
 import TerminalView from "../sessions/TerminalView";
 
 export default function ChatPanel() {
@@ -209,9 +207,6 @@ export default function ChatPanel() {
   };
 
   const handleCancel = () => {
-    // Dismiss any pending tool approval cards — the main process cancel
-    // handlers also call denyAllPending() to unblock blocked tool calls.
-    useToolApprovalStore.getState().dismissAllPending();
     cancelEngineMessage();
   };
 
@@ -484,9 +479,6 @@ export default function ChatPanel() {
                 </div>
               </div>
             )}
-
-            {/* Inline tool approval cards */}
-            <ToolApprovalCard />
 
             <div ref={messagesEndRef} />
           </div>

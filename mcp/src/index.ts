@@ -19,7 +19,6 @@ import { ConduitClient, type TierInfo } from './ipc-client.js';
 import { RateLimitManager, defaultRateLimits } from './rate-limiter.js';
 import { DailyQuotaManager } from './daily-quota.js';
 import { AuditLogger } from './audit.js';
-import { TOOL_CATEGORIES } from './tool-categories.js';
 import { track } from './analytics.js';
 
 // Terminal tools
@@ -107,6 +106,9 @@ import {
   entryUpdateNotesDefinition, entryUpdateNotes,
   documentCreateDefinition, documentCreate,
   documentUpdateDefinition, documentUpdate,
+  entryListDefinition, entryList,
+  entrySearchDefinition, entrySearch,
+  sshKeyGenerateDefinition, sshKeyGenerate,
 } from './tools/entry.js';
 
 const VERSION = '0.1.0';
@@ -234,6 +236,9 @@ function buildToolRegistry(): Map<string, ToolEntry> {
   add(documentReadDefinition(), documentRead as ToolHandler);
   add(documentCreateDefinition(), documentCreate as ToolHandler);
   add(documentUpdateDefinition(), documentUpdate as ToolHandler);
+  add(entryListDefinition(), entryList as ToolHandler);
+  add(entrySearchDefinition(), entrySearch as ToolHandler);
+  add(sshKeyGenerateDefinition(), sshKeyGenerate as ToolHandler);
 
   return registry;
 }
@@ -263,8 +268,6 @@ async function main(): Promise<void> {
   }
 
   process.stderr.write(`Starting Conduit MCP server v${VERSION}\n`);
-
-  const requireApproval = process.env.CONDUIT_INTERNAL_AGENT === '1';
 
   // Initialize audit logger
   const auditLogger = AuditLogger.create();
@@ -404,33 +407,6 @@ async function main(): Promise<void> {
       ? ` ${JSON.stringify(toolArgs)}`
       : '';
     process.stderr.write(`[mcp] Tool call: ${toolName}${argsSummary}\n`);
-
-    // Request user approval only when running as Conduit's internal agent
-    if (requireApproval) {
-      try {
-        const category = TOOL_CATEGORIES[toolName] ?? 'execute';
-        const approved = await client.requestToolApproval(
-          toolName,
-          entry.definition.description,
-          category,
-          toolArgs,
-        );
-        if (!approved) {
-          process.stderr.write(`[mcp] Tool ${toolName} DENIED by user\n`);
-          return {
-            content: [{ type: 'text', text: JSON.stringify({ error: `Tool call denied by user: ${toolName}` }) }],
-            isError: true,
-          };
-        }
-      } catch (approvalErr) {
-        const errMsg = approvalErr instanceof Error ? approvalErr.message : String(approvalErr);
-        process.stderr.write(`[mcp] Tool ${toolName} approval error: ${errMsg}\n`);
-        return {
-          content: [{ type: 'text', text: JSON.stringify({ error: `Tool approval failed: ${errMsg}` }) }],
-          isError: true,
-        };
-      }
-    }
 
     try {
       const result = await entry.handler(client, toolArgs);

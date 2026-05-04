@@ -27,7 +27,6 @@ import { VaultLockService } from './vault/vault-lock.js';
 import { NetworkLockService } from './vault/network-lock.js';
 import { McpGatekeeper } from './mcp-gatekeeper.js';
 import { CommandExecutor } from './command/executor.js';
-import { ToolApprovalService } from './tool-approval.js';
 import { NetworkVaultWatcher } from './vault/network-watcher.js';
 
 // ---------- types ----------
@@ -107,7 +106,6 @@ export class AppState {
   vncManager: VncSessionManager;
   engineManager: EngineManager;
   approvalManager: ApprovalManager;
-  toolApproval: ToolApprovalService;
   authService: AuthService;
   teamService: TeamService;
   teamVaultManager: TeamVaultManager;
@@ -176,7 +174,6 @@ export class AppState {
     this.vncManager = new VncSessionManager();
     this.engineManager = new EngineManager();
     this.approvalManager = new ApprovalManager();
-    this.toolApproval = new ToolApprovalService();
     this.authService = new AuthService();
     this.teamService = new TeamService(this.authService);
     this.teamVaultManager = new TeamVaultManager(this.authService);

@@ -5,6 +5,9 @@
  */
 
 import type { ConduitClient } from '../ipc-client.js';
+import { invalidateRdpScale } from './rdp.js';
+import { invalidateVncScale } from './vnc.js';
+import { invalidateWebScale } from './web.js';
 
 // ---------- connection_list ----------
 
@@ -156,6 +159,10 @@ export async function connectionClose(
   args: { connection_id: string },
 ): Promise<unknown> {
   await client.connectionClose(args.connection_id);
+  // Drop cached scale factors so a reopen under the same id doesn't reuse stale ones.
+  invalidateRdpScale(args.connection_id);
+  invalidateVncScale(args.connection_id);
+  invalidateWebScale(args.connection_id);
   return {
     success: true,
     closed_id: args.connection_id,

@@ -14,6 +14,11 @@ import type { ConduitClient } from '../ipc-client.js';
 // Per-connection scale factors from last screenshot
 const scaleMap = new Map<string, { scaleX: number; scaleY: number }>();
 
+/** Drop cached scale factors for a connection (call on close/reconnect). */
+export function invalidateVncScale(connectionId: string): void {
+  scaleMap.delete(connectionId);
+}
+
 /** Scale screenshot-space coordinates to native VNC resolution */
 function scaleToNative(connectionId: string, x: number, y: number): { x: number; y: number } {
   const scale = scaleMap.get(connectionId);
@@ -63,34 +68,35 @@ export async function vncScreenshot(
   const quality = args.quality ?? 40;
   const maxWidth = args.max_width === 0 ? null : (args.max_width ?? 1024);
 
-  const imageB64 = await client.vncScreenshot(args.connection_id, format, quality, maxWidth);
-  const dims = await client.vncGetDimensions(args.connection_id);
+  // Native dimensions arrive atomically with the frame.
+  const result = await client.vncScreenshot(args.connection_id, format, quality, maxWidth);
+  const nativeWidth = result.nativeWidth;
+  const nativeHeight = result.nativeHeight;
 
-  // VNC screenshots don't currently return image dimensions from the server,
-  // so we compute the expected output size from native dims + maxWidth
-  let imageWidth = dims.width;
-  let imageHeight = dims.height;
-  if (maxWidth && dims.width > maxWidth) {
-    const scale = maxWidth / dims.width;
+  // VNC backend doesn't currently honor max_width — image is always native size.
+  // Compute reported image dimensions consistently with the documented contract.
+  let imageWidth = nativeWidth;
+  let imageHeight = nativeHeight;
+  if (maxWidth && nativeWidth > maxWidth) {
+    const scale = maxWidth / nativeWidth;
     imageWidth = maxWidth;
-    imageHeight = Math.round(dims.height * scale);
+    imageHeight = Math.round(nativeHeight * scale);
   }
 
-  // Store scale factors for coordinate auto-scaling
   if (imageWidth > 0 && imageHeight > 0) {
     scaleMap.set(args.connection_id, {
-      scaleX: dims.width / imageWidth,
-      scaleY: dims.height / imageHeight,
+      scaleX: nativeWidth / imageWidth,
+      scaleY: nativeHeight / imageHeight,
     });
   }
 
   return {
-    image: imageB64,
+    image: result.image,
     format,
     width: imageWidth,
     height: imageHeight,
-    native_width: dims.width,
-    native_height: dims.height,
+    native_width: nativeWidth,
+    native_height: nativeHeight,
     timestamp: new Date().toISOString(),
   };
 }

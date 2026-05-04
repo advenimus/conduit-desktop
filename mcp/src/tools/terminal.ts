@@ -199,20 +199,16 @@ export async function terminalExecute(
 export function terminalReadPaneDefinition() {
   return {
     name: 'terminal_read_pane',
-    description: 'Read the current terminal buffer content',
+    description:
+      'Read the current terminal buffer content. The buffer is a continuous scrollback — pass a higher `lines` value to retrieve more history.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
         lines: {
           type: 'number',
-          description: 'Number of lines to read (default: 50)',
+          description: 'Number of lines from the tail of the buffer to read (default: 50)',
           default: 50,
-        },
-        include_scrollback: {
-          type: 'boolean',
-          description: 'Include scrollback buffer (default: false)',
-          default: false,
         },
       },
       required: ['connection_id'],
@@ -291,7 +287,10 @@ export async function localShellCreate(
   client: ConduitClient,
   args: { shell_type?: string; working_directory?: string },
 ): Promise<unknown> {
-  const sessionId = await client.localShellCreate(args.shell_type ?? null);
+  const sessionId = await client.localShellCreate(
+    args.shell_type ?? null,
+    args.working_directory ?? null,
+  );
 
   return {
     session_id: sessionId,

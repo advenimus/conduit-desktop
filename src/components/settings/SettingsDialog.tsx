@@ -11,7 +11,6 @@ import SessionRdpTab from "./tabs/SessionRdpTab";
 import SessionVncTab from "./tabs/SessionVncTab";
 import SessionWebTab from "./tabs/SessionWebTab";
 import AiTab from "./tabs/AiTab";
-import AiToolsTab from "./tabs/AiToolsTab";
 import BackupTab from "./tabs/BackupTab";
 import MobileTab from "./tabs/MobileTab";
 import SecurityTab from "./tabs/SecurityTab";
@@ -51,8 +50,6 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
     session_defaults_web: { ...HARDCODED_WEB_DEFAULTS },
     session_defaults_terminal: { ...HARDCODED_TERMINAL_DEFAULTS },
     session_defaults_ssh: { ...HARDCODED_SSH_DEFAULTS },
-    tool_approval_enabled: true,
-    tool_approval_always_allow: [],
   });
   const originalSettingsRef = useRef<Settings | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -167,8 +164,6 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
       case "ai":
       case "ai/agent":
         return <AiTab settings={settings} setSettings={setSettings} onClose={onClose} />;
-      case "ai/tools":
-        return <AiToolsTab settings={settings} setSettings={setSettings} onClose={onClose} />;
       case "backup":
         return <BackupTab />;
       case "mobile":

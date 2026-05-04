@@ -16,7 +16,7 @@ import os from 'node:os';
 export type IpcRequest =
   | { type: 'TerminalWrite'; payload: { session_id: string; data: number[] } }
   | { type: 'TerminalReadBuffer'; payload: { session_id: string; lines: number } }
-  | { type: 'LocalShellCreate'; payload: { shell_type: string | null } }
+  | { type: 'LocalShellCreate'; payload: { shell_type: string | null; working_directory: string | null } }
   | { type: 'CredentialList'; payload: Record<string, never> }
   | { type: 'CredentialGet'; payload: { id: string } }
   | { type: 'CredentialCreate'; payload: { name: string; username: string | null; password: string | null; domain: string | null; private_key: string | null; tags: string[]; credential_type?: string | null; public_key?: string | null; fingerprint?: string | null; totp_secret?: string | null; totp_issuer?: string | null; totp_label?: string | null } }
@@ -44,7 +44,7 @@ export type IpcRequest =
   | { type: 'VncMouseDrag'; payload: { connection_id: string; from_x: number; from_y: number; to_x: number; to_y: number; button: string } }
   | { type: 'WebSessionCreate'; payload: { url: string; user_agent: string | null } }
   | { type: 'WebSessionClose'; payload: { session_id: string } }
-  | { type: 'WebSessionNavigate'; payload: { session_id: string; url: string } }
+  | { type: 'WebSessionNavigate'; payload: { session_id: string; url: string; wait_until?: 'load' | 'domcontentloaded' | 'networkidle' } }
   | { type: 'WebSessionGetUrl'; payload: { session_id: string } }
   | { type: 'WebSessionGetTitle'; payload: { session_id: string } }
   | { type: 'WebSessionScreenshot'; payload: { session_id: string; full_page: boolean; format: string | null; quality: number | null; max_width: number | null } }
@@ -73,7 +73,9 @@ export type IpcRequest =
   | { type: 'EntryUpdateNotes'; payload: { id: string; notes: string } }
   | { type: 'DocumentCreate'; payload: { name: string; content: string; folder_id: string | null; tags: string[] } }
   | { type: 'DocumentUpdate'; payload: { id: string; content: string; name: string | null } }
-  | { type: 'RequestToolApproval'; payload: { tool_name: string; description: string; category: string; args: Record<string, unknown> } }
+  | { type: 'EntryList'; payload: { entry_type: string | null; folder_id: string | null; tags: string[] | null; limit: number | null } }
+  | { type: 'EntrySearch'; payload: { query: string; entry_type: string | null; limit: number | null } }
+  | { type: 'SshKeyGenerate'; payload: { name: string; type: 'ed25519' | 'rsa' | 'ecdsa'; bits: number | null; curve: string | null; comment: string | null; tags: string[] } }
   | { type: 'GetTierInfo'; payload: Record<string, never> };
 
 export interface TierInfo {
@@ -202,10 +204,10 @@ export class ConduitClient {
     return (response.content as string) ?? '';
   }
 
-  async localShellCreate(shellType: string | null): Promise<string> {
+  async localShellCreate(shellType: string | null, workingDirectory: string | null = null): Promise<string> {
     const response = await this.sendRequest({
       type: 'LocalShellCreate',
-      payload: { shell_type: shellType },
+      payload: { shell_type: shellType, working_directory: workingDirectory },
     });
     return response.session_id as string;
   }
@@ -276,19 +278,6 @@ export class ConduitClient {
     return response.approved as boolean;
   }
 
-  async requestToolApproval(
-    toolName: string,
-    description: string,
-    category: string,
-    args: Record<string, unknown>,
-  ): Promise<boolean> {
-    const response = await this.sendRequestWithTimeout({
-      type: 'RequestToolApproval',
-      payload: { tool_name: toolName, description, category, args },
-    }, 130_000); // 130s > service-side 120s timeout
-    return response.approved as boolean;
-  }
-
   // ---------- Tier info ----------
 
   async getTierInfo(): Promise<TierInfo> {
@@ -343,7 +332,7 @@ export class ConduitClient {
     quality: number,
     region: [number, number, number, number] | null,
     maxWidth: number | null = null,
-  ): Promise<{ image: string; imageWidth: number; imageHeight: number }> {
+  ): Promise<{ image: string; imageWidth: number; imageHeight: number; nativeWidth: number; nativeHeight: number }> {
     const response = await this.sendRequest({
       type: 'RdpScreenshot',
       payload: { connection_id: connectionId, format, quality, region, max_width: maxWidth },
@@ -352,6 +341,8 @@ export class ConduitClient {
       image: response.image as string,
       imageWidth: response.image_width as number,
       imageHeight: response.image_height as number,
+      nativeWidth: (response.native_width as number) ?? (response.image_width as number),
+      nativeHeight: (response.native_height as number) ?? (response.image_height as number),
     };
   }
 
@@ -439,12 +430,21 @@ export class ConduitClient {
 
   // ---------- VNC operations ----------
 
-  async vncScreenshot(connectionId: string, format: string, quality: number, maxWidth: number | null = null): Promise<string> {
+  async vncScreenshot(
+    connectionId: string,
+    format: string,
+    quality: number,
+    maxWidth: number | null = null,
+  ): Promise<{ image: string; nativeWidth: number; nativeHeight: number }> {
     const response = await this.sendRequest({
       type: 'VncScreenshot',
       payload: { connection_id: connectionId, format, quality, max_width: maxWidth },
     });
-    return response.image as string;
+    return {
+      image: response.image as string,
+      nativeWidth: (response.native_width as number) ?? 0,
+      nativeHeight: (response.native_height as number) ?? 0,
+    };
   }
 
   async vncClick(
@@ -529,7 +529,7 @@ export class ConduitClient {
     format: string | null = null,
     quality: number | null = null,
     maxWidth: number | null = null,
-  ): Promise<{ image: string; imageWidth: number; imageHeight: number }> {
+  ): Promise<{ image: string; imageWidth: number; imageHeight: number; viewportWidth: number; viewportHeight: number }> {
     const response = await this.sendRequest({
       type: 'WebSessionScreenshot',
       payload: { session_id: connectionId, full_page: fullPage, format, quality, max_width: maxWidth },
@@ -538,6 +538,8 @@ export class ConduitClient {
       image: (response.image as string) ?? '',
       imageWidth: (response.image_width as number) ?? 0,
       imageHeight: (response.image_height as number) ?? 0,
+      viewportWidth: (response.viewport_width as number) ?? (response.image_width as number) ?? 0,
+      viewportHeight: (response.viewport_height as number) ?? (response.image_height as number) ?? 0,
     };
   }
 
@@ -553,10 +555,14 @@ export class ConduitClient {
     return (response.content as string) ?? '';
   }
 
-  async webNavigate(connectionId: string, url: string): Promise<void> {
+  async webNavigate(
+    connectionId: string,
+    url: string,
+    waitUntil: 'load' | 'domcontentloaded' | 'networkidle' = 'load',
+  ): Promise<void> {
     await this.sendRequest({
       type: 'WebSessionNavigate',
-      payload: { session_id: connectionId, url },
+      payload: { session_id: connectionId, url, wait_until: waitUntil },
     });
   }
 
@@ -791,6 +797,45 @@ export class ConduitClient {
     return this.sendRequest({
       type: 'DocumentUpdate',
       payload: { id, content, name },
+    });
+  }
+
+  async entryList(
+    entryType: string | null = null,
+    folderId: string | null = null,
+    tags: string[] | null = null,
+    limit: number | null = null,
+  ): Promise<Record<string, unknown>[]> {
+    const response = await this.sendRequest({
+      type: 'EntryList',
+      payload: { entry_type: entryType, folder_id: folderId, tags, limit },
+    });
+    return (response.entries as Record<string, unknown>[]) ?? [];
+  }
+
+  async entrySearch(
+    query: string,
+    entryType: string | null = null,
+    limit: number | null = null,
+  ): Promise<Record<string, unknown>[]> {
+    const response = await this.sendRequest({
+      type: 'EntrySearch',
+      payload: { query, entry_type: entryType, limit },
+    });
+    return (response.entries as Record<string, unknown>[]) ?? [];
+  }
+
+  async sshKeyGenerate(
+    name: string,
+    type: 'ed25519' | 'rsa' | 'ecdsa',
+    bits: number | null = null,
+    curve: string | null = null,
+    comment: string | null = null,
+    tags: string[] = [],
+  ): Promise<Record<string, unknown>> {
+    return this.sendRequest({
+      type: 'SshKeyGenerate',
+      payload: { name, type, bits, curve, comment, tags },
     });
   }
 }

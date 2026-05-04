@@ -64,6 +64,9 @@ export const TOOL_CATEGORIES: Record<string, string> = {
   entry_update_notes: 'write',
   document_create: 'write',
   document_update: 'write',
+  entry_list: 'read',
+  entry_search: 'read',
+  ssh_key_generate: 'credential',
 
   // VNC
   vnc_screenshot: 'read',

@@ -36,22 +36,46 @@ export function defaultRateLimits(): Map<string, ToolRateLimit> {
   limits.set('vnc_screenshot', { requestsPerMinute: 30, burst: 5 });
   limits.set('website_screenshot', { requestsPerMinute: 30, burst: 5 });
 
-  // RDP/VNC input tools
+  // RDP input tools
   limits.set('rdp_click', { requestsPerMinute: 60, burst: 10 });
   limits.set('rdp_type', { requestsPerMinute: 60, burst: 10 });
   limits.set('rdp_send_key', { requestsPerMinute: 60, burst: 10 });
   limits.set('rdp_mouse_move', { requestsPerMinute: 120, burst: 20 });
   limits.set('rdp_mouse_drag', { requestsPerMinute: 60, burst: 10 });
-  limits.set('rdp_get_dimensions', { requestsPerMinute: 60, burst: 10 });
+  limits.set('rdp_mouse_scroll', { requestsPerMinute: 120, burst: 20 });
+  limits.set('rdp_resize', { requestsPerMinute: 6, burst: 2 });
+  limits.set('rdp_get_dimensions', { requestsPerMinute: 120, burst: 20 });
+
+  // VNC input tools
   limits.set('vnc_click', { requestsPerMinute: 60, burst: 10 });
   limits.set('vnc_type', { requestsPerMinute: 60, burst: 10 });
   limits.set('vnc_send_key', { requestsPerMinute: 60, burst: 10 });
   limits.set('vnc_mouse_move', { requestsPerMinute: 120, burst: 20 });
-  limits.set('vnc_get_dimensions', { requestsPerMinute: 60, burst: 10 });
+  limits.set('vnc_mouse_drag', { requestsPerMinute: 60, burst: 10 });
+  limits.set('vnc_mouse_scroll', { requestsPerMinute: 120, burst: 20 });
+  limits.set('vnc_get_dimensions', { requestsPerMinute: 120, burst: 20 });
 
-  // Web tools
+  // Web input/navigation tools
   limits.set('website_read_content', { requestsPerMinute: 60, burst: 10 });
   limits.set('website_navigate', { requestsPerMinute: 30, burst: 5 });
+  limits.set('website_click', { requestsPerMinute: 60, burst: 10 });
+  limits.set('website_click_element', { requestsPerMinute: 60, burst: 10 });
+  limits.set('website_type', { requestsPerMinute: 60, burst: 10 });
+  limits.set('website_send_key', { requestsPerMinute: 60, burst: 10 });
+  limits.set('website_fill_input', { requestsPerMinute: 60, burst: 10 });
+  limits.set('website_mouse_move', { requestsPerMinute: 120, burst: 20 });
+  limits.set('website_mouse_drag', { requestsPerMinute: 60, burst: 10 });
+  limits.set('website_mouse_scroll', { requestsPerMinute: 120, burst: 20 });
+  limits.set('website_get_dimensions', { requestsPerMinute: 120, burst: 20 });
+  limits.set('website_get_elements', { requestsPerMinute: 60, burst: 10 });
+  limits.set('website_execute_js', { requestsPerMinute: 30, burst: 5 });
+  limits.set('website_list_tabs', { requestsPerMinute: 120, burst: 20 });
+  limits.set('website_create_tab', { requestsPerMinute: 30, burst: 5 });
+  limits.set('website_close_tab', { requestsPerMinute: 30, burst: 5 });
+  limits.set('website_switch_tab', { requestsPerMinute: 60, burst: 10 });
+  limits.set('website_go_back', { requestsPerMinute: 30, burst: 5 });
+  limits.set('website_go_forward', { requestsPerMinute: 30, burst: 5 });
+  limits.set('website_reload', { requestsPerMinute: 30, burst: 5 });
 
   // Credential tools - strict rate limiting
   limits.set('credential_read', { requestsPerMinute: 10, burst: 2 });
@@ -63,6 +87,17 @@ export function defaultRateLimits(): Map<string, ToolRateLimit> {
   limits.set('connection_list', { requestsPerMinute: 60, burst: 10 });
   limits.set('connection_open', { requestsPerMinute: 30, burst: 5 });
   limits.set('connection_close', { requestsPerMinute: 30, burst: 5 });
+
+  // Entry / document tools
+  limits.set('entry_info', { requestsPerMinute: 120, burst: 20 });
+  limits.set('entry_update_notes', { requestsPerMinute: 30, burst: 5 });
+  limits.set('document_read', { requestsPerMinute: 120, burst: 20 });
+  limits.set('document_create', { requestsPerMinute: 30, burst: 5 });
+  limits.set('document_update', { requestsPerMinute: 30, burst: 5 });
+  limits.set('entry_list', { requestsPerMinute: 60, burst: 10 });
+  limits.set('entry_search', { requestsPerMinute: 60, burst: 10 });
+  limits.set('ssh_key_generate', { requestsPerMinute: 6, burst: 2 });
+  limits.set('command_execute', { requestsPerMinute: 30, burst: 5 });
 
   return limits;
 }
