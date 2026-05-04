@@ -250,8 +250,16 @@ function createPickerWindow() {
   // macOS: appear on the user's current Space rather than being pinned
   // to whichever Space it was created on. The picker is launched from a
   // global shortcut, so it must always show wherever the user is.
+  // skipTransformProcessType: true is critical — the default transform
+  // briefly flips the app between Foreground/Accessory activation policies,
+  // which can strand the app as accessory (no dock icon, no menu bar
+  // ownership) on macOS Sequoia. We're already a foreground app and the
+  // panel doesn't need to change that.
   if (isMac) {
-    pickerWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    pickerWindow.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true,
+      skipTransformProcessType: true,
+    });
   }
 
   if (isDev) {
@@ -285,6 +293,7 @@ function createTray(mainWindow: BrowserWindow) {
       label: 'Show Conduit',
       click: () => {
         if (mainWindow.isDestroyed()) return;
+        if (isMac) app.dock?.show().catch(() => {});
         if (mainWindow.isVisible()) {
           mainWindow.focus();
         } else {
@@ -318,6 +327,7 @@ function createTray(mainWindow: BrowserWindow) {
 
   tray.on('click', () => {
     if (mainWindow.isDestroyed()) return;
+    if (isMac) app.dock?.show().catch(() => {});
     if (mainWindow.isVisible()) {
       mainWindow.focus();
     } else {
@@ -675,6 +685,20 @@ function createWindow(): BrowserWindow {
     mainWindow.show();
   });
 
+  // macOS: keep the dock icon and Foreground activation policy in sync
+  // every time the main window surfaces. Panel-style child windows (picker,
+  // overlay) and tray-driven hide/show flows can occasionally leave the
+  // process in NSApplicationActivationPolicyAccessory, where the window
+  // shows but the app has no dock icon and never owns the menu bar.
+  // app.dock.show() restores both.
+  if (isMac) {
+    mainWindow.on('show', () => {
+      app.dock?.show().catch(() => {
+        // dock.show() rejects if already visible — safe to ignore.
+      });
+    });
+  }
+
   // Hide to tray/dock on close instead of quitting.
   // Actual quit happens via app.quit() (Cmd+Q, tray "Quit", etc.).
   mainWindow.on('close', (event) => {
@@ -886,6 +910,7 @@ app.whenReady().then(async () => {
   }
 
   app.on('activate', () => {
+    if (isMac) app.dock?.show().catch(() => {});
     const win = mainWindowRef;
     if (win && !win.isDestroyed()) {
       win.show();

@@ -91,8 +91,15 @@ export class OverlayManager {
     // macOS: appear on whatever Space the user is currently on. Without this,
     // creating an alwaysOnTop window can yank the user across Spaces when the
     // first toast surfaces.
+    // skipTransformProcessType: true avoids the transient Foreground↔Accessory
+    // policy churn that can strand the app as accessory (no dock icon, no
+    // menu bar ownership) — a documented side effect on macOS that the toast
+    // panel does not need.
     if (isMac) {
-      this.overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      this.overlayWindow.setVisibleOnAllWorkspaces(true, {
+        visibleOnFullScreen: true,
+        skipTransformProcessType: true,
+      });
     }
 
     this.windowReady = false;
