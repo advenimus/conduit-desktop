@@ -585,6 +585,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Favorites filter toggle with persisted state
 - Favorites-only view groups favorited entries by folder path
 - **Search results grouped by folder**: Search results display entries organized by their folder path (e.g., "Servers / Production"), making it easy to distinguish entries with the same name in different folders
+- Search field shows a clear (✕) button once text is entered; Escape also clears it
 - Context menu: open, edit, duplicate, copy host, move, delete
 - Inline folder creation
 
@@ -762,3 +763,16 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - "Use Private Key" to insert directly into credential forms
 - Inline generate button next to Private Key fields (entry dialogs + credential manager)
 - Standalone mode via app menu
+
+---
+
+## macOS Local Network Permission
+macOS 15+ gates LAN access behind a privacy permission that is only evaluated when the app touches the local network, and the consent alert is only ever offered once per app identity. Without an early request, a fresh install or an update can leave the app silently unable to reach any LAN device.
+
+- **Requested on every launch**: connects a UDP socket to each link-local IPv6 address at startup (Apple TN3179's documented way to raise the alert), so the permission decision happens during startup rather than mid-connection
+- **Denial detection**: sends a Bonjour query to the mDNS multicast group; macOS blocks that send when the permission is missing, which distinguishes a blocked app from an offline host (both otherwise surface as `EHOSTUNREACH`)
+- **Settle window**: keeps re-probing for 60 seconds so an alert the user is still reading is not reported as a denial
+- **Persistent toast on denial**: explains that macOS is blocking LAN access, with an "Open Settings" button that opens Privacy & Security (macOS exposes no URL anchor for the Local Network sub-pane)
+- **Connection error screens**: show the same guidance when a session fails while the permission is denied, instead of the misleading "check network connectivity" message
+- Interface names are read from the system, never hardcoded; tunnel interfaces (VPN/utun) are excluded from the "is there a LAN" check
+- No-ops entirely on Windows and Linux

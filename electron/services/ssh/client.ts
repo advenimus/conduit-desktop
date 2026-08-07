@@ -8,6 +8,7 @@ import { Client, ClientChannel } from 'ssh2';
 import fs from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { resolveHostname } from '../dns-resolver.js';
+import { withLocalNetworkHint } from '../local-network.js';
 
 // ── Config & Auth types ──────────────────────────────────────────────
 
@@ -78,7 +79,9 @@ export class SshSession extends EventEmitter {
 
       const onError = (err: Error) => {
         cleanup();
-        reject(err);
+        withLocalNetworkHint(err, resolvedHost)
+          .then(reject)
+          .catch(() => reject(err));
       };
 
       const cleanup = () => {

@@ -68,3 +68,42 @@ Each phase is committed separately. To rollback any phase:
 git revert <commit-hash>
 npm install
 ```
+
+---
+
+## Upgrading Electron — macOS Local Network Permission
+
+**Electron is pinned to an exact version in `package.json` on purpose. Do not restore the caret range.**
+
+macOS identifies an app for the Local Network permission partly by a fingerprint (`LC_UUID`) baked into the main executable at `Contents/MacOS/Conduit`. That executable is the prebuilt Electron launcher stub — electron-builder only copies, renames, and signs it, and signing cannot alter the fingerprint. So the app's identity to macOS is the Electron version's identity.
+
+Verified: Electron `41.0.3` produces `4C4C4450-5555-3144-A175-A5A5EB513DF3`; Electron `41.10.4` produces `4C4C4461-5555-3144-A1D9-15C795D7EB04`. A patch-level Electron bump is enough to change it.
+
+When the fingerprint changes, macOS can treat the build as a different program. The app disappears from System Settings › Privacy & Security › Local Network, and there is no supported way to reset that permission or put the entry back by hand.
+
+### Why the caret was dangerous
+
+`^41.0.3` let any unrelated `npm install` float the resolved version inside the lockfile. Because CI runs `npm ci`, whatever the lockfile says is what ships. That turned "someone bumped an unrelated dependency" into "every macOS user must re-grant local network access" — with no one intending it.
+
+### Procedure for an intentional Electron upgrade
+
+1. Change the exact version in `package.json`, run `npm install`, and confirm the lockfile moved.
+2. Confirm the fingerprint actually changed, so you know a re-prompt is expected:
+   ```bash
+   dwarfdump --uuid node_modules/electron/dist/Electron.app/Contents/MacOS/Electron
+   ```
+3. Ship the Electron bump **on its own**, never bundled with changes to local network handling — otherwise a failure cannot be attributed.
+4. Verify recovery on a **fresh macOS user account** (the permission is stored per user, so a new account is the only clean slate — see below). Install, launch, and confirm the consent alert appears and Conduit lands back in the Local Network list.
+5. Call it out in the release notes: macOS will ask for local network access again.
+
+### Why a fresh user account is the only test
+
+Apple provides no way to reset this permission to undetermined on macOS (FB14944392). `tccutil reset LocalNetwork` does nothing, because the grant is not stored in TCC at all — it lives in Network Extension path rules under `/Library/Preferences/com.apple.networkextension*.plist`. A new user account, or a VM snapshot, is the only supported clean slate.
+
+### What the app already does
+
+`electron/services/local-network.ts` requests the permission on every macOS launch, so a build whose identity changed asks again at startup instead of failing silently on the user's first connection. That is the recovery path an Electron upgrade depends on — keep it working.
+
+### Open question
+
+Whether macOS keys this permission on `LC_UUID` or on the code signature hash (`cdhash`) is not documented publicly. The cdhash changes on **every** Conduit release, because version strings and asar integrity hashes feed into it. If cdhash is the key, every release is an identity change and pinning Electron only reduces the problem rather than removing it. Treat the launch-time request as the load-bearing mitigation either way.

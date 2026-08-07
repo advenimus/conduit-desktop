@@ -876,6 +876,24 @@ function App() {
       else if (a === "dev:test-toast") toast.success("Test toast notification", "Triggered from View menu");
     });
 
+    // macOS refused Conduit's local network traffic at startup. Nothing on the
+    // LAN will connect until the user flips the switch, and macOS will not ask
+    // again on its own, so this stays until dismissed.
+    const unlistenLocalNetwork = window.electron.on("local-network:blocked", () => {
+      toast.error("macOS is blocking local network access", {
+        message:
+          "Conduit cannot reach devices on your network. Open Privacy & Security, choose Local Network, and turn on Conduit.",
+        persistent: true,
+        actions: [
+          {
+            label: "Open Settings",
+            variant: "primary",
+            onClick: () => invoke("open_local_network_settings").catch(console.error),
+          },
+        ],
+      });
+    });
+
     return () => {
       document.removeEventListener("conduit:replay-onboarding", handleReplayOnboarding);
       document.removeEventListener("conduit:whats-new", handleWhatsNew);
@@ -924,6 +942,7 @@ function App() {
       unlistenSystemLock();
       unlistenOpenVaultFile();
       unlistenMenu();
+      unlistenLocalNetwork();
     };
   }, []);
 

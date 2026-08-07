@@ -113,4 +113,33 @@ describe("friendlyConnectionError", () => {
       expect(friendlyConnectionError(raw, "vnc")).toBe(raw);
     });
   });
+
+  describe("macOS local network permission", () => {
+    // The main process appends this tag only after confirming macOS is the
+    // cause; the underlying errno is EHOSTUNREACH, which the generic table
+    // would otherwise blame on an unreachable host.
+    const tagged = "connect EHOSTUNREACH 192.168.1.50:22 [ConduitLocalNetworkBlocked]";
+
+    it("explains the permission instead of the errno", () => {
+      const friendly = friendlyConnectionError(tagged, "ssh");
+      expect(friendly).toMatch(/Local Network/i);
+      expect(friendly).not.toMatch(/check network connectivity/i);
+    });
+
+    it("wins over the RDP table, which is consulted first", () => {
+      expect(friendlyConnectionError(tagged, "rdp")).toMatch(/Local Network/i);
+    });
+
+    it("applies to every session type", () => {
+      for (const type of ["ssh", "vnc", "rdp", "web"] as const) {
+        expect(friendlyConnectionError(tagged, type)).toMatch(/Local Network/i);
+      }
+    });
+
+    it("leaves untagged unreachable-host errors on the generic message", () => {
+      const friendly = friendlyConnectionError("connect EHOSTUNREACH 192.168.1.50:22", "ssh");
+      expect(friendly).toMatch(/Host unreachable/i);
+      expect(friendly).not.toMatch(/Local Network/i);
+    });
+  });
 });

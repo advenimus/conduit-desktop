@@ -9,6 +9,7 @@ import { OverlayManager } from './services/overlay/overlay-manager.js';
 import { logger } from './services/logger.js';
 import { AppState } from './services/state.js';
 import { writeAgentInstructions } from './services/agent-instructions.js';
+import { ensureLocalNetworkAccess } from './services/local-network.js';
 import { readAll, writeAll } from './ipc/ui-state.js';
 import { readSettings } from './ipc/settings.js';
 import { lockVaultFromMain } from './ipc/vault.js';
@@ -901,6 +902,25 @@ app.whenReady().then(async () => {
       console.log('[main] Found .conduit file in argv:', fileArg);
       pendingFilePath = fileArg;
     }
+  }
+
+  // ── macOS Local Network permission ───────────────────────────────
+  // macOS only evaluates the permission when the app actually touches the
+  // LAN, and it only ever offers the consent alert once per app identity.
+  // Probing on every launch moves that decision to startup instead of the
+  // middle of the user's first SSH/RDP/VNC connection. Runs in the
+  // background — the settle window waits on the user answering the alert.
+  if (isMac) {
+    ensureLocalNetworkAccess()
+      .then((status) => {
+        console.log(`[main] macOS local network access: ${status}`);
+        if (status === 'denied' && mainWindowRef && !mainWindowRef.isDestroyed()) {
+          mainWindowRef.webContents.send('local-network:blocked');
+        }
+      })
+      .catch((err) => {
+        console.warn('[main] Local network probe failed:', err);
+      });
   }
 
   // Mark app as ready and process any queued deep links

@@ -1,5 +1,16 @@
 import type { SessionType } from "../stores/sessionStore";
 
+/**
+ * Marker the main process appends when it has confirmed macOS blocked the
+ * connection (see electron/services/local-network.ts). Checked ahead of every
+ * table because the underlying errno is EHOSTUNREACH, which the generic
+ * patterns would otherwise explain as an unreachable host.
+ */
+const LOCAL_NETWORK_BLOCKED = /ConduitLocalNetworkBlocked/;
+
+const LOCAL_NETWORK_MESSAGE =
+  "macOS is blocking Conduit's access to your local network. Open System Settings › Privacy & Security › Local Network and turn on Conduit.";
+
 const patterns: [RegExp, string][] = [
   [/All configured authentication methods failed/i, "Authentication failed — check your username, password, or SSH key"],
   [/getaddrinfo ENOTFOUND/i, "Host not found — check the hostname or IP address"],
@@ -70,6 +81,8 @@ const rdpPatterns: [RegExp, string][] = [
  * pattern matches.
  */
 export function friendlyConnectionError(raw: string, type?: SessionType): string {
+  if (LOCAL_NETWORK_BLOCKED.test(raw)) return LOCAL_NETWORK_MESSAGE;
+
   const tables = type === "rdp" ? [rdpPatterns, patterns] : [patterns];
   for (const table of tables) {
     for (const [re, friendly] of table) {

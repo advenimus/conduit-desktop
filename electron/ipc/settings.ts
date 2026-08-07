@@ -4,11 +4,12 @@
  * Port of src-tauri/src/commands/settings.rs
  */
 
-import { ipcMain, app, dialog } from 'electron';
+import { ipcMain, app, dialog, shell } from 'electron';
 import { AppState } from '../services/state.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { getDataDir } from '../services/env-config.js';
+import { getLocalNetworkStatus } from '../services/local-network.js';
 
 // Session default types — mirrored from src/types/entry.ts to avoid cross-boundary imports
 interface RdpGlobalDefaults {
@@ -278,5 +279,26 @@ export function registerSettingsHandlers(): void {
     });
     if (result.canceled || result.filePaths.length === 0) return null;
     return result.filePaths[0];
+  });
+
+  // ── local_network_status ────────────────────────────────────────────
+  // Briefly cached rather than fixed at launch: the user may grant access in
+  // System Settings and come straight back, and macOS applies that at once.
+  ipcMain.handle('local_network_status', () => getLocalNetworkStatus());
+
+  // ── open_local_network_settings ─────────────────────────────────────
+  // macOS 27 has no URL anchor for the Local Network sub-pane, so this lands
+  // on Privacy & Security and the user picks Local Network from the list.
+  ipcMain.handle('open_local_network_settings', async () => {
+    if (process.platform !== 'darwin') return false;
+    try {
+      await shell.openExternal(
+        'x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension',
+      );
+      return true;
+    } catch (err) {
+      console.error('[settings] Failed to open Local Network settings:', err);
+      return false;
+    }
   });
 }
