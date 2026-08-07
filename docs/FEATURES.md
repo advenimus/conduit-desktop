@@ -390,9 +390,11 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 - **Secret redaction**: `!!secret!!…!!secret!!` blocks in entry notes and document content are redacted to `********` before being returned by `entry_info` / `document_read`.
 - Standalone operation fallback (MCP server stays alive if the main app's connection blips — reconnects on next request)
 
-### External Agent Instructions (Auto-Generated)
-- Auto-generates `~/.claude/CLAUDE.md` for Claude Code with MCP setup instructions and tool reference
-- Auto-generates `~/.codex/AGENTS.md` for Codex CLI (only if Codex is installed or `~/.codex/` exists)
+### In-App Agent Instructions (Auto-Generated)
+- Auto-generates `CLAUDE.md` in the Claude Code agent working directory (`{userData}/conduit[-dev]/agent/claude-code/`) with MCP setup instructions and tool reference
+- Auto-generates `AGENTS.md` in the Codex agent working directory (`{userData}/conduit[-dev]/agent/codex/`), only if Codex is installed or `~/.codex/` exists
+- Scoped to Conduit-owned directories only — never written to the user's global `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, or a custom working directory, so Conduit instructions never leak into unrelated projects
+- Managed sections written by builds up to v0.16.1 are stripped from the global files on launch (marker-based, user content preserved)
 - Marker-based sections (`<!-- conduit-managed-start/end -->`) preserve user content in existing files
 - Regenerated on every app launch with current version, socket path, and environment config
 - Includes categorized tool reference built dynamically from the tool registry

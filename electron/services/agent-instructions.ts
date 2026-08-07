@@ -1,6 +1,12 @@
 /**
- * Agent instruction file writer — generates ~/.claude/CLAUDE.md and ~/.codex/AGENTS.md
- * on every app launch so external agents know about Conduit's MCP tools.
+ * Agent instruction file writer — generates CLAUDE.md / AGENTS.md inside the
+ * in-app agent working directories on every app launch so the bundled agents
+ * know about Conduit's MCP tools.
+ *
+ * Scope is deliberately limited to Conduit-owned directories under getDataDir().
+ * Earlier builds also wrote into the user's global ~/.claude/CLAUDE.md and
+ * ~/.codex/AGENTS.md, which leaked Conduit instructions into every unrelated
+ * project; those sections are now stripped on launch instead.
  *
  * Uses marker-based sections to preserve user content in existing files.
  */
@@ -89,6 +95,57 @@ function writeManagedFile(filePath: string, managedSection: string): void {
   console.log(`[agent-instructions] Appended managed section to ${filePath}`);
 }
 
+/**
+ * Strip a previously written managed section from a file, leaving all other
+ * content untouched. Marker-based only: a file without both markers is never
+ * modified, so hand-written user files are never at risk. Idempotent.
+ */
+export function removeManagedSection(filePath: string): void {
+  if (!fs.existsSync(filePath)) return;
+
+  const existing = fs.readFileSync(filePath, 'utf-8');
+  const startIdx = existing.indexOf(MARKER_START);
+  const endIdx = existing.indexOf(MARKER_END);
+  if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) return;
+
+  const before = existing.substring(0, startIdx).trimEnd();
+  const after = existing.substring(endIdx + MARKER_END.length).trim();
+
+  let next: string;
+  if (before && after) {
+    next = `${before}\n\n${after}\n`;
+  } else if (before) {
+    next = `${before}\n`;
+  } else if (after) {
+    next = `${after}\n`;
+  } else {
+    next = '';
+  }
+
+  fs.writeFileSync(filePath, next, 'utf-8');
+  console.log(`[agent-instructions] Removed legacy managed section from ${filePath}`);
+}
+
+/**
+ * Remove Conduit's managed section from the global agent instruction files.
+ * These were written by builds up to v0.16.1; they applied Conduit's tool
+ * reference to every project the user opened, not just Conduit's own agents.
+ */
+function removeGlobalManagedSections(): void {
+  const globalPaths = [
+    path.join(os.homedir(), '.claude', 'CLAUDE.md'),
+    path.join(os.homedir(), '.codex', 'AGENTS.md'),
+  ];
+
+  for (const filePath of globalPaths) {
+    try {
+      removeManagedSection(filePath);
+    } catch (err) {
+      console.warn(`[agent-instructions] Failed to clean ${filePath}:`, err);
+    }
+  }
+}
+
 const execFileAsync = promisify(execFile);
 
 async function isCodexAvailable(): Promise<boolean> {
@@ -118,13 +175,8 @@ export async function writeAgentInstructions(): Promise<void> {
   const claudeContent = getExternalClaudeMd(opts);
   const claudeManaged = buildManagedSection(claudeContent, version);
 
-  // Write ~/.claude/CLAUDE.md (global — external terminal usage)
-  try {
-    const claudeMdPath = path.join(os.homedir(), '.claude', 'CLAUDE.md');
-    writeManagedFile(claudeMdPath, claudeManaged);
-  } catch (err) {
-    console.warn('[agent-instructions] Failed to write global CLAUDE.md:', err);
-  }
+  // Undo the global writes older builds performed
+  removeGlobalManagedSections();
 
   // Write CLAUDE.md into the SDK agent working directory (project-level)
   try {
@@ -141,10 +193,6 @@ export async function writeAgentInstructions(): Promise<void> {
     if (await isCodexAvailable()) {
       const codexContent = getExternalAgentsMd(opts);
       const codexManaged = buildManagedSection(codexContent, version);
-
-      // Write ~/.codex/AGENTS.md (global — external terminal usage)
-      const agentsMdPath = path.join(os.homedir(), '.codex', 'AGENTS.md');
-      writeManagedFile(agentsMdPath, codexManaged);
 
       // Write AGENTS.md into the SDK agent working directory (project-level)
       const agentDir = path.join(getDataDir(), 'agent', 'codex');

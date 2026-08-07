@@ -3,7 +3,8 @@
  *
  * Used by:
  * - Claude Code engine append (claude-code-engine.ts)
- * - External agent instruction files (~/.claude/CLAUDE.md, ~/.codex/AGENTS.md)
+ * - CLI agent instruction files written into Conduit's own agent working
+ *   directories ({dataDir}/agent/claude-code/CLAUDE.md, .../codex/AGENTS.md)
  */
 
 import { TOOL_REGISTRY } from './tool-registry.js';
@@ -153,8 +154,8 @@ export function getClaudeCodeAppend(): string {
 }
 
 /**
- * Full content for the external ~/.claude/CLAUDE.md managed section.
- * Includes MCP configuration instructions and a concise tool reference.
+ * Full content for the CLAUDE.md managed section written into the Claude Code
+ * agent working directory. Includes MCP setup and a concise tool reference.
  */
 export function getExternalClaudeMd(opts: {
   mcpServerPath: string;
@@ -172,7 +173,9 @@ export function getExternalClaudeMd(opts: {
     ``,
     `## Setup`,
     ``,
-    `Add the Conduit MCP server (if not already configured):`,
+    // The server is already registered via the .mcp.json Conduit writes beside
+    // this file — the command is only a fallback if that config is rejected.
+    `The Conduit MCP server is already registered for this directory in \`.mcp.json\`. If it is unavailable, re-add it:`,
     ``,
     '```bash',
     `claude mcp add conduit \\`,
@@ -190,8 +193,8 @@ export function getExternalClaudeMd(opts: {
 }
 
 /**
- * Full content for the external ~/.codex/AGENTS.md managed section.
- * Includes MCP configuration and a concise tool reference.
+ * Full content for the AGENTS.md managed section written into the Codex agent
+ * working directory. Includes MCP configuration and a concise tool reference.
  */
 export function getExternalAgentsMd(opts: {
   mcpServerPath: string;
@@ -209,7 +212,7 @@ export function getExternalAgentsMd(opts: {
     ``,
     `## MCP Configuration`,
     ``,
-    `Add this to your MCP config:`,
+    `The Conduit MCP server is already registered for this directory in \`.mcp.json\`. If it is unavailable, add this to your MCP config:`,
     ``,
     '```json',
     `{`,
