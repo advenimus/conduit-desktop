@@ -142,7 +142,7 @@
 
 /* ─── Inputs — pill-shaped with glass background ───────────────────── */
 
-[data-platform="macos"].dark input:not([type="range"]):not([type="checkbox"]),
+[data-platform="macos"].dark input:not([type="range"]):not([type="checkbox"]):not([data-bare]),
 [data-platform="macos"].dark select,
 [data-platform="macos"].dark textarea {
   border-radius: var(--c-input-radius) !important;
@@ -151,7 +151,7 @@
   box-shadow: inset 0 0.5px 1.5px rgba(0, 0, 0, 0.3), 0 0.5px 0 rgba(255, 255, 255, 0.04);
 }
 
-[data-platform="macos"].light input:not([type="range"]):not([type="checkbox"]),
+[data-platform="macos"].light input:not([type="range"]):not([type="checkbox"]):not([data-bare]),
 [data-platform="macos"].light select,
 [data-platform="macos"].light textarea {
   border-radius: var(--c-input-radius) !important;

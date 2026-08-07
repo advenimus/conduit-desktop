@@ -368,16 +368,39 @@ export default function Sidebar() {
 
       {/* Search */}
       <div className="p-2">
-        <div className="flex items-center gap-2 px-3 py-2 bg-well rounded-md">
-          <SearchIcon size={16} className="text-ink-muted" />
+        <div className="flex items-center gap-2 h-9 px-2.5 bg-well rounded-md">
+          <SearchIcon size={16} className="text-ink-muted flex-shrink-0" />
           <input
             ref={searchInputRef}
             type="text"
             placeholder="Search entries..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-ink-faint"
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && searchQuery) {
+                e.stopPropagation();
+                setSearchQuery("");
+              }
+            }}
+            // data-bare opts out of the global/platform input chrome (border, fill,
+            // focus outline, WinUI bottom accent) — the row is the visible field here
+            data-bare
+            className="flex-1 min-w-0 h-full bg-transparent text-sm leading-5 text-ink outline-none focus-visible:outline-none placeholder:text-ink-faint"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                searchInputRef.current?.focus();
+              }}
+              className="flex-shrink-0 p-0.5 rounded-full text-ink-faint hover:text-ink hover:bg-raised transition-colors"
+              title="Clear search"
+              aria-label="Clear search"
+            >
+              <CloseIcon size={12} />
+            </button>
+          )}
         </div>
       </div>
 

@@ -422,7 +422,7 @@ button:focus-visible,
 }
 
 /* Keep a subtle focus ring for keyboard accessibility on inputs */
-input:focus-visible,
+input:not([data-bare]):focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--c-accent-500);

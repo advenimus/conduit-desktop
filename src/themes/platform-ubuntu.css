@@ -90,7 +90,7 @@
 
 /* ─── Inputs — large rounded, GNOME style ──────────────────────────── */
 
-[data-platform="ubuntu"] input:not([type="range"]):not([type="checkbox"]),
+[data-platform="ubuntu"] input:not([type="range"]):not([type="checkbox"]):not([data-bare]),
 [data-platform="ubuntu"] select,
 [data-platform="ubuntu"] textarea {
   border-radius: var(--c-input-radius) !important;

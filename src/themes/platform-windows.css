@@ -70,13 +70,13 @@
 
 /* ─── Inputs — WinUI 3 style with bottom accent on focus ───────────── */
 
-[data-platform="windows"] input:not([type="range"]):not([type="checkbox"]),
+[data-platform="windows"] input:not([type="range"]):not([type="checkbox"]):not([data-bare]),
 [data-platform="windows"] select,
 [data-platform="windows"] textarea {
   border-radius: var(--c-input-radius) !important;
 }
 
-[data-platform="windows"] input:focus:not([type="range"]):not([type="checkbox"]),
+[data-platform="windows"] input:focus:not([type="range"]):not([type="checkbox"]):not([data-bare]),
 [data-platform="windows"] select:focus,
 [data-platform="windows"] textarea:focus {
   border-bottom: 2px solid var(--c-accent-500) !important;
