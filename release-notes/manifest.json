@@ -2,6 +2,31 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.16.2",
+      "date": "2026-08-07",
+      "title": "macOS Network Fix & Agent Instruction Scoping",
+      "summary": "Fixes macOS silently blocking Conduit's network access after an update, stops the auto-generated agent instructions from leaking into unrelated projects, and adds a clear button to sidebar search.",
+      "highlights": [
+        {
+          "text": "**macOS asks for local network access on every launch** — fixes SSH, RDP, and VNC connections silently failing after an update, since macOS was never asked for permission again.",
+          "category": "fix"
+        },
+        {
+          "text": "**Clearer errors when macOS blocks a connection** — failures now explain when the cause is a macOS permission and link straight to the fix in System Settings.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Agent instructions stay scoped to Conduit** — the auto-generated CLAUDE.md and AGENTS.md files no longer write into your global ~/.claude or ~/.codex folders, so Conduit's tool reference doesn't leak into unrelated projects.",
+          "category": "fix"
+        },
+        {
+          "text": "**Sidebar search gets a clear button** — click the X or press Escape to clear your search instantly.",
+          "category": "feature"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.16.1",
       "date": "2026-06-12",
       "title": "Linux Startup Fix & Connection Reliability",
