@@ -12,16 +12,16 @@ import { AppState } from '../services/state.js';
 import type { SshAuth, SshConfig } from '../services/ssh/client.js';
 import { resolveSshAuth, resolveSshAuthSystem } from '../services/ssh/resolve-auth.js';
 import { readSettings } from './settings.js';
-import path from 'node:path';
-import fs from 'node:fs';
-import { getDataDir } from '../services/env-config.js';
-
-/** Get (and auto-create) the agent-specific working directory. */
-function getAgentWorkingDir(engineType: 'claude-code' | 'codex'): string {
-  const dir = path.join(getDataDir(), 'agent', engineType);
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
+import { getDataDir, getEnvConfig } from '../services/env-config.js';
+import { getSocketPath } from '../ipc-server/server.js';
+import { getMcpServerPath } from '../services/agent-instructions.js';
+import {
+  isKnownEngineType,
+  resolveLaunchCommand,
+  writeProjectMcpFiles,
+} from '../services/ai/cli-harnesses.js';
+import { resolveAgentWorkingDir } from '../services/ai/agent-working-dir.js';
+import type { EngineType } from '../services/ai/engines/engine.js';
 
 export function registerTerminalHandlers(): void {
   const state = AppState.getInstance();
@@ -54,43 +54,53 @@ export function registerTerminalHandlers(): void {
   // Returns the resolved path for a given agent engine type.
   ipcMain.handle(
     'get_agent_working_dir',
-    async (_e, args: { engineType: 'claude-code' | 'codex' }) => {
-      const validTypes = ['claude-code', 'codex'] as const;
-      if (!validTypes.includes(args.engineType as typeof validTypes[number])) {
+    async (_e, args: { engineType: EngineType }) => {
+      if (!isKnownEngineType(args.engineType)) {
         throw new Error(`Invalid engine type: ${args.engineType}`);
       }
-      return getAgentWorkingDir(args.engineType);
+      const { cwd } = resolveAgentWorkingDir({
+        engineType: args.engineType,
+        dataDir: getDataDir(),
+      });
+      return cwd;
     },
   );
 
   // ── agent_terminal_create ────────────────────────────────────────
-  // Creates a PTY running a CLI agent (claude or codex).
+  // Creates a PTY running a CLI agent.
   // Does NOT register in mcpConnections — sidebar-only terminals.
   ipcMain.handle(
     'agent_terminal_create',
-    async (_e, args: { engineType: 'claude-code' | 'codex'; cwd?: string | null }) => {
+    async (_e, args: { engineType: EngineType; cwd?: string | null }) => {
       const { engineType, cwd: explicitCwd } = args;
-
-      // Map engine type to CLI command
-      const command = engineType === 'claude-code' ? 'claude' : 'codex';
-
-      // Resolve working directory with priority:
-      // 1. Explicit cwd arg (if provided and exists)
-      // 2. default_working_directory from settings (if set and exists)
-      // 3. Agent-specific data directory (auto-created)
-      let cwd: string;
-      if (explicitCwd && fs.existsSync(explicitCwd)) {
-        cwd = explicitCwd;
-      } else {
-        const settings = readSettings();
-        if (settings.default_working_directory && fs.existsSync(settings.default_working_directory)) {
-          cwd = settings.default_working_directory;
-        } else {
-          cwd = getAgentWorkingDir(engineType);
-        }
+      if (!isKnownEngineType(engineType)) {
+        throw new Error(`Invalid engine type: ${engineType}`);
       }
 
-      const sessionId = state.terminalManager.createAgentTerminal({ command, cwd });
+      const { command, args: launchArgs } = await resolveLaunchCommand(engineType);
+      const settings = readSettings();
+      const { cwd, usedManagedAgentDir } = resolveAgentWorkingDir({
+        engineType,
+        explicitCwd,
+        defaultWorkingDirectory: settings.default_working_directory,
+        dataDir: getDataDir(),
+      });
+
+      if (usedManagedAgentDir) {
+        writeProjectMcpFiles(
+          cwd,
+          engineType,
+          getMcpServerPath(),
+          getSocketPath(),
+          getEnvConfig().environment,
+        );
+      }
+
+      const sessionId = state.terminalManager.createAgentTerminal({
+        command,
+        args: launchArgs,
+        cwd,
+      });
       return sessionId;
     },
   );

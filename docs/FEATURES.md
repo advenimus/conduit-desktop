@@ -1,7 +1,7 @@
 # Conduit Features
 
 > **Auto-maintained**: This document is updated whenever a new feature is implemented.
-> Last updated: 2026-06-12
+> Last updated: 2026-09-02
 
 ---
 
@@ -283,13 +283,13 @@
 ## AI & Chat
 
 Conduit ships with a unified engine architecture that hosts external CLI
-agents (Claude Code, Codex) as native terminals and exposes all Conduit
-capabilities to those agents via an MCP server. There is no built-in
-Conduit AI model. Users bring their own agent subscription.
+agents as native terminals and exposes all Conduit capabilities to those
+agents via an MCP server. There is no built-in Conduit AI model. Users
+bring their own agent subscription.
 
 ### Engine Architecture
-- Two engines: **Claude Code** (Anthropic) and **Codex** (OpenAI), each running under the user's own subscription
-- Engine selector tabs in chat panel header with brand icons (Claude spark, OpenAI knot)
+- CLI engines: **Claude Code**, **Codex**, **Grok Build**, **Cursor Agent**, **OpenClaw**, **Gemini CLI**, **GitHub Copilot**, and **OpenCode**, each running under the user's own subscription
+- Engine selector in the chat panel header and Settings → AI with brand icons
 - Claude Agent SDK integration: async generator streaming with rich structured output
 - Codex App Server integration: JSON-RPC over stdin/stdout child process
 - Rich message blocks: text (markdown), tool calls, file edits, file creates, shell commands, approval requests
@@ -306,12 +306,14 @@ Conduit AI model. Users bring their own agent subscription.
 - Conversation history is owned by the underlying CLI (Claude Code / Codex) — the desktop app no longer maintains its own duplicate history layer
 
 ### CLI Agent Terminals
-- Claude Code / Codex always launch as native CLI terminals (the rich chat interface and its toggle have been retired)
+- CLI agents always launch as native terminals (the rich chat interface and its toggle have been retired)
+- Launch commands: `claude`, `codex`, `grok`, `cursor-agent` (Cursor; falls back to a verified `agent` binary), `openclaw tui --local`, `gemini`, `copilot`, `opencode`
+- Working directory: explicit cwd, then Settings default, then `{userData}/conduit[-dev]/agent/{engine}/`
 - Configurable terminal font size
-- MCP tool access: the agent connects to Conduit via the MCP server. Settings > AI includes an "MCP Server Setup" button that shows the exact `claude mcp add` / `codex mcp add` commands to register Conduit's MCP server in your project
+- MCP tool access: the agent connects to Conduit via the MCP server. Settings > AI includes an "MCP Server Setup" button that shows the setup command or config snippet for each supported CLI
 
 ### Tier System
-- `cli_agents_enabled`: Claude Code / Codex access (all tiers — under the user's own Anthropic / OpenAI subscription)
+- `cli_agents_enabled`: CLI agent access (all tiers — under the user's own agent subscription)
 - `mcp_enabled`: MCP tool access (all tiers — Free is daily-quota capped at 50/day)
 - `mcp_daily_quota`: per-day MCP tool call cap (Free = 50, Pro/Team = -1 unlimited)
 - `cloud_sync_enabled`: vault cloud sync across devices (Pro + Team)
@@ -392,7 +394,7 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 
 ### In-App Agent Instructions (Auto-Generated)
 - Auto-generates `CLAUDE.md` in the Claude Code agent working directory (`{userData}/conduit[-dev]/agent/claude-code/`) with MCP setup instructions and tool reference
-- Auto-generates `AGENTS.md` in the Codex agent working directory (`{userData}/conduit[-dev]/agent/codex/`), only if Codex is installed or `~/.codex/` exists
+- Auto-generates `AGENTS.md` in the Codex, Grok, Cursor, Copilot, OpenCode, and OpenClaw agent directories, and `GEMINI.md` for Gemini CLI
 - Scoped to Conduit-owned directories only — never written to the user's global `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, or a custom working directory, so Conduit instructions never leak into unrelated projects
 - Managed sections written by builds up to v0.16.1 are stripped from the global files on launch (marker-based, user content preserved)
 - Marker-based sections (`<!-- conduit-managed-start/end -->`) preserve user content in existing files
@@ -545,7 +547,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Auto-lock timeout (configurable minutes)
 - Default shell (bash, zsh, fish, etc.)
 - Sidebar mode: pinned or auto-collapse
-- Default AI engine: Built-in, Claude Code, or Codex
+- Default AI engine: icon grid for Claude Code, Codex, Grok Build, Cursor Agent, OpenClaw, Gemini CLI, GitHub Copilot, and OpenCode
 - Default working directory for agent sessions
 - Engine status indicators (available/unavailable with auth instructions)
 
@@ -769,10 +771,12 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 ## macOS Local Network Permission
 macOS 15+ gates LAN access behind a privacy permission that is only evaluated when the app touches the local network, and the consent alert is only ever offered once per app identity. Without an early request, a fresh install or an update can leave the app silently unable to reach any LAN device.
 
-- **Requested on every launch**: connects a UDP socket to each link-local IPv6 address at startup (Apple TN3179's documented way to raise the alert), so the permission decision happens during startup rather than mid-connection
+- **Requested on every launch**: connects a UDP socket to each link-local IPv6 address and each LAN IPv4 address at startup (Apple TN3179's documented way to raise the alert), so the permission decision happens during startup rather than mid-connection
+- **Re-asked during the settle window**: if the first probe is still denied, the same trigger runs again every 3 seconds for up to 60 seconds so an alert that fired before the window was frontmost is not missed
 - **Denial detection**: sends a Bonjour query to the mDNS multicast group; macOS blocks that send when the permission is missing, which distinguishes a blocked app from an offline host (both otherwise surface as `EHOSTUNREACH`)
 - **Settle window**: keeps re-probing for 60 seconds so an alert the user is still reading is not reported as a denial
-- **Persistent toast on denial**: explains that macOS is blocking LAN access, with an "Open Settings" button that opens Privacy & Security (macOS exposes no URL anchor for the Local Network sub-pane)
+- **Persistent toast on denial**: explains that macOS is blocking LAN access, names the app that must be toggled (Conduit when packaged, Conduit Dev for `npm run dev:electron`), with an "Open Settings" button that opens Privacy & Security (macOS exposes no URL anchor for the Local Network sub-pane)
 - **Connection error screens**: show the same guidance when a session fails while the permission is denied, instead of the misleading "check network connectivity" message
+- **Unique identity per build**: packaged Conduit and the npm Electron.app used in dev each get their own bundle id and a rewritten Mach-O `LC_UUID`, so they do not collide with stock Electron or with each other. Dev stamping runs from `postinstall` / `npm run stamp:electron` and signs the main executable with an Apple Development identity when one is in the keychain
 - Interface names are read from the system, never hardcoded; tunnel interfaces (VPN/utun) are excluded from the "is there a LAN" check
 - No-ops entirely on Windows and Linux

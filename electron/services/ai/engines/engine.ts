@@ -8,7 +8,15 @@
 
 // ── Engine types ────────────────────────────────────────────────────────────
 
-export type EngineType = 'claude-code' | 'codex';
+export type EngineType =
+  | 'claude-code'
+  | 'codex'
+  | 'grok'
+  | 'cursor'
+  | 'openclaw'
+  | 'gemini'
+  | 'copilot'
+  | 'opencode';
 
 // ── Session ─────────────────────────────────────────────────────────────────
 

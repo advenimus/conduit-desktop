@@ -8,6 +8,9 @@ import {
   isLocalNetworkBlocked,
   annotateLocalNetworkError,
   withLocalNetworkHint,
+  ensureLocalNetworkAccess,
+  localNetworkAppName,
+  collectTriggerTargets,
   LOCAL_NETWORK_BLOCKED_TAG,
 } from '../local-network.js';
 
@@ -109,6 +112,52 @@ const WIFI_WITH_MASKED_MAC = {
   cidr: '192.168.50.150/24',
 };
 
+describe('collectTriggerTargets', () => {
+  it('asks on IPv4 LAN as well as link-local IPv6', () => {
+    const targets = collectTriggerTargets({
+      lo0: [LOOPBACK],
+      en0: [
+        WIFI_WITH_MASKED_MAC,
+        {
+          address: 'fe80::1c45:b4aa:25c8:be81',
+          netmask: 'ffff:ffff:ffff:ffff::',
+          family: 'IPv6',
+          mac: '02:00:00:00:00:00',
+          internal: false,
+          cidr: 'fe80::1c45:b4aa:25c8:be81/64',
+          scopeid: 14,
+        },
+      ],
+      utun4: [TUNNEL],
+    });
+    expect(targets).toEqual(
+      expect.arrayContaining([
+        { family: 'udp4', host: '192.168.50.150' },
+        { family: 'udp6', host: 'fe80::1c45:b4aa:25c8:be81%en0' },
+      ]),
+    );
+    expect(targets.some((t) => t.host.startsWith('127.'))).toBe(false);
+    expect(targets.some((t) => t.host.includes('100.115.236.78'))).toBe(false);
+  });
+
+  it('skips IPv6 without a scope id', () => {
+    const targets = collectTriggerTargets({
+      en0: [
+        {
+          address: 'fe80::1',
+          netmask: 'ffff:ffff:ffff:ffff::',
+          family: 'IPv6',
+          mac: '02:00:00:00:00:00',
+          internal: false,
+          cidr: 'fe80::1/64',
+          scopeid: 0,
+        },
+      ],
+    });
+    expect(targets).toEqual([]);
+  });
+});
+
 describe('probeLocalNetwork', () => {
   it('reports unavailable when only loopback and tunnels exist', async () => {
     setPlatform('darwin');
@@ -158,5 +207,71 @@ describe('error annotation', () => {
 
   it('exposes a tag the renderer can match on', () => {
     expect(LOCAL_NETWORK_BLOCKED_TAG).toBe('ConduitLocalNetworkBlocked');
+  });
+});
+
+describe('localNetworkAppName', () => {
+  it('names the packaged app Conduit and the npm Electron stamp Conduit Dev', () => {
+    expect(localNetworkAppName(true)).toBe('Conduit');
+    expect(localNetworkAppName(false)).toBe('Conduit Dev');
+  });
+});
+
+describe('ensureLocalNetworkAccess', () => {
+  it('asks once and returns when the first probe is not denied', async () => {
+    const trigger = vi.fn(async () => undefined);
+    const probe = vi.fn(async () => 'granted' as const);
+    await expect(
+      ensureLocalNetworkAccess(9_000, {
+        trigger,
+        probe,
+        intervalMs: 3_000,
+        now: () => 0,
+        delay: async () => undefined,
+      }),
+    ).resolves.toBe('granted');
+    expect(trigger).toHaveBeenCalledTimes(1);
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-asks during the settle window while still denied', async () => {
+    let t = 0;
+    const trigger = vi.fn(async () => undefined);
+    const probe = vi.fn(async () => 'denied' as const);
+    await expect(
+      ensureLocalNetworkAccess(9_000, {
+        trigger,
+        probe,
+        intervalMs: 3_000,
+        now: () => t,
+        delay: async (ms) => {
+          t += ms;
+        },
+      }),
+    ).resolves.toBe('denied');
+    expect(trigger.mock.calls.length).toBeGreaterThan(1);
+    expect(probe.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it('stops asking as soon as a later probe is granted', async () => {
+    let t = 0;
+    const trigger = vi.fn(async () => undefined);
+    const probe = vi
+      .fn()
+      .mockResolvedValueOnce('denied')
+      .mockResolvedValueOnce('granted');
+    await expect(
+      ensureLocalNetworkAccess(60_000, {
+        trigger,
+        probe,
+        intervalMs: 3_000,
+        now: () => t,
+        delay: async (ms) => {
+          t += ms;
+        },
+      }),
+    ).resolves.toBe('granted');
+    expect(trigger).toHaveBeenCalledTimes(2);
+    expect(probe).toHaveBeenCalledTimes(2);
   });
 });

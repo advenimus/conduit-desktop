@@ -10,6 +10,8 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { getDataDir } from '../services/env-config.js';
 import { getLocalNetworkStatus } from '../services/local-network.js';
+import type { EngineType } from '../services/ai/engines/engine.js';
+import { isKnownEngineType } from '../services/ai/cli-harnesses.js';
 
 // Session default types — mirrored from src/types/entry.ts to avoid cross-boundary imports
 interface RdpGlobalDefaults {
@@ -69,7 +71,7 @@ export interface AppSettings {
   cli_font_size: number;
   sidebar_mode: 'pinned' | 'auto';
   // Unified engine settings
-  default_engine: 'claude-code' | 'codex';
+  default_engine: EngineType;
   default_working_directory: string | null;
   // Cached tier capabilities for offline/degraded mode
   cached_tier_capabilities?: Record<string, unknown>;
@@ -172,6 +174,9 @@ export function readSettings(): AppSettings {
     // Remove stale terminal_mode (CLI agents are now always native terminals)
     if ('terminal_mode' in parsed) {
       delete (parsed as Record<string, unknown>).terminal_mode;
+    }
+    if (!isKnownEngineType(String(parsed.default_engine))) {
+      parsed.default_engine = 'claude-code';
     }
     // Migrate: populate session_defaults_web.engine from legacy default_web_engine
     if (!raw.session_defaults_web && raw.default_web_engine) {

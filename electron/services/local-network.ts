@@ -55,6 +55,10 @@ const SETTLE_INTERVAL_MS = 3_000;
  */
 export const LOCAL_NETWORK_BLOCKED_TAG = 'ConduitLocalNetworkBlocked';
 
+export function localNetworkAppName(isPackaged: boolean): string {
+  return isPackaged ? 'Conduit' : 'Conduit Dev';
+}
+
 export type LocalNetworkStatus =
   /** Local network traffic left the machine. */
   | 'granted'
@@ -167,12 +171,41 @@ export function probeLocalNetwork(): Promise<LocalNetworkStatus> {
   });
 }
 
+export type TriggerTarget = { family: 'udp4' | 'udp6'; host: string };
+
+/**
+ * Addresses whose UDP `connect()` is a local-network operation (Apple TN3179).
+ * IPv6 link-local is the documented trigger. IPv4 LAN addresses are included
+ * too: a machine with IPv6 off would otherwise never raise the alert.
+ */
+export function collectTriggerTargets(
+  interfaces: NodeJS.Dict<os.NetworkInterfaceInfo[]> = os.networkInterfaces(),
+): TriggerTarget[] {
+  const targets: TriggerTarget[] = [];
+  for (const [name, addresses] of Object.entries(interfaces)) {
+    for (const addr of addresses ?? []) {
+      if (addr.internal) continue;
+      if (
+        addr.family === 'IPv6' &&
+        addr.scopeid !== 0 &&
+        addr.address.toLowerCase().startsWith('fe80')
+      ) {
+        targets.push({ family: 'udp6', host: `${addr.address}%${name}` });
+      }
+      if (addr.family === 'IPv4' && addr.netmask !== POINT_TO_POINT_NETMASK) {
+        targets.push({ family: 'udp4', host: addr.address });
+      }
+    }
+  }
+  return targets;
+}
+
 /**
  * Ask macOS to make a permission decision, per Apple TN3179: connect a UDP
- * socket to every link-local IPv6 address on the machine. `connect()` only
- * fixes the socket's peer — no packet is sent — but it is enough for the system
- * to evaluate local network access and raise the consent alert if the app has
- * no recorded decision yet.
+ * socket to local network addresses. `connect()` only fixes the socket's peer
+ * — no packet is sent — but it is enough for the system to evaluate local
+ * network access and raise the consent alert if the app has no recorded
+ * decision yet.
  *
  * Best effort by design. Apple gives no guarantee the alert appears, and the
  * call succeeds whether access is granted or denied, so this never reports a
@@ -182,24 +215,13 @@ export function probeLocalNetwork(): Promise<LocalNetworkStatus> {
 export function triggerLocalNetworkAlert(): Promise<void> {
   if (process.platform !== 'darwin') return Promise.resolve();
 
-  const targets = Object.entries(os.networkInterfaces()).flatMap(([name, addresses]) =>
-    (addresses ?? [])
-      .filter(
-        (addr) =>
-          addr.family === 'IPv6' &&
-          !addr.internal &&
-          addr.scopeid !== 0 &&
-          addr.address.toLowerCase().startsWith('fe80'),
-      )
-      // The scope zone is mandatory — a link-local address is ambiguous without it.
-      .map((addr) => `${addr.address}%${name}`),
-  );
+  const targets = collectTriggerTargets();
 
   return Promise.all(
     targets.map(
       (target) =>
         new Promise<void>((resolve) => {
-          const socket = dgram.createSocket('udp6');
+          const socket = dgram.createSocket(target.family);
           let settled = false;
           const finish = () => {
             if (settled) return;
@@ -218,7 +240,7 @@ export function triggerLocalNetworkAlert(): Promise<void> {
 
           socket.on('error', finish);
           try {
-            socket.connect(DISCARD_PORT, target, finish);
+            socket.connect(DISCARD_PORT, target.host, finish);
           } catch {
             finish();
           }
@@ -233,6 +255,14 @@ const delay = (ms: number) =>
     timer.unref?.();
   });
 
+export type LocalNetworkSettleDeps = {
+  trigger?: () => Promise<void>;
+  probe?: () => Promise<LocalNetworkStatus>;
+  delay?: (ms: number) => Promise<void>;
+  now?: () => number;
+  intervalMs?: number;
+};
+
 /**
  * Probe at startup, then keep probing while the consent alert may still be on
  * screen. Resolves 'granted' as soon as traffic gets through, or 'denied' once
@@ -244,18 +274,29 @@ const delay = (ms: number) =>
  */
 export async function ensureLocalNetworkAccess(
   settleWindowMs = SETTLE_WINDOW_MS,
+  deps: LocalNetworkSettleDeps = {},
 ): Promise<LocalNetworkStatus> {
-  await triggerLocalNetworkAlert();
+  const trigger = deps.trigger ?? triggerLocalNetworkAlert;
+  const probe = deps.probe ?? probeLocalNetwork;
+  const wait = deps.delay ?? delay;
+  const now = deps.now ?? Date.now;
+  const intervalMs = deps.intervalMs ?? SETTLE_INTERVAL_MS;
 
-  const first = await probeLocalNetwork();
+  await trigger();
+
+  const first = await probe();
   if (first !== 'denied') return first;
 
-  const deadline = Date.now() + settleWindowMs;
+  const deadline = now() + settleWindowMs;
   let latest: LocalNetworkStatus = first;
 
-  while (Date.now() < deadline) {
-    await delay(SETTLE_INTERVAL_MS);
-    latest = await probeLocalNetwork();
+  while (now() < deadline) {
+    await wait(intervalMs);
+    // Re-fire the consent trigger while the user may still be looking at the
+    // alert. A single shot at process start is easy to miss if the window is
+    // not yet frontmost (FB16131937).
+    await trigger();
+    latest = await probe();
     if (latest !== 'denied') return latest;
   }
 

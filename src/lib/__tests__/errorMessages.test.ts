@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { friendlyConnectionError } from "../errorMessages";
+import { friendlyConnectionError, localNetworkPermissionMessage } from "../errorMessages";
 
 describe("friendlyConnectionError", () => {
   describe("RDP (FreeRDP) errors", () => {
@@ -124,6 +124,14 @@ describe("friendlyConnectionError", () => {
       const friendly = friendlyConnectionError(tagged, "ssh");
       expect(friendly).toMatch(/Local Network/i);
       expect(friendly).not.toMatch(/check network connectivity/i);
+    });
+
+    it("tells the user which app name to turn on", () => {
+      expect(localNetworkPermissionMessage("Conduit Dev")).toMatch(/turn on Conduit Dev/);
+      expect(localNetworkPermissionMessage("Conduit")).toMatch(/turn on Conduit/);
+      expect(localNetworkPermissionMessage("Conduit Dev")).not.toBe(
+        localNetworkPermissionMessage("Conduit"),
+      );
     });
 
     it("wins over the RDP table, which is consulted first", () => {

@@ -4,7 +4,7 @@
  * Used by:
  * - Claude Code engine append (claude-code-engine.ts)
  * - CLI agent instruction files written into Conduit's own agent working
- *   directories ({dataDir}/agent/claude-code/CLAUDE.md, .../codex/AGENTS.md)
+ *   directories ({dataDir}/agent/{engine}/CLAUDE.md, AGENTS.md, or GEMINI.md)
  */
 
 import { TOOL_REGISTRY } from './tool-registry.js';

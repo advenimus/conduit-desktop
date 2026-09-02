@@ -8,12 +8,18 @@
 
 import { ipcMain, app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
-import fs from 'node:fs';
 import type { AppState } from '../services/state.js';
 import type { EngineType, ChatEngineEvent, EngineModelInfo } from '../services/ai/engines/engine.js';
 import { readSettings, writeSettings } from './settings.js';
 import { getSocketPath } from '../ipc-server/server.js';
 import { getDataDir, getEnvConfig } from '../services/env-config.js';
+import {
+  checkAllHarnessesAvailable,
+  getHarness,
+  isKnownEngineType,
+  writeProjectMcpFiles,
+} from '../services/ai/cli-harnesses.js';
+import { resolveAgentWorkingDir } from '../services/ai/agent-working-dir.js';
 
 /**
  * Write the canonical project-scoped `.mcp.json` into the in-app agent's
@@ -23,29 +29,17 @@ import { getDataDir, getEnvConfig } from '../services/env-config.js';
  * overwritten transparently. Only ever touches conduit-managed agent dirs;
  * never user-chosen working directories.
  */
-function writeAgentMcpConfig(agentDir: string, mcpPath: string): void {
-  const config = {
-    mcpServers: {
-      conduit: {
-        type: 'stdio',
-        command: 'node',
-        args: [mcpPath],
-        env: {
-          CONDUIT_SOCKET_PATH: getSocketPath(),
-          CONDUIT_ENV: getEnvConfig().environment,
-          CONDUIT_INTERNAL_AGENT: '1',
-        },
-      },
-    },
-  };
+function writeAgentMcpConfig(agentDir: string, engineType: EngineType, mcpPath: string): void {
   try {
-    fs.writeFileSync(
-      path.join(agentDir, '.mcp.json'),
-      JSON.stringify(config, null, 2),
-      'utf-8',
+    writeProjectMcpFiles(
+      agentDir,
+      engineType,
+      mcpPath,
+      getSocketPath(),
+      getEnvConfig().environment,
     );
   } catch (err) {
-    console.warn('[engine:ipc] Failed to write agent .mcp.json:', err);
+    console.warn('[engine:ipc] Failed to write agent MCP config:', err);
   }
 }
 
@@ -92,7 +86,7 @@ export function registerEngineHandlers(state: AppState): void {
     // Background refresh: fetch fresh models ~3s after startup
     setTimeout(async () => {
       const updated: Record<string, { models: EngineModelInfo[]; updatedAt: string }> = {};
-      for (const type of ['claude-code', 'codex'] as EngineType[]) {
+      for (const type of (['claude-code', 'codex'] as EngineType[])) {
         try {
           const models = await em.listModels(type, true); // forceRefresh
           if (models.length > 0) {
@@ -138,14 +132,14 @@ export function registerEngineHandlers(state: AppState): void {
   // ── Availability ────────────────────────────────────────────────────────
 
   ipcMain.handle('engine_check_availability', async () => {
-    return em.checkAvailability();
+    return checkAllHarnessesAvailable();
   });
 
   ipcMain.handle('engine_open_install_docs', async (_e, args: { engineType: EngineType }) => {
-    const url = args.engineType === 'claude-code'
-      ? 'https://code.claude.com/docs/en/setup'
-      : 'https://github.com/openai/codex#installing-and-running-codex-cli';
-    await shell.openExternal(url);
+    if (!isKnownEngineType(args.engineType)) {
+      throw new Error(`Invalid engine type: ${args.engineType}`);
+    }
+    await shell.openExternal(getHarness(args.engineType).installUrl);
   });
 
   ipcMain.handle('engine_list_models', async (_e, args) => {
@@ -185,25 +179,23 @@ export function registerEngineHandlers(state: AppState): void {
       // Otherwise ignore settings read errors
     }
 
+    if (!isKnownEngineType(engineType)) {
+      throw new Error(`Invalid engine type: ${engineType}`);
+    }
+
     // Resolve working directory with same priority as terminal agent:
     // 1. Explicit cwd arg (if provided and exists)
     // 2. default_working_directory from settings (if set and exists)
     // 3. Agent-specific data directory (auto-created)
-    let workingDirectory: string;
-    if (explicitCwd && fs.existsSync(explicitCwd)) {
-      workingDirectory = explicitCwd;
-    } else {
-      const settings = readSettings();
-      if (settings.default_working_directory && fs.existsSync(settings.default_working_directory)) {
-        workingDirectory = settings.default_working_directory;
-      } else {
-        const agentDir = path.join(getDataDir(), 'agent', engineType);
-        fs.mkdirSync(agentDir, { recursive: true });
-        // Refresh the project-scoped MCP config so it always points at the
-        // current build — heals stale paths from previous installs.
-        writeAgentMcpConfig(agentDir, mcpPath);
-        workingDirectory = agentDir;
-      }
+    const settings = readSettings();
+    const { cwd: workingDirectory, usedManagedAgentDir } = resolveAgentWorkingDir({
+      engineType,
+      explicitCwd,
+      defaultWorkingDirectory: settings.default_working_directory,
+      dataDir: getDataDir(),
+    });
+    if (usedManagedAgentDir) {
+      writeAgentMcpConfig(workingDirectory, engineType, mcpPath);
     }
 
     const session = await em.createSession(engineType, { model, workingDirectory });

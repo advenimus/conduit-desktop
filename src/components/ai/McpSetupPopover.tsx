@@ -79,7 +79,7 @@ export default function McpSetupPopover() {
         <div
           ref={popoverRef}
           data-popover
-          className="absolute right-0 top-full mt-1 z-50 w-[440px] bg-panel border border-stroke rounded-lg shadow-xl p-4"
+          className="absolute right-0 top-full mt-1 z-50 w-[440px] max-h-[70vh] overflow-y-auto bg-panel border border-stroke rounded-lg shadow-xl p-4"
         >
           <h3 className="text-sm font-semibold text-ink mb-1">
             Connect AI Tools to Conduit

@@ -3,28 +3,7 @@ import { useAiStore, type EngineType } from "../../stores/aiStore";
 import { invoke } from "../../lib/electron";
 import EngineLogo from "./EngineLogo";
 import { RefreshIcon } from "../../lib/icons";
-
-interface EngineOption {
-  type: EngineType;
-  name: string;
-  description: string;
-  cli: string;
-}
-
-const ENGINE_OPTIONS: EngineOption[] = [
-  {
-    type: "claude-code",
-    name: "Claude Code",
-    description: "Anthropic's coding agent. Uses your Claude subscription.",
-    cli: "claude",
-  },
-  {
-    type: "codex",
-    name: "Codex",
-    description: "OpenAI's coding agent. Uses your ChatGPT or API plan.",
-    cli: "codex",
-  },
-];
+import { AI_HARNESSES } from "../../lib/ai-harnesses";
 
 interface Props {
   /** Called after the choice is persisted and setActiveEngine has run.
@@ -50,8 +29,6 @@ export default function EnginePicker({ onPick }: Props) {
     setBusy(type);
     setError(null);
     try {
-      // Persist the choice and mark the picker as completed so it never shows
-      // again automatically — user can change engine in Settings → AI → Agent.
       const current = await invoke<Record<string, unknown>>("settings_get");
       await invoke("settings_save", {
         settings: {
@@ -60,10 +37,7 @@ export default function EnginePicker({ onPick }: Props) {
           engine_picker_completed: true,
         },
       });
-      // Set as active. setActiveEngine clears any leftover session state.
       setActiveEngine(type);
-      // Hand off to the caller — chat mode opens a session, terminal mode
-      // flips the launch gate.
       await onPick(type);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -81,8 +55,8 @@ export default function EnginePicker({ onPick }: Props) {
   };
 
   return (
-    <div className="flex items-center justify-center h-full px-4">
-      <div className="w-full max-w-sm">
+    <div className="flex items-center justify-center h-full px-4 overflow-y-auto">
+      <div className="w-full max-w-sm py-4">
         <div className="text-center mb-5">
           <p className="text-ink font-medium mb-1">Choose your AI agent</p>
           <p className="text-xs text-ink-faint">
@@ -91,21 +65,21 @@ export default function EnginePicker({ onPick }: Props) {
         </div>
 
         <div className="space-y-2 mb-4">
-          {ENGINE_OPTIONS.map((opt) => {
-            const available = engineAvailability?.[opt.type] ?? false;
-            const isLast = lastChosen === opt.type;
-            const isBusy = busy === opt.type;
+          {AI_HARNESSES.map((opt) => {
+            const available = engineAvailability?.[opt.id] ?? false;
+            const isLast = lastChosen === opt.id;
+            const isBusy = busy === opt.id;
 
             return (
               <div
-                key={opt.type}
+                key={opt.id}
                 className={`bg-well border rounded-lg p-3 transition-colors ${
                   isLast ? "border-conduit-500/60" : "border-stroke"
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-md bg-panel flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <EngineLogo type={opt.type} size={18} className="text-ink" />
+                    <EngineLogo type={opt.id} size={18} className="text-ink" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -123,7 +97,7 @@ export default function EnginePicker({ onPick }: Props) {
                     <p className="text-xs text-ink-muted mb-2">{opt.description}</p>
                     {available ? (
                       <button
-                        onClick={() => handlePick(opt.type)}
+                        onClick={() => handlePick(opt.id)}
                         disabled={isBusy || busy !== null}
                         className="px-3 py-1.5 bg-conduit-600 hover:bg-conduit-700 disabled:opacity-50 text-white rounded text-xs font-medium"
                       >
@@ -131,7 +105,7 @@ export default function EnginePicker({ onPick }: Props) {
                       </button>
                     ) : (
                       <button
-                        onClick={() => handleInstall(opt.type)}
+                        onClick={() => handleInstall(opt.id)}
                         className="px-3 py-1.5 bg-panel hover:bg-raised border border-stroke text-ink-muted hover:text-ink rounded text-xs font-medium"
                       >
                         Install instructions

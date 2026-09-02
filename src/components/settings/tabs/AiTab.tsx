@@ -3,9 +3,11 @@ import { invoke } from "../../../lib/electron";
 import { useAiStore } from "../../../stores/aiStore";
 import McpSetupDialog from "../../ai/McpSetupDialog";
 import MCPQuotaCounter from "../../ai/MCPQuotaCounter";
+import EngineLogo from "../../ai/EngineLogo";
 import { EngineStatusRow } from "../SettingsHelpers";
 import type { TabProps } from "../SettingsHelpers";
 import { FolderIcon, PlugIcon } from "../../../lib/icons";
+import { AI_HARNESSES } from "../../../lib/ai-harnesses";
 
 export default function AiTab({ settings, setSettings }: TabProps) {
   const tierCapabilities = useAiStore((s) => s.tierCapabilities);
@@ -23,19 +25,42 @@ export default function AiTab({ settings, setSettings }: TabProps) {
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium mb-1">Default Engine</label>
-        <select
-          value={settings.default_engine}
-          onChange={(e) =>
-            setSettings({
-              ...settings,
-              default_engine: e.target.value as "claude-code" | "codex",
-            })
-          }
-          className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-        >
-          <option value="claude-code">Claude Code</option>
-          <option value="codex">Codex</option>
-        </select>
+        <div className="grid grid-cols-2 gap-2">
+          {AI_HARNESSES.map((harness) => {
+            const selected = settings.default_engine === harness.id;
+            const available = engineAvailability?.[harness.id] ?? false;
+            return (
+              <button
+                key={harness.id}
+                type="button"
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    default_engine: harness.id,
+                  })
+                }
+                className={`flex items-center gap-2 px-3 py-2 rounded border text-left transition-colors ${
+                  selected
+                    ? "border-conduit-500 bg-conduit-600/15"
+                    : "border-stroke bg-well hover:bg-raised"
+                }`}
+              >
+                <EngineLogo type={harness.id} size={16} className="text-ink flex-shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm text-ink truncate">{harness.name}</span>
+                  <span
+                    className={`block text-[10px] ${
+                      available ? "text-emerald-400" : "text-ink-faint"
+                    }`}
+                  >
+                    {available ? "Installed" : "Not installed"}
+                  </span>
+                </span>
+                {selected && <span className="text-conduit-400 text-xs flex-shrink-0">●</span>}
+              </button>
+            );
+          })}
+        </div>
         <p className="text-xs text-ink-muted mt-1">
           Engine selected by default when opening the AI panel. You can switch anytime in the chat header.
         </p>
@@ -70,7 +95,7 @@ export default function AiTab({ settings, setSettings }: TabProps) {
           </button>
         </div>
         <p className="text-xs text-ink-muted mt-1">
-          Starting directory for Claude Code and Codex agent sessions.
+          Starting directory for agent sessions.
         </p>
       </div>
 
@@ -78,7 +103,7 @@ export default function AiTab({ settings, setSettings }: TabProps) {
         <div>
           <label className="text-sm font-medium">MCP Server Setup</label>
           <p className="text-xs text-ink-muted mt-0.5">
-            Show the commands to connect Claude Code and Codex to Conduit's MCP server.
+            Show the commands to connect each CLI agent to Conduit's MCP server.
           </p>
         </div>
         <button
@@ -115,24 +140,17 @@ export default function AiTab({ settings, setSettings }: TabProps) {
 
       <div className="pt-3 border-t border-stroke space-y-2">
         <label className="block text-sm font-medium mb-2">Engine Status</label>
-        <EngineStatusRow
-          label="Claude Code"
-          available={engineAvailability?.['claude-code'] ?? false}
-          description={
-            engineAvailability?.['claude-code']
-              ? "Authenticated via claude login"
-              : "Run 'claude login' in your terminal to authenticate"
-          }
-        />
-        <EngineStatusRow
-          label="Codex"
-          available={engineAvailability?.codex ?? false}
-          description={
-            engineAvailability?.codex
-              ? "Authenticated via codex login"
-              : "Run 'codex login' in your terminal to authenticate"
-          }
-        />
+        {AI_HARNESSES.map((harness) => {
+          const available = engineAvailability?.[harness.id] ?? false;
+          return (
+            <EngineStatusRow
+              key={harness.id}
+              label={harness.name}
+              available={available}
+              description={available ? harness.loginHintInstalled : harness.loginHintMissing}
+            />
+          );
+        })}
       </div>
 
       {mcpEnabled && (

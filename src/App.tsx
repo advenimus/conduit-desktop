@@ -32,6 +32,8 @@ import { useVaultStore } from "./stores/vaultStore";
 import { useSidebarStore } from "./stores/sidebarStore";
 import { useAuthStore } from "./stores/authStore";
 import { useAiStore } from "./stores/aiStore";
+import { isEngineType } from "./lib/ai-harnesses";
+import { localNetworkPermissionMessage, localNetworkSettingsAppName } from "./lib/errorMessages";
 import { initTierSubscriptions, useTierStore } from "./stores/tierStore";
 import { useTeamStore } from "./stores/teamStore";
 import AuthScreen from "./components/auth/AuthScreen";
@@ -490,21 +492,14 @@ function App() {
     const avail = store.engineAvailability;
     // If current engine isn't available, switch to an available one
     if (avail && !avail[store.activeEngineType]) {
-      if (avail['claude-code']) {
-        store.setActiveEngine('claude-code');
-      } else if (avail.codex) {
-        store.setActiveEngine('codex');
+      const fallback = Object.entries(avail).find(([, ok]) => ok)?.[0];
+      if (fallback && isEngineType(fallback)) {
+        store.setActiveEngine(fallback);
       } else {
-        // No engines available — user sees the install prompt
         return;
       }
     }
-    // Create a fresh session
-    try {
-      await store.createEngineSession();
-    } catch (err) {
-      console.error('Failed to create engine session:', err);
-    }
+    store.bumpAgentSession();
   }, []);
 
   // AI panel resize drag handler
@@ -879,10 +874,13 @@ function App() {
     // macOS refused Conduit's local network traffic at startup. Nothing on the
     // LAN will connect until the user flips the switch, and macOS will not ask
     // again on its own, so this stays until dismissed.
-    const unlistenLocalNetwork = window.electron.on("local-network:blocked", () => {
+    const unlistenLocalNetwork = window.electron.on("local-network:blocked", (payload: unknown) => {
+      const appName =
+        payload && typeof payload === "object" && "appName" in payload && typeof payload.appName === "string"
+          ? payload.appName
+          : localNetworkSettingsAppName();
       toast.error("macOS is blocking local network access", {
-        message:
-          "Conduit cannot reach devices on your network. Open Privacy & Security, choose Local Network, and turn on Conduit.",
+        message: localNetworkPermissionMessage(appName),
         persistent: true,
         actions: [
           {

@@ -1,5 +1,8 @@
 import { create } from "zustand";
 import { invoke, listen, type UnlistenFn } from "../lib/electron";
+import { type EngineType, getHarness } from "../lib/ai-harnesses";
+
+export type { EngineType };
 
 export interface AiTierCapabilities {
   cli_agents_enabled: boolean;
@@ -14,7 +17,7 @@ export interface AiTierCapabilities {
 
 // ── Engine types (unified AI engine abstraction) ────────────────────────────
 
-export type EngineType = 'claude-code' | 'codex';
+
 
 export type MessageBlock =
   | { type: 'text'; content: string }
@@ -50,10 +53,7 @@ export interface EngineModelInfo {
   isDefault?: boolean;
 }
 
-export interface EngineAvailability {
-  'claude-code': boolean;
-  codex: boolean;
-}
+export type EngineAvailability = Partial<Record<EngineType, boolean>>;
 
 interface AiState {
   tierCapabilities: AiTierCapabilities | null;
@@ -72,6 +72,7 @@ interface AiState {
 
   // Terminal mode
   terminalMode: boolean;
+  agentSessionEpoch: number;
 
   // Actions
   fetchTierCapabilities: () => Promise<void>;
@@ -93,6 +94,8 @@ interface AiState {
   selectEngineModel: (modelId: string) => Promise<void>;
   closeModelPicker: () => void;
   pendingEngineModel: string | null;
+
+  bumpAgentSession: () => void;
 
   // Vault switch
   resetConversationState: () => void;
@@ -143,6 +146,9 @@ export const useAiStore = create<AiState>((set, get) => ({
   engineModelOptions: [],
   pendingEngineModel: null,
   terminalMode: true,
+  agentSessionEpoch: 0,
+
+  bumpAgentSession: () => set((s) => ({ agentSessionEpoch: s.agentSessionEpoch + 1 })),
 
   resetConversationState: () => set({
     // NOTE: activeEngineType is intentionally NOT reset here. It is a user
@@ -228,9 +234,8 @@ export const useAiStore = create<AiState>((set, get) => ({
     // Guard: check availability before creating sessions
     const available = state.engineAvailability?.[engineType] ?? false;
     if (!available) {
-      const name = engineType === 'claude-code' ? 'Claude Code' : 'Codex';
-      const cli = engineType === 'claude-code' ? 'claude' : 'codex';
-      throw new Error(`${name} is not available. Install and authenticate the '${cli}' CLI, then restart the app.`);
+      const harness = getHarness(engineType);
+      throw new Error(`${harness.name} is not available. Install and authenticate the '${harness.cli}' CLI, then restart the app.`);
     }
 
     // Cancel any in-flight request on the current session before creating a new one.

@@ -21,6 +21,7 @@ import { useTierStore } from "../../stores/tierStore";
 import { useDragContext } from "./DragContext";
 import { toast } from "../common/Toast";
 import { openDashboardForEntry } from "../../lib/openDashboard";
+import { AI_HARNESSES } from "../../lib/ai-harnesses";
 
 const typeIcons: Record<SessionType, React.ReactNode> = {
   local_shell: <TerminalIcon size={14} />,
@@ -87,8 +88,11 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
         ? [
             { id: "sep1", label: "", type: "separator" as const },
             { id: "agent_header", label: "Agent Directory", type: "header" as const },
-            { id: "agent_claude", label: "Claude Code", icon: "terminal" },
-            { id: "agent_codex", label: "Codex", icon: "terminal" },
+            ...AI_HARNESSES.map((h) => ({
+              id: `agent_${h.id}`,
+              label: h.name,
+              icon: "terminal" as const,
+            })),
           ]
         : []),
       { id: "sep2", label: "", type: "separator" },
@@ -108,22 +112,20 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
         case "home":
           await useSessionStore.getState().createLocalShell();
           break;
-        case "agent_claude": {
-          const dir = await invoke<string>("get_agent_working_dir", { engineType: "claude-code" });
-          await useSessionStore.getState().createLocalShell(undefined, dir);
-          break;
-        }
-        case "agent_codex": {
-          const dir = await invoke<string>("get_agent_working_dir", { engineType: "codex" });
-          await useSessionStore.getState().createLocalShell(undefined, dir);
-          break;
-        }
         case "browse": {
           const folder = await invoke<string | null>("dialog_select_folder", {
             title: "Select Working Directory",
           });
           if (folder) {
             await useSessionStore.getState().createLocalShell(undefined, folder);
+          }
+          break;
+        }
+        default: {
+          const harness = AI_HARNESSES.find((h) => `agent_${h.id}` === selected);
+          if (harness) {
+            const dir = await invoke<string>("get_agent_working_dir", { engineType: harness.id });
+            await useSessionStore.getState().createLocalShell(undefined, dir);
           }
           break;
         }

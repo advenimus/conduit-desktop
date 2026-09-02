@@ -8,8 +8,15 @@ import type { SessionType } from "../stores/sessionStore";
  */
 const LOCAL_NETWORK_BLOCKED = /ConduitLocalNetworkBlocked/;
 
-const LOCAL_NETWORK_MESSAGE =
-  "macOS is blocking Conduit's access to your local network. Open System Settings › Privacy & Security › Local Network and turn on Conduit.";
+export function localNetworkSettingsAppName(): string {
+  return import.meta.env.DEV ? "Conduit Dev" : "Conduit";
+}
+
+export function localNetworkPermissionMessage(appName: string): string {
+  return `macOS is blocking ${appName}'s access to your local network. Open System Settings › Privacy & Security › Local Network and turn on ${appName}.`;
+}
+
+const LOCAL_NETWORK_MESSAGE = localNetworkPermissionMessage(localNetworkSettingsAppName());
 
 const patterns: [RegExp, string][] = [
   [/All configured authentication methods failed/i, "Authentication failed — check your username, password, or SSH key"],

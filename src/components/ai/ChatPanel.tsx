@@ -4,6 +4,7 @@ import { useAiStore, initEngineStreamListener, initEngineModelRefreshListener, E
 import type { EngineType } from "../../stores/aiStore";
 import { invoke } from "../../lib/electron";
 import EngineLogo from "./EngineLogo";
+import { ENGINE_TYPES, getHarness, isEngineType } from "../../lib/ai-harnesses";
 import EnginePicker from "./EnginePicker";
 import MCPQuotaCounter from "./MCPQuotaCounter";
 import ModelPicker from "./ModelPicker";
@@ -29,6 +30,7 @@ export default function ChatPanel() {
   const pendingEngineModel = useAiStore((s) => s.pendingEngineModel);
   const engineSessions = useAiStore((s) => s.engineSessions);
   const terminalMode = useAiStore((s) => s.terminalMode);
+  const agentSessionEpoch = useAiStore((s) => s.agentSessionEpoch);
 
   const currentEngineModel =
     engineSessions.find((s) => s.id === activeEngineSessionId)?.model ?? pendingEngineModel;
@@ -96,11 +98,8 @@ export default function ChatPanel() {
   useEffect(() => {
     if (pickerNeeded === null || pickerNeeded === true) return;
     if (terminalMode) {
-      // Need a terminal — launch if not running or engine changed
-      if (!agentTerminalSessionId || agentTerminalEngineRef.current !== activeEngineType) {
-        cleanupAgentTerminal();
-        launchAgentTerminal(activeEngineType);
-      }
+      cleanupAgentTerminal();
+      launchAgentTerminal(activeEngineType);
     } else {
       // Not in terminal mode — cleanup if we had one
       cleanupAgentTerminal();
@@ -111,7 +110,7 @@ export default function ChatPanel() {
         invoke('terminal_close', { sessionId: agentTerminalSessionId }).catch(() => {});
       }
     };
-  }, [terminalMode, activeEngineType, pickerNeeded]);
+  }, [terminalMode, activeEngineType, pickerNeeded, agentSessionEpoch]);
 
   // Filtered slash commands for autocomplete
   const filteredSlashCommands = input.startsWith('/') && !input.includes(' ')
@@ -138,8 +137,8 @@ export default function ChatPanel() {
     // Sync AI preferences from persisted settings (survives vault switches)
     invoke<{ default_engine?: string; engine_picker_completed?: boolean }>('settings_get').then((s) => {
       const store = useAiStore.getState();
-      if (s.default_engine && s.default_engine !== store.activeEngineType) {
-        store.setActiveEngine(s.default_engine as EngineType);
+      if (s.default_engine && isEngineType(s.default_engine) && s.default_engine !== store.activeEngineType) {
+        store.setActiveEngine(s.default_engine);
       }
       setPickerNeeded(!s.engine_picker_completed);
     }).catch(() => {
@@ -236,13 +235,13 @@ export default function ChatPanel() {
             >
               <EngineLogo type={activeEngineType} size={14} />
               <span className="text-xs">
-                {activeEngineType === 'claude-code' ? 'Claude Code' : 'Codex'}
+                {getHarness(activeEngineType).name}
               </span>
               <ChevronDownIcon size={12} className="text-ink-faint" />
             </button>
             {engineSwitcherOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-panel border border-stroke rounded-md shadow-lg z-20 min-w-[180px] py-1">
-                {(['claude-code', 'codex'] as EngineType[]).map((type) => {
+              <div className="absolute top-full left-0 mt-1 bg-panel border border-stroke rounded-md shadow-lg z-20 min-w-[200px] py-1 max-h-72 overflow-y-auto">
+                {ENGINE_TYPES.map((type) => {
                   const active = activeEngineType === type;
                   return (
                     <button
@@ -259,7 +258,7 @@ export default function ChatPanel() {
                     >
                       <EngineLogo type={type} size={14} />
                       <span className="flex-1">
-                        {type === 'claude-code' ? 'Claude Code' : 'Codex'}
+                        {getHarness(type).name}
                       </span>
                       {active && <span className="text-conduit-400 text-xs">●</span>}
                     </button>
@@ -301,7 +300,7 @@ export default function ChatPanel() {
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-6 h-6 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-ink-muted">Starting {activeEngineType === 'claude-code' ? 'Claude Code' : 'Codex'}...</span>
+                <span className="text-xs text-ink-muted">Starting {getHarness(activeEngineType).name}...</span>
               </div>
             </div>
           )}
@@ -350,7 +349,7 @@ export default function ChatPanel() {
                     <EngineLogo type={activeEngineType} size={48} className="text-ink-faint" />
                   </div>
                   <p className="text-ink-muted mb-2">
-                    {activeEngineType === 'claude-code' ? 'Claude Code' : 'Codex'} Agent
+                    {getHarness(activeEngineType).name} Agent
                   </p>
                   {currentEngineModel && (
                     <p className="text-xs text-conduit-400 mb-2">{currentEngineModel}</p>
@@ -472,7 +471,7 @@ export default function ChatPanel() {
                   <LoaderIcon size={16} className="animate-spin" />
                 </div>
                 <div className="rounded-lg px-4 py-2 bg-panel">
-                  <p className="text-ink-muted">{activeEngineType === 'claude-code' ? 'Claude Code' : 'Codex'} is thinking...</p>
+                  <p className="text-ink-muted">{getHarness(activeEngineType).name} is thinking...</p>
                 </div>
               </div>
             )}
@@ -583,7 +582,7 @@ export default function ChatPanel() {
                     setInput('');
                   }
                 }}
-                placeholder={engineEditingIndex !== null ? "Edit your message..." : `Message ${activeEngineType === 'claude-code' ? 'Claude Code' : 'Codex'}... (type / then Enter for commands)`}
+                placeholder={engineEditingIndex !== null ? "Edit your message..." : `Message ${getHarness(activeEngineType).name}... (type / then Enter for commands)`}
                 className="flex-1 px-4 py-2 bg-well border border-stroke rounded-lg focus:outline-none focus:ring-2 focus:ring-conduit-500 text-ink placeholder-ink-faint resize-none overflow-y-auto min-h-[56px]"
                 disabled={engineLoading}
               />

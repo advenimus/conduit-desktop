@@ -9,7 +9,7 @@ import { OverlayManager } from './services/overlay/overlay-manager.js';
 import { logger } from './services/logger.js';
 import { AppState } from './services/state.js';
 import { writeAgentInstructions } from './services/agent-instructions.js';
-import { ensureLocalNetworkAccess } from './services/local-network.js';
+import { ensureLocalNetworkAccess, localNetworkAppName } from './services/local-network.js';
 import { readAll, writeAll } from './ipc/ui-state.js';
 import { readSettings } from './ipc/settings.js';
 import { lockVaultFromMain } from './ipc/vault.js';
@@ -18,6 +18,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
+
+if (isDev) {
+  app.setName(localNetworkAppName(false));
+}
 
 // Fix process.env.PATH for packaged apps on macOS/Linux.
 // Packaged Electron apps launched from Finder inherit a minimal PATH that
@@ -913,9 +917,10 @@ app.whenReady().then(async () => {
   if (isMac) {
     ensureLocalNetworkAccess()
       .then((status) => {
-        console.log(`[main] macOS local network access: ${status}`);
+        const appName = localNetworkAppName(app.isPackaged);
+        console.log(`[main] macOS local network access: ${status} (${appName})`);
         if (status === 'denied' && mainWindowRef && !mainWindowRef.isDestroyed()) {
-          mainWindowRef.webContents.send('local-network:blocked');
+          mainWindowRef.webContents.send('local-network:blocked', { appName });
         }
       })
       .catch((err) => {

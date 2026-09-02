@@ -35,7 +35,7 @@ export default function McpSetupDialog({ onClose }: McpSetupDialogProps) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       onKeyDown={handleKeyDown}
     >
-      <div data-dialog-content className="w-full max-w-md bg-panel border border-stroke rounded-lg shadow-xl">
+      <div data-dialog-content className="w-full max-w-md bg-panel border border-stroke rounded-lg shadow-xl max-h-[85vh] flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
           <h3 className="text-sm font-semibold text-ink">Register MCP Tools</h3>
           <button onClick={onClose} className="p-1 hover:bg-raised rounded">
@@ -43,10 +43,10 @@ export default function McpSetupDialog({ onClose }: McpSetupDialogProps) {
           </button>
         </div>
 
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3 overflow-y-auto">
           <p className="text-xs text-ink-muted">
             In terminal mode, CLI agents need Conduit's MCP server registered manually.
-            Run one of these commands in your project directory:
+            Run the command for your agent in your project directory:
           </p>
 
           {!mcpPath || !socketPath ? (

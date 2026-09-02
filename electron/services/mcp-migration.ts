@@ -23,6 +23,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { getSocketPath } from '../ipc-server/server.js';
 import { getDataDir, getEnvConfig } from './env-config.js';
+import { ENGINE_TYPES, writeProjectMcpFiles } from './ai/cli-harnesses.js';
 
 interface StdioMcpServer {
   type?: string;
@@ -154,38 +155,16 @@ export function migrateStaleConduitMcpEntries(currentMcpPath: string): number {
  * user-chosen working directories. We only know about engines we ship.
  */
 export function refreshAgentMcpConfigs(currentMcpPath: string): void {
-  const engineTypes = ['claude-code', 'codex'] as const;
   const env = getEnvConfig().environment;
   const socket = getSocketPath();
-  const config = {
-    mcpServers: {
-      conduit: {
-        type: 'stdio',
-        command: 'node',
-        args: [currentMcpPath],
-        env: {
-          CONDUIT_SOCKET_PATH: socket,
-          CONDUIT_ENV: env,
-          CONDUIT_INTERNAL_AGENT: '1',
-        },
-      },
-    },
-  };
-  const serialized = JSON.stringify(config, null, 2);
-  for (const engineType of engineTypes) {
+  for (const engineType of ENGINE_TYPES) {
     const agentDir = path.join(getDataDir(), 'agent', engineType);
     if (!fs.existsSync(agentDir)) continue; // No session ever opened — leave alone.
-    const filePath = path.join(agentDir, '.mcp.json');
     try {
-      // Only write if content differs — preserves mtime when nothing changed.
-      let existing = '';
-      try { existing = fs.readFileSync(filePath, 'utf-8'); } catch { /* missing */ }
-      if (existing.trim() !== serialized.trim()) {
-        fs.writeFileSync(filePath, serialized, 'utf-8');
-        console.log(`[mcp-migration] Refreshed ${engineType} agent .mcp.json → ${currentMcpPath}`);
-      }
+      writeProjectMcpFiles(agentDir, engineType, currentMcpPath, socket, env);
+      console.log(`[mcp-migration] Refreshed ${engineType} agent MCP config → ${currentMcpPath}`);
     } catch (err) {
-      console.warn(`[mcp-migration] Could not refresh ${engineType} agent .mcp.json:`, err);
+      console.warn(`[mcp-migration] Could not refresh ${engineType} agent MCP config:`, err);
     }
   }
 }

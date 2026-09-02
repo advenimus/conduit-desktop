@@ -7,6 +7,7 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const identity = require('./mac-local-network-identity.cjs');
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName === 'darwin') {
@@ -17,11 +18,25 @@ exports.default = async function afterPack(context) {
 };
 
 // ── macOS: compile .icon to asset catalog ─────────────────────────────
+function patchPackagedUuid(appPath, appName) {
+  const executable = path.join(appPath, 'Contents', 'MacOS', appName);
+  if (!fs.existsSync(executable)) {
+    console.warn('[afterPack] main executable not found, skipping LC_UUID patch');
+    return;
+  }
+  identity.writePatchedUuid(executable, identity.deriveUuidBytes(identity.PROD_BUNDLE_ID));
+  console.log('[afterPack] Rewrote LC_UUID for Local Network identity');
+}
+
 async function handleMacOS(context) {
   const appName = context.packager.appInfo.productFilename;
   const appPath = path.join(context.appOutDir, `${appName}.app`);
   const resourcesPath = path.join(appPath, 'Contents', 'Resources');
   const infoPlistPath = path.join(appPath, 'Contents', 'Info.plist');
+
+  // Must run even if icon compilation returns early — otherwise packaged
+  // Conduit shares Electron's stock LC_UUID and Local Network tracking breaks.
+  patchPackagedUuid(appPath, appName);
 
   const iconSource = path.resolve(__dirname, '../resources/icons/icon-macos.icon');
 

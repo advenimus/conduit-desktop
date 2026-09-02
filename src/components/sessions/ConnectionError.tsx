@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSessionStore, type SessionType } from "../../stores/sessionStore";
 import { useEntryStore } from "../../stores/entryStore";
-import { friendlyConnectionError } from "../../lib/errorMessages";
+import { friendlyConnectionError, localNetworkSettingsAppName } from "../../lib/errorMessages";
 import { PlugDisconnectedIcon } from "../../lib/icons";
 import { invoke } from "../../lib/electron";
 
@@ -15,6 +15,7 @@ interface ConnectionErrorProps {
 export default function ConnectionError({ sessionId, entryId, error, sessionType }: ConnectionErrorProps) {
   const friendly = error ? friendlyConnectionError(error, sessionType) : "Disconnected";
   const showRaw = error && friendly !== error;
+  const settingsAppName = localNetworkSettingsAppName();
 
   // macOS can block LAN traffic app-wide, which surfaces here as an ordinary
   // unreachable-host error. Only the main process can tell the difference, and
@@ -49,8 +50,8 @@ export default function ConnectionError({ sessionId, entryId, error, sessionType
             macOS is blocking local network access
           </div>
           <div className="text-xs text-ink-secondary">
-            Conduit cannot reach devices on your network until you allow it. Open Privacy &amp;
-            Security, choose Local Network, and turn on Conduit.
+            {settingsAppName} cannot reach devices on your network until you allow it.
+            Open Privacy &amp; Security, choose Local Network, and turn on {settingsAppName}.
           </div>
           <button
             onClick={() => invoke("open_local_network_settings").catch(console.error)}

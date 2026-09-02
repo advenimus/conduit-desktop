@@ -1,6 +1,7 @@
 import { CheckIcon, AlertTriangleIcon } from "../../lib/icons";
 import type { RdpGlobalDefaults, WebGlobalDefaults, TerminalGlobalDefaults, SshGlobalDefaults } from "../../types/entry";
 import { HARDCODED_RDP_DEFAULTS, HARDCODED_WEB_DEFAULTS, HARDCODED_TERMINAL_DEFAULTS, HARDCODED_SSH_DEFAULTS } from "../../types/entry";
+import type { EngineType } from "../../lib/ai-harnesses";
 
 export interface Settings {
   theme: string;
@@ -11,7 +12,7 @@ export interface Settings {
   cli_agent: "claude" | "codex";
   cli_font_size: number;
   sidebar_mode: "pinned" | "auto";
-  default_engine: "claude-code" | "codex";
+  default_engine: EngineType;
   default_working_directory: string | null;
   ui_scale: number;
   default_web_engine: "auto" | "chromium" | "webview2";

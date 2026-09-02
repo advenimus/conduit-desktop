@@ -109,6 +109,9 @@ describe('writeAgentInstructions', () => {
   const globalAgentsMd = path.join(FAKE_HOME, '.codex', 'AGENTS.md');
   // getDataDir() = {userData}/conduit-dev when unpackaged (preview env)
   const agentClaudeMd = path.join(FAKE_USER_DATA, 'conduit-dev', 'agent', 'claude-code', 'CLAUDE.md');
+  const agentGrokMd = path.join(FAKE_USER_DATA, 'conduit-dev', 'agent', 'grok', 'AGENTS.md');
+  const agentGeminiMd = path.join(FAKE_USER_DATA, 'conduit-dev', 'agent', 'gemini', 'GEMINI.md');
+  const agentCursorMd = path.join(FAKE_USER_DATA, 'conduit-dev', 'agent', 'cursor', 'AGENTS.md');
 
   beforeEach(() => {
     fs.rmSync(path.join(FAKE_HOME, '.claude'), { recursive: true, force: true });
@@ -123,6 +126,14 @@ describe('writeAgentInstructions', () => {
     expect(written).toContain(MARKER_START);
     expect(written).toContain('# Conduit MCP Integration');
     expect(written).toContain('connection_list');
+  });
+
+  it('writes AGENTS.md / GEMINI.md for the additional CLI harnesses', async () => {
+    await writeAgentInstructions();
+
+    expect(fs.readFileSync(agentGrokMd, 'utf-8')).toContain('connection_list');
+    expect(fs.readFileSync(agentGeminiMd, 'utf-8')).toContain('connection_list');
+    expect(fs.readFileSync(agentCursorMd, 'utf-8')).toContain('connection_list');
   });
 
   it('never creates the global instruction files', async () => {

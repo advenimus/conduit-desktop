@@ -75,9 +75,11 @@ npm install
 
 **Electron is pinned to an exact version in `package.json` on purpose. Do not restore the caret range.**
 
-macOS identifies an app for the Local Network permission partly by a fingerprint (`LC_UUID`) baked into the main executable at `Contents/MacOS/Conduit`. That executable is the prebuilt Electron launcher stub — electron-builder only copies, renames, and signs it, and signing cannot alter the fingerprint. So the app's identity to macOS is the Electron version's identity.
+macOS identifies an app for the Local Network permission partly by a fingerprint (`LC_UUID`) baked into the main executable at `Contents/MacOS/Conduit`. That executable is the prebuilt Electron launcher stub — electron-builder only copies, renames, and signs it, and signing cannot alter the fingerprint. Every app built from the same Electron version therefore ships the same stock UUID.
 
-Verified: Electron `41.0.3` produces `4C4C4450-5555-3144-A175-A5A5EB513DF3`; Electron `41.10.4` produces `4C4C4461-5555-3144-A1D9-15C795D7EB04`. A patch-level Electron bump is enough to change it.
+`scripts/afterPack.cjs` rewrites that UUID to a value derived from `com.conduit.app` before electron-builder signs, and `scripts/stamp-electron-dev.cjs` does the same for the npm Electron.app using `com.conduit.app.dev`. The grant then follows Conduit (or Conduit Dev), not the Electron version.
+
+Verified: Electron `41.0.3` produces `4C4C4450-5555-3144-A175-A5A5EB513DF3`; Electron `41.10.4` produces `4C4C4461-5555-3144-A1D9-15C795D7EB04`. Without the rewrite, a patch-level Electron bump is enough to change the identity.
 
 When the fingerprint changes, macOS can treat the build as a different program. The app disappears from System Settings › Privacy & Security › Local Network, and there is no supported way to reset that permission or put the entry back by hand.
 
@@ -106,4 +108,4 @@ Apple provides no way to reset this permission to undetermined on macOS (FB14944
 
 ### Open question
 
-Whether macOS keys this permission on `LC_UUID` or on the code signature hash (`cdhash`) is not documented publicly. The cdhash changes on **every** Conduit release, because version strings and asar integrity hashes feed into it. If cdhash is the key, every release is an identity change and pinning Electron only reduces the problem rather than removing it. Treat the launch-time request as the load-bearing mitigation either way.
+Whether macOS keys this permission on `LC_UUID` or on the code signature hash (`cdhash`) is not documented publicly. The cdhash changes on **every** Conduit release, because version strings and asar integrity hashes feed into it. If cdhash is the key, every release is an identity change and pinning Electron only reduces the problem rather than removing it. The afterPack UUID rewrite removes the Electron-version collision; treat the launch-time request as the load-bearing mitigation either way.
