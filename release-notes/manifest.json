@@ -2,6 +2,35 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.17.0",
+      "date": "2026-09-02",
+      "title": "More Agents",
+      "summary": "Launch Grok, Cursor, Gemini, Copilot, OpenCode, and OpenClaw from Conduit, and give packaged and dev builds their own macOS Local Network identity.",
+      "highlights": [
+        {
+          "text": "**Six more CLI agents** — Grok Build, Cursor Agent, OpenClaw, Gemini CLI, GitHub Copilot, and OpenCode launch in the same in-app terminal as Claude Code and Codex, each under your own subscription.",
+          "category": "feature"
+        },
+        {
+          "text": "**MCP setup for every agent** — Settings → AI shows the setup command or config snippet for each supported CLI.",
+          "category": "feature"
+        },
+        {
+          "text": "**Per-agent working directories** — each engine gets its own folder plus CLAUDE.md, AGENTS.md, or GEMINI.md as that CLI expects.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Unique macOS Local Network identity** — packaged Conduit and the npm Electron used in dev no longer share stock Electron's identity, so macOS can grant LAN access per build.",
+          "category": "fix"
+        },
+        {
+          "text": "**Clearer LAN-blocked errors** — when macOS is blocking, the toast and connection error name Conduit or Conduit Dev and keep asking during the first minute after launch.",
+          "category": "improvement"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.16.2",
       "date": "2026-08-07",
       "title": "macOS Network Fix & Agent Instruction Scoping",
