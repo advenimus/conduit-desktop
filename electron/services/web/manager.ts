@@ -691,7 +691,7 @@ export class WebSessionManager {
 
     const tab = this.getActiveTabOrThrow(sessionId);
     if (tab.view && tab.canGoBack) {
-      tab.view.webContents.goBack();
+      tab.view.webContents.navigationHistory.goBack();
     }
   }
 
@@ -703,7 +703,7 @@ export class WebSessionManager {
 
     const tab = this.getActiveTabOrThrow(sessionId);
     if (tab.view && tab.canGoForward) {
-      tab.view.webContents.goForward();
+      tab.view.webContents.navigationHistory.goForward();
     }
   }
 
@@ -1254,33 +1254,33 @@ export class WebSessionManager {
     });
 
     // ── Navigation state tracking ──
-    view.webContents.on('did-start-navigation', (_event, url, isInPlace, isMainFrame) => {
-      if (!isMainFrame) return;
+    view.webContents.on('did-start-navigation', (details) => {
+      if (!details.isMainFrame) return;
       tab.isLoading = true;
-      tab.url = url;
+      tab.url = details.url;
       this.emitNavState(sessionId, tab);
     });
 
     view.webContents.on('did-navigate', (_event, url) => {
       tab.url = url;
       tab.isLoading = false;
-      tab.canGoBack = view.webContents.canGoBack();
-      tab.canGoForward = view.webContents.canGoForward();
+      tab.canGoBack = view.webContents.navigationHistory.canGoBack();
+      tab.canGoForward = view.webContents.navigationHistory.canGoForward();
       tab.certErrorNotified = false;
       this.emitNavState(sessionId, tab);
     });
 
     view.webContents.on('did-navigate-in-page', (_event, url) => {
       tab.url = url;
-      tab.canGoBack = view.webContents.canGoBack();
-      tab.canGoForward = view.webContents.canGoForward();
+      tab.canGoBack = view.webContents.navigationHistory.canGoBack();
+      tab.canGoForward = view.webContents.navigationHistory.canGoForward();
       this.emitNavState(sessionId, tab);
     });
 
     view.webContents.on('did-stop-loading', () => {
       tab.isLoading = false;
-      tab.canGoBack = view.webContents.canGoBack();
-      tab.canGoForward = view.webContents.canGoForward();
+      tab.canGoBack = view.webContents.navigationHistory.canGoBack();
+      tab.canGoForward = view.webContents.navigationHistory.canGoForward();
       this.emitNavState(sessionId, tab);
     });
 

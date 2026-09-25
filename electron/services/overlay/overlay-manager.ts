@@ -69,6 +69,8 @@ export class OverlayManager {
       height: OVERLAY_HEIGHT,
       frame: false,
       transparent: true,
+      // Electron 43+ rounds frameless windows on Linux by default; these draw their own shape.
+      ...(process.platform === 'linux' ? { roundedCorners: false } : {}),
       focusable: false,
       skipTaskbar: true,
       hasShadow: false,

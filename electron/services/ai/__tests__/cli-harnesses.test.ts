@@ -191,4 +191,44 @@ describe('projectMcpConfigFiles', () => {
     const grokFiles = projectMcpConfigFiles('grok', '/mcp/index.js', '/tmp/sock', 'preview');
     expect(grokFiles.some((f) => f.relativePath === '.cursor/mcp.json')).toBe(false);
   });
+
+  it('writes .codex/config.toml for Codex, which ignores .mcp.json', () => {
+    const files = projectMcpConfigFiles(
+      'codex',
+      '/Volumes/SSD Storage/conduit/mcp/dist/index.js',
+      '/Users/me/Library/Application Support/conduit-dev/conduit.sock',
+      'preview',
+    );
+    const codexToml = files.find((f) => f.relativePath === '.codex/config.toml');
+    expect(codexToml?.contents).toBe(
+      [
+        '[mcp_servers.conduit]',
+        'command = "node"',
+        'args = ["/Volumes/SSD Storage/conduit/mcp/dist/index.js"]',
+        '',
+        '[mcp_servers.conduit.env]',
+        'CONDUIT_SOCKET_PATH = "/Users/me/Library/Application Support/conduit-dev/conduit.sock"',
+        'CONDUIT_ENV = "preview"',
+        'CONDUIT_INTERNAL_AGENT = "1"',
+        '',
+      ].join('\n'),
+    );
+
+    const claudeFiles = projectMcpConfigFiles('claude-code', '/mcp/index.js', '/tmp/sock', 'preview');
+    expect(claudeFiles.some((f) => f.relativePath === '.codex/config.toml')).toBe(false);
+  });
+
+  it('escapes Windows paths as TOML basic strings', () => {
+    const files = projectMcpConfigFiles(
+      'codex',
+      'C:\\Program Files\\Conduit\\resources\\mcp\\dist\\index.js',
+      '\\\\.\\pipe\\conduit',
+      'production',
+    );
+    const contents = files.find((f) => f.relativePath === '.codex/config.toml')!.contents;
+    expect(contents).toContain(
+      'args = ["C:\\\\Program Files\\\\Conduit\\\\resources\\\\mcp\\\\dist\\\\index.js"]',
+    );
+    expect(contents).toContain('CONDUIT_SOCKET_PATH = "\\\\\\\\.\\\\pipe\\\\conduit"');
+  });
 });

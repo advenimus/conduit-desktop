@@ -1,6 +1,6 @@
 # Dependency Upgrades — Tier 3 (Major Versions)
 
-Last updated: 2026-03-03
+Last updated: 2026-09-25
 
 ## Overview
 
@@ -15,6 +15,7 @@ Major dependency upgrades to resolve remaining moderate vulnerabilities and mode
 | 4 | react, react-dom, @types/react* | 18.x | 19.x | Done |
 | 5 | eslint, typescript-eslint | 8.x / 7.x | 10.0.2 / 8.56.1 | Done |
 | 6 | electron | 34.x | 35.7.5 | Done |
+| 7 | electron, better-sqlite3, nan (override) | 41.10.4 / 12.8.0 / 2.26.2 | 44.4.5 / 13.0.3 / 2.29.0 | Done |
 
 ## Verification Gate (after each phase)
 
@@ -61,6 +62,22 @@ Major dependency upgrades to resolve remaining moderate vulnerabilities and mode
 - Rebuild native modules: better-sqlite3, node-pty, koffi, ssh2, sharp
 - Full production build verification required
 
+### Phase 7: Electron 41 → 44
+
+Electron 41 reached end of life on 2026-08-25. 44 is supported until 2027-03-02.
+
+- `better-sqlite3` 12 → 13: 12.x does not compile against the V8 in Electron 42+. 13 uses N-API and ships prebuilds for every platform, so the same binary also loads in plain Node (the vault tests now run under Vitest).
+- `overrides.nan` 2.26.2 → 2.29.0: older nan fails against the V8 in Electron 42+. electron-builder rebuilds the optional `cpu-features` (ssh2) and fails packaging when that build fails.
+- `postinstall` runs `install-electron`: from Electron 42, `npm install` no longer downloads the Electron binary, and `stamp-electron-dev.cjs` needs it.
+- Clipboard: Electron 44 made the main-process `clipboard` async (W3C `ClipboardItem`) and removed `availableFormats`/`readBuffer`. `electron/services/rdp/clipboard-files.ts` and `session.ts` were migrated. Every Electron clipboard call goes through `clipboardCall()`, which keeps the event loop awake and times out: on Linux the promises can stall until something wakes the main loop (electron/electron#54296, fixed on the 44-x-y branch after 44.4.5; the wrapper stays harmless once that ships). The macOS file write now goes through Electron because the old osascript `writeObjects` dropped items on macOS 27. The Linux xclip write now ignores stdio; before, the forked xclip kept the pipe open, so every write blocked the main thread for 5s and reported failure.
+- Web tabs use `webContents.navigationHistory` and the `did-start-navigation` details object (the old calls are deprecated).
+- Linux: `roundedCorners: false` on the frameless transparent windows, since Electron 43 rounds frameless windows by default.
+- CI and CONTRIBUTING move to Node 22 (Electron and better-sqlite3 13 require it).
+- Linux native builds need GCC 13+ (or a Clang with `std::source_location`): the Electron 42+ V8 headers use an attribute placement GCC 12 rejects, which breaks nan addons such as `cpu-features` (electron/electron#53284). `ubuntu-latest` (24.04, GCC 13) is fine. On an older toolchain, set `CXXFLAGS=-UV8_DEPRECATION_WARNINGS` for that job.
+- Accepted behavior changes: macOS 13+ is required (44); file dialogs without `defaultPath` open in Downloads (43).
+- Follow-ups in the same pass: `sharp` 0.35.4 (fixes GHSA-rgj7-g3m4-5g8c) and `electron-builder` 26.16.1 (fixes `CSC_LINK` keychain signing on macOS 27, #10066; npm's `latest` tag still points at 26.15.x, so the range is pinned to `^26.16.1`). `scripts/afterPack.cjs` now drops other platforms' prebuilt native binaries (`scripts/prune-native-prebuilds.cjs`), which more than offsets Electron 44's larger framework.
+- Next: `safeStorage` sync methods are deprecated in 45 and removed in 46. The async API exists from 42.
+
 ## Rollback
 
 Each phase is committed separately. To rollback any phase:
@@ -79,7 +96,7 @@ macOS identifies an app for the Local Network permission partly by a fingerprint
 
 `scripts/afterPack.cjs` rewrites that UUID to a value derived from `com.conduit.app` before electron-builder signs, and `scripts/stamp-electron-dev.cjs` does the same for the npm Electron.app using `com.conduit.app.dev`. The grant then follows Conduit (or Conduit Dev), not the Electron version.
 
-Verified: Electron `41.0.3` produces `4C4C4450-5555-3144-A175-A5A5EB513DF3`; Electron `41.10.4` produces `4C4C4461-5555-3144-A1D9-15C795D7EB04`. Without the rewrite, a patch-level Electron bump is enough to change the identity.
+Verified: Electron `41.0.3` produces `4C4C4450-5555-3144-A175-A5A5EB513DF3`; Electron `41.10.4` produces `4C4C4461-5555-3144-A1D9-15C795D7EB04`; Electron `44.4.5` produces `4C4C44F8-5555-3144-A1B8-270B7145EDA0`. Without the rewrite, a patch-level Electron bump is enough to change the identity.
 
 When the fingerprint changes, macOS can treat the build as a different program. The app disappears from System Settings › Privacy & Security › Local Network, and there is no supported way to reset that permission or put the entry back by hand.
 
@@ -109,3 +126,5 @@ Apple provides no way to reset this permission to undetermined on macOS (FB14944
 ### Open question
 
 Whether macOS keys this permission on `LC_UUID` or on the code signature hash (`cdhash`) is not documented publicly. The cdhash changes on **every** Conduit release, because version strings and asar integrity hashes feed into it. If cdhash is the key, every release is an identity change and pinning Electron only reduces the problem rather than removing it. The afterPack UUID rewrite removes the Electron-version collision; treat the launch-time request as the load-bearing mitigation either way.
+
+Inference, not a documented statement: TN3179 says the grant is tracked by the code signature plus a unique main-executable UUID, and TN3127 says a Developer ID build's designated requirement is bundle id + team. Together that points to designated requirement + UUID rather than cdhash for signed releases. Because the rewritten UUID is identical on Electron 41.10.4 and 44.4.5 (`0177DA8E-FF3E-55D1-A666-1DF772DBA853`), the 44 upgrade may not re-prompt at all. Only the fresh-account test settles it.

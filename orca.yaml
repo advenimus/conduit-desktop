@@ -1,0 +1,19 @@
+# Orca worktree hooks: scripts.setup runs in each new worktree.
+scripts:
+  setup: |
+    set -e
+    rm -rf node_modules
+    npm install
+    (cd mcp && npm install)
+    # FreeRDP deps come from the shared cache (see docs/BUILD_FREERDP.md), so
+    # only the helper binary builds here: seconds after the first worktree.
+    case "$(uname -s)" in
+      Darwin)
+        bash freerdp-helper/build-freerdp.sh
+        bash freerdp-helper/scripts/build-macos.sh
+        bash freerdp-helper/scripts/bundle-macos.sh
+        ;;
+      Linux)
+        bash freerdp-helper/scripts/build-linux.sh
+        ;;
+    esac

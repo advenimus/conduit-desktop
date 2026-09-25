@@ -10,7 +10,7 @@ Conduit is a cross-platform (macOS + Windows + Linux) remote connection manager 
 
 | Component | Technology |
 |-----------|------------|
-| Framework | Electron 34 |
+| Framework | Electron 44 |
 | Backend | Node.js + TypeScript (main process) |
 | Frontend | React 18 + TypeScript + Vite |
 | RDP | FreeRDP 3.x (C helper binary) |
@@ -96,12 +96,12 @@ Dev and production use separate local data directories to avoid conflicts. Contr
 
 | Environment | `CONDUIT_ENV` | Data Directory | Socket Path |
 |---|---|---|---|
-| Dev (default) | `preview` | `{userData}/conduit-dev/` | `.../conduit-dev/conduit.sock` |
-| Prod / Packaged | `production` | `{userData}/conduit/` | `.../conduit/conduit.sock` |
+| Dev (default) | `preview` | `{appData}/conduit/conduit-dev/` | `.../conduit-dev/conduit.sock` |
+| Prod / Packaged | `production` | `{appData}/conduit/conduit/` | `.../conduit/conduit.sock` |
 
-Paths are centralized in `electron/services/env-config.ts` (`getDataDir()`, `getSocketPath()`). The MCP process (`mcp/src/ipc-client.ts`) derives the socket path from `CONDUIT_ENV` or an explicit `CONDUIT_SOCKET_PATH` override.
+Paths are centralized in `electron/services/env-config.ts` (`getDataDir()`, `getSocketPath()`). `electron/app-identity.ts` (the first import in `main.ts`) pins the data root and renames the dev build to "Conduit Dev", which gives it its own Chromium profile and single-instance lock. The MCP process (`mcp/src/ipc-client.ts`) derives the socket path from `CONDUIT_ENV` or an explicit `CONDUIT_SOCKET_PATH` override.
 
-Both dev and prod instances can run simultaneously without socket or data conflicts.
+Both dev and prod instances can run simultaneously without socket or data conflicts. Whichever one has focus claims `conduit://` links.
 
 ## Architecture Notes
 
@@ -119,7 +119,7 @@ The MCP server (`mcp/`) runs as a separate Node.js process. It communicates with
 Relevant code:
 - `mcp/src/index.ts` — server entry
 - `mcp/src/tools/` — tool implementations
-- `mcp/src/daily-quota.ts` — local quota enforcement (Free tier: 50 tool calls / day; Pro/Team: unlimited)
+- `mcp/src/daily-quota.ts` — local quota enforcement (Free tier: 50 tool calls / day; Pro/Team: unlimited). Unpackaged dev builds clear the counter on every launch (`electron/services/mcp-quota.ts`); packaged builds never do.
 
 ### Supabase
 Production runs on cloud Supabase. Preview runs on a local Supabase stack via Docker (see `docs/LOCAL_SUPABASE.md`). Start the local stack with `supabase start` before `npm run dev:electron`.

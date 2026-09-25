@@ -1,21 +1,37 @@
 // scripts/afterPack.cjs
 // electron-builder afterPack hook:
+//   all    — drops other platforms' prebuilt native binaries
 //   macOS  — compiles .icon to asset catalog for dark mode / tinted / liquid glass
 //   Windows — stamps icon + version info via rcedit (signAndEditExecutable is off
 //             because winCodeSign extraction fails on self-hosted runners)
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { Arch } = require('builder-util');
 const identity = require('./mac-local-network-identity.cjs');
+const { pruneNativePrebuilds } = require('./prune-native-prebuilds.cjs');
 
 exports.default = async function afterPack(context) {
+  pruneForeignPrebuilds(context);
+
   if (context.electronPlatformName === 'darwin') {
     await handleMacOS(context);
   } else if (context.electronPlatformName === 'win32') {
     await handleWindows(context);
   }
 };
+
+// ── All platforms: keep only this build's native prebuilds ────────────
+function pruneForeignPrebuilds(context) {
+  const platform = context.electronPlatformName;
+  const resourcesPath = platform === 'darwin'
+    ? path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents', 'Resources')
+    : path.join(context.appOutDir, 'resources');
+  const nodeModules = path.join(resourcesPath, 'app.asar.unpacked', 'node_modules');
+  const removed = pruneNativePrebuilds(nodeModules, platform, Arch[context.arch]);
+  console.log(`[afterPack] Removed ${removed.length} prebuilt binaries for other platforms`);
+}
 
 // ── macOS: compile .icon to asset catalog ─────────────────────────────
 function patchPackagedUuid(appPath, appName) {
@@ -55,17 +71,16 @@ async function handleMacOS(context) {
     fs.cpSync(iconSource, destIcon, { recursive: true });
 
     // Compile .icon to Assets.car + AppIcon.icns
-    const actoolCmd = [
-      'xcrun', 'actool',
+    // Argument array, not a shell string: build paths can contain spaces.
+    execFileSync('xcrun', [
+      'actool',
       '--compile', resourcesPath,
       '--output-partial-info-plist', path.join(tmpDir, 'partial.plist'),
       '--platform', 'macosx',
       '--minimum-deployment-target', '11.0',
       '--app-icon', 'AppIcon',
-      destIcon
-    ].join(' ');
-
-    execSync(actoolCmd, { encoding: 'utf-8', stdio: 'pipe' });
+      destIcon,
+    ], { encoding: 'utf-8', stdio: 'pipe' });
 
     // Verify Assets.car was created
     const carPath = path.join(resourcesPath, 'Assets.car');
@@ -78,10 +93,7 @@ async function handleMacOS(context) {
 
     // Add CFBundleIconName to Info.plist so macOS uses the asset catalog icon
     // (CFBundleIconFile is already set by electron-builder for backward compat)
-    execSync(
-      `plutil -replace CFBundleIconName -string "AppIcon" "${infoPlistPath}"`,
-      { encoding: 'utf-8' }
-    );
+    execFileSync('plutil', ['-replace', 'CFBundleIconName', '-string', 'AppIcon', infoPlistPath], { encoding: 'utf-8' });
 
     console.log('[afterPack] Added CFBundleIconName to Info.plist');
   } catch (err) {

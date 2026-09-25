@@ -14,8 +14,11 @@ import sharp from 'sharp';
 import { FrameBuffer, type ImageFormat } from './framebuffer.js';
 import type { RdpEngine, RdpEngineConfig, RdpBitmapUpdate, CursorUpdate, ClipboardFileInfo, ClipboardFileDownloaded, ClipboardFileProgress } from './engine.js';
 import { createRdpEngine } from './engines/factory.js';
-import { readClipboardFiles, writeClipboardFiles, clipboardHasFiles } from './clipboard-files.js';
+import { clipboardCall, readClipboardFiles, writeClipboardFiles, clipboardHasFiles } from './clipboard-files.js';
 import * as input from './input.js';
+
+/** How long after our own clipboard write lands to skip local→remote sync. */
+const ECHO_SUPPRESS_MS = 2000;
 
 export type RdpSessionState = 'disconnected' | 'connecting' | 'connected' | 'disconnecting';
 
@@ -56,9 +59,11 @@ export class RdpSession {
   private lastProgressEmit = 0;
   /** Suppress local→remote sync briefly after writing to clipboard (prevents echo) */
   private clipboardWriteSuppress = 0;
+  private pendingClipboardWrites = 0;
   /** Dedup: last remote clipboard text + timestamp to suppress duplicate notifications */
   private lastRemoteClipboardText = '';
   private lastRemoteClipboardTime = 0;
+  private clipboardSyncQueue: Promise<void> = Promise.resolve();
   /** Cache for cursor data URIs to avoid re-encoding identical cursors */
   private cursorCache = new Map<string, { dataUrl: string; hotspotX: number; hotspotY: number }>();
   /** Current desktop scale factor (100 = 1x, 200 = 2x Retina, etc.) */
@@ -389,9 +394,11 @@ export class RdpSession {
 
     // Native clipboard (Windows): C helper already wrote to native clipboard
     if (!this.engine?.nativeClipboardActive) {
-      clipboard.writeText(text);
-      // Suppress next sync so we don't echo this text back to remote
-      this.clipboardWriteSuppress = Date.now() + 2000;
+      const write = clipboardCall(() => clipboard.writeText(text)).catch(err => {
+        console.error(`[RDP ${this.id}] Failed to write remote clipboard text locally:`, err);
+      });
+      // Suppress sync so we don't echo this text back to remote
+      this.suppressEchoDuring(write);
     }
     if (this.window && !this.window.isDestroyed()) {
       this.window.webContents.send('rdp:clipboard', {
@@ -404,32 +411,26 @@ export class RdpSession {
   // === File Clipboard Methods ===
 
   /** Read local system clipboard and send to remote (files or text) */
-  syncLocalClipboardToRemote(): void {
-    if (!this.engine || !this.isConnected()) return;
+  syncLocalClipboardToRemote(): Promise<void> {
+    // Clipboard reads are async; run syncs one at a time so the duplicate-file check holds.
+    this.clipboardSyncQueue = this.clipboardSyncQueue
+      .then(() => this.performLocalClipboardSync())
+      .catch(err => console.error(`[RDP ${this.id}] Local clipboard sync failed:`, err));
+    return this.clipboardSyncQueue;
+  }
 
-    // Native clipboard (Windows): C helper detects local changes directly
-    if (this.engine.nativeClipboardActive) return;
+  private async performLocalClipboardSync(): Promise<void> {
+    if (!this.engineForLocalClipboardSync()) return;
 
-    // Suppress echo: we just wrote to the clipboard, don't re-announce it
-    if (Date.now() < this.clipboardWriteSuppress) {
-      console.log(`[RDP ${this.id}] Skipping local→remote sync (clipboard write suppression)`);
-      return;
-    }
-
-    // Don't overwrite server's clipboard claim while downloading remote files
-    if (this.pendingFileDownloads > 0 || this.remoteFiles.length > 0) {
-      console.log(`[RDP ${this.id}] Skipping local→remote sync (remote files pending)`);
-      return;
-    }
-
-    const formats = clipboard.availableFormats();
-    const hasFiles = clipboardHasFiles();
-    console.log(`[RDP ${this.id}] syncLocalClipboardToRemote: formats=${JSON.stringify(formats)}, hasFiles=${hasFiles}`);
+    const hasFiles = await clipboardHasFiles();
+    console.log(`[RDP ${this.id}] syncLocalClipboardToRemote: hasFiles=${hasFiles}`);
 
     // Check for files first — they take priority
     if (hasFiles) {
-      const filePaths = readClipboardFiles();
+      const filePaths = await readClipboardFiles();
       console.log(`[RDP ${this.id}] readClipboardFiles result:`, filePaths);
+      const engine = this.engineForLocalClipboardSync();
+      if (!engine) return;
       if (filePaths && filePaths.length > 0) {
         // Skip if the same files are already staged on the remote clipboard
         const sorted = [...filePaths].sort();
@@ -444,18 +445,60 @@ export class RdpSession {
         console.log(`[RDP ${this.id}] Sending ${files.length} local files to remote clipboard:`, files.map(f => f.name));
         this.lastSentFilePaths = sorted;
         this.localUploadFiles = files.map(f => ({ name: f.name, size: f.size }));
-        this.engine.sendClipboardFiles(files);
+        engine.sendClipboardFiles(files);
         return;
       }
     }
 
     // Fall back to text — clipboard no longer has files
+    if (!this.engineForLocalClipboardSync()) return;
     this.lastSentFilePaths = [];
-    const text = clipboard.readText();
+    const text = await clipboardCall(() => clipboard.readText());
+    const engine = this.engineForLocalClipboardSync();
+    if (!engine) return;
     if (text) {
       console.log(`[RDP ${this.id}] Sending text to remote clipboard (${text.length} chars)`);
-      this.engine.sendClipboard(text);
+      engine.sendClipboard(text);
     }
+  }
+
+  /**
+   * Skip local→remote sync while our own clipboard write is in flight (writes
+   * are async and can take seconds) and for ECHO_SUPPRESS_MS after it settles.
+   */
+  private suppressEchoDuring(write: Promise<void>): void {
+    this.pendingClipboardWrites++;
+    const settle = () => {
+      this.pendingClipboardWrites--;
+      this.clipboardWriteSuppress = Date.now() + ECHO_SUPPRESS_MS;
+    };
+    write.then(settle, settle);
+  }
+
+  /**
+   * The engine to sync local clipboard changes through, or null when a sync
+   * must not run. Re-checked after every await: remote clipboard data can
+   * arrive while the local clipboard is being read.
+   */
+  private engineForLocalClipboardSync(): RdpEngine | null {
+    if (!this.engine || !this.isConnected()) return null;
+
+    // Native clipboard (Windows): C helper detects local changes directly
+    if (this.engine.nativeClipboardActive) return null;
+
+    // Suppress echo: we just wrote to the clipboard, don't re-announce it
+    if (this.pendingClipboardWrites > 0 || Date.now() < this.clipboardWriteSuppress) {
+      console.log(`[RDP ${this.id}] Skipping local→remote sync (clipboard write suppression)`);
+      return null;
+    }
+
+    // Don't overwrite server's clipboard claim while downloading remote files
+    if (this.pendingFileDownloads > 0 || this.remoteFiles.length > 0) {
+      console.log(`[RDP ${this.id}] Skipping local→remote sync (remote files pending)`);
+      return null;
+    }
+
+    return this.engine;
   }
 
   /** Request download of remote clipboard files */
@@ -557,10 +600,11 @@ export class RdpSession {
         console.log(`[RDP ${this.id}] All ${this.downloadedFilePaths.length} files downloaded (native clipboard handled by C helper)`);
       } else {
         console.log(`[RDP ${this.id}] All ${this.downloadedFilePaths.length} files downloaded, writing ${rootPaths.length} root items to clipboard:`, rootPaths);
-        const wrote = writeClipboardFiles(rootPaths);
-        console.log(`[RDP ${this.id}] writeClipboardFiles result: ${wrote}`);
-        // Suppress next sync so we don't echo these files back to remote
-        this.clipboardWriteSuppress = Date.now() + 2000;
+        const write = writeClipboardFiles(rootPaths).then(wrote => {
+          console.log(`[RDP ${this.id}] writeClipboardFiles result: ${wrote}`);
+        });
+        // Suppress sync so we don't echo these files back to remote
+        this.suppressEchoDuring(write);
       }
 
       if (this.window && !this.window.isDestroyed()) {

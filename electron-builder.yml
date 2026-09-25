@@ -18,6 +18,12 @@ files:
   - dist-electron/**/*
   - node_modules/**/*
   - package.json
+  # Not needed at runtime: compiled tests, native-module sources (the binaries
+  # are prebuilt or rebuilt before packaging), and sharp's WASM fallback.
+  - "!dist-electron/**/__tests__/**"
+  - "!**/node_modules/better-sqlite3/{deps,src}/**"
+  - "!**/node_modules/koffi/{src,vendor,doc}/**"
+  - "!**/node_modules/@img/sharp-wasm32/**"
 extraResources:
   - from: resources/icons/
     to: icons/

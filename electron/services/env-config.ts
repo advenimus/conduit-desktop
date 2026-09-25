@@ -76,9 +76,41 @@ function getDataDirName(): string {
   return getEnvConfig().environment === 'production' ? 'conduit' : 'conduit-dev';
 }
 
+let dataRoot: string | null = null;
+
+/** Pin the parent of the data directories. Called by app-identity.ts before the dev rename. */
+export function setDataRoot(root: string): void {
+  dataRoot = root;
+}
+
 /** Path to the app's persistent data directory (env-aware). */
 export function getDataDir(): string {
-  return path.join(app.getPath('userData'), getDataDirName());
+  return path.join(dataRoot ?? app.getPath('userData'), getDataDirName());
+}
+
+/**
+ * Directory the MCP process keeps its local state in (e.g. mcp-quota.json).
+ * Mirrors mcp/src/data-dir.ts; a parity test keeps the two in sync.
+ */
+export function getMcpStateDir(): string {
+  const dirName = getDataDirName();
+
+  const xdgRuntime = process.env.XDG_RUNTIME_DIR;
+  if (xdgRuntime) {
+    return path.join(xdgRuntime, dirName);
+  }
+
+  const home = os.homedir();
+  switch (os.platform()) {
+    case 'darwin':
+      return path.join(home, 'Library', 'Application Support', dirName);
+    case 'linux':
+      return path.join(home, '.local', 'share', dirName);
+    case 'win32':
+      return path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), dirName);
+    default:
+      return path.join('/tmp', dirName);
+  }
 }
 
 /** Check whether a path is a Windows named pipe. */

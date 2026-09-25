@@ -342,7 +342,7 @@ export function registerRdpHandlers(): void {
   }) => {
     const session = rdpManager.get(args.sessionId);
     if (!session || !session.isConnected()) return;
-    session.syncLocalClipboardToRemote();
+    await session.syncLocalClipboardToRemote();
   });
 
   // ── rdp_clipboard_files_request ─────────────────────────────────

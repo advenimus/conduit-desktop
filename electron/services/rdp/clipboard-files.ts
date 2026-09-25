@@ -6,7 +6,8 @@
  */
 
 import { execSync } from 'node:child_process';
-import { clipboard } from 'electron';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { clipboard, ClipboardItem } from 'electron';
 
 export interface ClipboardFile {
   path: string;
@@ -15,18 +16,53 @@ export interface ClipboardFile {
   isDirectory: boolean;
 }
 
+const URI_LIST = 'text/uri-list';
+const CLIPBOARD_TIMEOUT_MS = 5000;
+const CLIPBOARD_WAKE_INTERVAL_MS = 10;
+
+function osClipboardFormat(name: string): string {
+  return `electron application/osclipboard;format="${name}"`;
+}
+
+/**
+ * Run an Electron clipboard call. On Linux, Electron 44's clipboard promises
+ * can stall until something wakes the main event loop, so keep it awake while
+ * the call is pending, and time out so a stuck call can't block clipboard sync.
+ */
+export async function clipboardCall<T>(
+  op: () => Promise<T>,
+  timeoutMs: number = CLIPBOARD_TIMEOUT_MS,
+): Promise<T> {
+  const keepAwake = setInterval(() => {}, CLIPBOARD_WAKE_INTERVAL_MS);
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      op(),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`Clipboard call timed out after ${timeoutMs}ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    clearInterval(keepAwake);
+    clearTimeout(timeout);
+  }
+}
+
 /**
  * Read file paths from the system clipboard.
  * Returns null if the clipboard doesn't contain files.
  */
-export function readClipboardFiles(): string[] | null {
+export async function readClipboardFiles(): Promise<string[] | null> {
   try {
     if (process.platform === 'darwin') {
-      return readClipboardFilesMacOS();
+      return await readClipboardFilesMacOS();
     } else if (process.platform === 'win32') {
-      return readClipboardFilesWindows();
+      return await readClipboardFilesWindows();
     } else {
-      return readClipboardFilesLinux();
+      return await readClipboardFilesLinux();
     }
   } catch (e) {
     console.error('[clipboard-files] Failed to read clipboard files:', e);
@@ -37,12 +73,12 @@ export function readClipboardFiles(): string[] | null {
 /**
  * Write file paths to the system clipboard so the user can paste them.
  */
-export function writeClipboardFiles(filePaths: string[]): boolean {
+export async function writeClipboardFiles(filePaths: string[]): Promise<boolean> {
   if (!filePaths.length) return false;
 
   try {
     if (process.platform === 'darwin') {
-      return writeClipboardFilesMacOS(filePaths);
+      return await writeClipboardFilesMacOS(filePaths);
     } else if (process.platform === 'win32') {
       return writeClipboardFilesWindows(filePaths);
     } else {
@@ -57,42 +93,21 @@ export function writeClipboardFiles(filePaths: string[]): boolean {
 /**
  * Check if the clipboard currently contains files (not text).
  *
- * macOS: Finder uses lazy clipboard (promises). Electron reports
- *   text/uri-list in availableFormats() but the buffer is empty.
- *   We detect by format presence; readClipboardFiles() verifies via osascript.
- * Linux: text/uri-list with file:// URIs in the buffer.
- * Windows: CF_HDROP which Electron reports natively.
+ * Electron maps native file lists (NSPasteboard file URLs on macOS,
+ * CF_HDROP/FileNameW on Windows) to text/uri-list. Legacy formats Chromium
+ * doesn't map only show up as raw OS formats. On Linux text/uri-list can hold
+ * non-file URIs, so verify at least one file:// entry exists.
  */
-export function clipboardHasFiles(): boolean {
+export async function clipboardHasFiles(): Promise<boolean> {
   try {
-    const formats = clipboard.availableFormats();
-
     if (process.platform === 'darwin') {
-      // macOS: text/uri-list presence indicates files (buffer is empty due to lazy clipboard).
-      // Also check native format names in case Electron surfaces them.
-      return formats.includes('text/uri-list') ||
-        formats.some(f => f === 'NSFilenamesPboardType' || f === 'public.file-url');
+      return await hasAnyType(URI_LIST, osClipboardFormat('NSFilenamesPboardType'));
     } else if (process.platform === 'win32') {
-      // Check native Windows clipboard formats
-      if (formats.some(f => f === 'CF_HDROP' || f === 'FileNameW' || f === 'FileName')) {
-        return true;
-      }
-      // Electron on Windows reports text/uri-list with an empty buffer when files
-      // are copied (lazy clipboard, same as macOS). Treat format presence as
-      // indicator — readClipboardFilesWindows() will verify via PowerShell.
-      if (formats.includes('text/uri-list')) {
-        return true;
-      }
-      return false;
-    } else {
-      // Linux: buffer is actually populated, verify file:// URIs exist
-      if (formats.includes('text/uri-list')) {
-        const uriList = clipboard.readBuffer('text/uri-list').toString('utf-8');
-        return uriList.split('\n').some(uri => uri.trim().startsWith('file://'));
-      }
+      return await hasAnyType(URI_LIST, osClipboardFormat('FileName'));
     }
 
-    return false;
+    const uriList = await readUriList();
+    return uriList !== null && parseFileUriList(uriList) !== null;
   } catch {
     return false;
   }
@@ -100,34 +115,69 @@ export function clipboardHasFiles(): boolean {
 
 /* ── Shared helpers ────────────────────────────────────────────────── */
 
+async function hasAnyType(...types: string[]): Promise<boolean> {
+  for (const type of types) {
+    if (await clipboardCall(() => clipboard.has(type))) return true;
+  }
+  return false;
+}
+
+async function readUriList(): Promise<string | null> {
+  if (!(await clipboardCall(() => clipboard.has(URI_LIST)))) return null;
+
+  const items = await clipboardCall(() => clipboard.read());
+  const lists = await Promise.all(
+    items
+      .filter(item => item.types.includes(URI_LIST))
+      .map(item => clipboardCall(async () => {
+        const data = await item.getType(URI_LIST);
+        return 'text' in data ? data.text() : '';
+      })),
+  );
+  const joined = lists.filter(list => list.length > 0).join('\r\n');
+  return joined.length > 0 ? joined : null;
+}
+
 /**
- * Parse a text/uri-list buffer into local file paths.
- * Filters for file:// URIs and decodes percent-encoding.
+ * Parse a text/uri-list into local file paths.
+ * Skips comments and non-file URIs; decodes percent-encoding.
  */
-function parseFileUriList(uriList: string): string[] | null {
+export function parseFileUriList(
+  uriList: string,
+  platform: NodeJS.Platform = process.platform,
+): string[] | null {
   const paths = uriList
-    .split('\n')
-    .map(uri => uri.trim().replace(/\r$/, ''))
-    .filter(uri => uri.startsWith('file://'))
-    .map(uri => decodeURIComponent(new URL(uri).pathname));
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line.startsWith('file://'))
+    .flatMap(uri => {
+      try {
+        return [fileURLToPath(uri, { windows: platform === 'win32' })];
+      } catch {
+        return [];
+      }
+    });
 
   return paths.length > 0 ? paths : null;
 }
 
 /* ── macOS ─────────────────────────────────────────────────────────── */
 
-function readClipboardFilesMacOS(): string[] | null {
-  // Try text/uri-list buffer (works on Linux, usually empty on macOS due to lazy clipboard)
-  const formats = clipboard.availableFormats();
-  if (formats.includes('text/uri-list')) {
-    const buf = clipboard.readBuffer('text/uri-list').toString('utf-8');
-    if (buf.length > 0) {
-      const paths = parseFileUriList(buf);
-      if (paths && paths.length > 0) return paths;
-    }
+async function readClipboardFilesMacOS(): Promise<string[] | null> {
+  // NSPasteboard first: it is the proven path for Finder's lazily provided file
+  // data. Electron's text/uri-list is the fallback.
+  try {
+    const paths = readPasteboardFileUrlsMacOS();
+    if (paths) return paths;
+  } catch (e) {
+    console.log('[clipboard-files] macOS NSPasteboard read failed:', e);
   }
 
-  // Use osascript to read file URLs from NSPasteboard (handles lazy clipboard)
+  const uriList = await readUriList();
+  return uriList ? parseFileUriList(uriList) : null;
+}
+
+function readPasteboardFileUrlsMacOS(): string[] | null {
   const script = `
     use framework "AppKit"
     set pb to current application's NSPasteboard's generalPasteboard()
@@ -152,37 +202,18 @@ function readClipboardFilesMacOS(): string[] | null {
   return paths.length > 0 ? paths : null;
 }
 
-function writeClipboardFilesMacOS(filePaths: string[]): boolean {
-  // Use NSPasteboard API directly via osascript — more reliable than `set the clipboard to`
-  const urlLines = filePaths
-    .map(p => `set end of fileURLs to (current application's NSURL's fileURLWithPath:"${p.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`)
-    .join('\n');
-
-  const script = `
-use framework "AppKit"
-use framework "Foundation"
-set pb to current application's NSPasteboard's generalPasteboard()
-pb's clearContents()
-set fileURLs to {}
-${urlLines}
-pb's writeObjects:fileURLs
-`;
-
-  console.log('[clipboard-files] macOS write: using NSPasteboard for', filePaths);
-  execSync(`osascript -l AppleScript -e '${script.replace(/'/g, "'\\''")}'`, {
-    timeout: 5000,
-  });
-
-  // Verify: read back clipboard formats
-  const formats = clipboard.availableFormats();
-  console.log('[clipboard-files] macOS clipboard formats after write:', formats);
-
+async function writeClipboardFilesMacOS(filePaths: string[]): Promise<boolean> {
+  // Electron writes one file-URL pasteboard item per path. The old osascript
+  // writeObjects approach intermittently dropped items (seen on macOS 27).
+  console.log('[clipboard-files] macOS write: using Electron clipboard for', filePaths);
+  const uriList = filePaths.map(p => pathToFileURL(p).href).join('\r\n');
+  await clipboardCall(() => clipboard.write([new ClipboardItem({ [URI_LIST]: uriList })]));
   return true;
 }
 
 /* ── Windows ───────────────────────────────────────────────────────── */
 
-function readClipboardFilesWindows(): string[] | null {
+async function readClipboardFilesWindows(): Promise<string[] | null> {
   // Try PowerShell CF_HDROP first (native file drop list)
   try {
     const result = execSync(
@@ -199,26 +230,13 @@ function readClipboardFilesWindows(): string[] | null {
     console.log('[clipboard-files] Windows PowerShell FileDropList failed:', e);
   }
 
-  // Fallback: Electron may report text/uri-list with file:// URIs in the buffer
-  const formats = clipboard.availableFormats();
-  if (formats.includes('text/uri-list')) {
-    const buf = clipboard.readBuffer('text/uri-list');
-    const uriList = buf.toString('utf-8');
-    console.log('[clipboard-files] Windows text/uri-list buffer:', JSON.stringify(uriList), `(${buf.length} bytes)`);
-    if (uriList) {
-      const paths = uriList
-        .split('\n')
-        .map(uri => uri.trim().replace(/\r$/, ''))
-        .filter(uri => uri.startsWith('file:///'))
-        .map(uri => {
-          // Windows file URIs: file:///C:/path → C:\path
-          const decoded = decodeURIComponent(new URL(uri).pathname);
-          // Remove leading slash from /C:/path → C:/path, then normalize separators
-          return decoded.replace(/^\/([A-Za-z]:)/, '$1').replace(/\//g, '\\');
-        });
-      console.log('[clipboard-files] Windows parsed URI paths:', paths);
-      if (paths.length > 0) return paths;
-    }
+  // Fallback: Electron exposes CF_HDROP / FileNameW as text/uri-list
+  const uriList = await readUriList();
+  console.log('[clipboard-files] Windows text/uri-list:', JSON.stringify(uriList));
+  const paths = uriList ? parseFileUriList(uriList, 'win32') : null;
+  if (paths) {
+    console.log('[clipboard-files] Windows parsed URI paths:', paths);
+    return paths;
   }
 
   console.log('[clipboard-files] Windows: no files found in clipboard');
@@ -236,29 +254,27 @@ function writeClipboardFilesWindows(filePaths: string[]): boolean {
 
 /* ── Linux ─────────────────────────────────────────────────────────── */
 
-function readClipboardFilesLinux(): string[] | null {
-  const formats = clipboard.availableFormats();
-  if (!formats.includes('text/uri-list')) return null;
-
-  const uriList = clipboard.readBuffer('text/uri-list').toString('utf-8');
-  if (!uriList) return null;
-
-  return parseFileUriList(uriList);
+async function readClipboardFilesLinux(): Promise<string[] | null> {
+  const uriList = await readUriList();
+  return uriList ? parseFileUriList(uriList) : null;
 }
 
 function writeClipboardFilesLinux(filePaths: string[]): boolean {
   const uriList = filePaths.map(p => `file://${encodeURI(p)}`).join('\r\n') + '\r\n';
 
-  // Try xclip first, fall back to xsel
+  // Try xclip first, fall back to xsel. stdio 'ignore': xclip forks a process
+  // to own the clipboard, and an inherited pipe keeps execSync waiting until timeout.
   try {
     execSync(`printf '%s' '${uriList.replace(/'/g, "'\\''")}' | xclip -selection clipboard -t text/uri-list`, {
       timeout: 5000,
+      stdio: 'ignore',
     });
     return true;
   } catch {
     try {
       execSync(`printf '%s' '${uriList.replace(/'/g, "'\\''")}' | xsel --clipboard --input`, {
         timeout: 5000,
+        stdio: 'ignore',
       });
       return true;
     } catch {

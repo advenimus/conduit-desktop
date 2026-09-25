@@ -34,7 +34,6 @@ export interface QuotaCheckResult {
 
 export class DailyQuotaManager {
   private filePath: string;
-  private cache: number[] | null = null;
 
   constructor(filePath?: string) {
     if (filePath) {
@@ -74,13 +73,11 @@ export class DailyQuotaManager {
     this.save(calls);
   }
 
+  // Re-read on every call: the ledger is shared by every MCP process, and dev
+  // launches of the desktop app reset it while agents keep running.
   private loadAndPrune(now: number): number[] {
-    if (this.cache === null) {
-      this.cache = this.loadFromDisk();
-    }
     const cutoff = now - DAY_MS;
-    this.cache = this.cache.filter((ts) => ts > cutoff);
-    return this.cache;
+    return this.loadFromDisk().filter((ts) => ts > cutoff);
   }
 
   private loadFromDisk(): number[] {

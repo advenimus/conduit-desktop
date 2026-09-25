@@ -29,13 +29,11 @@ function getHelperDir(): string {
   return join(app.getAppPath(), 'freerdp-helper');
 }
 
+/** macOS/Linux only. FreeRDP 3 installs libfreerdp3; some 3.x builds name it libfreerdp0. */
 function depsExist(): boolean {
-  const prefix = join(getHelperDir(), 'deps', 'install');
-  if (process.platform === 'win32') {
-    return existsSync(join(prefix, 'lib', 'freerdp0.lib'));
-  }
+  const lib = join(getHelperDir(), 'deps', 'install', 'lib');
   const ext = process.platform === 'linux' ? 'so' : 'dylib';
-  return existsSync(join(prefix, 'lib', `libfreerdp0.${ext}`));
+  return existsSync(join(lib, `libfreerdp3.${ext}`)) || existsSync(join(lib, `libfreerdp0.${ext}`));
 }
 
 function emitProgress(progress: BuildProgress, opts: { silent?: boolean } = {}): void {

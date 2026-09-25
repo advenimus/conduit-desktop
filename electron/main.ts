@@ -1,3 +1,4 @@
+import './app-identity.js';
 import { app, BaseWindow, BrowserWindow, globalShortcut, KeyboardEvent as ElectronKeyboardEvent, Menu, MenuItem, Tray, nativeImage, nativeTheme, ipcMain, shell, screen } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
@@ -10,6 +11,7 @@ import { logger } from './services/logger.js';
 import { AppState } from './services/state.js';
 import { writeAgentInstructions } from './services/agent-instructions.js';
 import { ensureLocalNetworkAccess, localNetworkAppName } from './services/local-network.js';
+import { resetMcpQuotaForDevLaunch } from './services/mcp-quota.js';
 import { readAll, writeAll } from './ipc/ui-state.js';
 import { readSettings } from './ipc/settings.js';
 import { lockVaultFromMain } from './ipc/vault.js';
@@ -18,10 +20,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
-
-if (isDev) {
-  app.setName(localNetworkAppName(false));
-}
 
 // Fix process.env.PATH for packaged apps on macOS/Linux.
 // Packaged Electron apps launched from Finder inherit a minimal PATH that
@@ -70,11 +68,18 @@ app.setAppUserModelId('com.conduit.app');
 
 // ── Deep link protocol registration ──────────────────────────────────
 // Register 'conduit://' as a custom protocol for auth callbacks
-if (isDev && process.argv.length >= 2) {
-  app.setAsDefaultProtocolClient('conduit', process.execPath, [path.resolve(process.argv[1])]);
-} else {
-  app.setAsDefaultProtocolClient('conduit');
+const devProtocolArgs = isDev && process.argv.length >= 2 ? [path.resolve(process.argv[1])] : null;
+
+function claimConduitProtocol(): void {
+  if (devProtocolArgs) {
+    if (!app.isDefaultProtocolClient('conduit', process.execPath, devProtocolArgs)) {
+      app.setAsDefaultProtocolClient('conduit', process.execPath, devProtocolArgs);
+    }
+  } else if (!app.isDefaultProtocolClient('conduit')) {
+    app.setAsDefaultProtocolClient('conduit');
+  }
 }
+claimConduitProtocol();
 
 // Queue deep link URLs that arrive before the app is fully ready
 let pendingDeepLinkUrl: string | null = null;
@@ -137,6 +142,19 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
+  // Dev and installed builds both register conduit://, so the build in use
+  // reclaims it on focus; the last one launched would otherwise keep it.
+  // Not on Linux: the check shells out to xdg-settings and would block on every focus.
+  if (process.platform !== 'linux') {
+    app.on('browser-window-focus', claimConduitProtocol);
+  }
+  if (devProtocolArgs) {
+    // Best effort: a hard Ctrl-C can kill Electron first; focus reclaim covers that.
+    app.on('before-quit', () => {
+      app.removeAsDefaultProtocolClient('conduit', process.execPath, devProtocolArgs);
+    });
+  }
+
   app.on('second-instance', (_event, commandLine) => {
     // On Windows/Linux, the deep link URL is passed as a command line argument
     const url = commandLine.find(arg => arg.startsWith('conduit://'));
@@ -258,6 +276,8 @@ function createPickerWindow() {
     ...(x != null && y != null ? { x, y } : { center: true }),
     frame: false,
     transparent: true,
+    // Electron 43+ rounds frameless windows on Linux by default; these draw their own shape.
+    ...(process.platform === 'linux' ? { roundedCorners: false } : {}),
     resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
@@ -764,6 +784,15 @@ app.whenReady().then(async () => {
     console.log(`[main] Logging to: ${logFile}`);
   }
 
+  // Dev launches start with a fresh MCP daily quota; packaged builds keep theirs.
+  try {
+    if (resetMcpQuotaForDevLaunch(app.isPackaged)) {
+      console.log('[main] Dev build: MCP daily quota reset');
+    }
+  } catch (err) {
+    console.warn('[main] Failed to reset MCP daily quota:', err);
+  }
+
   registerIpcHandlers();
   buildAppMenu();
 
@@ -839,10 +868,8 @@ app.whenReady().then(async () => {
   AppState.getInstance().setMainWindow(mainWindow);
   createTray(mainWindow);
 
-  // ── Notification overlay (BrowserWindow + native transparency) ──
-  // Transparent overlay window that floats above native WebContentsViews
-  // and WebView2 popups. Uses koffi FFI to set NSWindow transparency
-  // natively, bypassing Electron's transparent:true GPU compositor issue.
+  // ── Notification overlay (transparent BrowserWindow) ──
+  // Floats above native WebContentsViews and WebView2 popups.
   overlayManager = new OverlayManager(mainWindow);
 
   // ── Credential Picker IPC + global shortcut ─────────────────────
