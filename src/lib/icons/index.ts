@@ -94,6 +94,7 @@ export const PlugDisconnectedIcon = createThemedIcon("plugDisconnected");
 // ── Favorites ──
 export const StarIcon = createThemedIcon("star");
 export const StarFilledIcon = createThemedIcon("starFilled");
+export const PinIcon = createThemedIcon("pin");
 export const PinFilledIcon = createThemedIcon("pinFilled");
 
 // ── Data ──

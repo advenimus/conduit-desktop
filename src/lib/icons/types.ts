@@ -90,6 +90,7 @@ export const SEMANTIC_ICON_NAMES = [
   // ── Favorites ──
   "star",
   "starFilled",
+  "pin",
   "pinFilled",
 
   // ── Data ──

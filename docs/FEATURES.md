@@ -554,7 +554,6 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 ### Behavior
 - Auto-lock timeout (configurable minutes)
 - Default shell (bash, zsh, fish, etc.)
-- Sidebar mode: pinned or auto-collapse
 - Default AI engine: icon grid for Claude Code, Codex, Grok Build, Cursor Agent, OpenClaw, Gemini CLI, GitHub Copilot, and OpenCode
 - Default working directory for agent sessions
 - Engine status indicators (available/unavailable with auth instructions)
@@ -590,6 +589,15 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Replayable via "Getting Started" button in Help dialog
 
 ### Sidebar
+- **Pin or auto-hide**: A pin button sits next to the close button in the sidebar header
+  - Unpinned (default): the sidebar floats over your sessions and closes itself when you open an entry or switch tabs
+  - Pinned: the sidebar docks beside your sessions, which shrink to make room, and stays open while you work
+  - Cmd+B / Ctrl+B hides and shows the sidebar in either mode; Cmd+Shift+B / Ctrl+Shift+B toggles the pin
+  - The pin, the width, and whether a pinned sidebar was hidden are remembered across restarts
+- **Room for sessions**: A docked sidebar never squeezes the session area below 480px
+  - Dragging the sidebar or AI panel wider stops at that limit
+  - If the window gets too narrow (or the AI panel opens), a pinned sidebar steps aside and floats when opened, then docks again once there is room
+  - Web sessions stay live beside a docked sidebar instead of freezing to a screenshot; RDP, VNC, and terminals resize to fit
 - Connection tree (hierarchical folders + entries)
 - Filter by name/type
 - Favorites filter toggle with persisted state
@@ -634,6 +642,8 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - F1: Help
 - Cmd+Shift+Space / Ctrl+Shift+Space: Credential Picker (global, works when app is in tray)
 - Cmd+W / Ctrl+W: Close tab
+- Cmd+B / Ctrl+B: Show or hide the sidebar
+- Cmd+Shift+B / Ctrl+Shift+B: Pin or unpin the sidebar
 - Cmd+Tab / Ctrl+Tab: Next tab
 - Cmd+Shift+Tab / Ctrl+Shift+Tab: Previous tab
 

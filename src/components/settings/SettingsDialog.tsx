@@ -40,7 +40,6 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
     ai_mode: "api",
     cli_agent: "claude",
     cli_font_size: 13,
-    sidebar_mode: "pinned",
     default_engine: "claude-code",
     default_working_directory: null,
     ui_scale: 1,

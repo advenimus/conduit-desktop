@@ -73,6 +73,7 @@ import {
   IconPalette,
   IconPencil,
   IconPhoto,
+  IconPin,
   IconPinFilled,
   IconPlayerPlay,
   IconPlayerSkipForward,
@@ -198,6 +199,7 @@ export const mapping: IconMapping = {
   // ── Favorites ──
   star: IconStar,
   starFilled: IconStarFilled,
+  pin: IconPin,
   pinFilled: IconPinFilled,
 
   // ── Data ──
