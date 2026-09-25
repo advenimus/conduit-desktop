@@ -16,6 +16,9 @@ import os from 'node:os';
 export type IpcRequest =
   | { type: 'TerminalWrite'; payload: { session_id: string; data: number[] } }
   | { type: 'TerminalReadBuffer'; payload: { session_id: string; lines: number } }
+  | { type: 'TerminalExecute'; payload: { session_id: string; command: string; timeout_ms: number; shell: string } }
+  | { type: 'TerminalSendKeys'; payload: { session_id: string; data: number[]; wait_ms: number; idle_ms?: number } }
+  | { type: 'TerminalReadScreen'; payload: { session_id: string; lines: number } }
   | { type: 'LocalShellCreate'; payload: { shell_type: string | null; working_directory: string | null } }
   | { type: 'CredentialList'; payload: Record<string, never> }
   | { type: 'CredentialGet'; payload: { id: string } }
@@ -89,6 +92,20 @@ export type IpcResponse =
   | { type: 'Success'; payload: Record<string, unknown> }
   | { type: 'Error'; payload: { code: string; message: string } };
 
+/** Error reported by the Conduit app, carrying its machine-readable code. */
+export class IpcRequestError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(`${code}: ${message}`);
+    this.name = 'IpcRequestError';
+  }
+}
+
+// Extra time on top of an operation's own timeout for the app to reply.
+const IPC_REPLY_MARGIN_MS = 15_000;
+
 // ---------- Socket path resolution ----------
 
 function getSocketPath(): string {
@@ -150,6 +167,8 @@ export class ConduitClient {
   private sendRequestWithTimeout(request: IpcRequest, timeoutMs: number): Promise<Record<string, unknown>> {
     return new Promise((resolve, reject) => {
       const socket = net.createConnection(this.socketPath);
+      // Decode as a stream so multi-byte characters split across chunks stay intact.
+      socket.setEncoding('utf8');
       let responseData = '';
 
       socket.on('connect', () => {
@@ -168,7 +187,7 @@ export class ConduitClient {
             if (response.type === 'Success') {
               resolve(response.payload);
             } else {
-              reject(new Error(`${response.payload.code}: ${response.payload.message}`));
+              reject(new IpcRequestError(response.payload.code, response.payload.message));
             }
           } catch (e) {
             reject(new Error(`Failed to parse IPC response: ${e}`));
@@ -203,6 +222,43 @@ export class ConduitClient {
       payload: { session_id: sessionId, lines },
     });
     return (response.content as string) ?? '';
+  }
+
+  async terminalExecute(
+    sessionId: string,
+    command: string,
+    timeoutMs: number,
+    shell: string,
+  ): Promise<Record<string, unknown>> {
+    return this.sendRequestWithTimeout(
+      {
+        type: 'TerminalExecute',
+        payload: { session_id: sessionId, command, timeout_ms: timeoutMs, shell },
+      },
+      timeoutMs + IPC_REPLY_MARGIN_MS,
+    );
+  }
+
+  async terminalSendKeys(
+    sessionId: string,
+    data: Buffer,
+    waitMs: number,
+    idleMs?: number,
+  ): Promise<Record<string, unknown>> {
+    return this.sendRequestWithTimeout(
+      {
+        type: 'TerminalSendKeys',
+        payload: { session_id: sessionId, data: Array.from(data), wait_ms: waitMs, idle_ms: idleMs },
+      },
+      waitMs + IPC_REPLY_MARGIN_MS,
+    );
+  }
+
+  async terminalReadScreen(sessionId: string, lines: number): Promise<Record<string, unknown>> {
+    return this.sendRequest({
+      type: 'TerminalReadScreen',
+      payload: { session_id: sessionId, lines },
+    });
   }
 
   async localShellCreate(shellType: string | null, workingDirectory: string | null = null): Promise<string> {

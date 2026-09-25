@@ -25,6 +25,12 @@ import {
   openVncSession,
   buildRdpEngineConfigFromEntry,
 } from './open-session.js';
+import { TerminalError } from '../services/terminal/errors.js';
+import {
+  parseExecuteRequest,
+  parseReadScreenRequest,
+  parseSendKeysRequest,
+} from './terminal-requests.js';
 
 // ---------- IPC Protocol Types ----------
 
@@ -43,6 +49,11 @@ function successResponse(payload: unknown): IpcResponse {
 
 function errorResponse(code: string, message: string): IpcResponse {
   return { type: 'Error', payload: { code, message } };
+}
+
+function terminalErrorResponse(e: unknown): IpcResponse {
+  if (e instanceof TerminalError) return errorResponse(e.code, e.message);
+  return errorResponse('TERMINAL_ERROR', String(e));
 }
 
 // ---------- Approval Manager ----------
@@ -177,6 +188,38 @@ export async function handleRequest(
           return successResponse({ content });
         } catch (e) {
           return errorResponse('TERMINAL_ERROR', String(e));
+        }
+      }
+
+      case 'TerminalExecute': {
+        try {
+          const { sessionId, request: exec } = parseExecuteRequest(request.payload);
+          return successResponse(await state.terminalManager.execute(sessionId, exec));
+        } catch (e) {
+          return terminalErrorResponse(e);
+        }
+      }
+
+      case 'TerminalSendKeys': {
+        try {
+          const { sessionId, data, waitMs, idleMs } = parseSendKeysRequest(request.payload);
+          return successResponse(await state.terminalManager.sendKeys(sessionId, data, { waitMs, idleMs }));
+        } catch (e) {
+          return terminalErrorResponse(e);
+        }
+      }
+
+      case 'TerminalReadScreen': {
+        try {
+          const { sessionId, lines } = parseReadScreenRequest(request.payload);
+          const snapshot = await state.terminalManager.readScreen(sessionId, lines);
+          return successResponse({
+            content: snapshot.lines.join('\n'),
+            total_lines: snapshot.totalLines,
+            alternate_screen: snapshot.alternateScreen,
+          });
+        } catch (e) {
+          return terminalErrorResponse(e);
         }
       }
 
@@ -1923,6 +1966,8 @@ function keyNameToDomCode(key: string): string {
 
 function handleClient(socket: net.Socket, state: AppState): void {
   let data = '';
+  // Decode as a stream so multi-byte characters split across chunks stay intact.
+  socket.setEncoding('utf8');
 
   socket.on('data', (chunk) => {
     data += chunk.toString();
