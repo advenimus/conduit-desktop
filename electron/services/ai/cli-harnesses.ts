@@ -244,6 +244,23 @@ function stdioMcpServer(mcpPath: string, socketPath: string, conduitEnv: string)
   };
 }
 
+// JSON string escapes are a subset of TOML basic-string escapes.
+function tomlString(value: string): string {
+  return JSON.stringify(value);
+}
+
+function codexProjectConfig(server: ReturnType<typeof stdioMcpServer>): string {
+  return [
+    '[mcp_servers.conduit]',
+    `command = ${tomlString(server.command)}`,
+    `args = [${server.args.map(tomlString).join(', ')}]`,
+    '',
+    '[mcp_servers.conduit.env]',
+    ...Object.entries(server.env).map(([key, value]) => `${key} = ${tomlString(value)}`),
+    '',
+  ].join('\n');
+}
+
 export function projectMcpConfigFiles(
   id: EngineType,
   mcpPath: string,
@@ -276,6 +293,12 @@ export function projectMcpConfigFiles(
           2,
         ) + '\n',
     });
+  }
+
+  // Codex never reads .mcp.json. A trusted project's .codex/config.toml overrides
+  // the user's global `conduit` entry, which may point at another Conduit build.
+  if (id === 'codex') {
+    files.push({ relativePath: '.codex/config.toml', contents: codexProjectConfig(server) });
   }
 
   return files;

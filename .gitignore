@@ -61,7 +61,7 @@ freerdp-helper/bundle/darwin/
 freerdp-helper/bundle/win32/
 freerdp-helper/bundle/windows/
 freerdp-helper/bundle/linux/
-freerdp-helper/deps/
+freerdp-helper/deps
 
 # Test coverage
 coverage/

@@ -311,6 +311,7 @@ bring their own agent subscription.
 - Working directory: explicit cwd, then Settings default, then `{userData}/conduit[-dev]/agent/{engine}/`
 - Configurable terminal font size
 - MCP tool access: the agent connects to Conduit via the MCP server. Settings > AI includes an "MCP Server Setup" button that shows the setup command or config snippet for each supported CLI
+- Managed agent directories get a project MCP config pointing at the running build's socket: `.mcp.json` for every CLI, plus `.cursor/mcp.json` for Cursor and `.codex/config.toml` for Codex (Codex loads it once the folder is trusted, and it overrides any global `conduit` entry)
 
 ### Tier System
 - `cli_agents_enabled`: CLI agent access (all tiers — under the user's own agent subscription)

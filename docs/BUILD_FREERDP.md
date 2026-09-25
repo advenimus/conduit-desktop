@@ -161,4 +161,20 @@ bash build-freerdp.sh          # Rebuild
 
 ### Auto-build takes too long
 
-The first build downloads and compiles OpenSSL + FFmpeg + FreeRDP from source (~10-20 min on macOS/Linux). Subsequent builds only recompile the helper binary (~5 seconds) since dependencies are cached in `deps/install/`.
+The first build downloads and compiles OpenSSL + FFmpeg + FreeRDP from source (~10-20 min on macOS/Linux). Subsequent builds only recompile the helper binary (~5 seconds) since dependencies are cached.
+
+### Shared dependency cache (macOS/Linux)
+
+Local builds keep the compiled dependencies in one shared cache, reused by every checkout and worktree:
+
+- macOS: `~/Library/Caches/conduit-freerdp/<versions>-<os>-<arch>/`
+- Linux: `${XDG_CACHE_HOME:-~/.cache}/conduit-freerdp/<versions>-<os>-<arch>/`
+
+`freerdp-helper/deps` is a symlink to that folder, so a new worktree only builds the helper binary (seconds, not 10-20 minutes). The cache also keeps spaces out of OpenSSL's install prefix: OpenSSL's shared-library link breaks on paths like `/Volumes/SSD Storage/...`.
+
+- Concurrent builds from several worktrees wait on a lock instead of corrupting the cache.
+- GitHub Actions keeps the deps in-tree (`freerdp-helper/deps/install`) for `actions/cache`.
+- Set `CONDUIT_FREERDP_DEPS_DIR` to use a different location (it must not contain spaces).
+- Changing versions or `DEPS_CACHE_REVISION` in `build-freerdp.sh` starts a fresh cache folder. Old folders can be deleted by hand.
+- `bash build-freerdp.sh --clean` deletes the shared cache for every worktree.
+- Orca worktrees build the helper during setup: `orca.yaml` at the repo root runs `npm install` plus the FreeRDP scripts, so RDP works on the first launch.

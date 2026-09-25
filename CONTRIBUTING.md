@@ -21,7 +21,7 @@ proposal before starting work.
 ## Getting set up
 
 Prerequisites:
-- Node 20+
+- Node 22.12+
 - Docker Desktop (for local Supabase)
 - macOS: Xcode Command Line Tools. Windows: Visual Studio Build Tools 2022. Linux: build-essential + GTK3.
 - Apple Developer ID if you want to produce signed macOS builds (optional; ad-hoc signing works for local development)

@@ -10,14 +10,21 @@
 #
 # Usage: bash build-freerdp.sh [--clean]
 #
+# Local builds share one copy of the deps across checkouts and worktrees
+# (~/Library/Caches/conduit-freerdp on macOS, $XDG_CACHE_HOME/conduit-freerdp
+# on Linux); freerdp-helper/deps is a symlink to it. GitHub Actions keeps them in-tree so
+# actions/cache can restore them. Override with CONDUIT_FREERDP_DEPS_DIR.
+#
 set -e
 
 OPENSSL_VERSION="3.4.1"
 FFMPEG_VERSION="7.1"
 FREERDP_VERSION="3.15.0"
+# Bump when build flags below change, so shared caches rebuild.
+DEPS_CACHE_REVISION=1
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEPS_DIR="$SCRIPT_DIR/deps"
+LOCAL_DEPS="$SCRIPT_DIR/deps"
 OS=$(uname -s)   # Darwin or Linux
 ARCH=$(uname -m)
 # Detect native architecture even under Rosetta
@@ -33,15 +40,84 @@ else
     LIB_EXT="so"
 fi
 
+# FreeRDP 3 installs libfreerdp3; some 3.x builds name it libfreerdp0.
+freerdp_installed() {
+    [ -f "$1/lib/libfreerdp3.${LIB_EXT}" ] || [ -f "$1/lib/libfreerdp0.${LIB_EXT}" ]
+}
+
+# ── Where the deps live ──────────────────────────────────────────────
+
+if [ -n "${CONDUIT_FREERDP_DEPS_DIR:-}" ]; then
+    DEPS_DIR="$CONDUIT_FREERDP_DEPS_DIR"
+elif [ -n "${GITHUB_ACTIONS:-}" ]; then
+    DEPS_DIR="$LOCAL_DEPS"
+elif [ -d "$LOCAL_DEPS" ] && [ ! -L "$LOCAL_DEPS" ] && freerdp_installed "$LOCAL_DEPS/install"; then
+    # A complete in-tree build from before the shared cache existed.
+    DEPS_DIR="$LOCAL_DEPS"
+else
+    if [ "$OS" = "Darwin" ]; then
+        CACHE_ROOT="$HOME/Library/Caches"
+    else
+        CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}"
+    fi
+    DEPS_DIR="$CACHE_ROOT/conduit-freerdp/openssl${OPENSSL_VERSION}-ffmpeg${FFMPEG_VERSION}-freerdp${FREERDP_VERSION}-r${DEPS_CACHE_REVISION}-${OS}-${ARCH}"
+fi
+
+# OpenSSL's shared-library link splits --prefix on spaces (e.g. "SSD Storage").
+case "$DEPS_DIR" in
+    *" "*)
+        echo "Error: dependency directory contains a space: $DEPS_DIR"
+        echo "OpenSSL cannot build there. Set CONDUIT_FREERDP_DEPS_DIR to a path without spaces."
+        exit 1
+        ;;
+esac
+
 # All deps install to a shared prefix so cmake/pkg-config finds everything
 PREFIX="$DEPS_DIR/install"
 
 if [ "$1" = "--clean" ]; then
-    echo "Cleaning all dependency builds..."
+    echo "Cleaning all dependency builds in $DEPS_DIR..."
     rm -rf "$DEPS_DIR"
+    [ -L "$LOCAL_DEPS" ] && rm "$LOCAL_DEPS"
     echo "Done. Run again without --clean to rebuild."
     exit 0
 fi
+
+# Point freerdp-helper/deps at the shared copy; the other build scripts,
+# CMakeLists.txt, and the app's auto-build all look there.
+link_local_deps() {
+    [ "$DEPS_DIR" = "$LOCAL_DEPS" ] && return
+    if [ -L "$LOCAL_DEPS" ]; then
+        [ "$(readlink "$LOCAL_DEPS")" = "$DEPS_DIR" ] && return
+        rm "$LOCAL_DEPS"
+    elif [ -e "$LOCAL_DEPS" ]; then
+        echo "Removing incomplete in-tree deps at $LOCAL_DEPS"
+        rm -rf "$LOCAL_DEPS"
+    fi
+    ln -s "$DEPS_DIR" "$LOCAL_DEPS"
+}
+
+# Worktrees can start builds at the same time; only one may write the cache.
+LOCK_DIR="$DEPS_DIR.lock"
+acquire_lock() {
+    mkdir -p "$(dirname "$DEPS_DIR")"
+    while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+        local holder
+        holder=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
+        if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
+            echo "Removing stale lock left by process $holder"
+            rm -rf "$LOCK_DIR"
+            continue
+        fi
+        echo "Another build (pid ${holder:-unknown}) is using $DEPS_DIR; waiting..."
+        sleep 10
+    done
+    echo $ > "$LOCK_DIR/pid"
+    trap 'rm -rf "$LOCK_DIR"' EXIT
+}
+
+acquire_lock
+link_local_deps
 
 echo "=== Building FreeRDP ${FREERDP_VERSION} + dependencies from source ==="
 echo "Architecture: $ARCH"
@@ -226,9 +302,7 @@ build_ffmpeg() {
 build_freerdp() {
     local SRC="$DEPS_DIR/freerdp-src"
     local BUILD="$DEPS_DIR/freerdp-build"
-    local BUILD_MARKER="$PREFIX/lib/libfreerdp0.${LIB_EXT}"
-
-    if [ -f "$BUILD_MARKER" ]; then
+    if freerdp_installed "$PREFIX"; then
         echo "[3/3] FreeRDP ${FREERDP_VERSION} — already built"
         return
     fi

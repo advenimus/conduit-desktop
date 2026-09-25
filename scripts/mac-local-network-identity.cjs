@@ -1,8 +1,9 @@
 /**
  * Shared Local Network identity for the packaged app and the npm Electron.dev
  * stamp. macOS keys the permission on code signature + main-executable LC_UUID.
- * Every Electron 41.x stub shares the same UUID, so we rewrite it to a value
- * derived from the bundle id before signing.
+ * Every app built on the same Electron release shares the stub's UUID, and it
+ * changes with each release, so we rewrite it to a value derived from the
+ * bundle id before signing.
  */
 const crypto = require('crypto');
 const fs = require('fs');

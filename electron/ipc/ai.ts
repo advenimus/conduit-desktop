@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { AppState } from '../services/state.js';
 import { readSettings, writeSettings } from './settings.js';
-import { getSocketPath } from '../ipc-server/server.js';
+import { getMcpQuotaFilePath } from '../services/mcp-quota.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -49,12 +49,9 @@ function readQuotaUsage(quota: number): QuotaUsage {
   if (quota === -1) {
     return { quota: -1, count: 0, remaining: -1, resetAt: null };
   }
-  // Read from the same directory the MCP writes to — its `getDataDir()` is
-  // `~/Library/Application Support/{env}/`, sibling to the conduit.sock the
-  // socket helper points at. Don't use the electron-side `getDataDir()` —
-  // it nests under `app.getPath('userData')` and resolves to a *different*
-  // directory than the MCP, so the quota file would never be found.
-  const filePath = path.join(path.dirname(getSocketPath()), 'mcp-quota.json');
+  // The MCP keeps this ledger in its own state dir, not the electron-side
+  // getDataDir(); see getMcpStateDir().
+  const filePath = getMcpQuotaFilePath();
   let calls: number[] = [];
   try {
     if (fs.existsSync(filePath)) {

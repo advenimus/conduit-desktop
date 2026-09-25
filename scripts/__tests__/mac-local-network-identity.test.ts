@@ -61,8 +61,10 @@ describe('mac local-network identity', () => {
     expect(Buffer.compare(a, dev)).not.toBe(0);
   });
 
-  it('does not collide with Electron 41.10.4\'s stock LC_UUID', () => {
-    const stock = '4C4C4461-5555-3144-A1D9-15C795D7EB04';
+  it.each([
+    ['41.10.4', '4C4C4461-5555-3144-A1D9-15C795D7EB04'],
+    ['44.4.5', '4C4C44F8-5555-3144-A1B8-270B7145EDA0'],
+  ])('does not collide with Electron %s\'s stock LC_UUID', (_version, stock) => {
     expect(identity.formatUuid(identity.deriveUuidBytes(identity.PROD_BUNDLE_ID))).not.toBe(stock);
     expect(identity.formatUuid(identity.deriveUuidBytes(identity.DEV_BUNDLE_ID))).not.toBe(stock);
   });
