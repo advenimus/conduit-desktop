@@ -123,11 +123,11 @@ import type { IconMapping, IconComponent, IconProps } from "../types";
  * Phosphor icons use `weight` instead of `stroke`.
  * This wrapper translates our standard props.
  */
-function wrap(PhosphorIcon: React.ComponentType<any>): IconComponent {
+function wrap(PhosphorIcon: React.ComponentType<any>, weight: "regular" | "fill" = "regular"): IconComponent {
   const Wrapped = React.memo(function WrappedPhosphorIcon(props: IconProps) {
     return React.createElement(PhosphorIcon, {
       size: props.size,
-      weight: "regular",
+      weight,
       className: props.className,
       style: props.style,
     });
@@ -218,8 +218,9 @@ export const mapping: IconMapping = {
 
   // ── Favorites ──
   star: wrap(Star),
-  starFilled: wrap(Star), // Phosphor uses weight="fill" — handled by variant later
-  pinFilled: wrap(PushPin),
+  starFilled: wrap(Star, "fill"),
+  pin: wrap(PushPin),
+  pinFilled: wrap(PushPin, "fill"),
 
   // ── Data ──
   database: wrap(Database),

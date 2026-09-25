@@ -21,7 +21,7 @@ import VaultContextBar from "./VaultContextBar";
 import VaultSwitcherMenu from "../vault/VaultSwitcherMenu";
 import { useEntryStore } from "../../stores/entryStore";
 import { useVaultStore } from "../../stores/vaultStore";
-import { useSidebarStore } from "../../stores/sidebarStore";
+import { useSidebarStore, selectIsDocked } from "../../stores/sidebarStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useLayoutStore, findLeaf, getAllLeaves } from "../../stores/layoutStore";
 import { useAuthStore } from "../../stores/authStore";
@@ -30,6 +30,8 @@ import { useTierStore } from "../../stores/tierStore";
 import { invoke } from "../../lib/electron";
 import CloudSyncIndicator from "../vault/CloudSyncIndicator";
 import TeamSyncIndicator from "../vault/TeamSyncIndicator";
+import SidebarPanel from "./SidebarPanel";
+import SidebarWindowControls from "./SidebarWindowControls";
 
 export default function Sidebar() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,8 +47,16 @@ export default function Sidebar() {
   const scrollIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { entries, folders, loadAll } = useEntryStore();
   const { isUnlocked, currentVaultPath } = useVaultStore();
-  const { isExpanded, expandedWidth, expand, collapse, setExpandedWidth } =
-    useSidebarStore();
+  const isExpanded = useSidebarStore((s) => s.isExpanded);
+  const isPinned = useSidebarStore((s) => s.isPinned);
+  const isDocked = useSidebarStore(selectIsDocked);
+  const expandedWidth = useSidebarStore((s) => s.expandedWidth);
+  const expand = useSidebarStore((s) => s.expand);
+  const collapse = useSidebarStore((s) => s.collapse);
+  const togglePin = useSidebarStore((s) => s.togglePin);
+  const setExpandedWidth = useSidebarStore((s) => s.setExpandedWidth);
+  const saveExpandedWidth = useSidebarStore((s) => s.saveExpandedWidth);
+  const setMenuOpen = useSidebarStore((s) => s.setMenuOpen);
   const { user, authMode, signOut } = useAuthStore();
   const { teamVaults, myRole } = useTeamStore();
   const canCreateEntries = useTeamStore((s) => s.canCreate);
@@ -73,6 +83,11 @@ export default function Sidebar() {
     setOnboardingDismissed(true);
     localStorage.setItem("conduit:team-onboarding-dismissed", "true");
   }, []);
+
+  useEffect(() => {
+    setMenuOpen(showVaultMenu);
+    return () => setMenuOpen(false);
+  }, [showVaultMenu, setMenuOpen]);
 
   // Load entries when vault is unlocked
   useEffect(() => {
@@ -219,12 +234,19 @@ export default function Sidebar() {
       setResizeActive(true);
       const startX = e.clientX;
       const startWidth = expandedWidth;
+      let targetWidth = startWidth;
+      let frame = 0;
 
+      // One layout pass per frame: a docked resize reflows every session.
       const onMouseMove = (ev: MouseEvent) => {
         if (!resizing.current) return;
-        const delta = ev.clientX - startX;
-        const newWidth = Math.min(Math.max(startWidth + delta, 150), 500);
-        setExpandedWidth(newWidth);
+        targetWidth = startWidth + ev.clientX - startX;
+        if (!frame) {
+          frame = requestAnimationFrame(() => {
+            frame = 0;
+            setExpandedWidth(targetWidth);
+          });
+        }
       };
 
       const onMouseUp = () => {
@@ -234,6 +256,10 @@ export default function Sidebar() {
         document.removeEventListener("mouseup", onMouseUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        cancelAnimationFrame(frame);
+        setExpandedWidth(targetWidth);
+        saveExpandedWidth();
+        document.dispatchEvent(new CustomEvent("conduit:layout-changed"));
       };
 
       document.body.style.cursor = "col-resize";
@@ -241,21 +267,27 @@ export default function Sidebar() {
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
     },
-    [expandedWidth, setExpandedWidth]
+    [expandedWidth, setExpandedWidth, saveExpandedWidth]
   );
 
   // Animated collapse — plays slide-out then unmounts
   const overlayClosingRef = useRef(false);
   const animatedCollapse = useCallback(() => {
     if (!isExpanded || overlayClosingRef.current) return;
+    if (isDocked) {
+      // Instant: animating a docked width would reflow every session each frame.
+      collapse();
+      return;
+    }
     overlayClosingRef.current = true;
     setOverlayClosing(true);
     setTimeout(() => {
       overlayClosingRef.current = false;
       setOverlayClosing(false);
-      collapse();
+      // Pinned mid-animation: keep the now-docked sidebar.
+      if (!selectIsDocked(useSidebarStore.getState())) collapse();
     }, 200); // matches animation duration
-  }, [isExpanded, collapse]);
+  }, [isExpanded, isDocked, collapse]);
 
   // Let keyboard shortcut (Ctrl+B) trigger the animated collapse
   useEffect(() => {
@@ -270,17 +302,12 @@ export default function Sidebar() {
       {/* Header */}
       <div className={`flex items-center justify-between p-3 ${isTeamVaultActive ? "border-l-2 border-l-team-border-strong bg-team" : ""}`}>
         <div className="flex items-center gap-1 min-w-0">
-          {/* Close button — hamburger X matching the tab bar toggle */}
-          <button
-            onClick={animatedCollapse}
-            className="p-1.5 -ml-1 mr-0.5 rounded hover:bg-raised text-ink-muted hover:text-ink flex-shrink-0 transition-colors"
-            title="Close sidebar (Ctrl+B)"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <line x1="2" y1="2" x2="12" y2="12" />
-              <line x1="12" y1="2" x2="2" y2="12" />
-            </svg>
-          </button>
+          <SidebarWindowControls
+            isPinned={isPinned}
+            isDocked={isDocked}
+            onClose={animatedCollapse}
+            onTogglePin={togglePin}
+          />
           <div className="relative min-w-0" ref={vaultMenuRef}>
             <button
               onClick={() => setShowVaultMenu(!showVaultMenu)}
@@ -567,40 +594,18 @@ export default function Sidebar() {
     </>
   );
 
+  if (!isExpanded && !overlayClosing) return null;
+
   return (
-    <>
-      {/* Overlay panel + backdrop (when expanded) */}
-      {(isExpanded || overlayClosing) && (
-        <>
-          {/* Backdrop — full screen */}
-          <div
-            className={`fixed inset-0 z-30 transition-opacity duration-200 ${overlayClosing ? "bg-black/0" : "bg-black/20"}`}
-            onClick={animatedCollapse}
-          />
-          {/* Panel — left edge of screen */}
-          <div
-            data-sidebar-panel
-            className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col bg-canvas border-r border-stroke ${overlayClosing ? "animate-sidebar-out" : "animate-sidebar-in"}`}
-            style={{ width: expandedWidth, boxShadow: "6px 0 20px rgba(0,0,0,0.08)" }}
-          >
-            {/* Accent bar — continues the app-level top bar */}
-            <div className="h-[2px] bg-conduit-500 flex-shrink-0" />
-            {sidebarContent}
-            {/* Resize handle — wide hit area, col-resize cursor, delayed blue highlight */}
-            <div
-              onMouseDown={handleResizeStart}
-              className="absolute top-0 bottom-0 w-3 cursor-col-resize group"
-              style={{ right: -6 }}
-            >
-              <div className={`absolute right-1.5 top-0 bottom-0 w-[3px] rounded-full transition-colors ${
-                resizeActive
-                  ? "bg-conduit-500/70 duration-0"
-                  : "bg-transparent duration-200 group-hover:bg-conduit-500/50 group-hover:duration-200 group-hover:delay-[600ms]"
-              }`} />
-            </div>
-          </div>
-        </>
-      )}
-    </>
+    <SidebarPanel
+      docked={isDocked}
+      closing={overlayClosing}
+      width={expandedWidth}
+      resizeActive={resizeActive}
+      onBackdropClick={animatedCollapse}
+      onResizeStart={handleResizeStart}
+    >
+      {sidebarContent}
+    </SidebarPanel>
   );
 }

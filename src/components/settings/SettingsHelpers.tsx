@@ -11,7 +11,6 @@ export interface Settings {
   ai_mode: "api" | "cli";
   cli_agent: "claude" | "codex";
   cli_font_size: number;
-  sidebar_mode: "pinned" | "auto";
   default_engine: EngineType;
   default_working_directory: string | null;
   ui_scale: number;

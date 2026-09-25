@@ -69,7 +69,6 @@ export interface AppSettings {
   ai_mode: 'api' | 'cli';
   cli_agent: 'claude' | 'codex';
   cli_font_size: number;
-  sidebar_mode: 'pinned' | 'auto';
   // Unified engine settings
   default_engine: EngineType;
   default_working_directory: string | null;
@@ -120,7 +119,6 @@ const defaultSettings: AppSettings = {
   ai_mode: 'api',
   cli_agent: 'claude',
   cli_font_size: 13,
-  sidebar_mode: 'pinned',
   default_engine: 'claude-code',
   default_working_directory: null,
   local_backup_enabled: false,
@@ -174,6 +172,10 @@ export function readSettings(): AppSettings {
     // Remove stale terminal_mode (CLI agents are now always native terminals)
     if ('terminal_mode' in parsed) {
       delete (parsed as Record<string, unknown>).terminal_mode;
+    }
+    // Remove stale sidebar_mode (never wired up; the sidebar pin lives in renderer storage)
+    if ('sidebar_mode' in parsed) {
+      delete (parsed as Record<string, unknown>).sidebar_mode;
     }
     if (!isKnownEngineType(String(parsed.default_engine))) {
       parsed.default_engine = 'claude-code';

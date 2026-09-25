@@ -77,6 +77,14 @@ const shortcuts: Shortcut[] = [
     description: "Toggle Sidebar",
   },
   {
+    key: "b",
+    ctrl: true,
+    shift: true,
+    action: () =>
+      document.dispatchEvent(new CustomEvent("conduit:toggle-sidebar-pin")),
+    description: "Pin / Unpin Sidebar",
+  },
+  {
     key: "l",
     ctrl: true,
     shift: true,

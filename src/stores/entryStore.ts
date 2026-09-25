@@ -609,11 +609,8 @@ export const useEntryStore = create<EntryState>((set, get) => ({
     if (openingEntries.has(id)) return;
     openingEntries.add(id);
 
-    // Collapse sidebar immediately for instant feedback
-    const { isExpanded, collapse: collapseSidebar } = useSidebarStore.getState();
-    if (isExpanded) {
-      collapseSidebar();
-    }
+    // Collapse a floating sidebar immediately for instant feedback
+    useSidebarStore.getState().autoCollapse();
 
     const sessionStore = useSessionStore.getState();
 
@@ -641,10 +638,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
     if (openingEntries.has(id)) return;
     openingEntries.add(id);
 
-    const { isExpanded: isExpanded2, collapse: collapseSidebar2 } = useSidebarStore.getState();
-    if (isExpanded2) {
-      collapseSidebar2();
-    }
+    useSidebarStore.getState().autoCollapse();
 
     const sessionStore = useSessionStore.getState();
 

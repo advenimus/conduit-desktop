@@ -29,7 +29,7 @@ import { useSessionStore, type SessionType } from "./stores/sessionStore";
 import { useLayoutStore, findLeaf } from "./stores/layoutStore";
 import { useEntryStore } from "./stores/entryStore";
 import { useVaultStore } from "./stores/vaultStore";
-import { useSidebarStore } from "./stores/sidebarStore";
+import { useSidebarStore, selectIsDockedOpen, maxRightPanelWidth } from "./stores/sidebarStore";
 import { useAuthStore } from "./stores/authStore";
 import { useAiStore } from "./stores/aiStore";
 import { isEngineType } from "./lib/ai-harnesses";
@@ -87,6 +87,8 @@ function NotificationStack() {
     </>
   );
 }
+
+const AI_PANEL_DIVIDER_WIDTH = 4;
 
 function App() {
   const [showAiPanel, setShowAiPanel] = useState(false);
@@ -372,10 +374,14 @@ function App() {
     document.dispatchEvent(new CustomEvent("conduit:layout-changed"));
   }, [showAiPanel]);
 
+  useEffect(() => {
+    useSidebarStore.getState().setRightPanelWidth(showAiPanel ? aiPanelWidth + AI_PANEL_DIVIDER_WIDTH : 0);
+  }, [showAiPanel, aiPanelWidth]);
+
   // Notify child webviews when modals/overlays are shown (native webview covers HTML modals).
-  // Sidebar overlay is excluded — the transparent overlay BrowserWindow handles
-  // rendering above native views without hiding web sessions.
-  const { isExpanded: sidebarExpanded } = useSidebarStore();
+  const sidebarExpanded = useSidebarStore((s) => s.isExpanded);
+  const sidebarDockedOpen = useSidebarStore(selectIsDockedOpen);
+  const sidebarMenuOpen = useSidebarStore((s) => s.menuOpen); // can spill past a docked sidebar's edge
   const anyOverlayOpen =
     showQuickConnect || showSettings || showCredentials || showEntryDialog || showFolderDialog || showUnlockDialog || showCloudRestore || showAbout || showPasswordGenerator || showSshKeyGenerator || showImportDialog || showDeviceSetup || showCreateTeamVault || !!teamVaultToUnlock || !!editingEntryId || !!editingFolderId || !!pendingDeviceAuth || !!showVaultSettings || !!showExportDialog || showVaultImportDialog || showRenameVaultDialog || showChangePasswordDialog || !!feedbackType || showWhatsNew;
   useEffect(() => {
@@ -392,12 +398,12 @@ function App() {
       document.dispatchEvent(new CustomEvent("conduit:layout-changed"));
     }, 250);
     return () => clearTimeout(timer);
-  }, [sidebarExpanded]);
+  }, [sidebarExpanded, sidebarDockedOpen]);
 
   // Screenshot-freeze: when sidebar panel opens as overlay,
   // tell WebView to capture a screenshot and hide the native view so the
   // sidebar HTML can render above it.
-  const sidebarOverlayOpen = sidebarExpanded;
+  const sidebarOverlayOpen = sidebarExpanded && (!sidebarDockedOpen || sidebarMenuOpen);
   useEffect(() => {
     document.dispatchEvent(
       new CustomEvent("conduit:sidebar-overlay-change", { detail: sidebarOverlayOpen })
@@ -513,7 +519,11 @@ function App() {
       if (!aiResizing.current) return;
       // Dragging left increases width (panel is on the right)
       const delta = startX - ev.clientX;
-      const newWidth = Math.min(Math.max(startWidth + delta, 300), 800);
+      const maxWidth = Math.max(
+        300,
+        maxRightPanelWidth(useSidebarStore.getState(), 800 + AI_PANEL_DIVIDER_WIDTH) - AI_PANEL_DIVIDER_WIDTH,
+      );
+      const newWidth = Math.min(Math.max(startWidth + delta, 300), maxWidth);
       setAiPanelWidth(newWidth);
     };
 
@@ -1066,10 +1076,9 @@ function App() {
           </button>
         </div>
       )}
-      {/* Sidebar — pure overlay, no inline space */}
-      <Sidebar />
-
       <div className="flex flex-1 min-h-0">
+      {/* Sidebar — docked in this row when pinned, otherwise a fixed overlay */}
+      <Sidebar />
       {/* Main Area */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Content Area */}
