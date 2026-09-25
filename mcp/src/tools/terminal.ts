@@ -1,83 +1,90 @@
 /**
  * Terminal MCP tools.
  *
- * Port of crates/conduit-mcp/src/tools/terminal.rs + server.rs terminal methods.
+ * Command execution, output capture, and screen reads happen inside the
+ * Conduit app (TerminalManager), which sees the session's raw output stream.
+ * Older apps without those IPC requests fall back to terminal-legacy.ts.
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import type { ConduitClient } from '../ipc-client.js';
+import { textResult } from '../tool-result.js';
+import { isUnknownRequest, legacyExecute, legacyReadPane, legacySendKeys } from './terminal-legacy.js';
+import { parseKeySequences } from './terminal-text.js';
 
-// ---------- parse_key_sequences ----------
+export { parseKeySequences };
 
-/**
- * Parse key escape sequences like \x03 for Ctrl+C.
- * Port of crates/conduit-mcp/src/tools/mod.rs::parse_key_sequences
- */
-export function parseKeySequences(input: string): Buffer {
-  const result: number[] = [];
-  let i = 0;
+const DEFAULT_TIMEOUT_MS = 30_000;
+const MAX_TIMEOUT_MS = 600_000;
+const DEFAULT_PANE_LINES = 50;
+const MAX_PANE_LINES = 5_000;
+const MAX_WAIT_MS = 120_000;
+const SHELLS = ['auto', 'posix', 'powershell'] as const;
+const NO_OUTPUT = '(no output)';
 
-  while (i < input.length) {
-    if (input[i] === '\\' && i + 1 < input.length) {
-      const next = input[i + 1];
-      if (next === 'x' && i + 3 < input.length) {
-        const hex = input.slice(i + 2, i + 4);
-        const byte = parseInt(hex, 16);
-        if (!isNaN(byte)) {
-          result.push(byte);
-          i += 4;
-          continue;
-        }
-      }
-      switch (next) {
-        case 'n':
-          result.push(0x0a);
-          i += 2;
-          continue;
-        case 'r':
-          result.push(0x0d);
-          i += 2;
-          continue;
-        case 't':
-          result.push(0x09);
-          i += 2;
-          continue;
-        case '\\':
-          result.push(0x5c);
-          i += 2;
-          continue;
-        default:
-          result.push(0x5c);
-          i += 1;
-          continue;
-      }
-    }
-    // Regular character - encode as UTF-8
-    const buf = Buffer.from(input[i], 'utf-8');
-    for (const b of buf) {
-      result.push(b);
-    }
-    i += 1;
-  }
+const HINTS = {
+  timed_out:
+    'The command is still running. Watch it with terminal_read_pane, answer a prompt with terminal_send_keys, ' +
+    'or interrupt it by sending "\\x03". The session accepts new terminal_execute calls once it finishes.',
+  not_started:
+    'The shell never started the command. The session may be at a prompt that is not a shell ' +
+    '(REPL, password prompt, network device CLI) or still busy. The text below is the current screen; ' +
+    'use terminal_send_keys with wait_ms to interact with it.',
+  interrupted: 'The command was interrupted with Ctrl+C before it finished.',
+  session_closed:
+    'The session closed while the command was running (e.g. `exit`, or the connection dropped). ' +
+    'Call connection_list for current sessions.',
+  truncated:
+    'Output was too long; the middle was omitted. Re-run with output redirected to a file and read it in parts ' +
+    '(e.g. sed -n \'1,200p\' file).',
+};
 
-  return Buffer.from(result);
+// ---------- Argument validation ----------
+
+function requireString(args: Record<string, unknown>, name: string): string {
+  const value = args[name];
+  if (typeof value !== 'string' || value.length === 0) throw new Error(`${name} must be a non-empty string`);
+  return value;
 }
 
-// ---------- Tool definitions ----------
+function optionalNumber(args: Record<string, unknown>, name: string, fallback: number, min: number, max: number): number {
+  const value = args[name];
+  if (value === undefined || value === null) return fallback;
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`${name} must be a number`);
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+// ---------- terminal_execute ----------
 
 export function terminalExecuteDefinition() {
   return {
     name: 'terminal_execute',
-    description: 'Execute a command in a terminal session and wait for completion',
+    description:
+      'Run a shell command in a terminal session and wait for it to finish. Returns a JSON block (exit_code, status, ' +
+      'duration) followed by the command output as plain text (stdout and stderr combined, colors removed). ' +
+      'Multi-line scripts, heredocs, pipes, quotes, and comments run exactly as written, and state such as `cd` ' +
+      'and exported variables persists between calls. Supports POSIX shells (bash, zsh, sh, dash, ash, ksh) and ' +
+      'PowerShell. One command runs at a time per session. Avoid pagers and interactive prompts (use --no-pager, ' +
+      '| cat, -y); for REPLs, prompts, or full-screen programs use terminal_send_keys and terminal_read_pane. ' +
+      'Very long output keeps the beginning and the end.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
-        command: { type: 'string', description: 'Command to execute' },
+        command: { type: 'string', description: 'Command or multi-line script to run' },
         timeout_ms: {
           type: 'number',
-          description: 'Timeout in milliseconds (default: 30000)',
-          default: 30000,
+          description:
+            `Maximum time to wait in milliseconds (default: ${DEFAULT_TIMEOUT_MS}, max: ${MAX_TIMEOUT_MS}). ` +
+            'On timeout the command keeps running and the session stays busy until it finishes or is interrupted.',
+          default: DEFAULT_TIMEOUT_MS,
+        },
+        shell: {
+          type: 'string',
+          enum: [...SHELLS],
+          description:
+            'Shell syntax of the session. "auto" (default) detects local shells and treats SSH sessions as POSIX; ' +
+            'pass "powershell" for SSH sessions to Windows hosts running PowerShell.',
+          default: 'auto',
         },
       },
       required: ['connection_id', 'command'],
@@ -85,130 +92,72 @@ export function terminalExecuteDefinition() {
   };
 }
 
-/** Strip ANSI SGR escape sequences from a string for marker searching. */
-function stripAnsi(str: string): string {
-  return str.replace(/\x1b\[[0-9;]*m/g, '');
+export async function terminalExecute(client: ConduitClient, args: Record<string, unknown>): Promise<unknown> {
+  const sessionId = requireString(args, 'connection_id');
+  const command = requireString(args, 'command');
+  const timeoutMs = optionalNumber(args, 'timeout_ms', DEFAULT_TIMEOUT_MS, 1_000, MAX_TIMEOUT_MS);
+  const shell = args.shell ?? 'auto';
+  if (typeof shell !== 'string' || !(SHELLS as readonly string[]).includes(shell)) {
+    throw new Error(`shell must be one of: ${SHELLS.join(', ')}`);
+  }
+
+  let result: Record<string, unknown>;
+  try {
+    result = await client.terminalExecute(sessionId, command, timeoutMs, shell);
+  } catch (err) {
+    if (!isUnknownRequest(err)) throw err;
+    const legacy = await legacyExecute(client, sessionId, command, timeoutMs);
+    return textResult(
+      { exit_code: legacy.exit_code, timed_out: legacy.timed_out, ...(legacy.timed_out && { hint: HINTS.timed_out }) },
+      legacy.stdout || NO_OUTPUT,
+    );
+  }
+  return formatExecuteResult(result);
 }
 
-/**
- * Find a marker at the start of a line in the buffer.
- * This skips markers embedded in the echoed command (which appear mid-line)
- * and only matches the actual echo output (which appears on its own line).
- */
-function findAtLineStart(buffer: string, marker: string): number {
-  if (buffer.startsWith(marker)) return 0;
-  const idx = buffer.indexOf('\n' + marker);
-  return idx === -1 ? -1 : idx + 1;
-}
-
-export async function terminalExecute(
-  client: ConduitClient,
-  args: { connection_id: string; command: string; timeout_ms?: number },
-): Promise<unknown> {
-  const timeoutMs = args.timeout_ms ?? 30000;
-
-  // Wait for shell to be ready (buffer should have content from the prompt)
-  const readyDeadline = Date.now() + Math.min(timeoutMs, 5000);
-  while (Date.now() < readyDeadline) {
-    const buf = await client.terminalReadBuffer(args.connection_id, 10);
-    if (buf.trim().length > 0) break;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-
-  // Generate unique marker for this execution
-  const markerId = uuidv4().replace(/-/g, '').slice(0, 8);
-  const startMarker = `__CONDUIT_START_${markerId}__`;
-  const endMarker = `__CONDUIT_END_${markerId}_EXIT_`;
-
-  // Wrapped command: echo markers are filtered from the display by the main
-  // process (TerminalManager.emitToRenderer) but remain in the backend buffer
-  // so this tool can detect command completion and extract output.
-  const wrappedCommand = `echo '${startMarker}'; ${args.command}; echo '${endMarker}'"$?"'__'\n`;
-
-  await client.terminalWrite(args.connection_id, Buffer.from(wrappedCommand));
-
-  // Poll for completion
-  const deadline = Date.now() + timeoutMs;
-  const pollInterval = 100;
-  let timedOut = false;
-  let exitCode = 0;
-  let stdout = '';
-
-  while (true) {
-    if (Date.now() >= deadline) {
-      timedOut = true;
-      break;
-    }
-
-    const buffer = await client.terminalReadBuffer(args.connection_id, 500);
-    const cleanBuffer = stripAnsi(buffer);
-
-    // Look for end marker at start of a line (skip echoed command which has it mid-line)
-    const endPos = findAtLineStart(cleanBuffer, endMarker);
-    if (endPos !== -1) {
-      const afterMarker = cleanBuffer.slice(endPos + endMarker.length);
-      const codeEnd = afterMarker.indexOf('__');
-      if (codeEnd !== -1) {
-        const codeStr = afterMarker.slice(0, codeEnd);
-        exitCode = parseInt(codeStr, 10) || 0;
-      }
-
-      // Extract output between markers (also at line boundaries)
-      const startPos = findAtLineStart(cleanBuffer, startMarker);
-      if (startPos !== -1) {
-        let contentStart = startPos + startMarker.length;
-        const nlIdx = cleanBuffer.indexOf('\n', contentStart);
-        if (nlIdx !== -1 && nlIdx < endPos) {
-          contentStart = nlIdx + 1;
-        }
-        if (contentStart < endPos) {
-          stdout = cleanBuffer.slice(contentStart, endPos).trimEnd();
-        }
-      }
-      break;
-    }
-
-    await new Promise((r) => setTimeout(r, pollInterval));
-  }
-
-  // If timed out, try to read partial output
-  if (timedOut) {
-    const buffer = await client.terminalReadBuffer(args.connection_id, 500).catch(() => '');
-    const cleanBuffer = stripAnsi(buffer);
-    const startPos = findAtLineStart(cleanBuffer, startMarker);
-    if (startPos !== -1) {
-      let contentStart = startPos + startMarker.length;
-      const nlIdx = cleanBuffer.indexOf('\n', contentStart);
-      if (nlIdx !== -1) {
-        contentStart = nlIdx + 1;
-      }
-      stdout = cleanBuffer.slice(contentStart).trimEnd();
-    } else {
-      stdout = cleanBuffer;
-    }
-  }
-
-  return {
-    stdout,
-    stderr: '', // PTY combines stdout/stderr
-    exit_code: exitCode,
-    timed_out: timedOut,
+export function formatExecuteResult(result: Record<string, unknown>): unknown {
+  const status = result.status as string;
+  const metadata: Record<string, unknown> = {
+    exit_code: result.exit_code ?? null,
+    status,
+    timed_out: status === 'timed_out',
+    duration_ms: result.duration_ms,
   };
+  if (result.truncated) {
+    metadata.truncated = true;
+    metadata.omitted_lines = result.omitted_lines;
+  }
+
+  const screen = Array.isArray(result.screen) ? (result.screen as string[]).join('\n').trimEnd() : '';
+  const hints: string[] = [];
+  if (status === 'session_closed') hints.push(HINTS.session_closed);
+  else if (!result.started) hints.push(HINTS.not_started);
+  else if (status === 'timed_out' || status === 'interrupted') hints.push(HINTS[status]);
+  if (result.truncated) hints.push(HINTS.truncated);
+  const hint = hints.filter(Boolean).join(' ');
+  if (hint) metadata.hint = hint;
+
+  const text = !result.started && screen ? screen : (result.stdout as string) || NO_OUTPUT;
+  return textResult(metadata, text);
 }
+
+// ---------- terminal_read_pane ----------
 
 export function terminalReadPaneDefinition() {
   return {
     name: 'terminal_read_pane',
     description:
-      'Read the current terminal buffer content. The buffer is a continuous scrollback — pass a higher `lines` value to retrieve more history.',
+      'Read what the terminal shows right now as plain text (colors removed, wrapped lines joined), including ' +
+      'scrollback above the visible screen — pass a higher `lines` value to retrieve more history. Works for ' +
+      'full-screen programs too (editors, pagers, top, installer dialogs); `alternate_screen: true` means one is open.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
         lines: {
           type: 'number',
-          description: 'Number of lines from the tail of the buffer to read (default: 50)',
-          default: 50,
+          description: `Number of lines from the end to read (default: ${DEFAULT_PANE_LINES}, max: ${MAX_PANE_LINES})`,
+          default: DEFAULT_PANE_LINES,
         },
       },
       required: ['connection_id'],
@@ -216,32 +165,53 @@ export function terminalReadPaneDefinition() {
   };
 }
 
-export async function terminalReadPane(
-  client: ConduitClient,
-  args: { connection_id: string; lines?: number },
-): Promise<unknown> {
-  const lines = args.lines ?? 50;
-  const content = await client.terminalReadBuffer(args.connection_id, lines);
-  const totalLines = content.split('\n').length;
+export async function terminalReadPane(client: ConduitClient, args: Record<string, unknown>): Promise<unknown> {
+  const sessionId = requireString(args, 'connection_id');
+  const lines = optionalNumber(args, 'lines', DEFAULT_PANE_LINES, 1, MAX_PANE_LINES);
 
-  return {
-    content,
-    total_lines: totalLines,
-  };
+  let screen: Record<string, unknown>;
+  try {
+    screen = await client.terminalReadScreen(sessionId, lines);
+  } catch (err) {
+    if (!isUnknownRequest(err)) throw err;
+    const content = await legacyReadPane(client, sessionId, lines);
+    return textResult({ total_lines: content.split('\n').length }, content || '(empty)');
+  }
+  const content = (screen.content as string) ?? '';
+  return textResult(
+    {
+      total_lines: screen.total_lines,
+      returned_lines: content ? content.split('\n').length : 0,
+      alternate_screen: screen.alternate_screen,
+    },
+    content || '(empty)',
+  );
 }
+
+// ---------- terminal_send_keys ----------
 
 export function terminalSendKeysDefinition() {
   return {
     name: 'terminal_send_keys',
     description:
-      'Send keyboard input to a terminal session, including control characters like \\x03 for Ctrl+C',
+      'Send keystrokes or text to a terminal session: answer prompts (passwords, y/n), drive REPLs and full-screen ' +
+      'programs, or interrupt a command. Escapes: \\r = Enter, \\n = newline, \\t = Tab, \\x03 = Ctrl+C, ' +
+      '\\x04 = Ctrl+D, \\e or \\x1b = Escape, \\x1b[A / \\x1b[B / \\x1b[C / \\x1b[D = arrow up/down/right/left, ' +
+      '\\\\ = a literal backslash. Set wait_ms to wait for the program to respond and get its new output in the same call.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
         keys: {
           type: 'string',
-          description: 'Keys to send (supports \\x03 for Ctrl+C, etc.)',
+          description: 'Keys to send (supports the escapes above, e.g. "yes\\r" or "\\x03")',
+        },
+        wait_ms: {
+          type: 'number',
+          description:
+            `Wait up to this many milliseconds for output to settle and return it (default: 0 = don't wait, max: ${MAX_WAIT_MS}). ` +
+            'When a full-screen program is open, the current screen is returned as well.',
+          default: 0,
         },
       },
       required: ['connection_id', 'keys'],
@@ -249,23 +219,43 @@ export function terminalSendKeysDefinition() {
   };
 }
 
-export async function terminalSendKeys(
-  client: ConduitClient,
-  args: { connection_id: string; keys: string },
-): Promise<unknown> {
-  const keyBytes = parseKeySequences(args.keys);
-  await client.terminalWrite(args.connection_id, keyBytes);
+export async function terminalSendKeys(client: ConduitClient, args: Record<string, unknown>): Promise<unknown> {
+  const sessionId = requireString(args, 'connection_id');
+  const keyBytes = parseKeySequences(requireString(args, 'keys'));
+  const waitMs = optionalNumber(args, 'wait_ms', 0, 0, MAX_WAIT_MS);
 
-  return {
-    success: true,
-    bytes_sent: keyBytes.length,
-  };
+  if (waitMs === 0) {
+    await client.terminalWrite(sessionId, keyBytes);
+    return { success: true, bytes_sent: keyBytes.length };
+  }
+
+  let result: Record<string, unknown>;
+  try {
+    result = await client.terminalSendKeys(sessionId, keyBytes, waitMs);
+  } catch (err) {
+    if (!isUnknownRequest(err)) throw err;
+    const output = await legacySendKeys(client, sessionId, keyBytes, waitMs);
+    return textResult({ success: true, bytes_sent: keyBytes.length }, output || NO_OUTPUT);
+  }
+
+  const screen = Array.isArray(result.screen) ? (result.screen as string[]).join('\n').trimEnd() : '';
+  const metadata: Record<string, unknown> = { success: true, bytes_sent: result.bytes_sent };
+  if (result.truncated) metadata.truncated = true;
+  if (screen) {
+    metadata.alternate_screen = true;
+    return textResult(metadata, screen);
+  }
+  return textResult(metadata, (result.output as string) || NO_OUTPUT);
 }
+
+// ---------- local_shell_create ----------
 
 export function localShellCreateDefinition() {
   return {
     name: 'local_shell_create',
-    description: 'Create a new local shell session on the machine running Conduit',
+    description:
+      'Create a new local shell session on the machine running Conduit. Returns a session_id to use as ' +
+      'connection_id with the terminal tools.',
     inputSchema: {
       type: 'object' as const,
       properties: {

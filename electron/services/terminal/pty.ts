@@ -18,6 +18,8 @@ export interface PtyOptions {
 
 export interface LocalPty {
   pty: nodePty.IPty;
+  /** Executable that was spawned (shell or agent command). */
+  file: string;
   kill(): void;
 }
 
@@ -106,6 +108,7 @@ export function createLocalPty(
 
   return {
     pty,
+    file,
     kill() {
       pty.kill();
     },

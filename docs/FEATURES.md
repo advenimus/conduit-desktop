@@ -373,7 +373,14 @@ bring their own agent subscription.
 Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, etc.).
 
 ### Tool Categories
-- **Terminal**: execute commands, read pane buffer (continuous scrollback — pass `lines` for tail size), send keys, create local shell with optional `working_directory`
+- **Terminal**: execute commands, read pane (continuous scrollback — pass `lines` for tail size), send keys, create local shell with optional `working_directory`
+  - `terminal_execute` runs inside the app against the session's live output stream: multi-line scripts, heredocs, comments, quotes, `!`, tabs, and non-ASCII text are sent encoded (as a bracketed paste when the shell supports it, otherwise as short acknowledged lines), so the shell parses the whole command before running it. Works with POSIX shells (bash, zsh, sh/dash, ash, ksh) and PowerShell (`shell` param; auto-detected for local shells)
+  - Returns the exit code plus plain-text output in its own MCP text block (ANSI stripped, `\r` progress lines resolved); output without a trailing newline completes normally; very long output keeps the first and last parts with an omitted-lines note
+  - One command at a time per session: parallel calls get `SESSION_BUSY`; a timed-out command keeps the session busy until it finishes or Ctrl+C is sent; full-screen programs block execution with `SCREEN_BUSY`
+  - The user's terminal shows the agent's real command as if typed, never the wrapper or markers
+  - `terminal_read_pane` reads a headless mirror of the user's screen (wrapped lines joined, full-screen programs rendered, `alternate_screen` flag)
+  - `terminal_send_keys` supports `\r`, `\n`, `\t`, `\e`, `\xHH` escapes and an optional `wait_ms` that returns the program's response (for prompts, REPLs, TUIs)
+  - Older Conduit apps without these IPC requests fall back to the previous polling behavior
 - **RDP**: screenshot (returns native + image dims atomically), click, type, send key (press/down/up), mouse move, drag, scroll, resize (RDPEDISP), get dimensions
 - **VNC**: screenshot (returns native dims atomically), click, type, send key (press/down/up), mouse move, drag, scroll, get dimensions
 - **Web**: screenshot (returns viewport + image dims atomically), read content, navigate (with `wait_until` = `load`/`domcontentloaded`/`networkidle`), click, type, send key (press/down/up), mouse move, drag, scroll, get dimensions, click element (CSS selector), fill input (CSS selector), get interactive elements, execute JavaScript

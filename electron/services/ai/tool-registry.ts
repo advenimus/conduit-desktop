@@ -38,52 +38,65 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   {
     name: 'terminal_execute',
     category: 'execute',
-    description: 'Execute a command in a terminal session and wait for completion',
+    description:
+      'Run a shell command (or multi-line script) in a terminal session and wait for it to finish. Returns the exit ' +
+      'code and plain-text output; heredocs, quotes and comments run as written, and cd/exported variables persist. ' +
+      'POSIX shells and PowerShell. One command at a time per session; avoid pagers and interactive prompts.',
     parameters: {
       type: 'object',
       properties: {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
-        command: { type: 'string', description: 'Command to execute' },
-        timeout_ms: { type: 'number', description: 'Timeout in milliseconds (default: 30000)' },
+        command: { type: 'string', description: 'Command or multi-line script to run' },
+        timeout_ms: { type: 'number', description: 'Maximum wait in milliseconds (default: 30000, max: 600000)' },
+        shell: {
+          type: 'string',
+          enum: ['auto', 'posix', 'powershell'],
+          description: 'Shell syntax: auto (default), posix, or powershell (for SSH to Windows PowerShell hosts)',
+        },
       },
       required: ['connection_id', 'command'],
     },
-    // Custom execute — write command, wait, read buffer
-    execute: executeTerminalCommand,
+    ipcType: 'TerminalExecute',
+    argRenames: { connection_id: 'session_id' },
   },
   {
     name: 'terminal_read_pane',
     category: 'read',
     description:
-      'Read the current terminal buffer content. The buffer is a continuous scrollback — pass a higher `lines` value to retrieve more history.',
+      'Read what the terminal shows as plain text, including scrollback — pass a higher `lines` value for more ' +
+      'history. Works for full-screen programs (editors, pagers, installers) too.',
     parameters: {
       type: 'object',
       properties: {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
-        lines: { type: 'number', description: 'Number of lines from the tail of the buffer to read (default: 50)' },
+        lines: { type: 'number', description: 'Number of lines from the end to read (default: 50)' },
       },
       required: ['connection_id'],
     },
-    ipcType: 'TerminalReadBuffer',
+    ipcType: 'TerminalReadScreen',
     argRenames: { connection_id: 'session_id' },
     defaults: { lines: 50 },
   },
   {
     name: 'terminal_send_keys',
     category: 'execute',
-    description: 'Send keyboard input to a terminal session, including control characters like \\x03 for Ctrl+C',
+    description:
+      'Send keystrokes to a terminal session (\\r = Enter, \\x03 = Ctrl+C, \\e = Escape, \\x1b[A = arrow up) to answer ' +
+      'prompts or drive REPLs and full-screen programs. Set wait_ms to get the program\'s response in the same call.',
     parameters: {
       type: 'object',
       properties: {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
-        keys: { type: 'string', description: 'Keys to send (supports \\x03 for Ctrl+C, etc.)' },
+        keys: { type: 'string', description: 'Keys to send (supports \\r, \\n, \\t, \\e, \\xHH escapes)' },
+        wait_ms: { type: 'number', description: 'Wait up to this long for output and return it (default: 0)' },
       },
       required: ['connection_id', 'keys'],
     },
-    ipcType: 'TerminalWrite',
+    ipcType: 'TerminalSendKeys',
     transformPayload: (args) => ({
       session_id: args.connection_id as string,
       data: Array.from(Buffer.from(args.keys as string)),
+      wait_ms: (args.wait_ms as number | undefined) ?? 0,
     }),
   },
   {
@@ -1027,50 +1040,6 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
 ];
 
 // ── Custom execute functions ────────────────────────────────────────────────
-
-/**
- * Execute a terminal command with polling for completion.
- * Writes command, waits for output to settle, then reads buffer.
- */
-async function executeTerminalCommand(
-  args: Record<string, unknown>,
-  state: AppState,
-): Promise<string> {
-  const { handleRequest } = await import('../../ipc-server/server.js');
-
-  const sessionId = args.connection_id as string;
-  const command = args.command as string;
-  const timeoutMs = (args.timeout_ms as number) ?? 30000;
-
-  // Write the command
-  const writeResult = await handleRequest({
-    type: 'TerminalWrite',
-    payload: {
-      session_id: sessionId,
-      data: Array.from(Buffer.from(`${command}\n`)),
-    },
-  }, state);
-
-  if (writeResult.type === 'Error') {
-    return JSON.stringify(writeResult.payload);
-  }
-
-  // Wait for output to settle
-  await new Promise((r) => setTimeout(r, Math.min(timeoutMs, 2000)));
-
-  // Read the buffer
-  const readResult = await handleRequest({
-    type: 'TerminalReadBuffer',
-    payload: { session_id: sessionId, lines: 100 },
-  }, state);
-
-  if (readResult.type === 'Error') {
-    return JSON.stringify(readResult.payload);
-  }
-
-  const content = (readResult.payload as Record<string, unknown>).content as string;
-  return JSON.stringify({ stdout: content, exit_code: 0, timed_out: false });
-}
 
 /**
  * Read a credential. Approval is now handled by the unified ToolApprovalService

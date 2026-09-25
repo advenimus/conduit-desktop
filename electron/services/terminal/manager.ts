@@ -7,8 +7,10 @@
  *  - local PTY shells   (node-pty)
  *  - remote SSH shells   (ssh2)
  *
- * Each session buffers the last N lines of output so the MCP server
- * can call `readBuffer()` without a live event listener.
+ * Every chunk of output feeds three consumers:
+ *  - a raw line buffer (legacy `readBuffer()` for older MCP clients),
+ *  - the display filter → renderer + headless screen mirror,
+ *  - live listeners (terminal_execute / terminal_send_keys captures).
  *
  * Data is forwarded to the renderer via
  *   mainWindow.webContents.send('terminal:data', { sessionId, data: number[] })
@@ -16,9 +18,24 @@
 
 import { BrowserWindow } from 'electron';
 import { randomUUID } from 'node:crypto';
+import { StringDecoder } from 'node:string_decoder';
 
-import { createLocalPty, parseShellType, type LocalPty, type ShellType, type PtyOptions } from './pty.js';
+import { createLocalPty, parseShellType, type LocalPty, type ShellType } from './pty.js';
 import { SshSession, type SshConfig } from '../ssh/client.js';
+import { AnsiStripper } from './ansi.js';
+import { CommandExecution, type ExecIo, type ExecResult } from './command-execution.js';
+import { DisplayFilter } from './display-filter.js';
+import { TerminalError } from './errors.js';
+import { OutputCapture } from './output-capture.js';
+import { ScreenMirror, type ScreenSnapshot } from './screen-mirror.js';
+import {
+  detectShellKind,
+  newMarkerId,
+  planCommandInput,
+  resolveShellFamily,
+  type ShellKind,
+  type ShellPreference,
+} from './shell-wrapper.js';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -27,49 +44,78 @@ interface LineBuffer {
   currentLine: string;
 }
 
-interface LocalShellEntry {
-  kind: 'local';
-  pty: LocalPty;
+interface SessionState {
   buffer: LineBuffer;
   started: boolean;
-  preStartBuffer: Buffer[];
-  _earlyDataDisposable: { dispose(): void } | null;
+  preStartDisplay: string[];
+  display: DisplayFilter;
+  mirror: ScreenMirror;
+  listeners: Set<(text: string) => void>;
+  closeListeners: Set<() => void>;
+  createdAt: number;
+  lastOutputAt: number;
+  outputChars: number;
+  shellKind: ShellKind;
+  exec: CommandExecution | null;
+  closed: boolean;
 }
 
-interface SshEntry {
+interface LocalShellEntry extends SessionState {
+  kind: 'local';
+  pty: LocalPty;
+}
+
+interface SshEntry extends SessionState {
   kind: 'ssh';
   session: SshSession;
-  buffer: LineBuffer;
-  started: boolean;
-  preStartBuffer: Buffer[];
-  _earlyDataHandler: ((data: Buffer) => void) | null;
   lastError: string | null;
 }
 
 type SessionEntry = LocalShellEntry | SshEntry;
 
+export interface ExecuteRequest {
+  command: string;
+  timeoutMs: number;
+  shell: ShellPreference;
+}
+
+export interface ExecuteResponse extends ExecResult {
+  /** Visible screen when the shell never started the command, to show what it is doing instead. */
+  screen?: string[];
+}
+
+export interface SendKeysResult {
+  bytes_sent: number;
+  output?: string;
+  truncated?: boolean;
+  screen?: string[];
+}
+
 const MAX_BUFFER_LINES = 10_000;
 const DRAIN_AMOUNT = 1_000;
 
-/** Matches CONDUIT sentinel markers in ANSI-stripped text. */
-const CONDUIT_MARKER_RE = /__CONDUIT_(START_[a-f0-9]{6,}__|END_[a-f0-9]{6,}_EXIT_\d+__)/;
+// A new session gets time to print its prompt before a command is typed.
+const READY_YOUNG_SESSION_MS = 15_000;
+const READY_QUIET_MS = 300;
+const READY_MAX_WAIT_MS = 5_000;
+const POLL_MS = 50;
+const DEFAULT_IDLE_MS = 400;
+const SEND_KEYS_OUTPUT_CHARS = 16_000;
+const SCREEN_TAIL_LINES = 15;
 
-/** Strip ANSI SGR sequences for pattern matching. */
-function stripAnsiForMatch(s: string): string {
-  return s.replace(/\x1b\[[0-9;]*m/g, '');
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Per-session state for the display filter. */
-interface DisplayFilter {
-  pending: string;
-  timer: ReturnType<typeof setTimeout> | null;
+function commandPreview(command: string): string {
+  const firstLine = command.trim().split('\n')[0] ?? '';
+  return firstLine.length > 80 ? `${firstLine.slice(0, 77)}...` : firstLine;
 }
 
 // ── TerminalManager ──────────────────────────────────────────────────
 
 export class TerminalManager {
   private sessions = new Map<string, SessionEntry>();
-  private displayFilters = new Map<string, DisplayFilter>();
   private getMainWindow: () => BrowserWindow | null;
 
   /**
@@ -94,32 +140,11 @@ export class TerminalManager {
     const id = randomUUID();
     const st: ShellType = parseShellType(shellType);
     const pty = createLocalPty({ shellType: st, cwd: cwd ?? undefined });
-
-    const entry: LocalShellEntry = {
-      kind: 'local',
-      pty,
-      buffer: { lines: [], currentLine: '' },
-      started: false,
-      preStartBuffer: [],
-      _earlyDataDisposable: null,
-    };
-
-    // Buffer data arriving before the renderer calls startReading()
-    entry._earlyDataDisposable = pty.pty.onData((data: string) => {
-      const bytes = Buffer.from(data, 'utf-8');
-      entry.preStartBuffer.push(bytes);
-      this.processData(entry.buffer, bytes);
-    });
-
-    this.sessions.set(id, entry);
+    const entry = this.attachLocal(id, pty, detectShellKind(pty.file));
 
     // Auto-print working directory so the user sees where they are.
     // Injected as synthetic output (not a PTY command) to avoid echo issues.
-    if (cwd) {
-      const cwdMsg = Buffer.from(`${cwd}\r\n`, 'utf-8');
-      entry.preStartBuffer.push(cwdMsg);
-      this.processData(entry.buffer, cwdMsg);
-    }
+    if (cwd) this.ingest(entry, `${cwd}\r\n`, true);
 
     return id;
   }
@@ -131,25 +156,21 @@ export class TerminalManager {
   createAgentTerminal(opts: { command: string; args?: string[]; cwd?: string }): string {
     const id = randomUUID();
     const pty = createLocalPty({ command: opts.command, args: opts.args, cwd: opts.cwd });
+    this.attachLocal(id, pty, 'unknown');
+    return id;
+  }
 
+  private attachLocal(id: string, pty: LocalPty, shellKind: ShellKind): LocalShellEntry {
     const entry: LocalShellEntry = {
       kind: 'local',
       pty,
-      buffer: { lines: [], currentLine: '' },
-      started: false,
-      preStartBuffer: [],
-      _earlyDataDisposable: null,
+      ...this.newState(shellKind),
+      display: new DisplayFilter((text) => this.show(id, entry, text)),
     };
-
-    // Buffer data arriving before the renderer calls startReading()
-    entry._earlyDataDisposable = pty.pty.onData((data: string) => {
-      const bytes = Buffer.from(data, 'utf-8');
-      entry.preStartBuffer.push(bytes);
-      this.processData(entry.buffer, bytes);
-    });
-
+    pty.pty.onData((data: string) => this.ingest(entry, data));
+    pty.pty.onExit(() => this.notifyClosed(entry));
     this.sessions.set(id, entry);
-    return id;
+    return entry;
   }
 
   // ── SSH session ──────────────────────────────────────────────────
@@ -158,15 +179,14 @@ export class TerminalManager {
   async createSshSession(config: SshConfig): Promise<string> {
     const id = randomUUID();
     const session = new SshSession(config);
+    const decoder = new StringDecoder('utf8');
 
     const entry: SshEntry = {
       kind: 'ssh',
       session,
-      buffer: { lines: [], currentLine: '' },
-      started: false,
-      preStartBuffer: [],
-      _earlyDataHandler: null,
       lastError: null,
+      ...this.newState('posix'),
+      display: new DisplayFilter((text) => this.show(id, entry, text)),
     };
 
     // Log SSH errors and capture for disconnect reporting
@@ -175,16 +195,17 @@ export class TerminalManager {
       entry.lastError = err.message;
     });
 
-    // Buffer data arriving before the renderer calls startReading().
-    // Attached BEFORE connect() so MOTD/banner data is never lost.
-    const earlyHandler = (data: Buffer) => {
-      entry.preStartBuffer.push(data);
-      this.processData(entry.buffer, data);
-    };
-    entry._earlyDataHandler = earlyHandler;
-    session.on('data', earlyHandler);
+    // Attached BEFORE connect() so MOTD/banner data is never lost. The decoder
+    // keeps multi-byte characters intact across chunk boundaries.
+    session.on('data', (data: Buffer) => this.ingest(entry, decoder.write(data)));
+    session.on('close', () => this.notifyClosed(entry));
 
-    await session.connect();
+    try {
+      await session.connect();
+    } catch (err) {
+      this.disposeState(entry);
+      throw err;
+    }
 
     this.sessions.set(id, entry);
     return id;
@@ -204,74 +225,22 @@ export class TerminalManager {
     entry.started = true;
 
     if (entry.kind === 'local') {
-      this.attachLocalReader(sessionId, entry);
+      entry.pty.pty.onExit(({ exitCode }) => {
+        this.removeSession(sessionId, entry);
+        this.sendStatus(sessionId, exitCode !== 0 ? `Process exited with code ${exitCode}` : null);
+      });
     } else {
-      this.attachSshReader(sessionId, entry);
-    }
-  }
-
-  private attachLocalReader(id: string, entry: LocalShellEntry): void {
-    // Remove early buffering handler before attaching permanent one (same tick — no gap)
-    if (entry._earlyDataDisposable) {
-      entry._earlyDataDisposable.dispose();
-      entry._earlyDataDisposable = null;
+      entry.session.on('close', () => {
+        this.removeSession(sessionId, entry);
+        this.sendStatus(sessionId, entry.lastError);
+      });
     }
 
-    entry.pty.pty.onData((data: string) => {
-      const bytes = Buffer.from(data, 'utf-8');
-      this.processData(entry.buffer, bytes);
-      this.emitToRenderer(id, bytes);
-    });
-
-    entry.pty.pty.onExit(({ exitCode }) => {
-      this.sessions.delete(id);
-      const win = this.getMainWindow();
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('terminal:status', {
-          sessionId: id,
-          status: 'disconnected',
-          error: exitCode !== 0 ? `Process exited with code ${exitCode}` : null,
-        });
-      }
-    });
-
-    // Replay buffered pre-start data to the renderer
-    for (const chunk of entry.preStartBuffer) {
-      this.emitToRenderer(id, chunk);
+    // Replay display output produced before the renderer was listening
+    for (const chunk of entry.preStartDisplay) {
+      this.emitRaw(sessionId, chunk);
     }
-    entry.preStartBuffer.length = 0;
-  }
-
-  private attachSshReader(id: string, entry: SshEntry): void {
-    // Remove early buffering handler before attaching permanent one (same tick — no gap)
-    if (entry._earlyDataHandler) {
-      entry.session.removeListener('data', entry._earlyDataHandler);
-      entry._earlyDataHandler = null;
-    }
-
-    entry.session.on('data', (data: Buffer) => {
-      this.processData(entry.buffer, data);
-      this.emitToRenderer(id, data);
-    });
-
-    entry.session.on('close', () => {
-      const errorMsg = entry.lastError;
-      this.sessions.delete(id);
-      const win = this.getMainWindow();
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('terminal:status', {
-          sessionId: id,
-          status: 'disconnected',
-          error: errorMsg,
-        });
-      }
-    });
-
-    // Replay buffered pre-start data to the renderer
-    for (const chunk of entry.preStartBuffer) {
-      this.emitToRenderer(id, chunk);
-    }
-    entry.preStartBuffer.length = 0;
+    entry.preStartDisplay.length = 0;
   }
 
   // ── Write / Resize / ReadBuffer / Close ──────────────────────────
@@ -279,6 +248,9 @@ export class TerminalManager {
   write(sessionId: string, data: Uint8Array): void {
     const entry = this.sessions.get(sessionId);
     if (!entry) throw new Error(`Session ${sessionId} not found`);
+
+    // Ctrl+C from anyone (user or agent) may end a running terminal_execute command.
+    if (data.includes(0x03)) entry.exec?.interrupt();
 
     if (entry.kind === 'local') {
       entry.pty.pty.write(Buffer.from(data).toString('utf-8'));
@@ -296,8 +268,10 @@ export class TerminalManager {
     } else {
       entry.session.resize(cols, rows);
     }
+    entry.mirror.resize(cols, rows);
   }
 
+  /** Raw line buffer tail (unfiltered, with escape sequences). Kept for older MCP clients. */
   readBuffer(sessionId: string, lines: number): string {
     const entry = this.sessions.get(sessionId);
     if (!entry) throw new Error(`Session ${sessionId} not found`);
@@ -311,6 +285,11 @@ export class TerminalManager {
     return allLines.slice(start).join('\n');
   }
 
+  /** Plain-text view of what the user's terminal currently shows. */
+  readScreen(sessionId: string, lines: number): Promise<ScreenSnapshot> {
+    return this.requireSession(sessionId).mirror.snapshot(lines);
+  }
+
   close(sessionId: string): void {
     const entry = this.sessions.get(sessionId);
     if (!entry) return; // already gone
@@ -320,11 +299,107 @@ export class TerminalManager {
     } else {
       entry.session.close();
     }
+    this.removeSession(sessionId, entry);
+  }
 
-    this.sessions.delete(sessionId);
-    const filter = this.displayFilters.get(sessionId);
-    if (filter?.timer) clearTimeout(filter.timer);
-    this.displayFilters.delete(sessionId);
+  // ── Agent command execution ──────────────────────────────────────
+
+  /**
+   * Run a command in the session's shell and wait for it to finish.
+   * One command at a time per session; a timed-out command keeps the session
+   * busy until it prints its end marker or is interrupted with Ctrl+C.
+   */
+  async execute(sessionId: string, request: ExecuteRequest): Promise<ExecuteResponse> {
+    const entry = this.requireSession(sessionId);
+    if (entry.exec?.active) throw this.busyError(entry.exec);
+    const family = resolveShellFamily(request.shell, entry.shellKind);
+
+    const id = newMarkerId();
+    const execution: CommandExecution = new CommandExecution(this.execIo(entry), id, request.command, () => {
+      if (entry.exec === execution) entry.exec = null;
+      entry.display.endExec(id);
+    });
+    entry.exec = execution;
+
+    try {
+      const deadline = Date.now() + request.timeoutMs;
+      await entry.mirror.flush();
+      if (entry.mirror.alternateScreen) {
+        throw new TerminalError(
+          'SCREEN_BUSY',
+          'A full-screen program (editor, pager, top, …) is open in this session. ' +
+            'Read it with terminal_read_pane and exit it with terminal_send_keys before running commands.',
+        );
+      }
+      await this.waitForShellReady(entry, deadline);
+
+      const input = planCommandInput(family, request.command, id, entry.mirror.bracketedPasteMode);
+      entry.display.beginExec(id, request.command);
+      const result = await execution.run(input, Math.max(1_000, deadline - Date.now()));
+
+      if (result.started || result.status === 'session_closed') return result;
+      entry.display.endExec(id);
+      const screen = await entry.mirror.snapshot(SCREEN_TAIL_LINES);
+      return { ...result, screen: screen.lines };
+    } catch (err) {
+      if (entry.exec === execution) entry.exec = null;
+      entry.display.endExec(id);
+      throw err;
+    }
+  }
+
+  /**
+   * Send raw input. With `waitMs > 0`, also wait for the output to settle and
+   * return what the session printed in response.
+   */
+  async sendKeys(
+    sessionId: string,
+    data: Uint8Array,
+    opts: { waitMs: number; idleMs?: number },
+  ): Promise<SendKeysResult> {
+    const entry = this.requireSession(sessionId);
+    if (opts.waitMs <= 0) {
+      this.write(sessionId, data);
+      return { bytes_sent: data.length };
+    }
+
+    const idleMs = opts.idleMs ?? DEFAULT_IDLE_MS;
+    const stripper = new AnsiStripper();
+    const capture = new OutputCapture(0, SEND_KEYS_OUTPUT_CHARS);
+    let lastOutputAt = 0;
+    let closed = false;
+    const unsubscribe = this.execIo(entry).subscribe((text) => {
+      const plain = stripper.push(text);
+      if (!plain) return;
+      capture.append(plain);
+      lastOutputAt = Date.now();
+    });
+    const onClose = () => { closed = true; };
+    entry.closeListeners.add(onClose);
+
+    try {
+      this.write(sessionId, data);
+      const deadline = Date.now() + opts.waitMs;
+      while (!closed && Date.now() < deadline) {
+        if (lastOutputAt > 0 && Date.now() - lastOutputAt >= idleMs) break;
+        await delay(POLL_MS);
+      }
+    } finally {
+      unsubscribe();
+      entry.closeListeners.delete(onClose);
+    }
+
+    const captured = capture.render();
+    const result: SendKeysResult = {
+      bytes_sent: data.length,
+      output: captured.text.replace(/^\n/, '').trimEnd(),
+      truncated: captured.truncated,
+    };
+    if (!closed) {
+      const screen = await entry.mirror.snapshot(SCREEN_TAIL_LINES);
+      if (screen.alternateScreen) result.screen = screen.lines;
+    }
+    return result;
   }
 
   // ── Query helpers ────────────────────────────────────────────────
@@ -347,10 +422,131 @@ export class TerminalManager {
 
   // ── Internal helpers ─────────────────────────────────────────────
 
+  private newState(shellKind: ShellKind): Omit<SessionState, 'display'> {
+    const now = Date.now();
+    return {
+      buffer: { lines: [], currentLine: '' },
+      started: false,
+      preStartDisplay: [],
+      mirror: new ScreenMirror(),
+      listeners: new Set(),
+      closeListeners: new Set(),
+      createdAt: now,
+      lastOutputAt: now,
+      outputChars: 0,
+      shellKind,
+      exec: null,
+      closed: false,
+    };
+  }
+
+  private requireSession(sessionId: string): SessionEntry {
+    const entry = this.sessions.get(sessionId);
+    if (!entry) {
+      throw new TerminalError(
+        'SESSION_NOT_FOUND',
+        `Session ${sessionId} not found. It may have been closed; call connection_list for current session ids.`,
+      );
+    }
+    return entry;
+  }
+
+  private execIo(entry: SessionEntry): ExecIo {
+    return {
+      write: (text) => {
+        if (entry.kind === 'local') entry.pty.pty.write(text);
+        else entry.session.write(Buffer.from(text, 'utf-8'));
+      },
+      subscribe: (listener) => {
+        entry.listeners.add(listener);
+        return () => entry.listeners.delete(listener);
+      },
+      onClose: (listener) => {
+        entry.closeListeners.add(listener);
+        return () => entry.closeListeners.delete(listener);
+      },
+    };
+  }
+
+  private busyError(exec: CommandExecution): TerminalError {
+    const seconds = Math.round((Date.now() - exec.startedAt) / 1000);
+    const preview = commandPreview(exec.command);
+    if (exec.detached) {
+      return new TerminalError(
+        'SESSION_BUSY',
+        `The previous command (\`${preview}\`) timed out and is still running (started ${seconds}s ago). ` +
+          'Check it with terminal_read_pane, answer any prompt with terminal_send_keys, ' +
+          'or interrupt it by sending "\\x03" with terminal_send_keys.',
+      );
+    }
+    return new TerminalError(
+      'SESSION_BUSY',
+      `Another terminal_execute call (\`${preview}\`) is still running in this session ` +
+        `(started ${seconds}s ago). Wait for it to return before running the next command.`,
+    );
+  }
+
+  private async waitForShellReady(entry: SessionEntry, deadline: number): Promise<void> {
+    const limit = Math.min(deadline, Date.now() + READY_MAX_WAIT_MS);
+    while (Date.now() < limit) {
+      const young = Date.now() - entry.createdAt < READY_YOUNG_SESSION_MS;
+      const quiet = Date.now() - entry.lastOutputAt >= READY_QUIET_MS;
+      if (entry.outputChars > 0 && (!young || quiet)) return;
+      await delay(POLL_MS);
+    }
+  }
+
+  private ingest(entry: SessionEntry, text: string, synthetic = false): void {
+    if (!text || entry.closed) return;
+    this.processData(entry.buffer, text);
+    if (!synthetic) {
+      entry.lastOutputAt = Date.now();
+      entry.outputChars += text.length;
+    }
+    // Display first, so the filter has consumed an end marker before an
+    // execution that saw it finishes and resets the filter.
+    entry.display.push(text);
+    for (const listener of entry.listeners) listener(text);
+  }
+
+  private show(sessionId: string, entry: SessionEntry, text: string): void {
+    entry.mirror.write(text);
+    if (entry.started) this.emitRaw(sessionId, text);
+    else entry.preStartDisplay.push(text);
+  }
+
+  private notifyClosed(entry: SessionEntry): void {
+    for (const listener of [...entry.closeListeners]) listener();
+  }
+
+  private removeSession(sessionId: string, entry: SessionEntry): void {
+    if (this.sessions.get(sessionId) === entry) this.sessions.delete(sessionId);
+    this.disposeState(entry);
+  }
+
+  private disposeState(entry: SessionEntry): void {
+    entry.closed = true;
+    this.notifyClosed(entry);
+    entry.exec?.dispose();
+    entry.display.dispose();
+    entry.mirror.dispose();
+  }
+
+  private sendStatus(sessionId: string, error: string | null): void {
+    const win = this.getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('terminal:status', {
+        sessionId,
+        status: 'disconnected',
+        error,
+      });
+    }
+  }
+
   /** Append data to a line buffer (matches Rust process_data logic). */
-  private processData(buf: LineBuffer, data: Buffer): void {
+  private processData(buf: LineBuffer, data: string): void {
     // Normalize \r\n to \n so carriage-return doesn't clear the line content
-    const text = data.toString('utf-8').replace(/\r\n/g, '\n');
+    const text = data.replace(/\r\n/g, '\n');
     for (const ch of text) {
       if (ch === '\n') {
         buf.lines.push(buf.currentLine);
@@ -367,82 +563,13 @@ export class TerminalManager {
     }
   }
 
-  /**
-   * Send terminal data to the renderer, filtering out CONDUIT sentinel markers
-   * so the user never sees __CONDUIT_START/END__ lines in the terminal.
-   *
-   * The backend LineBuffer (read by MCP via readBuffer) is NOT filtered,
-   * so the MCP terminal_execute tool can still detect markers.
-   */
-  private emitToRenderer(sessionId: string, data: Buffer): void {
-    const win = this.getMainWindow();
-    if (!win || win.isDestroyed()) return;
-
-    let filter = this.displayFilters.get(sessionId);
-    if (!filter) {
-      filter = { pending: '', timer: null };
-      this.displayFilters.set(sessionId, filter);
-    }
-
-    if (filter.timer) {
-      clearTimeout(filter.timer);
-      filter.timer = null;
-    }
-
-    const text = filter.pending + data.toString('utf-8');
-    filter.pending = '';
-
-    // Split into lines. All parts except the last are terminated by \n.
-    const parts = text.split('\n');
-    const output: string[] = [];
-
-    for (let i = 0; i < parts.length - 1; i++) {
-      const line = parts[i];
-      const stripped = stripAnsiForMatch(line);
-      // Skip lines that are or contain CONDUIT markers
-      if (CONDUIT_MARKER_RE.test(stripped)) continue;
-      output.push(line);
-    }
-
-    // Last part is a potentially incomplete line
-    const tail = parts[parts.length - 1];
-    if (tail) {
-      const stripped = stripAnsiForMatch(tail);
-      if (stripped.startsWith('__CONDUIT_')) {
-        // Hold back — might be an incomplete marker line
-        filter.pending = tail;
-        filter.timer = setTimeout(() => {
-          const f = this.displayFilters.get(sessionId);
-          if (f && f.pending) {
-            this.emitRaw(sessionId, Buffer.from(f.pending, 'utf-8'));
-            f.pending = '';
-          }
-        }, 80);
-      } else {
-        output.push(tail);
-      }
-    }
-
-    // Rejoin with \n (we split on \n so we restore the original newlines
-    // between complete lines; the tail has no trailing \n)
-    const hasCompleteLines = parts.length > 1;
-    if (output.length === 0) return;
-    const joined = output.slice(0, -1).join('\n')
-      + (output.length > 1 ? '\n' : '')
-      + output[output.length - 1]
-      + (hasCompleteLines && output.length > 0 && parts[parts.length - 1] === '' ? '\n' : '');
-
-    if (joined.length === 0) return;
-    this.emitRaw(sessionId, Buffer.from(joined, 'utf-8'));
-  }
-
-  /** Send raw bytes to the renderer without filtering. */
-  private emitRaw(sessionId: string, data: Buffer): void {
+  /** Send display text to the renderer. */
+  private emitRaw(sessionId: string, text: string): void {
     const win = this.getMainWindow();
     if (!win || win.isDestroyed()) return;
     win.webContents.send('terminal:data', {
       sessionId,
-      data: Array.from(data),
+      data: Array.from(Buffer.from(text, 'utf-8')),
     });
   }
 

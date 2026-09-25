@@ -20,6 +20,7 @@ import { RateLimitManager, defaultRateLimits } from './rate-limiter.js';
 import { DailyQuotaManager } from './daily-quota.js';
 import { AuditLogger } from './audit.js';
 import { track } from './analytics.js';
+import { isTextResult } from './tool-result.js';
 
 // Terminal tools
 import {
@@ -424,6 +425,16 @@ async function main(): Promise<void> {
       // ever" counter would require extra state tracking and isn't worth it.
       if (quotaResult.count === 0) {
         track('mcp.first_call', { tier: tier.tier_name, tool: toolName });
+      }
+
+      // Long multi-line text (command output, screens) goes in its own block, unescaped.
+      if (isTextResult(result)) {
+        return {
+          content: [
+            { type: 'text', text: JSON.stringify(result.metadata, null, 2) },
+            { type: 'text', text: result.text },
+          ],
+        };
       }
 
       // If result contains a base64 image, return it as a native MCP image content block.
