@@ -1,16 +1,4 @@
-/**
- * Themed icon system — barrel exports.
- *
- * Components import from here instead of @tabler/icons-react directly.
- * Each export is a React component that renders the correct icon for
- * the active platform theme.
- *
- * Usage:
- *   import { CloseIcon, SettingsIcon } from "../../lib/icons";
- *   <CloseIcon size={14} />
- *   <SettingsIcon size={16} className="text-ink-muted" />
- */
-
+// Components import named icons from here; each renders from the active icon pack.
 import { createThemedIcon } from "./create-themed-icon";
 
 // ── Actions ──
@@ -160,7 +148,44 @@ export const ListNumbersIcon = createThemedIcon("listNumbers");
 export const TableIcon = createThemedIcon("table");
 export const QuoteIcon = createThemedIcon("quote");
 
-// ── Re-exports for type usage ──
-export type { SemanticIconName, IconProps, IconComponent, IconTheme } from "./types";
-export { useIconThemeStore } from "./theme-store";
-export { loadIconPack } from "./loader";
+// ── Layout and chrome ──
+export const MenuIcon = createThemedIcon("menu");
+export const PanelLeftIcon = createThemedIcon("panelLeft");
+export const PanelLeftOffIcon = createThemedIcon("panelLeftOff");
+export const PanelRightIcon = createThemedIcon("panelRight");
+export const PanelRightOffIcon = createThemedIcon("panelRightOff");
+export const SplitHorizontalIcon = createThemedIcon("splitHorizontal");
+export const SplitVerticalIcon = createThemedIcon("splitVertical");
+export const EllipsisIcon = createThemedIcon("ellipsis");
+export const CollapseAllIcon = createThemedIcon("collapseAll");
+export const AccountIcon = createThemedIcon("account");
+export const ExplorerIcon = createThemedIcon("explorer");
+export const CircleFilledIcon = createThemedIcon("circleFilled");
+
+// ── Registry ──
+export { Icon } from "./Icon";
+export type { IconElementProps } from "./Icon";
+export { useIconPackStore, setIconPack, useIconThemeStore } from "./store";
+export type { IconPackState, IconPackStatus } from "./store";
+export { bootIconPack, preloadAllIconPacks, getPackMapping, loadIconPack } from "./loader";
+export { iconToSvg } from "./serialize";
+export { ICON_PACK_LICENSES, THIRD_PARTY_ICON_LICENSES_PATH } from "./licenses";
+export type { IconPackLicense } from "./licenses";
+export {
+  DEFAULT_ICON_PACK,
+  DEFAULT_ICON_SIZE,
+  ICON_PACKS,
+  ICON_PACK_STORAGE_KEY,
+  SEMANTIC_ICON_NAMES,
+  THEME_ICON_DEFAULTS,
+  isIconPackId,
+} from "./types";
+export type {
+  SemanticIconName,
+  IconProps,
+  IconComponent,
+  IconMapping,
+  IconPackId,
+  IconPackInfo,
+  IconTheme,
+} from "./types";

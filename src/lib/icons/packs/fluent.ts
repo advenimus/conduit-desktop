@@ -1,8 +1,3 @@
-/**
- * Windows 11 icon pack — maps semantic names to @fluentui/react-icons.
- * Fluent UI icons are the actual Windows 11 system icons.
- */
-
 import {
   DismissRegular,
   AddRegular,
@@ -111,23 +106,35 @@ import {
   TextNumberListLtrRegular,
   TableRegular,
   TextQuoteRegular,
+  NavigationRegular,
+  PanelLeftFilled,
+  PanelLeftRegular,
+  PanelRightFilled,
+  PanelRightRegular,
+  SplitVerticalRegular,
+  SplitHorizontalRegular,
+  MoreHorizontalRegular,
+  ArrowMinimizeVerticalRegular,
+  PersonCircleRegular,
+  DocumentMultipleRegular,
+  CircleFilled,
 } from "@fluentui/react-icons";
 
-import React from "react";
-import type { IconMapping, IconComponent, IconProps } from "../types";
+import { createElement, memo } from "react";
+import type { FluentIcon } from "@fluentui/react-icons";
+import { iconA11yAttributes } from "../a11y";
+import { DEFAULT_ICON_SIZE, type IconComponent, type IconMapping, type IconProps } from "../types";
 
-/**
- * Fluent icons use `fontSize` and have no stroke prop.
- * This wrapper translates our standard props.
- */
-function wrap(FluentIcon: React.ComponentType<any>): IconComponent {
-  const Wrapped = React.memo(function WrappedFluentIcon(props: IconProps) {
-    return React.createElement(FluentIcon, {
-      style: { fontSize: props.size, ...props.style },
+// Unsized Fluent icons are 1em square, so the font size sets their size.
+function wrap(Glyph: FluentIcon): IconComponent {
+  const Wrapped = memo(function WrappedFluentIcon(props: IconProps) {
+    return createElement(Glyph, {
+      style: { fontSize: props.size ?? DEFAULT_ICON_SIZE, ...props.style },
       className: props.className,
+      ...iconA11yAttributes(props.title),
     });
   });
-  Wrapped.displayName = `Fluent(${FluentIcon.displayName || "icon"})`;
+  Wrapped.displayName = `Fluent(${Glyph.displayName ?? "icon"})`;
   return Wrapped;
 }
 
@@ -276,4 +283,18 @@ export const mapping: IconMapping = {
   listNumbers: wrap(TextNumberListLtrRegular),
   table: wrap(TableRegular),
   quote: wrap(TextQuoteRegular),
+
+  // ── Layout and chrome ──
+  menu: wrap(NavigationRegular),
+  panelLeft: wrap(PanelLeftFilled),
+  panelLeftOff: wrap(PanelLeftRegular),
+  panelRight: wrap(PanelRightFilled),
+  panelRightOff: wrap(PanelRightRegular),
+  splitHorizontal: wrap(SplitVerticalRegular),
+  splitVertical: wrap(SplitHorizontalRegular),
+  ellipsis: wrap(MoreHorizontalRegular),
+  collapseAll: wrap(ArrowMinimizeVerticalRegular),
+  account: wrap(PersonCircleRegular),
+  explorer: wrap(DocumentMultipleRegular),
+  circleFilled: wrap(CircleFilled),
 };

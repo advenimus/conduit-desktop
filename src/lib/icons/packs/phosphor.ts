@@ -1,11 +1,3 @@
-/**
- * macOS Tahoe icon pack — maps semantic names to @phosphor-icons/react.
- * Phosphor icons have an SF Symbols feel: rounded endpoints, variable weight.
- *
- * Phosphor uses a `weight` prop instead of `stroke`. The adapter wrapper
- * in create-themed-icon handles this translation.
- */
-
 import {
   X,
   Plus,
@@ -114,27 +106,40 @@ import {
   ListNumbers,
   Table,
   Quotes,
+  ArrowsInLineVertical,
+  Circle,
+  DotsThree,
+  Files,
+  List,
+  SidebarSimple,
+  SquareSplitHorizontal,
+  SquareSplitVertical,
+  UserCircle,
 } from "@phosphor-icons/react";
 
-import React from "react";
-import type { IconMapping, IconComponent, IconProps } from "../types";
+import { createElement, memo } from "react";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { iconA11yAttributes } from "../a11y";
+import { DEFAULT_ICON_SIZE, type IconComponent, type IconMapping, type IconProps } from "../types";
 
-/**
- * Phosphor icons use `weight` instead of `stroke`.
- * This wrapper translates our standard props.
- */
-function wrap(PhosphorIcon: React.ComponentType<any>, weight: "regular" | "fill" = "regular"): IconComponent {
-  const Wrapped = React.memo(function WrappedPhosphorIcon(props: IconProps) {
-    return React.createElement(PhosphorIcon, {
-      size: props.size,
+type Weight = "regular" | "fill";
+
+function wrap(Glyph: PhosphorIcon, weight: Weight = "regular", options: { mirrored?: boolean } = {}): IconComponent {
+  const Wrapped = memo(function WrappedPhosphorIcon(props: IconProps) {
+    return createElement(Glyph, {
+      size: props.size ?? DEFAULT_ICON_SIZE,
       weight,
+      mirrored: options.mirrored,
       className: props.className,
       style: props.style,
+      ...iconA11yAttributes(props.title),
     });
   });
-  Wrapped.displayName = `Phosphor(${PhosphorIcon.displayName || "icon"})`;
+  Wrapped.displayName = `Phosphor(${Glyph.displayName ?? "icon"})`;
   return Wrapped;
 }
+
+const mirrored = { mirrored: true };
 
 export const mapping: IconMapping = {
   // ── Actions ──
@@ -251,7 +256,7 @@ export const mapping: IconMapping = {
   // ── Media / Controls ──
   playerPlay: wrap(Play),
   playerStop: wrap(Stop),
-  playerStopFilled: wrap(Stop),
+  playerStopFilled: wrap(Stop, "fill"),
   playerSkipForward: wrap(SkipForward),
 
   // ── Input ──
@@ -281,4 +286,18 @@ export const mapping: IconMapping = {
   listNumbers: wrap(ListNumbers),
   table: wrap(Table),
   quote: wrap(Quotes),
+
+  // ── Layout and chrome ──
+  menu: wrap(List),
+  panelLeft: wrap(SidebarSimple, "fill"),
+  panelLeftOff: wrap(SidebarSimple),
+  panelRight: wrap(SidebarSimple, "fill", mirrored),
+  panelRightOff: wrap(SidebarSimple, "regular", mirrored),
+  splitHorizontal: wrap(SquareSplitHorizontal),
+  splitVertical: wrap(SquareSplitVertical),
+  ellipsis: wrap(DotsThree),
+  collapseAll: wrap(ArrowsInLineVertical),
+  account: wrap(UserCircle),
+  explorer: wrap(Files),
+  circleFilled: wrap(Circle, "fill"),
 };
