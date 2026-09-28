@@ -1,14 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseCssColor, resolveCssColor } from "../resolveCssColor";
 
-/** jsdom does not resolve var(), so the probe's computed color is stubbed per token. */
+/**
+ * jsdom does not resolve var(), so the probe's computed color is stubbed per token. A token the stub does
+ * not know behaves as in Chromium: color is invalid at computed-value time and inherits the parent's color
+ * (the <html> default when the parent sets none).
+ */
 function stubComputedColors(colors: Record<string, string>): void {
   const real = window.getComputedStyle.bind(window);
   vi.spyOn(window, "getComputedStyle").mockImplementation((element: Element, pseudo?: string | null) => {
     const style = (element as HTMLElement).style;
     const token = style?.color?.match(/^var\((--c-[\w-]+)\)$/)?.[1];
     if (!token) return real(element, pseudo);
-    return { color: colors[token] ?? "" } as CSSStyleDeclaration;
+    const inherited = (element.parentElement as HTMLElement | null)?.style.color || "rgb(0, 0, 0)";
+    return { color: colors[token] ?? inherited } as CSSStyleDeclaration;
   });
 }
 
@@ -58,8 +63,18 @@ describe("resolveCssColor", () => {
     expect(document.documentElement.childElementCount).toBe(before);
   });
 
-  it("throws a clear error when the token does not resolve to a color", () => {
-    stubComputedColors({});
+  it("throws a clear error when the token is undeclared, instead of returning the inherited color", () => {
+    stubComputedColors({ "--c-shell": "rgb(25, 26, 27)" });
     expect(() => resolveCssColor("--c-missing")).toThrow(/--c-missing/);
+  });
+
+  it("throws when the translucent token resolves but its backdrop token is undeclared", () => {
+    stubComputedColors({ "--c-hover": "rgba(255, 255, 255, 0.5)" });
+    expect(() => resolveCssColor("--c-hover", "--c-missing")).toThrow(/--c-missing/);
+  });
+
+  it("still resolves a real token equal to the html default color", () => {
+    stubComputedColors({ "--c-ink": "rgb(0, 0, 0)" });
+    expect(resolveCssColor("--c-ink")).toBe("#000000");
   });
 });

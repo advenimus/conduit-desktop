@@ -42,21 +42,34 @@ export function parseCssColor(text: string): Rgba | null {
   return null;
 }
 
+/**
+ * An undeclared token, or one that is not a color, makes `color: var(token)` invalid at computed-value
+ * time, and Chromium then inherits the parent's color instead of failing. The probe's parent carries this
+ * sentinel so that case is detectable.
+ */
+const SENTINEL = { css: "rgba(1, 2, 3, 0.5)", r: 1, g: 2, b: 3, a: 0.5 } as const;
+
+function isSentinel(c: Rgba): boolean {
+  return c.r === SENTINEL.r && c.g === SENTINEL.g && c.b === SENTINEL.b && Math.abs(c.a - SENTINEL.a) < 0.01;
+}
+
 function probe(token: ColorToken): Rgba {
-  const host = document.documentElement;
+  const host = document.createElement("span");
+  host.style.position = "absolute";
+  host.style.visibility = "hidden";
+  host.style.pointerEvents = "none";
+  host.style.color = SENTINEL.css;
   const span = document.createElement("span");
-  span.style.position = "absolute";
-  span.style.visibility = "hidden";
-  span.style.pointerEvents = "none";
   span.style.color = `var(${token})`;
   host.appendChild(span);
+  document.documentElement.appendChild(host);
   try {
     const computed = window.getComputedStyle(span).color;
     const parsed = parseCssColor(computed);
-    if (!parsed) throw new Error(`${token} does not resolve to a color (got "${computed}")`);
+    if (!parsed || isSentinel(parsed)) throw new Error(`${token} is not declared or does not resolve to a color (got "${computed}")`);
     return parsed;
   } finally {
-    span.remove();
+    host.remove();
   }
 }
 

@@ -693,7 +693,7 @@ Unregistered custom properties are returned by `getComputedStyle` as their speci
 export function resolveCssColor(token: `--c-${string}`, over?: `--c-${string}`): string;
 ```
 
-Implementation: a hidden `<span>` with `color: var(<token>)`, read `getComputedStyle(span).color`, parse `rgb()`, `rgba()` and `color(srgb r g b / a)` (the forms Chromium serializes), composite alpha over `over` (default `--c-shell`), return `#rrggbb`. Unit tests cover all three input forms.
+Implementation: a hidden `<span>` with `color: var(<token>)`, read `getComputedStyle(span).color`, parse `rgb()`, `rgba()` and `color(srgb r g b / a)` (the forms Chromium serializes), composite alpha over `over` (default `--c-shell`), return `#rrggbb`. Unit tests cover all three input forms. An undeclared or misspelled token (or one that is not a color) does not fail by itself in Chromium: `color` is invalid at computed-value time and inherits the parent's color. So the probe sits inside a parent with a sentinel color (`rgba(1, 2, 3, 0.5)`), and a result equal to the sentinel throws [V Electron 44 probe, wave 1 review].
 
 Callers: `terminalTheme.ts` (replaces `cssVar` + `hexToRgba`, `terminalTheme.ts:6-21`, which break on non-hex tokens [V]); `utils/contextMenu.ts` (popup colors); the title bar color sync (`window_chrome_update`, sent only by `src/lib/window-chrome.ts`, 3.2 and 7.2).
 

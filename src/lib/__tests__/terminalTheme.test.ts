@@ -8,7 +8,9 @@ function stubComputedColors(colors: Record<string, string>): void {
   vi.spyOn(window, "getComputedStyle").mockImplementation((element: Element, pseudo?: string | null) => {
     const token = (element as HTMLElement).style?.color?.match(/^var\((--c-[\w-]+)\)$/)?.[1];
     if (!token) return real(element, pseudo);
-    return { color: colors[token] ?? "" } as CSSStyleDeclaration;
+    // Like Chromium: an unknown token inherits the parent's color.
+    const inherited = (element.parentElement as HTMLElement | null)?.style.color || "rgb(0, 0, 0)";
+    return { color: colors[token] ?? inherited } as CSSStyleDeclaration;
   });
 }
 
