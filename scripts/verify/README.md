@@ -623,9 +623,12 @@ every run uses `--strict`. The clone's selectors are named only in `lib/clone-se
 [data-cv-choice]`), dark and light: the card is picked (live preview) and the tab captured, Save, then
 the side bar, the tab bars, the tree entry menu, the four test toasts and the credential picker window
 (opened through its global shortcut); `<html data-cv-icon-pack>` must equal the pack in the main,
-overlay and picker windows and the menu's Edit icon must differ between packs. One sheet per mode goes
-to `restyle/packs/`, then the device restarts and the saved pack must still apply. Until the picker
-exists the scenario reports `pending`.
+overlay and picker windows and the menu's Edit icon must differ between packs. The picker window's
+icon markup is compared across the packs too: it passes when all six differ, and reports `deferred`
+when all six are the same (the picker's own inline SVGs, until R3-PICKER moves it onto the icon
+registry); a deferred result is listed but never fails, not even with `--strict`. One sheet per mode
+goes to `restyle/packs/`, then the device restarts and the saved pack must still apply. Until the pack
+picker exists the scenario reports `pending`.
 
 **Owner gates** (8.5): gate 1 (R1-MENUS) approves the pack sheets; gate 2 (R2-SHELL) the composites of
 shots 04 to 10b, 18, 19, 21 and 44 to 49; gate 3 (R4-CLEANUP) every composite, dark and light.

@@ -268,3 +268,25 @@ export async function iconPackAttributes(device) {
   }
   return out;
 }
+
+/** The markup of every icon the picker window draws, joined, or null when no picker is open (packs scenario). */
+export async function pickerIconMarkup(device) {
+  const page = childPage(device, 'picker');
+  if (!page) return null;
+  return withTimeout(page.evaluate(() => [...document.querySelectorAll('svg')].map((svg) => svg.outerHTML).join('\n')), 5_000, `${device.name}: picker icons`).catch(() => null);
+}
+
+/**
+ * The picker window's icons across the packs (spec 8.6): a different markup for every pack passes.
+ * The same markup in every pack is the picker's own inline SVGs, which R3-PICKER replaces with
+ * registry icons, so the check is deferred until then; anything in between fails.
+ */
+export function pickerGlyphResult(markups) {
+  const rule = 'packs';
+  const unread = markups.filter((m) => !m).length;
+  if (unread > 0) return { rule, status: 'fail', detail: `no icons read in the picker window for ${unread} of ${markups.length} packs` };
+  const distinct = new Set(markups).size;
+  if (distinct === markups.length) return { rule, status: 'pass', detail: `${distinct} distinct picker icon sets for ${markups.length} packs` };
+  if (distinct === 1) return { rule, status: 'deferred', detail: 'the picker draws the same inline SVGs in every pack until R3-PICKER moves it onto the icon registry' };
+  return { rule, status: 'fail', detail: `${distinct} distinct picker icon sets for ${markups.length} packs` };
+}

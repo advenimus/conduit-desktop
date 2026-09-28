@@ -21,6 +21,8 @@ import {
   menuItemIcon,
   openMenu,
   openPicker,
+  pickerGlyphResult,
+  pickerIconMarkup,
   referenceMain,
   regions,
   showReferenceToasts,
@@ -170,11 +172,12 @@ async function capturePackRow(device, dir, pack, rs, mode) {
   const withPicker = await captureWindow(device, file('picker-full'), { overlays: ['picker'] });
   shots.picker = await cropCapture(withPicker, await childWindowRegion(device, 'picker', { padX: 0, padY: 0, zoom: 1 }), file('picker'));
   const pickerPack = (await iconPackAttributes(device)).picker;
+  const pickerIcons = await pickerIconMarkup(device);
   await closePicker(device);
   for (const f of ['full', 'menu-full', 'toast-full', 'picker-full']) fs.rmSync(file(f), { force: true });
   const ok = overlayPack === pack && pickerPack === pack && Boolean(editIcon);
   rs.record(mode, `pack ${pack}`, { rule: 'packs', status: ok ? 'pass' : 'fail', detail: `main ${pack}, overlay ${overlayPack}, picker ${pickerPack}, menu Edit icon ${editIcon ? 'present' : 'missing'}` });
-  return { shots, editIcon };
+  return { shots, editIcon, pickerIcons };
 }
 
 async function packsMode(ctx, mode, rs, { testSite }) {
@@ -199,6 +202,7 @@ async function packsMode(ctx, mode, rs, { testSite }) {
   }
   const icons = new Set(columns.map((c) => c.editIcon));
   rs.record(mode, 'menu icons', { rule: 'packs', status: icons.size === columns.length ? 'pass' : 'fail', detail: `${icons.size} distinct Edit icons for ${columns.length} packs` });
+  rs.record(mode, 'picker icons', pickerGlyphResult(columns.map((c) => c.pickerIcons)));
   const rows = PICKER_ROWS.map((row) => columns.map((c) => ({ file: c.shots[row], label: `${c.pack} ${row}` })));
   const sheet = await writeSheet(rows, path.join(dir, `${mode}-packs.png`), { title: `Icon packs, ${mode}: ${packs.join(', ')}` });
   ctx.step(`packs sheet ${path.relative(ctx.run.runDir, sheet)}`);

@@ -42,6 +42,7 @@ type FakePage = { url(): string; evaluate(fn: unknown): Promise<unknown> };
 const flows = (await import('../verify/lib/restyle-flows.mjs' as string)) as {
   lookSettings(mode: string, env: Record<string, string | undefined>): Record<string, unknown>;
   iconPackAttributes(device: { name: string; page: FakePage; app: { windows(): FakePage[] } }): Promise<Record<string, string | null>>;
+  pickerGlyphResult(markups: (string | null)[]): RuleResult;
 };
 const capture = (await import('../verify/lib/window-capture.mjs' as string)) as { windowRole(url: string, origin: string): string };
 
@@ -559,5 +560,28 @@ describe('app windows and web sessions', () => {
     expect(await flows.iconPackAttributes(device)).toEqual({ main: 'lucide', overlay: 'lucide' });
     const picker = { ...device, app: { windows: () => [page('http://127.0.0.1:54803/', null), main, page(`${DEV}/picker.html`, 'hugeicons')] } };
     expect(await flows.iconPackAttributes(picker)).toEqual({ main: 'lucide', picker: 'hugeicons' });
+  });
+});
+
+describe('the picker icon check of the packs scenario', () => {
+  const six = (make: (i: number) => string | null) => Array.from({ length: 6 }, (_, i) => make(i));
+
+  it('passes six different icon sets, defers one set for all packs, and fails anything else', () => {
+    expect(flows.pickerGlyphResult(six((i) => `<svg id="${i}"></svg>`)).status).toBe('pass');
+    const same = flows.pickerGlyphResult(six(() => '<svg></svg>'));
+    expect(same.status).toBe('deferred');
+    expect(same.detail).toMatch(/R3-PICKER/);
+    expect(flows.pickerGlyphResult(six((i) => `<svg id="${i % 3}"></svg>`)).status).toBe('fail');
+    expect(flows.pickerGlyphResult(six((i) => (i === 2 ? null : `<svg id="${i}"></svg>`))).status).toBe('fail');
+  });
+
+  it('lists a deferred result without counting it, even with --strict', () => {
+    const entries = [{ screen: 'dark picker icons', results: [{ rule: 'packs', status: 'deferred', detail: 'until R3-PICKER' }] }];
+    for (const strict of [false, true]) {
+      const summary = geo.summarizeRules(entries, { strict });
+      expect(summary.failed).toBe(0);
+      expect(summary.pending).toBe(0);
+      expect(summary.lines).toEqual(['dark picker icons  packs  DEFERRED  until R3-PICKER']);
+    }
   });
 });

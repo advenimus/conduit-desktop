@@ -283,7 +283,8 @@ export async function evaluateRules(device, { webSession = false } = {}) {
 
 /**
  * Folds rule results into {failed, pending, lines}: a fail always counts, a pending counts as a
- * failure only with strict.
+ * failure only with strict. A deferred result (a check a named later package turns on, such as the
+ * packs scenario's picker icons before R3-PICKER) is listed and never counts.
  */
 export function summarizeRules(entries, { strict = false } = {}) {
   const lines = [];
