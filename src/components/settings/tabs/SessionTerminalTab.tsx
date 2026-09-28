@@ -1,6 +1,8 @@
 import type { TabProps } from "../SettingsHelpers";
 import type { TerminalGlobalDefaults } from "../../../types/entry";
 import { HARDCODED_TERMINAL_DEFAULTS } from "../../../types/entry";
+import { Checkbox, FormField, Select, Slider, TextInput } from "../../ui";
+import { HINT, SECTION_LABEL } from "../settings-styles";
 
 export default function SessionTerminalTab({ settings, setSettings }: TabProps) {
   const defaults = settings.session_defaults_terminal ?? { ...HARDCODED_TERMINAL_DEFAULTS };
@@ -14,53 +16,37 @@ export default function SessionTerminalTab({ settings, setSettings }: TabProps) 
 
   return (
     <div className="space-y-4">
-      {/* Default Shell (existing) */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Default Shell</label>
-        <select
-          value={settings.default_shell}
-          onChange={(e) => setSettings({ ...settings, default_shell: e.target.value })}
-          className="w-full px-3 py-2 bg-well border border-stroke rounded"
-        >
+      <FormField label="Default Shell" description="Shell used when opening new local terminal sessions.">
+        <Select value={settings.default_shell} onChange={(e) => setSettings({ ...settings, default_shell: e.target.value })}>
           <option value="default">System Default</option>
           <option value="bash">Bash</option>
           <option value="zsh">Zsh</option>
           <option value="powershell">PowerShell</option>
-        </select>
-        <p className="text-xs text-ink-muted mt-1">
-          Shell used when opening new local terminal sessions.
-        </p>
-      </div>
+        </Select>
+      </FormField>
 
-      <div className="border-t border-stroke pt-4">
-        <p className="text-xs text-ink-muted mb-4">
+      <div className="space-y-4 border-t border-divider pt-4">
+        <p className={HINT}>
           Default settings for all terminal sessions. SSH sessions inherit these values.
         </p>
 
-        {/* Font Size */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">
-            Font Size <span className="text-ink-muted font-normal">({defaults.fontSize}px)</span>
+        <div>
+          <label htmlFor="terminal-font-size" className={`${SECTION_LABEL} mb-1`}>
+            Font Size <span className="font-normal text-ink-muted">({defaults.fontSize}px)</span>
           </label>
-          <input
-            type="range"
+          <Slider
+            id="terminal-font-size"
             min={8}
             max={32}
             step={1}
             value={defaults.fontSize}
             onChange={(e) => updateTerminal({ fontSize: parseInt(e.target.value) })}
-            className="w-full accent-conduit-500"
+            marks={["8px", "", "32px"]}
           />
-          <div className="flex justify-between text-[10px] text-ink-faint mt-0.5">
-            <span>8px</span>
-            <span>32px</span>
-          </div>
         </div>
 
-        {/* Scrollback Buffer */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Scrollback Buffer</label>
-          <input
+        <FormField label="Scrollback Buffer" description="Number of lines to keep in the scroll history (100 – 100,000).">
+          <TextInput
             type="number"
             min={100}
             max={100000}
@@ -72,23 +58,12 @@ export default function SessionTerminalTab({ settings, setSettings }: TabProps) 
                 updateTerminal({ scrollback: Math.max(100, Math.min(100000, val)) });
               }
             }}
-            className="w-full px-3 py-2 bg-well border border-stroke rounded"
           />
-          <p className="text-xs text-ink-muted mt-1">
-            Number of lines to keep in the scroll history (100 – 100,000).
-          </p>
-        </div>
+        </FormField>
 
-        {/* Cursor Blink */}
-        <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-          <input
-            type="checkbox"
-            checked={defaults.cursorBlink}
-            onChange={(e) => updateTerminal({ cursorBlink: e.target.checked })}
-            className="rounded border-stroke-dim bg-well text-conduit-500 focus:ring-conduit-500"
-          />
+        <Checkbox checked={defaults.cursorBlink} onChange={(cursorBlink) => updateTerminal({ cursorBlink })}>
           Cursor Blink
-        </label>
+        </Checkbox>
       </div>
     </div>
   );

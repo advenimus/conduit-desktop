@@ -1,4 +1,6 @@
 import { DeviceMobileIcon } from "../../../lib/icons";
+import { SectionHeader } from "../../ui";
+import { HINT } from "../settings-styles";
 
 /** Apple logo SVG. */
 function AppleIcon({ size, className }: { size: number; className?: string }) {
@@ -17,8 +19,7 @@ function AppleIcon({ size, className }: { size: number; className?: string }) {
 }
 
 /**
- * Pre-generated QR code for the App Store listing.
- * URL: https://apps.apple.com/app/id6760924705
+ * Pre-generated QR code for the App Store listing (app id 6760924705).
  * Uses currentColor stroke so it adapts to light/dark themes.
  */
 function AppStoreQrCode({ className }: { className?: string }) {
@@ -42,43 +43,35 @@ function AppStoreQrCode({ className }: { className?: string }) {
 export default function MobileTab() {
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-semibold mb-1">Conduit Mobile</h3>
-        <p className="text-xs text-ink-muted">
-          Access your vault on the go with Conduit for iOS and iPadOS.
-        </p>
-      </div>
+      <SectionHeader title="Conduit Mobile" description="Access your vault on the go with Conduit for iOS and iPadOS." />
 
       {/* App Store card */}
-      <div className="rounded-lg border border-stroke overflow-hidden">
-        <div className="p-5 flex items-center gap-5 bg-raised/50">
-          {/* QR Code */}
-          <div className="shrink-0 p-2 bg-white rounded-lg">
-            <AppStoreQrCode className="w-28 h-28 text-black" />
+      <div className="overflow-hidden rounded-md border border-card-border">
+        <div className="flex items-center gap-5 bg-well p-5">
+          <div className="shrink-0 rounded-md bg-white p-2">
+            <AppStoreQrCode className="h-28 w-28 text-black" />
           </div>
 
-          {/* Info */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-conduit-500 to-conduit-700 flex items-center justify-center shadow-sm shrink-0">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-(--c-accent)">
                 <DeviceMobileIcon size={20} className="text-white" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-ink">Conduit</p>
-                <p className="text-xs text-ink-muted">iPhone & iPad</p>
+                <p className="text-body font-semibold text-ink">Conduit</p>
+                <p className={HINT}>iPhone & iPad</p>
               </div>
             </div>
 
-            <p className="text-xs text-ink-muted leading-relaxed">
+            <p className={`leading-relaxed ${HINT}`}>
               Scan the QR code with your device camera to download from the App Store.
             </p>
-
           </div>
         </div>
 
-        <div className="px-4 py-3 border-t border-stroke flex items-start gap-2.5">
-          <AppleIcon size={16} className="text-ink-muted shrink-0 mt-0.5" />
-          <p className="text-xs text-ink-muted leading-relaxed">
+        <div className="flex items-start gap-2.5 border-t border-card-border px-4 py-3">
+          <AppleIcon size={16} className="mt-0.5 shrink-0 text-ink-muted" />
+          <p className={`leading-relaxed ${HINT}`}>
             Keep your vault file in iCloud Drive, OneDrive, or Dropbox to use it on all your devices. Conduit merges the changes from each one. On the Free plan a vault can be open on one device at a time.
           </p>
         </div>

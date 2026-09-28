@@ -2,6 +2,8 @@ import type { TabProps } from "../SettingsHelpers";
 import type { WebGlobalDefaults, WebEngineType } from "../../../types/entry";
 import { HARDCODED_WEB_DEFAULTS } from "../../../types/entry";
 import { WEB_ENGINE_OPTIONS } from "../../../lib/sessionOptions";
+import { Checkbox, FormField, Select } from "../../ui";
+import { HINT } from "../settings-styles";
 
 export default function SessionWebTab({ settings, setSettings }: TabProps) {
   const isWindows = navigator.userAgent.includes("Windows");
@@ -19,56 +21,40 @@ export default function SessionWebTab({ settings, setSettings }: TabProps) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-ink-muted">
+      <p className={HINT}>
         Default settings for all web sessions. Individual entries can override these.
       </p>
 
-      {/* Autofill Enabled */}
-      <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-        <input
-          type="checkbox"
-          checked={defaults.autofillEnabled}
-          onChange={(e) => update({ autofillEnabled: e.target.checked })}
-          className="rounded border-stroke-dim bg-well text-conduit-500 focus:ring-conduit-500"
-        />
-        Enable Autofill
-      </label>
-      <p className="text-xs text-ink-muted -mt-2 ml-6">
-        Show an autofill button in web sessions to fill login forms with entry credentials.
-      </p>
+      <div>
+        <Checkbox checked={defaults.autofillEnabled} onChange={(autofillEnabled) => update({ autofillEnabled })}>
+          Enable Autofill
+        </Checkbox>
+        <p className={`ml-[26px] mt-0.5 ${HINT}`}>
+          Show an autofill button in web sessions to fill login forms with entry credentials.
+        </p>
+      </div>
 
-      {/* Ignore Certificate Errors */}
-      <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-        <input
-          type="checkbox"
-          checked={defaults.ignoreCertErrors}
-          onChange={(e) => update({ ignoreCertErrors: e.target.checked })}
-          className="rounded border-stroke-dim bg-well text-conduit-500 focus:ring-conduit-500"
-        />
-        Ignore Certificate Errors
-      </label>
-      <p className="text-xs text-ink-muted -mt-2 ml-6">
-        Trust self-signed or expired SSL certificates for all web sessions by default.
-      </p>
+      <div>
+        <Checkbox checked={defaults.ignoreCertErrors} onChange={(ignoreCertErrors) => update({ ignoreCertErrors })}>
+          Ignore Certificate Errors
+        </Checkbox>
+        <p className={`ml-[26px] mt-0.5 ${HINT}`}>
+          Trust self-signed or expired SSL certificates for all web sessions by default.
+        </p>
+      </div>
 
-      {/* Browser Engine — Windows only */}
+      {/* Browser Engine: Windows only */}
       {isWindows && (
-        <div>
-          <label className="block text-sm font-medium mb-1">Browser Engine</label>
-          <select
-            value={defaults.engine}
-            onChange={(e) => update({ engine: e.target.value as WebEngineType })}
-            className="w-full px-3 py-2 bg-well border border-stroke rounded"
-          >
+        <FormField
+          label="Browser Engine"
+          description="Edge engine enables Windows integrated authentication for Microsoft 365 and domain SSO. Individual connections can override this in their Security settings."
+        >
+          <Select value={defaults.engine} onChange={(e) => update({ engine: e.target.value as WebEngineType })}>
             {WEB_ENGINE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
-          </select>
-          <p className="text-xs text-ink-muted mt-1">
-            Edge engine enables Windows integrated authentication for Microsoft 365 and domain SSO.
-            Individual connections can override this in their Security settings.
-          </p>
-        </div>
+          </Select>
+        </FormField>
       )}
     </div>
   );

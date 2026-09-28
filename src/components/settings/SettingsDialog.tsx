@@ -22,11 +22,15 @@ import { HARDCODED_RDP_DEFAULTS, HARDCODED_WEB_DEFAULTS, HARDCODED_TERMINAL_DEFA
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useEntryStore } from "../../stores/entryStore";
-import { CloseIcon, DEFAULT_ICON_PACK } from "../../lib/icons";
+import { DEFAULT_ICON_PACK } from "../../lib/icons";
+import { Button, Callout, Dialog, DialogFooter, DialogHeader } from "../ui";
 import type { ThemeChangeDetail } from "../../lib/appearance/useAppearance";
 import { mergeChangedSettings } from "./settings-merge";
 
 export type { SettingsTab } from "./SettingsHelpers";
+
+/** Today's max-w-3xl (spec 4.8, D-18). */
+const SETTINGS_WIDTH = 768;
 
 interface SettingsDialogProps {
   onClose: () => void;
@@ -147,10 +151,6 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
     }
   }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") handleCancel();
-  };
-
   const renderTab = () => {
     switch (activeTab) {
       case "general":
@@ -188,55 +188,27 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
   };
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
-      onKeyDown={handleKeyDown}
-    >
-      <div data-dialog-content className="w-full max-w-3xl bg-panel rounded-lg shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-          <h2 className="text-lg font-semibold">Settings</h2>
-          <button
-            onClick={handleCancel}
-            className="p-1 hover:bg-raised rounded"
-          >
-            <CloseIcon size={20} />
-          </button>
-        </div>
-
-        <div className="flex h-[500px]">
-          {/* Sidebar */}
-          <SettingsNav activeTab={activeTab} onTabChange={setActiveTab} />
-
-          {/* Content */}
-          <div className="flex-1 p-4 overflow-y-auto">
-            {renderTab()}
-
-            {error && (
-              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded">
-                <p className="text-sm text-red-400">{error}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-stroke">
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 text-sm hover:bg-raised rounded"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-2 text-sm text-white bg-conduit-600 hover:bg-conduit-700 disabled:opacity-50 rounded"
-          >
-            {isSaving ? "Saving..." : "Save"}
-          </button>
+    <Dialog open onClose={handleCancel} title="Settings" width={SETTINGS_WIDTH} layout="custom" data-cv-settings="">
+      <DialogHeader />
+      <div className="flex h-[500px] min-h-0 border-y border-divider">
+        <SettingsNav activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="min-w-0 flex-1 overflow-y-auto p-4 text-body text-ink-secondary">
+          {renderTab()}
+          {error && (
+            <Callout tone="danger" className="mt-4">
+              {error}
+            </Callout>
+          )}
         </div>
       </div>
-    </div>
+      <DialogFooter>
+        <Button variant="secondary" onClick={handleCancel}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSave} loading={isSaving} loadingLabel="Saving...">
+          Save
+        </Button>
+      </DialogFooter>
+    </Dialog>
   );
 }
