@@ -13,7 +13,7 @@ import {
 import { useSessionStore, type SessionType } from "../../stores/sessionStore";
 import { useLayoutStore, findLeaf } from "../../stores/layoutStore";
 import { useEntryStore } from "../../stores/entryStore";
-import { useSidebarStore } from "../../stores/sidebarStore";
+import { useSidebarStore, selectIsDockedOpen } from "../../stores/sidebarStore";
 import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import { showContextMenu, type PopupMenuItem } from "../../utils/contextMenu";
 import { invoke } from "../../lib/electron";
@@ -325,34 +325,37 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
     setDropIndex(null);
   };
 
-  const { isExpanded: sidebarExpanded, expand: expandSidebar } = useSidebarStore();
-  const sidebarActive = sidebarExpanded;
+  const sidebarActive = useSidebarStore((s) => s.isExpanded);
+  const sidebarDockedOpen = useSidebarStore(selectIsDockedOpen);
+  const expandSidebar = useSidebarStore((s) => s.expand);
 
   return (
     <div data-tabbar className="flex items-center h-9 bg-panel border-b border-stroke min-w-0 relative overflow-hidden">
 
-      {/* Sidebar toggle — hamburger (invisible when sidebar open to keep spacing, visible when closed) */}
-      <button
-        onClick={() => {
-          if (sidebarActive) {
-            document.dispatchEvent(new CustomEvent("conduit:animated-collapse"));
-          } else {
-            expandSidebar();
-          }
-        }}
-        className={`flex items-center justify-center w-11 h-full flex-shrink-0 border-r border-stroke transition-colors duration-200 ${
-          sidebarActive
-            ? "text-transparent cursor-default"
-            : "text-ink-muted hover:text-ink hover:bg-raised"
-        }`}
-        title={sidebarActive ? "Close sidebar (Ctrl+B)" : "Open sidebar (Ctrl+B)"}
-      >
-        <div className={`flex flex-col items-center justify-center gap-[4px] transition-opacity duration-200 ${sidebarActive ? "opacity-0" : "opacity-100"}`}>
-          <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
-          <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
-          <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
-        </div>
-      </button>
+      {/* Sidebar toggle — hamburger (invisible spacer under a floating sidebar, removed while docked) */}
+      {!sidebarDockedOpen && (
+        <button
+          onClick={() => {
+            if (sidebarActive) {
+              document.dispatchEvent(new CustomEvent("conduit:animated-collapse"));
+            } else {
+              expandSidebar();
+            }
+          }}
+          className={`flex items-center justify-center w-11 h-full flex-shrink-0 border-r border-stroke transition-colors duration-200 ${
+            sidebarActive
+              ? "text-transparent cursor-default"
+              : "text-ink-muted hover:text-ink hover:bg-raised"
+          }`}
+          title={sidebarActive ? "Close sidebar (Ctrl+B)" : "Open sidebar (Ctrl+B)"}
+        >
+          <div className={`flex flex-col items-center justify-center gap-[4px] transition-opacity duration-200 ${sidebarActive ? "opacity-0" : "opacity-100"}`}>
+            <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
+            <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
+            <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
+          </div>
+        </button>
+      )}
 
       {/* Tabs */}
       <div

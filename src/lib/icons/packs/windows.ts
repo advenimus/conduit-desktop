@@ -69,6 +69,7 @@ import {
   StarRegular,
   StarFilled,
   PinRegular,
+  PinFilled,
   DatabaseRegular,
   CalendarRegular,
   ClockRegular,
@@ -213,7 +214,8 @@ export const mapping: IconMapping = {
   // ── Favorites ──
   star: wrap(StarRegular),
   starFilled: wrap(StarFilled),
-  pinFilled: wrap(PinRegular),
+  pin: wrap(PinRegular),
+  pinFilled: wrap(PinFilled),
 
   // ── Data ──
   database: wrap(DatabaseRegular),
