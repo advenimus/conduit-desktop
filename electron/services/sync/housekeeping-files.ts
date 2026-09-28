@@ -3,7 +3,7 @@
  * injection: kill -9 during a publish, ENOSPC): leftovers in a lineage's tmp/ (VACUUM INTO
  * snapshots, baseline and pre-sync copies, review copies) and the open's {syncRoot}/tmp peek
  * copies are removed once they are an hour old; quarantine/ keeps the newest few for 30 days.
- * clearFolder empties quarantine/ and incoming/ after a password change (4.8).
+ * clearFolder empties a folder (or the entries matching a name test) after a password change (4.8).
  * Every step only logs its failures (the next start tries again).
  */
 
@@ -67,17 +67,27 @@ export async function cleanupScratch(dir: string, nowMs: number, host: FilesHost
   return removed;
 }
 
-/** Removes everything in `dir` (4.8 private copies under an old password); failures are logged; returns the count. */
-export async function clearFolder(dir: string, host: FilesHost): Promise<number> {
+export interface ClearResult {
+  readonly removed: number;
+  readonly failed: number;
+}
+
+/**
+ * Removes every entry of `dir` whose name passes `match` (4.8 private copies under an old
+ * password). A missing folder is empty; failures are logged and counted, never thrown.
+ */
+export async function clearFolder(dir: string, host: FilesHost, match: (name: string) => boolean = () => true): Promise<ClearResult> {
   let names: string[];
   try {
     names = await host.fs.readdir(dir);
   } catch (err) {
-    if (isErrno(err, 'ENOENT') || isErrno(err, 'ENOTDIR')) return 0;
+    if (isErrno(err, 'ENOENT') || isErrno(err, 'ENOTDIR')) return { removed: 0, failed: 0 };
     host.logger.warn(`${SYNC_LOG_PREFIX} could not list a folder of private copies`, { folder: path.basename(dir), code: errCode(err) });
-    return 0;
+    return { removed: 0, failed: 1 };
   }
-  return removeAll(dir, names, host, 'a private copy');
+  const doomed = names.filter(match);
+  const removed = await removeAll(dir, doomed, host, 'a private copy');
+  return { removed, failed: doomed.length - removed };
 }
 
 /** Keeps the QUARANTINE_KEEP newest quarantined copies younger than QUARANTINE_MAX_AGE_MS; returns the removed count. */

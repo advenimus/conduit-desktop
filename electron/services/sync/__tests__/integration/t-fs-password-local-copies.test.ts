@@ -2,8 +2,9 @@
 // 4.8 after a password change on this device: the copies it keeps beside W stop opening with the
 // old password. Snapshot diffs are re-encrypted under the new epoch and their copies of W removed
 // (Undo still works for rows and fields); genesis.conduit, quarantine/ and the staged copies of S
-// in incoming/ are removed, including the pre-change S the next cycle stages before it publishes.
-// W, local.json and the shared file stay. A copy that cannot be removed only logs.
+// in incoming/ and the moved-aside side files in sidefiles-<ts>/ are removed, including the
+// pre-change S the next cycle stages before it publishes. W, local.json and the shared file
+// stay. A copy that cannot be removed only logs, and the next engine start tries again.
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -122,6 +123,9 @@ describe('local copies after a password change (4.8, 5.10)', { timeout: SCENARIO
     fs.copyFileSync(a.sharedPath, paths.genesis);
     fs.mkdirSync(paths.quarantine, { recursive: true });
     fs.copyFileSync(a.sharedPath, path.join(paths.quarantine, `${a.now()}-${fileSha(a.sharedPath).slice(0, 8)}.conduit`));
+    const side = path.join(paths.dir, `sidefiles-${a.now()}`);
+    fs.mkdirSync(side, { recursive: true });
+    fs.copyFileSync(a.sharedPath, path.join(side, 'Vault.conduit-wal'));
     expect(openedBy(paths.incoming, oldKey).length).toBeGreaterThan(0);
     const published = fileSha(a.sharedPath);
 
@@ -130,6 +134,8 @@ describe('local copies after a password change (4.8, 5.10)', { timeout: SCENARIO
 
     expect(fs.existsSync(paths.genesis)).toBe(false);
     expect(fs.readdirSync(paths.quarantine)).toEqual([]);
+    expect(fs.existsSync(side)).toBe(false);
+    expect(a.replica.local().sealLocalCopiesPending ?? false).toBe(false);
     expect(fileSha(a.sharedPath)).not.toBe(published);
     expect(openedBy(paths.incoming, oldKey)).toEqual([]);
     expect(openedBy(path.dirname(a.sharedPath), oldKey)).toEqual([]);
@@ -151,7 +157,7 @@ describe('local copies after a password change (4.8, 5.10)', { timeout: SCENARIO
     expect(fs.existsSync(a.replica.paths.genesis)).toBe(true);
   });
 
-  it('a copy that cannot be removed is logged and the password change still succeeds', async () => {
+  it('a copy that cannot be removed is logged, the password change still succeeds, and the next start retries', async () => {
     h = new SyncHarness('copies-fault');
     const a = await h.create({ name: 'mac', start: false });
     expect((await a.sync()).kind).toMatch(/published|up-to-date/);
@@ -163,5 +169,10 @@ describe('local copies after a password change (4.8, 5.10)', { timeout: SCENARIO
     expect(a.replica.ring().current.epochId).not.toBe(epoch);
     expect(fs.existsSync(a.replica.paths.genesis)).toBe(true);
     expect(a.logger.entries.some((e) => e.level === 'warn' && e.message.includes('genesis.conduit'))).toBe(true);
+    expect(a.replica.local().sealLocalCopiesPending).toBe(true);
+    a.engine.start();
+    await h.idle();
+    expect(fs.existsSync(a.replica.paths.genesis)).toBe(false);
+    expect(a.replica.local().sealLocalCopiesPending).toBe(false);
   });
 });

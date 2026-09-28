@@ -31,6 +31,7 @@ import { absorbLegacyPasswordChange } from './rekey.js';
 import { isUndecryptable } from './sibling.js';
 import { regKeyStr } from './state-view.js';
 import { captureSkippedWrites, type CommitOutcome, type ReplicaPort } from './replica.js';
+import { markLocalCopiesStale } from './password-local-copies.js';
 import { commitUnderRing } from './ring-commit.js';
 import type { EpochPlan } from './sync-epoch-commit.js';
 import type { SharedForEpoch, EpochHost } from './sync-epoch.js';
@@ -206,6 +207,7 @@ export function adoptPresyncPasswordChange(input: PresyncChangeInput, host: Epoc
   const ring = ringOverStates(e2, [written], lineage);
   const next = redactSuperseded(written, ring);
   const out = commitUnderRing(replica, ring, newKey, next);
+  markLocalCopiesStale(replica, host.logger);
   const unreadable = countUndecryptable(next) - countUndecryptable(w);
   if (unreadable > 0) {
     recordNotices(replica, [makeNotice('undecryptable-secrets', null, unreadable, input.sha256, host.clock.now())], input.notices);

@@ -1,7 +1,7 @@
 /**
  * User actions that change W or write files, run by SyncEngine inside its lane (spec 4.3 held
  * legacy changes, 5.8 same-device copies, 5.9 separate vault, 5.11 export, 4.8 password flows'
- * fresh read of S). Each returns what the engine needs; the engine clears prompts and runs the
+ * fresh read of S, and the local copies they move off the old password). Each returns what the engine needs; the engine clears prompts and runs the
  * follow-up cycle outside the lane.
  */
 
@@ -21,6 +21,7 @@ import {
   type EpochSnapshotPorts,
   type SharedForEpoch,
 } from './sync-epoch.js';
+import { sealAfterEpochChange } from './password-local-copies.js';
 import type { SyncEngineDeps } from './sync-engine-types.js';
 import type { CycleMemory } from './sync-cycle.js';
 import { SYNC_LOG_PREFIX } from './host.js';
@@ -201,7 +202,9 @@ export async function readSharedForEpoch(deps: SyncEngineDeps, memory: CycleMemo
 export async function enterNewPasswordAction(deps: SyncEngineDeps, memory: CycleMemory, password: string): Promise<UnlockDecision> {
   const shared = await readSharedForEpoch(deps, memory);
   const decision = await enterNewPassword(deps.replica, shared, password, deps.host, epochPorts(deps), holdNow(deps));
-  if (decision.ok) deps.status.clearPrompt('epoch-newer');
+  if (!decision.ok) return decision;
+  deps.status.clearPrompt('epoch-newer');
+  await sealAfterEpochChange(deps);
   return decision;
 }
 
@@ -229,6 +232,7 @@ export async function adoptLegacyChangeAction(
           host,
         );
   deps.status.clearPrompt('epoch-legacy');
+  await sealAfterEpochChange(deps);
   return out;
 }
 
@@ -243,5 +247,6 @@ export async function resolveConcurrentAction(
   const input = { replica: deps.replica, shared, otherPassword, winnerEpochId, ports: epochPorts(deps), hold: holdNow(deps) };
   const out = await resolveConcurrentEpoch(input, deps.host);
   deps.status.clearPrompt('epoch-concurrent');
+  await sealAfterEpochChange(deps);
   return out;
 }

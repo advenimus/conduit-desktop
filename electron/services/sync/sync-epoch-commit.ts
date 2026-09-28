@@ -3,10 +3,12 @@
  * takes: each flow builds a plan synchronously (W moved into the new epoch, the merged state,
  * the ring), the snapshot of W and its 'mass-change' notice are written, then the plan commits
  * under the new ring. A write that lands on W while the snapshot is written moves W's
- * generation and the plan is rebuilt from W as it is then, as 5.6 commitMerge does.
+ * generation and the plan is rebuilt from W as it is then, as 5.6 commitMerge does. Each
+ * commit notes in local.json that the copies beside W still use the old password.
  */
 
 import type { NoticesPort } from './notices.js';
+import { markLocalCopiesStale } from './password-local-copies.js';
 import { captureSkippedWrites, type CommitOutcome, type ReplicaPort } from './replica.js';
 import { commitUnderRing } from './ring-commit.js';
 import type { SnapshotStorePort } from './snapshots.js';
@@ -35,8 +37,9 @@ export interface EpochSnapshotPorts {
 
 type CommitHost = Pick<SyncHost, 'clock' | 'random' | 'logger'>;
 
-function commitPlan(replica: ReplicaPort, p: EpochPlan): CommitOutcome {
+function commitPlan(replica: ReplicaPort, p: EpochPlan, host: CommitHost): CommitOutcome {
   const out = commitUnderRing(replica, p.ring, p.key, p.next);
+  markLocalCopiesStale(replica, host.logger);
   p.after();
   return out;
 }
@@ -59,7 +62,7 @@ export async function commitEpochPlan(
     const gen = replica.generation();
     await takeMassSnapshot(deps, p.before, p.next, sourceSha256, p.ring.current);
     captureSkippedWrites(replica);
-    if (replica.generation() === gen) return commitPlan(replica, p);
+    if (replica.generation() === gen) return commitPlan(replica, p, host);
   }
-  return commitPlan(replica, plan());
+  return commitPlan(replica, plan(), host);
 }

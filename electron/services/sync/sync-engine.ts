@@ -17,7 +17,7 @@ import { DivergenceTracker } from './divergence.js';
 import { FileBindingTracker, fileHintOf, newBinding, type ForkResult } from './file-binding.js';
 import { SharedFileWatcher } from './file-watch.js';
 import { Notices } from './notices.js';
-import { sealLocalCopies } from './password-local-copies.js';
+import { sealAfterEpochChange } from './password-local-copies.js';
 import type { CommitOutcome, ReplicaPort } from './replica.js';
 import { createSharedFile, type SharedSnapshot } from './shared-file.js';
 import { SnapshotStore } from './snapshots.js';
@@ -172,7 +172,7 @@ export class SyncEngine {
     return this.act(
       async () => {
         this.deps.replica.changePassword(currentPassword, newPassword, eraseRecentlyDeleted);
-        await sealLocalCopies(this.deps);
+        await sealAfterEpochChange(this.deps);
       },
       () => true,
     );

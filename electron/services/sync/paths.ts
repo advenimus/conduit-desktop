@@ -65,6 +65,7 @@ const LINUX_VENDOR_DIR = 'conduit';
 const WIN_LOCAL_APPDATA_PARTS = ['AppData', 'Local'] as const;
 const LINUX_STATE_PARTS = ['.local', 'state'] as const;
 const SIDE_FILES_PREFIX = 'sidefiles-';
+const SIDE_FILES_DIR_RE = new RegExp(`^${SIDE_FILES_PREFIX}\\d+$`);
 const PUBLISH_TEMP_PREFIX = '.~';
 const PUBLISH_TEMP_SUFFIX = '.tmp';
 const TMP_SUFFIX_BYTES = 6;
@@ -180,6 +181,11 @@ export function ensurePrivateRoot(root: string): NodeJS.ErrnoException | null {
   } catch (err) {
     return err as NodeJS.ErrnoException;
   }
+}
+
+/** A 'sidefiles-<ts>' folder name. */
+export function isSideFilesDirName(name: string): boolean {
+  return SIDE_FILES_DIR_RE.test(name);
 }
 
 /** 'sidefiles-<ts>' folder name for moved-aside -wal/-shm (5.5). */

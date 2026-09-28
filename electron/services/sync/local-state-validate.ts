@@ -56,6 +56,7 @@ const NOTICE_KINDS: Readonly<Record<LocalNoticeKind, true>> = {
   'undecryptable-secrets': true,
   'invariant-repair': true,
   'mass-change': true,
+  'candidate-dropped': true,
 };
 
 // ---------- Primitive checks ----------
@@ -245,7 +246,7 @@ const candidateLabels: Check<Readonly<Record<string, string>>> = (v, at, errs) =
 };
 
 /** Keys added after the first local.json format; older files lack them. */
-const LOCAL_JSON_OPTIONAL_KEYS: ReadonlySet<string> = new Set(['sideFilesConfirmedAtMs', 'dropStagedAfterPublish']);
+const LOCAL_JSON_OPTIONAL_KEYS: ReadonlySet<string> = new Set(['sideFilesConfirmedAtMs', 'dropStagedAfterPublish', 'sealLocalCopiesPending']);
 
 const localJson = obj<LocalJson>({
   version: literal([LOCAL_JSON_VERSION] as const),
@@ -274,6 +275,7 @@ const localJson = obj<LocalJson>({
   contentRepairShas: arrayOf(sha256Hex),
   sideFilesConfirmedAtMs: nullable(msTime),
   dropStagedAfterPublish: bool,
+  sealLocalCopiesPending: bool,
 }, LOCAL_JSON_OPTIONAL_KEYS);
 
 /** Strict validation of parsed JSON (types, hex lengths, known notice kinds). */

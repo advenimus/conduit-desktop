@@ -1,6 +1,6 @@
 /**
  * The engine's reactions outside cycles (spec 5.4 watching, 5.5 side files and the daily
- * reminder, 5.3 step 6 and 5.10 start-up cleanup, 3.2 network-root warning, 5.8 pending
+ * reminder, 5.3 step 6 and 5.10 start-up cleanup, 4.8 local copies still due after an epoch change, 3.2 network-root warning, 5.8 pending
  * candidates at start): the watcher listener, the side-file prompt, and start-up housekeeping.
  */
 
@@ -8,6 +8,7 @@ import path from 'node:path';
 import { SIDE_FILES_REMINDER_MS, type ConfirmOutcome, type SideFilesView } from './side-files.js';
 import type { FileWatcherPort, FileWatchListener } from './file-watch.js';
 import { cleanupScratch, pruneQuarantine } from './housekeeping-files.js';
+import { sealIfPending } from './password-local-copies.js';
 import type { SharedSnapshot } from './shared-file.js';
 import type { SyncEngineDeps, SyncTrigger } from './sync-engine-types.js';
 import type { SideFileTuple } from './types.js';
@@ -155,6 +156,7 @@ export async function housekeeping(deps: SyncEngineDeps, keepShas: readonly stri
   const now = host.clock.now();
   const keep = stagedInUse(deps, keepShas);
   const steps: readonly [string, () => Promise<unknown>][] = [
+    ['local-copies', () => sealIfPending(deps)],
     ['publish-temps', () => shared.cleanupPublishTemps(path.dirname(binding.sharedPath()), now)],
     ['incoming', () => shared.cleanupIncoming(replica.paths.incoming, keep)],
     ['snapshots', () => snapshots.prune(now)],

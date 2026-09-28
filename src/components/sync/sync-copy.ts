@@ -201,5 +201,7 @@ export function noticeText(notice: LocalNotice, itemName: string | null = null):
       return `Conduit repaired a sync problem and kept two versions of a field of ${item} for review.`;
     case "mass-change":
       return `A sync from another device deleted or changed ${plural(Math.max(1, notice.count), "item")}.`;
+    case "candidate-dropped":
+      return `${plural(Math.max(1, notice.count), "copy", "copies")} waiting for review ${notice.count > 1 ? "were" : "was"} removed. ${notice.count > 1 ? "They were" : "It was"} locked with a master password this device no longer has.`;
   }
 }
