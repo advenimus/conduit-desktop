@@ -3,6 +3,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { evaluateIn } from '../lib/selectors.mjs';
 
 const PASSWORD = 'verify-mcp-password-1';
 const REQUIRED_TOOLS = ['entry_list', 'entry_info', 'entry_search', 'entry_update_notes', 'document_create', 'document_update', 'credential_list'];
@@ -221,18 +222,19 @@ async function hasConflictFlag(ctx) {
   ctx.step('m4b also reports has_conflict false and the chosen host after the resolution synced');
 }
 
-/** Clicks "Use this" on the version without the "In use now" badge; returns that version's text. */
+/** In-page: clicks "Use this" on the version without the "In use now" badge; returns that version's text. */
+export function pickVersionNotInUseInPage(_, cv) {
+  const panel = document.querySelector('[aria-label="Review changes"]');
+  const buttons = [...(panel?.querySelectorAll('button') ?? [])].filter((b) => b.innerText.trim() === 'Use this');
+  const row = buttons.map((b) => ({ b, row: b.parentElement })).find(({ row }) => row && !row.innerText.includes('In use now'));
+  if (!row) return null;
+  const value = cv.pickOne(row.row, cv.S.reviewValue)?.innerText.trim() ?? null;
+  row.b.click();
+  return value;
+}
+
 function useVersionNotInUse(ctx, device) {
-  const pick = () => {
-    const panel = document.querySelector('[aria-label="Review changes"]');
-    const buttons = [...(panel?.querySelectorAll('button') ?? [])].filter((b) => b.innerText.trim() === 'Use this');
-    const row = buttons.map((b) => ({ b, row: b.parentElement })).find(({ row }) => row && !row.innerText.includes('In use now'));
-    if (!row) return null;
-    const value = row.row.querySelector('.font-mono')?.innerText.trim() ?? null;
-    row.b.click();
-    return value;
-  };
-  return ctx.ui.withTimeout(device.page.evaluate(pick), 10_000, `${device.name}: pick a version`);
+  return evaluateIn(device, pickVersionNotInUseInPage, null, { label: 'pick a version' });
 }
 
 function lockedError(res) {

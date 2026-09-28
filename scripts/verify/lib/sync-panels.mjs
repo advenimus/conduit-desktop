@@ -3,9 +3,10 @@
 // the mass-change undo dialog, and the backup "Restore from backup" preview (roll back / new vault).
 // Open the first two with settings-flows openSyncTool(); the others open from banners and toasts.
 
-import { clickText, waitFor, withTimeout } from './ui.mjs';
+import { waitFor, withTimeout } from './ui.mjs';
 import { clickInDialog, dialogSelector, setCheckbox, stubDialogs } from './ui-forms.mjs';
 import { dialogDetails, waitForDialog } from './sync-flows.mjs';
+import { SELECTORS, clickIn, evaluateIn } from './selectors.mjs';
 
 export const RECENTLY_DELETED_TITLE = 'Recently deleted';
 export const OTHER_COPIES_TITLE = 'Other copies of this vault';
@@ -21,13 +22,14 @@ async function waitClosed(device, title, { timeoutMs = 30_000 } = {}) {
 
 // ---------- Recently deleted ----------
 
-function readDeletedInPage(root) {
+function readDeletedInPage(root, cv) {
+  const { S } = cv;
   const panel = document.querySelector(root);
   if (!panel) return null;
   if (panel.innerText.includes('Loading...')) return null;
-  return [...panel.querySelectorAll('.max-h-80 label')].map((row) => ({
-    title: row.querySelector('p.text-sm')?.innerText?.trim() ?? '',
-    detail: row.querySelector('p.text-xs')?.innerText?.trim() ?? '',
+  return cv.pickAll(panel, S.deletedRow).map((row) => ({
+    title: cv.pickOne(row, S.deletedTitle)?.innerText?.trim() ?? '',
+    detail: cv.pickOne(row, S.deletedDetail)?.innerText?.trim() ?? '',
     checked: row.querySelector('input')?.checked ?? false,
     erased: row.querySelector('input')?.disabled ?? false,
   }));
@@ -35,7 +37,7 @@ function readDeletedInPage(root) {
 
 /** Rows of the open Recently deleted panel: [{title, detail, checked, erased}] ([] when empty). */
 export function recentlyDeletedItems(device) {
-  return waitFor(() => withTimeout(device.page.evaluate(readDeletedInPage, dialogSelector(RECENTLY_DELETED_TITLE)), 10_000, 'read deleted'), {
+  return waitFor(() => evaluateIn(device, readDeletedInPage, dialogSelector(RECENTLY_DELETED_TITLE), { label: 'read deleted' }), {
     timeoutMs: 15_000,
     label: `${device.name}: Recently deleted list`,
   });
@@ -79,7 +81,7 @@ async function confirmPermanentDelete(device) {
     timeoutMs: 10_000,
     label: `${device.name}: "${CONFIRM_DELETE_TEXT}"`,
   });
-  await clickText(device, 'Delete permanently', { exact: true, selector: '.z-\\[70\\] [data-dialog-content] button' });
+  await clickIn(device, 'Delete permanently', SELECTORS.stackedConfirmButton, { exact: true });
 }
 
 /** Ticks "Show items deleted more than 30 days ago". */
@@ -92,20 +94,21 @@ export async function closeRecentlyDeleted(device) {
 
 // ---------- Other copies ----------
 
-function readCopiesInPage(root) {
+function readCopiesInPage(root, cv) {
+  const { S } = cv;
   const panel = document.querySelector(root);
   if (!panel || panel.innerText.includes('Looking for copies...')) return null;
-  return [...panel.querySelectorAll('.border-b')].filter((row) => row.querySelector('p.text-sm')).map((row) => ({
-    name: row.querySelector('p.text-sm')?.innerText?.trim() ?? '',
-    path: row.querySelector('p.text-sm')?.getAttribute('title') ?? '',
-    text: row.querySelector('p.text-xs')?.innerText?.trim() ?? '',
+  return cv.pickAll(panel, S.copyRow).map((row) => ({ row, title: cv.pickOne(row, S.copyTitle) })).filter(({ title }) => title).map(({ row, title }) => ({
+    name: title.innerText?.trim() ?? '',
+    path: title.getAttribute('title') ?? '',
+    text: cv.pickOne(row, S.copyDetail)?.innerText?.trim() ?? '',
     actions: [...row.querySelectorAll('button')].map((b) => b.innerText.trim()),
   }));
 }
 
 /** Rows of the open Other copies panel: [{name, path, text, actions}]. */
 export function otherCopies(device) {
-  return waitFor(() => withTimeout(device.page.evaluate(readCopiesInPage, dialogSelector(OTHER_COPIES_TITLE)), 10_000, 'read copies'), {
+  return waitFor(() => evaluateIn(device, readCopiesInPage, dialogSelector(OTHER_COPIES_TITLE), { label: 'read copies' }), {
     timeoutMs: 30_000,
     label: `${device.name}: Other copies list`,
   });
@@ -130,14 +133,16 @@ export async function copyRowAction(device, name, label, { targetPath } = {}) {
     if (!targetPath) throw new Error('copyRowAction(Keep separate) needs {targetPath}');
     await stubDialogs(device, { save: targetPath });
   }
-  const res = await withTimeout(device.page.evaluate(({ root, name, label }) => {
-    const row = [...document.querySelectorAll(`${root} p.text-sm`)].find((p) => p.innerText.trim() === name)?.closest('.flex.items-start');
+  const res = await evaluateIn(device, ({ root, name, label }, cv) => {
+    const panel = document.querySelector(root);
+    const title = cv.pickAll(panel, cv.S.copyTitle).find((p) => p.innerText.trim() === name);
+    const row = title ? cv.pickClosest(title, panel, cv.S.copyRowOf) : null;
     const button = [...(row?.querySelectorAll('button') ?? [])].find((b) => b.innerText.trim() === label);
     if (!button) return row ? 'no button' : 'no row';
     if (button.disabled) return 'disabled';
     button.click();
     return 'clicked';
-  }, { root: dialogSelector(OTHER_COPIES_TITLE), name, label }), 10_000, `${device.name}: copy action`);
+  }, { root: dialogSelector(OTHER_COPIES_TITLE), name, label }, { label: 'copy action' });
   if (res !== 'clicked') throw new Error(`${device.name}: copy "${name}" [${label}]: ${res}`);
 }
 
@@ -187,14 +192,11 @@ export async function massChangeDetails(device, { timeoutMs = 30_000 } = {}) {
     const found = (await dialogDetails(device)).find((x) => MASS_CHANGE_TITLE.test(x.title));
     return found && !found.text.includes('Loading...') ? found : null;
   }, { timeoutMs, label: `${device.name}: mass-change dialog` });
-  const rows = await withTimeout(device.page.evaluate((title) => {
-    const dialog = document.querySelector(`[role=dialog][aria-label="${title.replace(/"/g, '\\"')}"]`);
-    return [...(dialog?.querySelectorAll('label') ?? [])].map((l) => ({
-      title: l.querySelector('span.text-ink')?.innerText?.trim() ?? '',
-      checked: l.querySelector('input')?.checked ?? false,
-      disabled: l.querySelector('input')?.disabled ?? false,
-    }));
-  }, d.title), 10_000, `${device.name}: read mass change`);
+  const rows = await evaluateIn(device, (root, cv) => [...(document.querySelector(root)?.querySelectorAll('label') ?? [])].map((l) => ({
+    title: cv.pickOne(l, cv.S.massChangeTitle)?.innerText?.trim() ?? '',
+    checked: l.querySelector('input')?.checked ?? false,
+    disabled: l.querySelector('input')?.disabled ?? false,
+  })), dialogSelector(d.title), { label: 'read mass change' });
   return { title: d.title, text: d.text, rows };
 }
 

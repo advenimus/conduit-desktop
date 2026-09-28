@@ -3,6 +3,7 @@
 
 import { openDialogs, refreshEntries, waitForUnlockOutcome, listEntries } from './flows.mjs';
 import { bodyText, clickSelector, clickText, exists, invoke, readSyncState, typeInto, waitFor, waitForText, withTimeout } from './ui.mjs';
+import { SYNC_DIALOG, evaluateIn } from './selectors.mjs';
 
 export const TAKEOVER_TITLE = 'Vault open on another device';
 export const WAITING_TITLE = 'Getting the latest changes';
@@ -11,14 +12,15 @@ const DISPLACED_TITLE = /^(Vault locked|Opened on )/;
 const DISPLACING_TEXT = 'Saving your last changes...';
 const PASSWORD_INPUT = 'input[placeholder="Enter master password"]';
 const SUBMIT = '[data-dialog-content] form button[type=submit]';
+const SYNC_DIALOG_BUTTON = `${SYNC_DIALOG} button`;
 
-/** Title and text of each visible sync dialog. */
+/** Title and text of each visible sync dialog (role=dialog with an aria-label, spec 8.3). */
 export function dialogDetails(device) {
-  const read = device.page.evaluate(() =>
-    [...document.querySelectorAll('[role=dialog]')]
+  const read = device.page.evaluate((css) =>
+    [...document.querySelectorAll(css)]
       .filter((el) => el.getClientRects().length > 0)
       .map((el) => ({ title: el.getAttribute('aria-label') ?? '', text: el.innerText ?? '' })),
-  );
+  SYNC_DIALOG);
   return withTimeout(read, 10_000, `${device.name}: read dialog details`);
 }
 
@@ -69,7 +71,7 @@ export async function unlockOutcome(device, { timeoutMs = 60_000, openNowAfterMs
     if (!onlyWaiting) return { ...res, waited, openedNow };
     waited = true;
     if (!openedNow && Date.now() - start > openNowAfterMs) {
-      await clickText(device, 'Open now', { exact: true, selector: '[role=dialog] button', timeoutMs: 5_000 });
+      await clickText(device, 'Open now', { exact: true, selector: SYNC_DIALOG_BUTTON, timeoutMs: 5_000 });
       openedNow = true;
     }
     await new Promise((r) => setTimeout(r, 500));
@@ -85,7 +87,7 @@ async function expectUnlocked(device, res, action) {
 
 /** [Use here instead] in the take-over dialog: the unlock repeats with take-over. */
 export async function useHereFromTakeover(device) {
-  await clickText(device, 'Use here instead', { exact: true, selector: '[role=dialog] button' });
+  await clickText(device, 'Use here instead', { exact: true, selector: SYNC_DIALOG_BUTTON });
   return expectUnlocked(device, await unlockOutcome(device), 'take-over');
 }
 
@@ -95,7 +97,7 @@ export async function useHereFromTakeover(device) {
  * dialogs seen in between (a take-over dialog there means the server still refused).
  */
 export async function useHereFromDisplaced(device, password) {
-  await clickText(device, 'Use here instead', { exact: true, selector: '[role=dialog] button' });
+  await clickText(device, 'Use here instead', { exact: true, selector: SYNC_DIALOG_BUTTON });
   await waitForText(device, 'Unlock to use this vault here');
   await typeInto(device, PASSWORD_INPUT, password);
   await clickSelector(device, SUBMIT);
@@ -130,15 +132,15 @@ export async function waitForEntryInUi(device, name, { timeoutMs = 15_000 } = {}
   return waitForText(device, name, { timeoutMs });
 }
 
-function clickVersionInPage({ field, value }) {
+function clickVersionInPage({ field, value }, cv) {
   const panel = document.querySelector('[role=dialog][aria-label="Review changes"]');
   if (!panel) return 'no panel';
   const buttons = [...panel.querySelectorAll('button')].filter((b) => (b.innerText ?? '').trim() === 'Use this');
   for (const button of buttons) {
-    const row = button.closest('.rounded-md');
+    const row = cv.pickClosest(button, panel, cv.S.reviewField);
     const line = button.parentElement;
     if (!row || !line) continue;
-    const label = row.querySelector('span')?.innerText?.trim();
+    const label = cv.pickOne(row, cv.S.reviewFieldLabel)?.innerText?.trim();
     if (label !== field || !(line.innerText ?? '').includes(value)) continue;
     if (button.disabled) return 'disabled';
     button.scrollIntoView({ block: 'center' });
@@ -152,7 +154,7 @@ function clickVersionInPage({ field, value }) {
 export async function useVersionInReview(device, field, value, { timeoutMs = 15_000 } = {}) {
   let last = '';
   await waitFor(async () => {
-    last = await withTimeout(device.page.evaluate(clickVersionInPage, { field, value }), 10_000, `${device.name}: click Use this`);
+    last = await evaluateIn(device, clickVersionInPage, { field, value }, { label: 'click Use this' });
     return last === 'clicked';
   }, { timeoutMs, label: `${device.name}: [Use this] for ${field} = ${value} (${last})` });
 }
