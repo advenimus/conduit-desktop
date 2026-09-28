@@ -612,7 +612,8 @@ wave's integrator and recorded in 8.6 of the spec.
 
 **Geometry rules** (`lib/geometry.mjs`, `lib/clone-selectors.mjs`): G1 content smaller than the window
 (native frame), G2 no clone part, G3 accent lines, G4 side bar position, G5 tab bar height and slots,
-G6 the three top rows, G7 side bar order, G8 the AI divider and panel, G9 dialogs over a web session
+G6 the three top rows, G7 side bar order (the accent line and the `[data-cv-sidebar-resize]` handle are
+not rows), G8 the AI divider and panel, G9 dialogs over a web session
 hold a freeze and detach the web view, G10 tabs inside their bar (and twelve tabs at least 78px wide in
 a scrolling row). A rule whose hooks are not in the markup yet reports `pending`, which passes unless
 `--strict`. On today's layout G1, G2, G4 and G9 pass and the others are pending; from R2-SHELL on,

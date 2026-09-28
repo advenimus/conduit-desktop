@@ -44,6 +44,9 @@ const flows = (await import('../verify/lib/restyle-flows.mjs' as string)) as {
   iconPackAttributes(device: { name: string; page: FakePage; app: { windows(): FakePage[] } }): Promise<Record<string, string | null>>;
   pickerGlyphResult(markups: (string | null)[]): RuleResult;
 };
+const data = (await import('../verify/lib/restyle-data.mjs' as string)) as {
+  expandFolderInPage(arg: { folder: string; child: string }): string;
+};
 const capture = (await import('../verify/lib/window-capture.mjs' as string)) as { windowRole(url: string, origin: string): string };
 
 const controls = (screen: string, items: Control[], probes?: Record<string, boolean>): Inventory => ({ screen, kind: 'controls', items, ...(probes ? { probes } : {}) });
@@ -388,6 +391,40 @@ describe('a restyle scenario', () => {
   });
 });
 
+describe('expanding a tree folder', () => {
+  const row = (twistie: string) => `<div data-sidebar-panel><div class="row">${twistie}<span>Production</span><span>3</span></div>
+    <div><button title="New Entry (Ctrl+E)"></button></div></div>`;
+  // jsdom has no layout, so every element would look hidden to the "already expanded" check.
+  const clientRects = Element.prototype.getClientRects;
+  beforeAll(() => { Element.prototype.getClientRects = function () { return [{}] as unknown as DOMRectList; }; });
+  afterEach(() => { document.body.innerHTML = ''; });
+  afterAll(() => { Element.prototype.getClientRects = clientRects; });
+
+  function clicks(html: string): { result: string; clicked: string[] } {
+    document.body.innerHTML = html;
+    const clicked: string[] = [];
+    document.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => clicked.push(b.outerHTML)));
+    const result = data.expandFolderInPage({ folder: 'Production', child: 'db-01' });
+    return { result, clicked };
+  }
+
+  it('clicks the hooked twistie, which now carries a name', () => {
+    const { result, clicked } = clicks(row('<button data-cv-tree-twistie aria-label="Expand" title="Expand"></button>'));
+    expect(result).toBe('clicked');
+    expect(clicked).toEqual(['<button data-cv-tree-twistie="" aria-label="Expand" title="Expand"></button>']);
+  });
+
+  it('still finds the unnamed twistie of markup without the hook', () => {
+    const { result, clicked } = clicks(row('<button></button>'));
+    expect(result).toBe('clicked');
+    expect(clicked).toEqual(['<button></button>']);
+  });
+
+  it('reports a folder without a twistie', () => {
+    expect(clicks(row('')).result).toBe('no toggle for Production');
+  });
+});
+
 describe('the committed reference', () => {
   const manifest = ref.loadManifest();
   const before = ref.loadBeforeInventory();
@@ -507,6 +544,17 @@ describe('geometry rules', () => {
     expect(run().G7.status).toBe('pass');
     document.body.innerHTML = document.body.innerHTML.replace('0,700,250,68', '0,600,250,68');
     expect(run().G7.status).toBe('fail');
+  });
+
+  it('does not count the floating side bar\'s accent line and resize handle as rows above the header', () => {
+    const floating = (handle: string) => `<div data-sidebar-panel style="position: fixed" data-r="0,0,250,768">
+      <div data-cv-accent-line data-r="0,0,250,2"></div><div data-cv-sidebar-header data-r="0,2,250,33"></div>
+      <div data-cv-sidebar-search data-r="0,35,250,40"></div><div data-cv-sidebar-footer data-r="0,700,250,68"></div>
+      <div ${handle} data-r="244,0,12,768"><div data-r="244,0,4,768"></div></div></div>`;
+    document.body.innerHTML = floating('data-cv-sidebar-resize');
+    expect(run().G7.status).toBe('pass');
+    document.body.innerHTML = floating('data-unhooked-handle');
+    expect(run().G7).toMatchObject({ status: 'fail', detail: expect.stringContaining('header first false') });
   });
 
   it('checks the AI divider and panel close their row', () => {

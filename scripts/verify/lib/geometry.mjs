@@ -164,8 +164,10 @@ export function ruleG7(h) {
   const tops = [head, search, footer].filter(Boolean).map((el) => h.rect(el).top);
   const ordered = tops.every((t, i) => i === 0 || t >= tops[i - 1]);
   const atBottom = h.near(h.rect(footer).bottom, h.rect(panel).bottom);
+  // The accent line and the resize handle run beside the rows; the floating handle starts at the panel's top.
+  const notARow = (el) => el.hasAttribute('data-cv-accent-line') || el.closest('[data-cv-sidebar-resize]') !== null;
   const above = [...panel.querySelectorAll('*')].filter(h.visible)
-    .filter((el) => !el.hasAttribute('data-cv-accent-line') && !el.contains(head) && !head.contains(el) && h.rect(el).height > 0)
+    .filter((el) => !notARow(el) && !el.contains(head) && !head.contains(el) && h.rect(el).height > 0)
     .some((el) => h.rect(el).top < h.rect(head).top - 0.5);
   const ok = ordered && atBottom && !above;
   return h.result('G7', ok ? 'pass' : 'fail', `order ${ordered ? 'ok' : 'wrong'}, footer at the bottom ${atBottom}, header first ${!above}`);
