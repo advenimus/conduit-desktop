@@ -13,6 +13,15 @@ export default tseslint.config(
     },
   },
   {
+    files: ["electron/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
     ignores: [
       "dist/**",
       "dist-electron/**",

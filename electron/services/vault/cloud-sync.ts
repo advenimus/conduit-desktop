@@ -642,7 +642,7 @@ export class CloudSyncService {
   /**
    * Delete backup snapshots older than the tier's retention period.
    */
-  private async pruneOldBackups(userId: string): Promise<void> {
+  private async pruneOldBackups(): Promise<void> {
     const retentionDays = await this.getBackupRetentionDays();
     if (retentionDays === -1) return; // unlimited
     if (retentionDays <= 0) return; // no access or unknown
@@ -760,7 +760,7 @@ export class CloudSyncService {
       const vaultName = this.getCurrentVaultName();
       this.updateManifest(userId, vaultId, vaultName, now, blob.length)
         .then(() => this.uploadVersionedSnapshot(userId, vaultId, blob))
-        .then(() => this.pruneOldBackups(userId))
+        .then(() => this.pruneOldBackups())
         .catch((err) => console.warn('[cloud-sync] Manifest/snapshot/prune failed:', err));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed';

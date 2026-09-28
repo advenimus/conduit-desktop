@@ -10,14 +10,12 @@
 import net from 'node:net';
 import path from 'node:path';
 import fs from 'node:fs';
-import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { AppState } from '../services/state.js';
 import type { SshAuth } from '../services/ssh/client.js';
 import { resolveSshAuth, resolveSshAuthSystem } from '../services/ssh/resolve-auth.js';
 import type { RdpEngineConfig } from '../services/rdp/engine.js';
 import type { ImageFormat } from '../services/rdp/framebuffer.js';
-import { readSettings } from '../ipc/settings.js';
 import { getSocketPath, isNamedPipe } from '../services/env-config.js';
 import {
   openSshSession,

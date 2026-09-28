@@ -15,17 +15,6 @@ const DESCRIPTION =
   'Conduit is a cross-platform remote connection manager with AI integration. ' +
   'It manages SSH, RDP, VNC, and web connections with an encrypted credential vault.';
 
-const CAPABILITIES = [
-  'Manage connections (list, open, close SSH/RDP/VNC/web connections)',
-  'Terminal operations (execute commands, read output, send keystrokes)',
-  'Credential management (list, create, read, delete stored credentials)',
-  'Web sessions (screenshot, click, type, send keys, scroll, drag, navigate, read content, fill inputs, discover elements, execute JS)',
-  'RDP sessions (screenshot, click, type, send keys, mouse move/drag/scroll, resize, get dimensions)',
-  'VNC sessions (screenshot, click, type, send keys, mouse move/drag/scroll, get dimensions)',
-  'Entry inspection (get entry metadata, read document content — secrets auto-redacted)',
-  'Entry & document writing (update entry notes, create/update markdown documents — always ask user approval first)',
-];
-
 // ── Shared usage guidelines (used by built-in, CLAUDE.md, and AGENTS.md) ────
 
 const USAGE_GUIDELINES = [

@@ -94,9 +94,8 @@ export interface ImportPreview {
   folder_tree: Array<{ id: string; name: string; parent_id: string | null }>;
 }
 
-export interface ImportOptions {
-  // Reserved for future use
-}
+/** Reserved for future use. */
+export type ImportOptions = Record<string, never>;
 
 export interface ImportResult {
   foldersCreated: number;
@@ -537,21 +536,6 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
-
-function buildFolderPath(folderId: string, allFolders: FolderData[]): string {
-  const folderMap = new Map(allFolders.map(f => [f.id, f]));
-  const parts: string[] = [];
-  const visited = new Set<string>();
-  let current = folderMap.get(folderId);
-
-  while (current && !visited.has(current.id)) {
-    visited.add(current.id);
-    parts.unshift(current.name);
-    current = current.parent_id ? folderMap.get(current.parent_id) : undefined;
-  }
-
-  return '/' + parts.join('/');
-}
 
 function topologicalSortFolders(folders: ExportFolder[]): ExportFolder[] {
   const folderMap = new Map(folders.map(f => [f.id, f]));
