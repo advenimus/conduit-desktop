@@ -103,6 +103,9 @@ async function signedInMode(ctx, mode, rs, { testSite }) {
   await setSidebar(d, 'docked');
   await clickText(d, 'Acme Team Vault', { selector: `${SIDEBAR} button` });
   await waitForText(d, 'Create Team Vault...', { timeoutMs: 20_000 });
+  // The team vault syncs right after it opens; the reference shows the footer's indicator after that sync.
+  await waitFor(() => d.page.evaluate(() => ['[title^="Team vault synced"]', '[title="Synced"]'].every((css) => document.querySelector(`[data-sidebar-panel] ${css}`) !== null)),
+    { timeoutMs: 30_000, intervalMs: 300, label: `${d.name}: team vault synced` });
   await rs.shot(d, mode, '47-sidebar-team-vault');
   await rs.inventory(d, mode, screen('sidebar-team-vault'), { vaultDirs: dirs() });
   await rs.check(d, mode, 'team-vault');

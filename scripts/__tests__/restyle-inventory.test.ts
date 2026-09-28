@@ -557,6 +557,17 @@ describe('geometry rules', () => {
     expect(run().G7).toMatchObject({ status: 'fail', detail: expect.stringContaining('header first false') });
   });
 
+  it('ignores tree rows scrolled above the tree, which their scrolling container hides', () => {
+    const docked = (overflow: string) => `<div data-sidebar-panel data-docked data-r="0,2,250,766"><div data-cv-sidebar-header data-r="0,2,250,33"></div>
+      <div data-cv-sidebar-search data-r="0,35,250,34"></div>
+      <div style="overflow-y: ${overflow}" data-r="0,69,250,631"><div class="row" data-r="0,-40,250,22">db-01</div><div class="row" data-r="0,80,250,22">web-01</div></div>
+      <div data-cv-sidebar-footer data-r="0,700,250,68"></div></div>`;
+    document.body.innerHTML = docked('auto');
+    expect(run().G7.status).toBe('pass');
+    document.body.innerHTML = docked('visible');
+    expect(run().G7).toMatchObject({ status: 'fail', detail: expect.stringContaining('(div.row at -40px)') });
+  });
+
   it('checks the AI divider and panel close their row', () => {
     document.body.innerHTML = `<div><div data-r="0,0,876,768"></div><div data-cv-ai-divider data-r="876,0,4,768"></div><div data-cv-ai-panel data-r="880,0,400,768"><button title="New conversation"></button></div></div>`;
     expect(run().G8.status).toBe('pass');
