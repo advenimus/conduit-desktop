@@ -109,7 +109,7 @@ describe('validateLocalJson (3.2)', () => {
   });
 
   it('accepts a file written before the side-file confirmation time existed, and checks it when present', () => {
-    const { sideFilesConfirmedAtMs: _absent, ...older } = defaultLocalJson(LINEAGE, 7, INC);
+    const older = Object.fromEntries(Object.entries(defaultLocalJson(LINEAGE, 7, INC)).filter(([k]) => k !== 'sideFilesConfirmedAtMs'));
     const res = validateLocalJson(JSON.parse(JSON.stringify(older)));
     expect(res.ok && res.value.sideFilesConfirmedAtMs).toBeUndefined();
     expect(validateLocalJson(withField(['sideFilesConfirmedAtMs'], 1_790_000_000_000)).ok).toBe(true);
