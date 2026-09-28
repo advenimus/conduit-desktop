@@ -122,6 +122,39 @@ describe("Callout", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalled();
   });
+
+  it("has no close button unless onDismiss is set", () => {
+    render(<Callout title="Heads up">Sync is paused.</Callout>);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("with onDismiss, ends with a small Dismiss button that calls it", () => {
+    const onDismiss = vi.fn();
+    const onStart = vi.fn();
+    const { container } = render(
+      <Callout size="sm" title="Try Pro free for 30 days" onDismiss={onDismiss} actions={<Button size="sm" onClick={onStart}>Start Free Trial</Button>} />,
+    );
+    const dismiss = screen.getByRole("button", { name: "Dismiss" });
+    expect(dismiss).toHaveAttribute("title", "Dismiss");
+    expect(dismiss.className).toContain("size-5");
+    expect(container.firstElementChild?.lastElementChild).toBe(dismiss);
+
+    fireEvent.click(dismiss);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it("takes a dismissLabel and keeps the danger error hook", () => {
+    const onDismiss = vi.fn();
+    render(
+      <Callout tone="danger" onDismiss={onDismiss} dismissLabel="Hide this error">
+        That password did not work.
+      </Callout>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Hide this error" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("p[data-cv-error]")).toHaveTextContent("That password did not work.");
+  });
 });
 
 describe("Banner", () => {

@@ -49,6 +49,30 @@ function Badges() {
   );
 }
 
+function DismissibleCallout() {
+  const [shown, setShown] = useState(true);
+  if (!shown) {
+    return (
+      <Button size="sm" onClick={() => setShown(true)}>
+        Show the dismissible callout
+      </Button>
+    );
+  }
+  return (
+    <Callout
+      size="sm"
+      icon="sparkles"
+      title="Try Pro free for 30 days"
+      onDismiss={() => setShown(false)}
+      actions={
+        <Button size="sm" variant="primary">
+          Start Free Trial
+        </Button>
+      }
+    />
+  );
+}
+
 function Notices() {
   return (
     <>
@@ -61,6 +85,7 @@ function Notices() {
         <Callout tone="info" size="sm">
           A small callout without a title.
         </Callout>
+        <DismissibleCallout />
       </Demo>
       <Demo label="Banner tones (26px, role=status, link actions)" className="block">
         <div className="flex max-w-[880px] flex-col bg-shell">
