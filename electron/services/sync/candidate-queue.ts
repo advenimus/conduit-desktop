@@ -18,19 +18,15 @@ import { classifyCandidate, deleteMissingWrites, type CandidateFileInfo } from '
 import { IGNORED_COPIES_KEEP } from './copy-scanner.js';
 import { merge } from './merge.js';
 import { computeCandidate, rowsUnderRing } from './candidate-queue-compute.js';
-import { openPayload, sealPayload } from './candidate-queue-seal.js';
+import { replaceDurably, sealFile, withOpenedFile, type SealIo } from './candidate-queue-seal.js';
 import { FILE_SUFFIX, ROWS_SUFFIX, decodeMeta, decodeRows, encodeMeta, encodeRows, idOfMetaName, isCandidateId, metaName } from './candidate-queue-store.js';
 import type { CommitOutcome, ReplicaPort } from './replica.js';
 import type { NoticesPort } from './notices.js';
 import type { SharedClass, SharedFilePort } from './shared-file.js';
 import { SYNC_LOG_PREFIX, type SyncHost } from './host.js';
-import { SyncCoreError, type CandidateKind, type CandidatePreview, type CandidateRows, type CandidateSource, type KeyRing, type RowKey } from './types.js';
+import type { CandidateKind, CandidatePreview, CandidateRows, CandidateSource, KeyRing, RowKey } from './types.js';
 
 export const CANDIDATES_DIR = 'candidates';
-/** Payloads are rewritten through this file and a rename, so a crash leaves the old or the new one. */
-const REKEY_TMP_SUFFIX = '.rekey-tmp';
-const OPEN_COPY_PREFIX = 'candidate-open-';
-const TEMP_RAND_BYTES = 8;
 
 export type PendingPayload =
   /** A private SQLite copy owned by the queue (copied or moved into candidates/). */
@@ -245,7 +241,7 @@ export class CandidateQueue implements CandidateQueuePort {
     const dropped: PendingCandidate[] = [];
     for (const c of this.list()) {
       try {
-        const outcome = c.payload.kind === 'rows' ? await this.rekeyRows(c, c.payload, ring) : await this.sealFile(c.payload.path, ring);
+        const outcome = c.payload.kind === 'rows' ? await this.rekeyRows(c, c.payload, ring) : await sealFile(this.sealIo(), c.payload.path, ring);
         if (outcome === 'unreachable') {
           await this.remove(c);
           dropped.push(c);
@@ -265,56 +261,17 @@ export class CandidateQueue implements CandidateQueuePort {
 
   private async rekeyRows(c: PendingCandidate, payload: Extract<PendingPayload, { kind: 'rows' }>, ring: KeyRing): Promise<'rekeyed' | 'current'> {
     if (payload.epochId === ring.current.epochId) return 'current';
-    const { fs, random } = this.deps.host;
-    const rows = decodeRows((await fs.readFile(payload.path)).toString('utf8'));
-    await this.replaceDurably(payload.path, encodeRows(rowsUnderRing(rows, payload.epochId, ring, (n) => random.bytes(n))));
+    const io = this.sealIo();
+    const rows = decodeRows((await io.host.fs.readFile(payload.path)).toString('utf8'));
+    await replaceDurably(io, payload.path, encodeRows(rowsUnderRing(rows, payload.epochId, ring, (n) => io.host.random.bytes(n))));
     const next: PendingCandidate = Object.freeze({ ...c, payload: Object.freeze({ ...payload, epochId: ring.current.epochId }) });
-    await this.replaceDurably(path.join(this.dir(), metaName(c.id)), encodeMeta(next));
+    await replaceDurably(io, path.join(this.dir(), metaName(c.id)), encodeMeta(next));
     this.pending.set(c.id, next);
     return 'rekeyed';
   }
 
-  /** The mtime is kept: a replica candidate's legacy edits are dated by it. */
-  private async sealFile(file: string, ring: KeyRing): Promise<'rekeyed' | 'current' | 'unreachable'> {
-    const { fs, random } = this.deps.host;
-    const st = await fs.stat(file);
-    if (st === null) throw new Error(`${SYNC_LOG_PREFIX} the candidate file is missing`);
-    const sealed = sealPayload(await fs.readFile(file), ring, (n) => random.bytes(n));
-    if (sealed.kind !== 'sealed') return sealed.kind;
-    await this.replaceDurably(file, sealed.bytes);
-    await fs.utimes(file, st.mtimeMs, st.mtimeMs);
-    return 'rekeyed';
-  }
-
-  private async replaceDurably(file: string, data: Uint8Array | string): Promise<void> {
-    const { fs } = this.deps.host;
-    const tmp = `${file}${REKEY_TMP_SUFFIX}`;
-    try {
-      await fs.writeFileDurable(tmp, data);
-      await fs.rename(tmp, file);
-    } catch (err) {
-      await fs.rm(tmp, { recursive: false, force: true });
-      throw err;
-    }
-    await fs.fsyncDir(this.dir());
-  }
-
-  /** A sealed file copy opened into a private temp file for `fn`, removed afterwards. */
-  private async withOpenedFile<T>(file: string, fn: (plainPath: string) => T): Promise<T> {
-    const { fs, random } = this.deps.host;
-    const bytes = await fs.readFile(file);
-    const opened = openPayload(bytes, this.deps.replica.ring());
-    if (opened === null) throw new SyncCoreError('KEY_MISMATCH', 'the candidate copy is sealed under a key this device cannot reach');
-    if (opened === bytes) return fn(file);
-    const tmpDir = this.deps.replica.paths.tmp;
-    await fs.mkdir(tmpDir);
-    const plainPath = path.join(tmpDir, `${OPEN_COPY_PREFIX}${random.bytes(TEMP_RAND_BYTES).toString('hex')}${FILE_SUFFIX}`);
-    await fs.writeFile(plainPath, opened);
-    try {
-      return fn(plainPath);
-    } finally {
-      await fs.rm(plainPath, { recursive: false, force: true });
-    }
+  private sealIo(): SealIo {
+    return { host: this.deps.host, replica: this.deps.replica, dir: this.dir() };
   }
 
   private require(id: string): PendingCandidate {
@@ -339,7 +296,7 @@ export class CandidateQueue implements CandidateQueuePort {
     }
     const st = await host.fs.stat(payload.path);
     if (st === null) throw new Error(`${SYNC_LOG_PREFIX} the candidate file is missing`);
-    return this.withOpenedFile(payload.path, (plainPath) =>
+    return withOpenedFile(this.sealIo(), payload.path, (plainPath) =>
       computeCandidate({ replica, candidate: { ...c, payload: { ...payload, path: plainPath } }, fileMtimeMs: st.mtimeMs, rows: null }),
     );
   }
