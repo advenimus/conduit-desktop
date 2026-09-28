@@ -12,22 +12,25 @@ import { resolveCssColor, type ColorToken } from "../lib/appearance/resolveCssCo
 
 /**
  * @deprecated Menu-local icon keys from before the icon registry (spec 5.7). Call sites may pass them
- * until R4-CLEANUP converts the rest to semantic names and removes this map.
+ * until R4-CLEANUP converts the rest to semantic names and removes this map. Each key keeps today's
+ * distinction from its neighbors (Rename is not Edit, Copy Host is not Duplicate, Unfavorite is not
+ * Favorite); null is an item that had no icon.
  */
 export const LEGACY_MENU_ICON_KEYS = {
   play: "playerPlay",
   edit: "pencil",
-  rename: "pencil",
-  "copy-host": "copy",
+  rename: "textCursor",
+  "copy-host": "server",
   reconnect: "refresh",
-  connect: "plug",
+  connect: "link",
   "folder-plus": "folderPlus",
   "external-link": "externalLink",
   dots: "ellipsis",
   "chevron-right": "chevronRight",
-  "star-off": "star",
-  split: "splitHorizontal",
-} as const satisfies Readonly<Record<string, SemanticIconName>>;
+  "star-off": "starFilled",
+  // Split Right and Split Down share this key; R2-TABS gives each its own glyph (spec 3.4).
+  split: null,
+} as const satisfies Readonly<Record<string, SemanticIconName | null>>;
 
 export type LegacyMenuIconKey = keyof typeof LEGACY_MENU_ICON_KEYS;
 export type MenuIconName = SemanticIconName | LegacyMenuIconKey;
@@ -70,14 +73,17 @@ type MenuColorKey = keyof typeof MENU_COLOR_TOKENS;
 
 const SEMANTIC_NAMES: ReadonlySet<string> = new Set(SEMANTIC_ICON_NAMES);
 
-/** The semantic icon for a menu icon key (an old key or a semantic name), or null when it is neither. */
+const isLegacyKey = (key: string): key is LegacyMenuIconKey => Object.prototype.hasOwnProperty.call(LEGACY_MENU_ICON_KEYS, key);
+
+/** The semantic icon for a menu icon key (an old key or a semantic name), or null when it has none or is neither. */
 export function menuIconName(key: string): SemanticIconName | null {
-  if (Object.prototype.hasOwnProperty.call(LEGACY_MENU_ICON_KEYS, key)) return LEGACY_MENU_ICON_KEYS[key as LegacyMenuIconKey];
+  if (isLegacyKey(key)) return LEGACY_MENU_ICON_KEYS[key];
   return SEMANTIC_NAMES.has(key) ? (key as SemanticIconName) : null;
 }
 
 function menuIconSvg(key: string): string | undefined {
   const name = menuIconName(key);
+  if (!name && isLegacyKey(key)) return undefined;
   if (!name) {
     console.warn(`[contextMenu] Unknown menu icon "${key}"; the item is shown without one`);
     return undefined;

@@ -77,19 +77,25 @@ describe("menuIconName", () => {
   it.each([
     ["play", "playerPlay"],
     ["edit", "pencil"],
-    ["rename", "pencil"],
+    ["rename", "textCursor"],
     ["copy", "copy"],
-    ["copy-host", "copy"],
+    ["copy-host", "server"],
     ["reconnect", "refresh"],
-    ["connect", "plug"],
+    ["connect", "link"],
     ["folder-plus", "folderPlus"],
     ["external-link", "externalLink"],
     ["dots", "ellipsis"],
     ["chevron-right", "chevronRight"],
-    ["star-off", "star"],
-    ["split", "splitHorizontal"],
+    ["star-off", "starFilled"],
+    ["split", null],
   ])("maps the old key %s to %s", (key, name) => {
     expect(menuIconName(key)).toBe(name);
+  });
+
+  it("keeps the distinctions today's menus draw between neighboring items", () => {
+    expect(menuIconName("rename")).not.toBe(menuIconName("edit"));
+    expect(menuIconName("copy-host")).not.toBe(menuIconName("copy"));
+    expect(menuIconName("star-off")).not.toBe(menuIconName("star"));
   });
 
   it("keeps the old keys that were already semantic names", () => {
@@ -99,7 +105,7 @@ describe("menuIconName", () => {
   });
 
   it("maps every old key to a semantic name and passes semantic names through", () => {
-    for (const name of Object.values(LEGACY_MENU_ICON_KEYS)) expect(SEMANTIC_ICON_NAMES).toContain(name);
+    for (const name of Object.values(LEGACY_MENU_ICON_KEYS)) if (name !== null) expect(SEMANTIC_ICON_NAMES).toContain(name);
     for (const name of SEMANTIC_ICON_NAMES) expect(menuIconName(name)).toBe(name);
   });
 
@@ -130,6 +136,19 @@ describe("showContextMenu", () => {
     expect(payload.items[0].iconSvg).toMatch(/^<svg[^>]* width="16" height="16"/);
     expect(payload).toMatchObject({ x: 10, y: 20, theme: "dark" });
     expect(payload).not.toHaveProperty("submenuIconSvg");
+  });
+
+  it("sends Split Right and Split Down without an icon, as today, and warns about nothing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    await showContextMenu(0, 0, [
+      { id: "split_right", label: "Split Right", icon: "split" },
+      { id: "split_down", label: "Split Down", icon: "split" },
+    ]);
+    expect(lastPayload().items).toEqual([
+      { id: "split_right", label: "Split Right" },
+      { id: "split_down", label: "Split Down" },
+    ]);
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("converts submenu children and sends the chevron for submenu rows", async () => {
