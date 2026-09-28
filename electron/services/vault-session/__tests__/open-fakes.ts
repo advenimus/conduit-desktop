@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { currentEpochId } from '../../sync/key-epoch.js';
 import { defaultLocalJson } from '../../sync/local-state.js';
+import { lineagePaths, type LineagePaths } from '../../sync/paths.js';
 import { nullSessionSignals } from '../../sync/sync-engine.js';
 import { fakeDerive, ringOf } from '../../sync/__tests__/key-epoch-fixtures.js';
 import type { Kdf, SessionRowView } from '../../sync/host.js';
@@ -114,6 +115,7 @@ export class FakeReplica {
   closed = false;
   aligned: boolean;
   readonly applied: { readonly writes: readonly LocalWrite[]; readonly interactive: boolean; readonly ruleR: boolean | undefined }[] = [];
+  readonly paths: LineagePaths;
   private readonly ctxv: SyncContext;
 
   constructor(
@@ -125,6 +127,7 @@ export class FakeReplica {
     private localJson: LocalJson,
   ) {
     this.aligned = aligned;
+    this.paths = lineagePaths(path.join('/nonexistent-fake-sync', 'm-aaaaaaaa'), lineageId);
     this.ctxv = {
       deviceUuid,
       lineageId,
@@ -189,7 +192,7 @@ export class FakeReplicas {
     return { replica: replica as unknown as ReplicaPort, created: input.seed.kind !== 'existing', seeded: input.seed.kind, notices: [], localRebuilt: false };
   };
 
-  adoptEpochAtOpen: OpenCollaborators['adoptEpochAtOpen'] = (input) => {
+  adoptEpochAtOpen: OpenCollaborators['adoptEpochAtOpen'] = async (input) => {
     this.adopted.push(input);
     (input.replica as unknown as FakeReplica).aligned = true;
     return { state: input.replica.state(), changedRows: [], structural: [], generation: 1 };

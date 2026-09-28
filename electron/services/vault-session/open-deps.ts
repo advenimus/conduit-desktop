@@ -53,7 +53,7 @@ export interface OpenCollaborators {
   /** W's state through a private copy (W itself is never opened before the password is accepted). */
   readonly readWorkingState: (workingPath: string, stagingDir: string, host: StagingHost) => Promise<SyncState>;
   readonly openReplica: (input: ReplicaOpenInput, deps: ReplicaDeps) => Promise<ReplicaOpenResult>;
-  readonly adoptEpochAtOpen: (input: AdoptAtOpenInput, host: EpochHost) => CommitOutcome;
+  readonly adoptEpochAtOpen: (input: AdoptAtOpenInput, host: EpochHost) => Promise<CommitOutcome>;
   readonly assembleEngine: (input: AssembleInput) => SyncEngine;
   readonly createClient: (host: SessionHost) => SessionClientPort;
   readonly createLease: () => LeaseTracker;

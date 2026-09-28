@@ -12,14 +12,14 @@ import type { EngineVault } from './app-sync-review.js';
 
 export const WRONG_CURRENT_PASSWORD_MESSAGE = 'Current password is incorrect';
 
+/** The engine re-keys or removes the private copies under the old password, then publishes (4.8). */
 export async function changeEnginePassword(v: EngineVault, currentPassword: string, newPassword: string, eraseRecentlyDeleted: boolean): Promise<void> {
   try {
-    await v.engine.exclusive(() => v.replica.changePassword(currentPassword, newPassword, eraseRecentlyDeleted));
+    await v.engine.changePassword(currentPassword, newPassword, eraseRecentlyDeleted);
   } catch (err) {
     if (err instanceof Error && err.message === INVALID_PASSWORD_MESSAGE) throw new Error(WRONG_CURRENT_PASSWORD_MESSAGE);
     throw err;
   }
-  v.engine.trigger('sync-now');
 }
 
 /** A VACUUM INTO snapshot of W at `target`, for cloud and local backups. */

@@ -126,7 +126,7 @@ export interface ConflictsChangedEvent {
 
 // ---------- Notices (sync:notice) ----------
 
-export type LocalNoticeKind = 'dropped-setting' | 'value-unrecoverable' | 'undecryptable-secrets' | 'invariant-repair' | 'mass-change';
+export type LocalNoticeKind = 'dropped-setting' | 'value-unrecoverable' | 'undecryptable-secrets' | 'invariant-repair' | 'mass-change' | 'candidate-dropped';
 
 /** Persisted per device; dismiss with sync_dismiss_notice. 'mass-change' pairs with sync_list_snapshots. */
 export interface LocalNotice {

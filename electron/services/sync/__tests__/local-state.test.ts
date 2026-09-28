@@ -109,11 +109,19 @@ describe('validateLocalJson (3.2)', () => {
   });
 
   it('accepts a file written before the side-file confirmation time existed, and checks it when present', () => {
-    const { sideFilesConfirmedAtMs: _absent, ...older } = defaultLocalJson(LINEAGE, 7, INC);
+    const older = Object.fromEntries(Object.entries(defaultLocalJson(LINEAGE, 7, INC)).filter(([k]) => k !== 'sideFilesConfirmedAtMs'));
     const res = validateLocalJson(JSON.parse(JSON.stringify(older)));
     expect(res.ok && res.value.sideFilesConfirmedAtMs).toBeUndefined();
     expect(validateLocalJson(withField(['sideFilesConfirmedAtMs'], 1_790_000_000_000)).ok).toBe(true);
     expect(validateLocalJson(withField(['sideFilesConfirmedAtMs'], -1)).ok).toBe(false);
+  });
+
+  it('keeps the after-publish staged-copies note of a password change (optional, boolean)', () => {
+    const res = validateLocalJson(JSON.parse(JSON.stringify(defaultLocalJson(LINEAGE, 7, INC))));
+    expect(res.ok && res.value.dropStagedAfterPublish).toBeUndefined();
+    const set = validateLocalJson(withField(['dropStagedAfterPublish'], true));
+    expect(set.ok && set.value.dropStagedAfterPublish).toBe(true);
+    expect(validateLocalJson(withField(['dropStagedAfterPublish'], 'yes')).ok).toBe(false);
   });
 
   it('ignores unknown keys from a newer build', () => {

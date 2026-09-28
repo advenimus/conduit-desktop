@@ -6,7 +6,7 @@
  */
 
 import { createClient, type SupabaseClient, type Session } from '@supabase/supabase-js';
-import { app, net, safeStorage } from 'electron';
+import { net, safeStorage } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { readSettings } from '../../ipc/settings.js';

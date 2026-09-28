@@ -63,27 +63,32 @@ export function loadCandidateContent(file: string): ContentSnapshot {
   return withPrivateDb(file, (db) => loadContent(db));
 }
 
-function rekeyValue(row: RowKey, reg: string, v: CandidateValue, replica: ReplicaPort, ring: KeyRing): CandidateValue {
+type RandomBytes = (n: number) => Buffer;
+
+function rekeyValue(row: RowKey, reg: string, v: CandidateValue, ring: KeyRing, rand: RandomBytes): CandidateValue {
   const key = { tbl: row.tbl, rowId: row.rowId, reg };
   const def = registerDef(key);
   if (def === null || !def.secret || !(v.value instanceof Uint8Array) || (v.flags & SIB_UNDECRYPTABLE) !== 0) return v;
   const read = readSecret(v.value, ring);
   if (read.kind === 'undecryptable') return { ...v, flags: v.flags | SIB_UNDECRYPTABLE };
-  const rand = (n: number): Buffer => replica.context().randomBytes(n);
   return { value: encryptSecret(read.plaintext, ring.current, rand), vhash: vhashOfSecret(key, read.plaintext, ring.current.kSync), flags: v.flags };
 }
 
-/** Rows queued under another epoch: secrets re-encrypted and re-hashed under the current one. */
-export function rowsInCurrentEpoch(rows: CandidateRows, epochId: string, replica: ReplicaPort): CandidateRows {
-  const ring = replica.ring();
+/** Rows queued under epoch `epochId` moved to `ring`'s current epoch: secrets re-encrypted and re-hashed. */
+export function rowsUnderRing(rows: CandidateRows, epochId: string, ring: KeyRing, rand: RandomBytes): CandidateRows {
   if (epochId === ring.current.epochId) return rows;
   const out = new Map<string, CandidateRowValues>();
   for (const [k, r] of rows) {
     const values = new Map<string, CandidateValue>();
-    for (const [reg, v] of r.values) values.set(reg, rekeyValue(r.row, reg, v, replica, ring));
+    for (const [reg, v] of r.values) values.set(reg, rekeyValue(r.row, reg, v, ring, rand));
     out.set(k, { ...r, values });
   }
   return out;
+}
+
+/** Rows queued under another epoch: secrets re-encrypted and re-hashed under the current one. */
+export function rowsInCurrentEpoch(rows: CandidateRows, epochId: string, replica: ReplicaPort): CandidateRows {
+  return rowsUnderRing(rows, epochId, replica.ring(), (n) => replica.context().randomBytes(n));
 }
 
 function computeReplica(input: ComputeInput, file: LoadedFile, m: SyncState): Computed {

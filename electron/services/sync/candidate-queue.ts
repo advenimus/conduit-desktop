@@ -6,7 +6,10 @@
  * value-codec) plus a small meta JSON, so nothing waits only in memory. Previews and merges
  * run against the replica's current state through core candidates.ts; applying commits
  * through the replica and records the candidate label in local.json candidateLabels.
- * Parts: candidate-queue-store.ts (files), candidate-queue-compute.ts (previews).
+ * After a password change, rows move to the new epoch and file copies are sealed under its
+ * key (candidate-queue-seal.ts), so the old password opens neither.
+ * Parts: candidate-queue-store.ts (files), candidate-queue-compute.ts (previews),
+ * candidate-queue-seal.ts (sealed file copies).
  */
 
 import crypto from 'node:crypto';
@@ -14,13 +17,14 @@ import path from 'node:path';
 import { classifyCandidate, deleteMissingWrites, type CandidateFileInfo } from './candidates.js';
 import { IGNORED_COPIES_KEEP } from './copy-scanner.js';
 import { merge } from './merge.js';
-import { computeCandidate } from './candidate-queue-compute.js';
+import { computeCandidate, rowsUnderRing } from './candidate-queue-compute.js';
+import { replaceDurably, sealFile, withOpenedFile, type SealIo } from './candidate-queue-seal.js';
 import { FILE_SUFFIX, ROWS_SUFFIX, decodeMeta, decodeRows, encodeMeta, encodeRows, idOfMetaName, isCandidateId, metaName } from './candidate-queue-store.js';
 import type { CommitOutcome, ReplicaPort } from './replica.js';
 import type { NoticesPort } from './notices.js';
 import type { SharedClass, SharedFilePort } from './shared-file.js';
 import { SYNC_LOG_PREFIX, type SyncHost } from './host.js';
-import type { CandidateKind, CandidatePreview, CandidateRows, CandidateSource, RowKey } from './types.js';
+import type { CandidateKind, CandidatePreview, CandidateRows, CandidateSource, KeyRing, RowKey } from './types.js';
 
 export const CANDIDATES_DIR = 'candidates';
 
@@ -62,6 +66,15 @@ export interface ApplyChoice {
   readonly deleteMissing: readonly RowKey[];
 }
 
+export interface CandidateRekeyReport {
+  /** Payloads now under the ring's current epoch (rows re-encrypted, files sealed). */
+  readonly rekeyed: number;
+  /** Removed: no key of the ring opens them any more. */
+  readonly dropped: readonly PendingCandidate[];
+  /** Left as they were after an error (logged). */
+  readonly failed: number;
+}
+
 export interface CandidateQueuePort {
   addFile(input: AddFileInput): Promise<PendingCandidate>;
   addRows(input: AddRowsInput): Promise<PendingCandidate>;
@@ -80,6 +93,8 @@ export interface CandidateQueuePort {
   load(): Promise<void>;
   /** load() once for this queue: the unlock cycle runs before start's housekeeping loads it. */
   ensureLoaded(): Promise<void>;
+  /** 4.8 after a password change: every payload moved to ring.current (rows) or sealed under it (files). Never throws. */
+  rekey(ring: KeyRing): Promise<CandidateRekeyReport>;
 }
 
 export interface CandidateQueueDeps {
@@ -220,7 +235,44 @@ export class CandidateQueue implements CandidateQueuePort {
     await this.parkOrphans(new Set(names));
   }
 
+  async rekey(ring: KeyRing): Promise<CandidateRekeyReport> {
+    let rekeyed = 0;
+    let failed = 0;
+    const dropped: PendingCandidate[] = [];
+    for (const c of this.list()) {
+      try {
+        const outcome = c.payload.kind === 'rows' ? await this.rekeyRows(c, c.payload, ring) : await sealFile(this.sealIo(), c.payload.path, ring);
+        if (outcome === 'unreachable') {
+          await this.remove(c);
+          dropped.push(c);
+        } else if (outcome === 'rekeyed') {
+          rekeyed++;
+        }
+      } catch (err) {
+        failed++;
+        this.deps.host.logger.error(`${SYNC_LOG_PREFIX} candidate not moved to the new password`, { source: c.source, code: errCode(err) });
+      }
+    }
+    if (dropped.length > 0) this.deps.host.logger.warn(`${SYNC_LOG_PREFIX} candidates no key opens were removed`, { count: dropped.length });
+    return { rekeyed, dropped, failed };
+  }
+
   // ---------- internals ----------
+
+  private async rekeyRows(c: PendingCandidate, payload: Extract<PendingPayload, { kind: 'rows' }>, ring: KeyRing): Promise<'rekeyed' | 'current'> {
+    if (payload.epochId === ring.current.epochId) return 'current';
+    const io = this.sealIo();
+    const rows = decodeRows((await io.host.fs.readFile(payload.path)).toString('utf8'));
+    await replaceDurably(io, payload.path, encodeRows(rowsUnderRing(rows, payload.epochId, ring, (n) => io.host.random.bytes(n))));
+    const next: PendingCandidate = Object.freeze({ ...c, payload: Object.freeze({ ...payload, epochId: ring.current.epochId }) });
+    await replaceDurably(io, path.join(this.dir(), metaName(c.id)), encodeMeta(next));
+    this.pending.set(c.id, next);
+    return 'rekeyed';
+  }
+
+  private sealIo(): SealIo {
+    return { host: this.deps.host, replica: this.deps.replica, dir: this.dir() };
+  }
 
   private require(id: string): PendingCandidate {
     const c = isCandidateId(id) ? this.pending.get(id) : undefined;
@@ -237,10 +289,16 @@ export class CandidateQueue implements CandidateQueuePort {
 
   private async compute(c: PendingCandidate) {
     const { host, replica } = this.deps;
-    const rows = c.payload.kind === 'rows' ? decodeRows((await host.fs.readFile(c.payload.path)).toString('utf8')) : null;
-    const st = c.payload.kind === 'file' ? await host.fs.stat(c.payload.path) : null;
-    if (c.payload.kind === 'file' && st === null) throw new Error(`${SYNC_LOG_PREFIX} the candidate file is missing`);
-    return computeCandidate({ replica, candidate: c, fileMtimeMs: st?.mtimeMs ?? 0, rows });
+    const payload = c.payload;
+    if (payload.kind === 'rows') {
+      const rows = decodeRows((await host.fs.readFile(payload.path)).toString('utf8'));
+      return computeCandidate({ replica, candidate: c, fileMtimeMs: 0, rows });
+    }
+    const st = await host.fs.stat(payload.path);
+    if (st === null) throw new Error(`${SYNC_LOG_PREFIX} the candidate file is missing`);
+    return withOpenedFile(this.sealIo(), payload.path, (plainPath) =>
+      computeCandidate({ replica, candidate: { ...c, payload: { ...payload, path: plainPath } }, fileMtimeMs: st.mtimeMs, rows: null }),
+    );
   }
 
   /** Moves a private copy into candidates/ (copy + remove across volumes). */

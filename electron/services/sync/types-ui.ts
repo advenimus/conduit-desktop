@@ -203,7 +203,7 @@ export type UnlockDecision =
 
 // ---------- Device-local state (local.json, 3.2) ----------
 
-export type LocalNoticeKind = 'dropped-setting' | 'value-unrecoverable' | 'undecryptable-secrets' | 'invariant-repair' | 'mass-change';
+export type LocalNoticeKind = 'dropped-setting' | 'value-unrecoverable' | 'undecryptable-secrets' | 'invariant-repair' | 'mass-change' | 'candidate-dropped';
 
 export interface LocalNotice {
   readonly id: string;
@@ -276,6 +276,16 @@ export interface LocalJson {
   /** Candidate dev -> label, so conflict versions can show "Vault 2.conduit". */
   readonly candidateLabels: Readonly<Record<string, string>>;
   readonly contentRepairShas: readonly string[];
+  /**
+   * 4.8: this device changed the master password and S is still under the old one until the
+   * next publish; staged copies of S in incoming/ are removed after that publish (absent: false).
+   */
+  readonly dropStagedAfterPublish?: boolean;
+  /**
+   * 4.8: W moved to a new key epoch and the private copies beside it may still open with the
+   * old password; the engine re-keys or removes them, now or at its next start (absent: false).
+   */
+  readonly sealLocalCopiesPending?: boolean;
 }
 
 // ---------- _sync register values (3.5) ----------

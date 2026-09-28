@@ -2,8 +2,10 @@
 // sync-epoch.ts through the real engine and replica (spec 4.8, 12 rows 15/59/64): the running
 // "Enter the new password" flow (the old password is refused as superseded), the legacy change
 // found in a pre-sync S before the first publish (W joins the new epoch and S is republished
-// under the new salt), and the guards of the concurrent-change flow.
+// under the new salt, and the old-password copies beside W removed), and the guards of the
+// concurrent-change flow.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { deriveEpochKeys, epochIdOf } from '../hashing.js';
@@ -69,8 +71,10 @@ describe('legacy change in a pre-sync S (12 row 64)', () => {
     const oldEpoch = a.replica.ring().current.epochId;
     const { salt, key } = legacyPresync(a, 'brand new');
     expect(await a.engine.runCycle('shared-changed')).toEqual({ kind: 'paused', reason: 'epoch-legacy' });
+    fs.copyFileSync(a.sharedPath, a.replica.paths.genesis);
     await a.engine.adoptLegacyPasswordChange('brand new', 'pw');
     await a.engine.whenIdle();
+    expect(fs.existsSync(a.replica.paths.genesis)).toBe(false);
     expect(a.replica.ring().current.epochId).toBe(epochIdOf(key));
     expect(a.replica.ring().byEpoch.has(oldEpoch)).toBe(true);
     expect(a.replica.state().epochs.get(epochIdOf(key))?.parent).toBe(oldEpoch);
@@ -99,7 +103,8 @@ describe('resolveConcurrentEpoch guards', () => {
     const s = loadVault(a.sharedPath, path.join(a.root, 'peek'));
     const shared: SharedForEpoch = { file: s, meta: { salt: s.content.meta.get('salt') ?? null, verification: s.content.meta.get('verification') ?? null }, sha256: 'a'.repeat(64), mtimeMs: 0 };
     const host = a.d.t.host;
-    expect(() => resolveConcurrentEpoch({ replica: a.replica, shared, otherPassword: 'pw2', winnerEpochId: 'f'.repeat(32) }, host)).toThrow(SyncCoreError);
-    expect(() => resolveConcurrentEpoch({ replica: a.replica, shared, otherPassword: 'wrong', winnerEpochId: a.replica.ring().current.epochId }, host)).toThrow(SyncCoreError);
+    const ports = { snapshots: a.engine.parts().snapshots, notices: a.engine.parts().notices };
+    await expect(resolveConcurrentEpoch({ replica: a.replica, shared, otherPassword: 'pw2', winnerEpochId: 'f'.repeat(32), ports }, host)).rejects.toThrow(SyncCoreError);
+    await expect(resolveConcurrentEpoch({ replica: a.replica, shared, otherPassword: 'wrong', winnerEpochId: a.replica.ring().current.epochId, ports }, host)).rejects.toThrow(SyncCoreError);
   });
 });

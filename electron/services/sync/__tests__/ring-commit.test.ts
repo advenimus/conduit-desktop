@@ -16,7 +16,7 @@ function fakeReplica(commitError: Error | null) {
       ring = next;
       key = k;
     },
-    commit: (_next: SyncState) => {
+    commit: () => {
       if (commitError !== null) throw commitError;
       return { changedRows: [] } as never;
     },

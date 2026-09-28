@@ -619,7 +619,7 @@ export class TeamVaultManager {
    */
   async enrollAdminInAllVaults(teamId: string, targetUserId: string): Promise<void> {
     const supabase = this.authService.getSupabaseClient();
-    const userId = this.requireUserId();
+    this.requireUserId();
 
     // Fetch all team vaults
     const { data: vaults } = await supabase

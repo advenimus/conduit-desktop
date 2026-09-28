@@ -9,6 +9,7 @@
 
 import { SESSION_LOG_PREFIX } from '../sync/host.js';
 import type { ReplicaPort, ReplicaSeed } from '../sync/replica.js';
+import { SnapshotStore } from '../sync/snapshots.js';
 import type { SessionRowView } from '../sync/host.js';
 import type { FileBinding } from '../sync/types.js';
 import { Rollback } from './open-async.js';
@@ -177,7 +178,7 @@ async function alignEpochAtOpen(ctx: OpenContext, replica: ReplicaPort, seeded: 
   const s = seeded.s;
   if (s.kind !== 'synced') throw new Error('[vault-session] open: the key belongs to another epoch and the shared file cannot be absorbed');
   const hold = await holdInputs(ctx, acquire);
-  ctx.c.adoptEpochAtOpen(
+  await ctx.c.adoptEpochAtOpen(
     {
       replica,
       shared: { file: s.file, meta: s.meta, sha256: s.snapshot.sha256, mtimeMs: s.snapshot.stat.mtimeMs },
@@ -186,6 +187,7 @@ async function alignEpochAtOpen(ctx: OpenContext, replica: ReplicaPort, seeded: 
       previousKey: seeded.unlock.previousKey,
       sideFilesPresent: hold.sideFiles,
       serverSideFilesFlagRecent: hold.serverFlag,
+      snapshots: new SnapshotStore(replica.paths.snapshots, ctx.host),
     },
     ctx.host,
   );

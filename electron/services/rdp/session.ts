@@ -8,7 +8,7 @@
 import { BrowserWindow, clipboard } from 'electron';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync, statSync, readdirSync } from 'node:fs';
-import { join, dirname, sep } from 'node:path';
+import { join, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import sharp from 'sharp';
 import { FrameBuffer, type ImageFormat } from './framebuffer.js';

@@ -13,7 +13,9 @@ import { setIsQuitting } from '../services/app-lifecycle.js';
 import { appQuitFlush } from '../services/vault/app-quit-flush.js';
 import { installAfterVaultFlush } from './update-install.js';
 
-let autoUpdater: typeof import('electron-updater').autoUpdater | null = null;
+type ElectronUpdaterModule = typeof import('electron-updater');
+
+let autoUpdater: ElectronUpdaterModule['autoUpdater'] | null = null;
 
 // ── Module-level state ─────────────────────────────────────────────────
 interface CachedUpdateInfo {
@@ -50,7 +52,8 @@ async function getAutoUpdater() {
     const mod = await import('electron-updater');
     // electron-updater is CJS — autoUpdater is a lazy getter on module.exports.
     // ESM interop puts module.exports on .default; named export may be missing.
-    autoUpdater = mod.autoUpdater ?? (mod.default as any)?.autoUpdater ?? null;
+    const cjs = (mod as { readonly default?: Partial<Pick<ElectronUpdaterModule, 'autoUpdater'>> }).default;
+    autoUpdater = mod.autoUpdater ?? cjs?.autoUpdater ?? null;
     return autoUpdater;
   } catch (err) {
     console.error('[updater] Failed to import electron-updater:', err);
@@ -68,7 +71,7 @@ async function doUpdateCheck(): Promise<CachedUpdateInfo | null> {
   checkInProgress = true;
   try {
     const result = await updater.checkForUpdates();
-    if (result && (result as any).isUpdateAvailable && result.updateInfo) {
+    if (result && result.isUpdateAvailable && result.updateInfo) {
       const notes = result.updateInfo.releaseNotes;
       let body: string | null = null;
       if (typeof notes === 'string') {

@@ -6,8 +6,10 @@
  * those rows (interactive `live` plus the snapshot's values) and writes an old field value only
  * where the field still holds the merged value. Shared-file merges are never blocked.
  * Values in diff.json are value-codec encoded; secrets stay ciphertext (never plaintext).
+ * After a password change on this device the copies of W are removed and diff.json is
+ * re-encrypted under the new epoch, so the old password opens nothing here (4.8).
  * Parts: snapshots-types, snapshots-diff (pure diff), snapshots-codec (ids, diff.json),
- * snapshots-undo (preview and writes).
+ * snapshots-undo (preview and writes), snapshots-rekey (diff.json under a new epoch).
  */
 
 import path from 'node:path';
@@ -25,6 +27,7 @@ import {
   snapshotIdFor,
   type SnapshotFile,
 } from './snapshots-codec.js';
+import { rekeySnapshotFile } from './snapshots-rekey.js';
 import { buildUndoPreview, buildUndoWrites } from './snapshots-undo.js';
 import {
   SNAPSHOT_DB_FILE,
@@ -34,6 +37,7 @@ import {
   type MergeDiff,
   type SnapshotMeta,
   type SnapshotRef,
+  type SnapshotRekeyReport,
   type SnapshotStorePort,
   type TakeSnapshotInput,
   type UndoChoice,
@@ -48,6 +52,9 @@ export { countUndone } from './snapshots-undo.js';
 
 /** Same-millisecond snapshots of the same S get `-2`, `-3`, ... suffixes. */
 const MAX_ID_ATTEMPTS = 100;
+/** diff.json is rewritten through this file and a rename, so a crash leaves the old or the new one. */
+const REKEY_TMP_SUFFIX = '.rekey-tmp';
+const DB_COMPANIONS = ['', '-wal', '-shm'] as const;
 
 export type VacuumInto = (db: Database.Database, target: string) => void;
 type StoreHost = Pick<SyncHost, 'fs' | 'clock' | 'random' | 'logger'>;
@@ -147,6 +154,28 @@ export class SnapshotStore implements SnapshotStorePort {
     return res.writes;
   }
 
+  async rekey(ring: KeyRing): Promise<SnapshotRekeyReport> {
+    const tally = { rekeyed: 0, removed: 0, failed: 0 };
+    let names: readonly string[];
+    try {
+      names = await this.names();
+    } catch {
+      return { ...tally, failed: 1 };
+    }
+    for (const name of names) {
+      if (name.startsWith(SNAPSHOT_TMP_PREFIX)) {
+        if (this.inProgress.has(this.dirOf(name))) continue;
+        tally[(await this.remove(this.dirOf(name))) ? 'removed' : 'failed']++;
+        continue;
+      }
+      if (!isSnapshotId(name)) continue;
+      tally[(await this.removeCopyOfW(name)) ? 'removed' : 'failed']++;
+      tally[await this.rekeyDiff(name, ring)]++;
+    }
+    this.host.logger.info(`${SYNC_LOG_PREFIX} snapshots moved to the new password`, tally);
+    return tally;
+  }
+
   /** The snapshot is already durable: a failed prune must not fail the take (the next start prunes). */
   private async pruneAfterTake(nowMs: number): Promise<void> {
     try {
@@ -169,6 +198,38 @@ export class SnapshotStore implements SnapshotStorePort {
       if (taken === null) return id;
     }
     throw new Error(`${SYNC_LOG_PREFIX} snapshot: no free id`);
+  }
+
+  private async removeCopyOfW(id: string): Promise<boolean> {
+    try {
+      for (const suffix of DB_COMPANIONS) {
+        await this.host.fs.rm(path.join(this.dirOf(id), `${SNAPSHOT_DB_FILE}${suffix}`), { recursive: false, force: true });
+      }
+      return true;
+    } catch (err) {
+      this.host.logger.error(`${SYNC_LOG_PREFIX} snapshot copy of the working copy not removed`, { id, code: errorCode(err) });
+      return false;
+    }
+  }
+
+  /** diff.json under ring.current; a snapshot whose diff.json cannot be read (unusable for undo) is removed. */
+  private async rekeyDiff(id: string, ring: KeyRing): Promise<'rekeyed' | 'removed' | 'failed'> {
+    const file = await this.tryRead(id);
+    if (file === null) return (await this.remove(this.dirOf(id))) ? 'removed' : 'failed';
+    const dir = this.dirOf(id);
+    const tmp = path.join(dir, `${SNAPSHOT_DIFF_FILE}${REKEY_TMP_SUFFIX}`);
+    try {
+      const res = rekeySnapshotFile(file, ring, (n) => this.host.random.bytes(n));
+      await this.host.fs.writeFileDurable(tmp, encodeSnapshotFile(res.file));
+      await this.host.fs.rename(tmp, path.join(dir, SNAPSHOT_DIFF_FILE));
+      await this.host.fs.fsyncDir(dir);
+      if (res.unreadable > 0) this.host.logger.warn(`${SYNC_LOG_PREFIX} snapshot secrets no key opens were left as they are`, { id, count: res.unreadable });
+      return 'rekeyed';
+    } catch (err) {
+      this.host.logger.error(`${SYNC_LOG_PREFIX} snapshot diff not moved to the new password`, { id, code: errorCode(err) });
+      await this.remove(tmp);
+      return 'failed';
+    }
   }
 
   private async names(): Promise<readonly string[]> {

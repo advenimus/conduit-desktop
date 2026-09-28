@@ -121,10 +121,7 @@ describe('server side-file flag and the confirmation on this device (5.5)', () =
   it('an older local.json without a confirmation leaves every recent flag in force', async () => {
     const r = rig();
     const now = r.t.clock.now();
-    r.replica.updateLocal((l) => {
-      const { sideFilesConfirmedAtMs: _dropped, ...older } = l;
-      return older;
-    });
+    r.replica.updateLocal((l) => Object.fromEntries(Object.entries(l).filter(([k]) => k !== 'sideFilesConfirmedAtMs')) as typeof l);
     r.runtime.start(granted([flagged(now - 60_000)]));
     expect(r.runtime.signals().serverSideFilesFlagRecent(now)).toBe(true);
     await r.runtime.lock();

@@ -8,7 +8,7 @@
  * Port of crates/conduit-web/src/session.rs + src-tauri/src/commands/web.rs
  */
 
-import { BrowserWindow, WebContentsView, app, session as electronSession, shell, dialog } from 'electron';
+import { BrowserWindow, WebContentsView, app, session as electronSession, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';

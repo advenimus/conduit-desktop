@@ -52,7 +52,7 @@ export function transientToast(notice: TransientNotice): NoticeToast {
 /** Toast for a persisted notice as it arrives; null when the notice only shows in the review panel. */
 export function persistedToast(notice: LocalNotice): NoticeToast | null {
   if (notice.kind === "mass-change") return { type: "warning", title: noticeText(notice), action: "mass-change" };
-  if (notice.kind === "undecryptable-secrets") return { type: "warning", title: noticeText(notice) };
+  if (notice.kind === "undecryptable-secrets" || notice.kind === "candidate-dropped") return { type: "warning", title: noticeText(notice) };
   return null;
 }
 

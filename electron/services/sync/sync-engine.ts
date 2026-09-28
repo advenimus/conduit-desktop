@@ -17,6 +17,7 @@ import { DivergenceTracker } from './divergence.js';
 import { FileBindingTracker, fileHintOf, newBinding, type ForkResult } from './file-binding.js';
 import { SharedFileWatcher } from './file-watch.js';
 import { Notices } from './notices.js';
+import { sealAfterEpochChange } from './password-local-copies.js';
 import type { CommitOutcome, ReplicaPort } from './replica.js';
 import { createSharedFile, type SharedSnapshot } from './shared-file.js';
 import { SnapshotStore } from './snapshots.js';
@@ -157,6 +158,21 @@ export class SyncEngine {
         const out = keepHeldVersions(this.deps);
         this.deps.status.clearPrompt('held-legacy');
         return out;
+      },
+      () => true,
+    );
+  }
+
+  /**
+   * 4.8 Change Password on this device: one W transaction with a new epoch (replica.changePassword),
+   * then the private copies beside W stop opening with the old password (password-local-copies.ts),
+   * then a cycle publishes. Throws only when the password change itself failed.
+   */
+  changePassword(currentPassword: string, newPassword: string, eraseRecentlyDeleted: boolean): Promise<void> {
+    return this.act(
+      async () => {
+        this.deps.replica.changePassword(currentPassword, newPassword, eraseRecentlyDeleted);
+        await sealAfterEpochChange(this.deps);
       },
       () => true,
     );

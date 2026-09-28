@@ -21,6 +21,7 @@ import { VerifySchedule } from './sync-engine-verify.js';
 import { boundFileName, counters, errMeta, guarded, guardedValue, persistPending, readPending } from './sync-engine-local.js';
 import { SideFileRetrier, WatcherLink, housekeeping, makeWatchListener, noteNetworkRoot, pruneIncoming, showSideFiles } from './sync-engine-watch.js';
 import type { FileWatcherPort } from './file-watch.js';
+import { afterPublishSeal } from './password-local-copies.js';
 import {
   DISPLACED_FINAL_CYCLE_CAP_MS,
   ERROR_BACKOFF_MAX_MS,
@@ -267,6 +268,7 @@ export class EngineRunner {
     if (this.memory.lastShared !== readBefore) this.guard('watch acknowledge', () => this.watcher.acknowledgeRead(this.memory.lastShared));
     this.guard('watch acknowledge', () => this.acknowledgeUnread(outcome));
     if (outcome.kind === 'published') await this.acknowledgeOwnPublish(outcome.sha256);
+    if (outcome.kind === 'published' && !this.stopped) await afterPublishSeal(this.deps);
     if (!this.stopped) await pruneIncoming(this.deps, this.memory.lastShared);
     if (!this.stopped) this.guard('cycle bookkeeping', () => this.afterCycle(outcome, reason));
     return outcome;

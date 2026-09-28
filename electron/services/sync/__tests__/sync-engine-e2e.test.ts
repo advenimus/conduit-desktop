@@ -161,6 +161,7 @@ describe('sync engine end to end (real cycle)', { timeout: 30_000 }, () => {
       prune: (now) => inner.prune(now),
       undoPreview: (id, current, implicit) => inner.undoPreview(id, current, implicit),
       undoWrites: (id, current, choice, ring, ctx) => inner.undoWrites(id, current, choice, ring, ctx),
+      rekey: (ring) => inner.rekey(ring),
     };
     await b.engine.stop();
     b.engine = new SyncEngine({ ...parts, snapshots });
