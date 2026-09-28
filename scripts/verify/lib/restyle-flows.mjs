@@ -148,9 +148,10 @@ export async function menuItemIcon(device, label) {
 
 export { closeMenus };
 
-/** The four toasts of the reference (success, info, warning with an action, error), through the app's toast API. */
-export async function showReferenceToasts(device) {
-  const res = await withTimeout(device.page.evaluate(async () => {
+const TOAST_ATTEMPTS = 3;
+
+function pushToasts(device) {
+  return withTimeout(device.page.evaluate(async () => {
     const { toast } = await import('/src/components/common/Toast.tsx');
     const keep = { persistent: true };
     window.__cvToastIds = [
@@ -159,15 +160,43 @@ export async function showReferenceToasts(device) {
       toast.warning('Sync paused', { ...keep, message: 'The vault folder is not reachable. Changes are kept on this device.', actions: [{ label: 'Retry', onClick: () => {} }] }),
       toast.error('No password available', keep),
     ];
-    return 'shown';
+    return window.__cvToastIds.length;
   }), 15_000, `${device.name}: show toasts`);
-  if (res !== 'shown') throw new Error(`${device.name}: toasts not shown`);
-  await waitFor(async () => (await listWindows(device)).some((w) => w.role === 'overlay'), { timeoutMs: 15_000, label: `${device.name}: toast overlay window` });
-  await waitFor(async () => {
-    const page = device.app.windows().find((p) => /\/overlay\.html/.test(p.url()));
-    const text = page ? await withTimeout(page.evaluate(() => document.body?.innerText ?? ''), 5_000, 'overlay text') : '';
-    return text.includes('No password available');
-  }, { timeoutMs: 15_000, label: `${device.name}: toasts drawn in the overlay` });
+}
+
+/**
+ * The overlay hides the toasts while the main window is not focused, and a test device is rarely the
+ * active app; a focus event on the main window (no real focus change) shows them again.
+ */
+function announceMainFocus(device) {
+  return mainEval(device, ({ BrowserWindow }) => {
+    const main = BrowserWindow.getAllWindows().find((w) => /^https?:\/\/[^/]+\/?(\?|#|$)/.test(w.webContents.getURL()));
+    main?.emit('focus');
+    return Boolean(main);
+  }, undefined, { label: 'main window focus event' });
+}
+
+async function toastsDrawn(device) {
+  await announceMainFocus(device);
+  const page = device.app.windows().find((p) => /\/overlay\.html/.test(p.url()));
+  const text = page ? await withTimeout(page.evaluate(() => document.body?.innerText ?? ''), 5_000, 'overlay text') : '';
+  return text.includes('No password available') && (await listWindows(device)).some((w) => w.role === 'overlay');
+}
+
+/**
+ * The four toasts of the reference (success, info, warning with an action, error), through the app's
+ * toast API. The first toasts can reach the overlay window before its page listens, so they are shown
+ * again until the overlay draws them.
+ */
+export async function showReferenceToasts(device) {
+  for (let attempt = 1; ; attempt++) {
+    await pushToasts(device);
+    const drawn = await waitFor(() => toastsDrawn(device), { timeoutMs: 6_000, label: 'toasts drawn' }).catch(() => false);
+    if (drawn) break;
+    if (attempt >= TOAST_ATTEMPTS) throw new Error(`${device.name}: the overlay window did not draw the toasts after ${TOAST_ATTEMPTS} tries`);
+    await clearToasts(device);
+    await sleep(800);
+  }
   await sleep(500);
 }
 
