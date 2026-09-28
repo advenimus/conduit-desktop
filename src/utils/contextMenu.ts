@@ -3,29 +3,122 @@
  *
  * Shows a styled context menu via a child BrowserWindow (separate OS window)
  * that renders above native WebContentsViews without needing to hide them.
+ * The main process renders it (electron/ipc/menu.ts, spec 7.7).
  */
 
 import { invoke } from "../lib/electron";
+import { iconToSvg, SEMANTIC_ICON_NAMES, type SemanticIconName } from "../lib/icons";
+import { resolveCssColor, type ColorToken } from "../lib/appearance/resolveCssColor";
+
+/**
+ * @deprecated Menu-local icon keys from before the icon registry (spec 5.6). Call sites may pass them
+ * until W4-CLEANUP converts the rest to semantic names and removes this map.
+ */
+export const LEGACY_MENU_ICON_KEYS = {
+  play: "playerPlay",
+  edit: "pencil",
+  rename: "pencil",
+  "copy-host": "copy",
+  reconnect: "refresh",
+  connect: "plug",
+  "folder-plus": "folderPlus",
+  "external-link": "externalLink",
+  dots: "ellipsis",
+  "chevron-right": "chevronRight",
+  "star-off": "star",
+  split: "splitHorizontal",
+} as const satisfies Readonly<Record<string, SemanticIconName>>;
+
+export type LegacyMenuIconKey = keyof typeof LEGACY_MENU_ICON_KEYS;
+export type MenuIconName = SemanticIconName | LegacyMenuIconKey;
 
 export interface PopupMenuItem {
   id: string;
   label: string;
   type?: "separator" | "header";
   variant?: "danger";
-  icon?: string; // key into SVG icon map (e.g. "play", "edit", "copy", "trash")
+  icon?: MenuIconName;
   children?: PopupMenuItem[]; // submenu items
 }
 
-/** Read current CSS variable values from the document root. */
-function getThemeColors(): Record<string, string> {
-  const s = getComputedStyle(document.documentElement);
+/** The item shape the main process reads: the icon travels as markup it sanitizes. */
+interface PopupMenuPayloadItem {
+  id: string;
+  label: string;
+  type?: "separator" | "header";
+  variant?: "danger";
+  iconSvg?: string;
+  children?: PopupMenuPayloadItem[];
+}
+
+const MENU_ICON_SIZE = 16;
+const OVERLAY_TOKEN: ColorToken = "--c-overlay";
+
+const MENU_COLOR_TOKENS = {
+  overlay: OVERLAY_TOKEN,
+  overlayBorder: "--c-overlay-border",
+  inkSecondary: "--c-ink-secondary",
+  inkMuted: "--c-ink-muted",
+  selectionBg: "--c-menu-selection-bg",
+  selectionBorder: "--c-menu-selection-border",
+  danger: "--c-danger",
+  dangerHover: "--c-menu-danger-hover-bg",
+  divider: "--c-divider",
+} as const satisfies Readonly<Record<string, ColorToken>>;
+
+type MenuColorKey = keyof typeof MENU_COLOR_TOKENS;
+
+const SEMANTIC_NAMES: ReadonlySet<string> = new Set(SEMANTIC_ICON_NAMES);
+
+/** The semantic icon for a menu icon key (an old key or a semantic name), or null when it is neither. */
+export function menuIconName(key: string): SemanticIconName | null {
+  if (Object.prototype.hasOwnProperty.call(LEGACY_MENU_ICON_KEYS, key)) return LEGACY_MENU_ICON_KEYS[key as LegacyMenuIconKey];
+  return SEMANTIC_NAMES.has(key) ? (key as SemanticIconName) : null;
+}
+
+function menuIconSvg(key: string): string | undefined {
+  const name = menuIconName(key);
+  if (!name) {
+    console.warn(`[contextMenu] Unknown menu icon "${key}"; the item is shown without one`);
+    return undefined;
+  }
+  try {
+    return iconToSvg(name, MENU_ICON_SIZE);
+  } catch (err) {
+    console.warn(`[contextMenu] Could not render the "${name}" icon; the item is shown without one`, err);
+    return undefined;
+  }
+}
+
+function toPayloadItem(item: PopupMenuItem): PopupMenuPayloadItem {
+  const iconSvg = item.icon && !item.type ? menuIconSvg(item.icon) : undefined;
   return {
-    panel: s.getPropertyValue("--c-panel").trim(),
-    raised: s.getPropertyValue("--c-raised").trim(),
-    ink: s.getPropertyValue("--c-ink").trim(),
-    inkFaint: s.getPropertyValue("--c-ink-faint").trim(),
-    strokeDim: s.getPropertyValue("--c-stroke-dim").trim(),
+    id: item.id,
+    label: item.label,
+    ...(item.type ? { type: item.type } : {}),
+    ...(item.variant ? { variant: item.variant } : {}),
+    ...(iconSvg ? { iconSvg } : {}),
+    ...(item.children?.length ? { children: item.children.map(toPayloadItem) } : {}),
   };
+}
+
+/**
+ * The menu colors as #rrggbb, alpha flattened over the overlay. A token that does not resolve is left out
+ * and the main process uses its built-in Modern value for it.
+ */
+function resolveMenuColors(): Partial<Record<MenuColorKey, string>> {
+  const keys = Object.keys(MENU_COLOR_TOKENS) as MenuColorKey[];
+  return Object.fromEntries(
+    keys.flatMap((key) => {
+      const token = MENU_COLOR_TOKENS[key];
+      try {
+        return [[key, token === OVERLAY_TOKEN ? resolveCssColor(token) : resolveCssColor(token, OVERLAY_TOKEN)]];
+      } catch (err) {
+        console.warn(`[contextMenu] ${token} did not resolve; the menu uses its built-in color`, err);
+        return [];
+      }
+    }),
+  );
 }
 
 /**
@@ -45,14 +138,20 @@ export async function showContextMenu(
     new CustomEvent("conduit:popup-menu-change", { detail: { open: true } })
   );
   try {
+    const payloadItems = items.map(toPayloadItem);
+    const hasSubmenus = payloadItems.some((item) => item.children);
     return await invoke<string | null>("show_context_menu_popup", {
-      items,
+      items: payloadItems,
       x,
       y,
       theme,
-      colors: getThemeColors(),
+      colors: resolveMenuColors(),
+      ...(hasSubmenus ? { submenuIconSvg: menuIconSvg("chevronRight") } : {}),
       anchorRight: options?.anchorRight,
     });
+  } catch (err) {
+    console.error("[contextMenu] Could not show the popup menu:", err);
+    return null;
   } finally {
     document.dispatchEvent(
       new CustomEvent("conduit:popup-menu-change", { detail: { open: false } })
