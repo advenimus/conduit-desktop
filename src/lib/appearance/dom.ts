@@ -1,6 +1,6 @@
 /** Reading, validating and applying the appearance on <html>. Shared by useAppearance and the overlay window. */
 import TABLE from "./migration-table.json";
-import { APPEARANCE_KEYS, migrateAppearance } from "./migrate";
+import { APPEARANCE_KEYS, keptVersion, migrateAppearance } from "./migrate";
 import { isSchemeId, type SchemeId } from "../schemes";
 import { isIconPackId, type IconPackId } from "../icons/types";
 import type { Density } from "../../styles/metrics";
@@ -69,7 +69,7 @@ export function writeStoredAppearance(state: AppearanceState, storage: Storage |
     [APPEARANCE_KEYS.scheme, state.scheme],
     [APPEARANCE_KEYS.iconPack, state.iconPack],
     [APPEARANCE_KEYS.density, state.density],
-    [APPEARANCE_KEYS.version, String(TABLE.version)],
+    [APPEARANCE_KEYS.version, String(keptVersion(read(storage, APPEARANCE_KEYS.version)))],
   ];
   for (const [key, value] of entries) {
     try {

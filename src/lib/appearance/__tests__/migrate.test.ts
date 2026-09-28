@@ -54,6 +54,17 @@ describe("migrateAppearance: the spec 6.3 table", () => {
     expect(migrateAppearance({ appearance_version: 3 }).color_scheme).toBe("modern");
   });
 
+  it("keeps a newer version a later build wrote, so its migration does not run again", () => {
+    expect(migrateAppearance({ appearance_version: "3", color_scheme: "ember", icon_pack: "lucide" })).toEqual({
+      appearance_version: 3,
+      color_scheme: "ember",
+      icon_pack: "lucide",
+      ui_density: "comfortable",
+    });
+    expect(migrateAppearance({ appearance_version: "2.5" }).appearance_version).toBe(2);
+    expect(migrateAppearance({ appearance_version: "1" }).appearance_version).toBe(2);
+  });
+
   it("is idempotent", () => {
     const text = fc.option(fc.oneof(fc.constantFrom("default", "macos", "windows", "ubuntu", "ocean", "modern", "ember", "macos-blue", "ubuntu-yaru", "codicons", "fluent", "compact", "2", "1"), fc.string()), { nil: null });
     fc.assert(
@@ -84,6 +95,13 @@ describe("migrateAppearanceStorage", () => {
 
   it("an empty storage (fresh install) gets Modern and Codicons", () => {
     expect(migrateAppearanceStorage(localStorage)).toEqual({ appearance_version: 2, color_scheme: "modern", icon_pack: "codicons", ui_density: "comfortable" });
+  });
+
+  it("never writes a newer stored version back down to 2", () => {
+    localStorage.setItem(APPEARANCE_KEYS.version, "3");
+    localStorage.setItem(APPEARANCE_KEYS.scheme, "rose");
+    expect(migrateAppearanceStorage(localStorage).appearance_version).toBe(3);
+    expect(localStorage.getItem(APPEARANCE_KEYS.version)).toBe("3");
   });
 
   it("a second run changes nothing", () => {

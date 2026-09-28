@@ -61,11 +61,18 @@
     return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
   }
 
+  // A higher version was written by a later build: keeping it stops that build's migration from running again.
+  function keptVersion(value) {
+    var stored = Number(value);
+    return isFinite(stored) && Math.floor(stored) === stored && stored > TABLE.version ? stored : TABLE.version;
+  }
+
   function migrate(raw) {
     var d = TABLE.defaults;
     var density = pick(raw.ui_density, TABLE.densities, d.ui_density);
     if (Number(raw.appearance_version) >= TABLE.version) {
       return {
+        version: keptVersion(raw.appearance_version),
         color_scheme: pick(raw.color_scheme, TABLE.schemes, d.color_scheme),
         icon_pack: pick(raw.icon_pack, TABLE.iconPacks, d.icon_pack),
         ui_density: density
@@ -78,6 +85,7 @@
     var next = retired !== undefined ? retired : untouchedDefault ? d.color_scheme : scheme;
     var platformPack = lookup(TABLE.packByPlatform, platform);
     return {
+      version: TABLE.version,
       color_scheme: pick(next, TABLE.schemes, d.color_scheme),
       icon_pack: pick(raw.icon_pack, TABLE.iconPacks, platformPack !== undefined ? platformPack : d.icon_pack),
       ui_density: density
@@ -127,7 +135,7 @@
   write(store, KEYS.scheme, result.color_scheme);
   write(store, KEYS.iconPack, result.icon_pack);
   write(store, KEYS.density, result.ui_density);
-  write(store, KEYS.version, String(TABLE.version));
+  write(store, KEYS.version, String(result.version));
   write(store, KEYS.legacyPlatform, null);
 
   var theme = pick(read(store, KEYS.theme), TABLE.themes, TABLE.defaults.theme);

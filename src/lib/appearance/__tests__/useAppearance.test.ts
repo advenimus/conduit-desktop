@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { APPEARANCE_APPLIED_EVENT, useAppearance, type AppearanceAppliedDetail } from "../useAppearance";
+import { writeStoredAppearance } from "../dom";
 import { useTheme } from "../../../hooks/useTheme";
 import { useIconPackStore } from "../../icons";
 
@@ -168,6 +169,15 @@ describe("useAppearance", () => {
     const { result } = renderHook(() => useAppearance());
     expect(result.current.scheme).toBe("modern");
     expect(root.getAttribute("data-scheme")).toBe("modern");
+  });
+
+  it("the storage mirror writes version 2 but never lowers a newer version", () => {
+    const state = { theme: "dark", scheme: "ember", iconPack: "lucide", density: "compact" } as const;
+    writeStoredAppearance(state);
+    expect(localStorage.getItem("conduit-appearance-version")).toBe("2");
+    localStorage.setItem("conduit-appearance-version", "3");
+    writeStoredAppearance(state);
+    expect(localStorage.getItem("conduit-appearance-version")).toBe("3");
   });
 
   it("useTheme re-exports useAppearance until W4-CLEANUP", () => {

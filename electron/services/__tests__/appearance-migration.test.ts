@@ -58,6 +58,14 @@ describe('migrateAppearance (main process, spec 6.3)', () => {
     expect(migrateAppearance({ ...raw, platform_theme: 'macos' }).changed).toBe(true);
   });
 
+  it('keeps a newer appearance_version (a later build wrote it) and reports no change', () => {
+    const raw = { appearance_version: 3, color_scheme: 'ember', icon_pack: 'lucide', ui_density: 'compact', title_bar_style: 'native' };
+    expect(migrateAppearance(raw)).toEqual({ values: raw, changed: false });
+    expect(migrateAppearance({ ...raw, appearance_version: '3' }).values.appearance_version).toBe(3);
+    expect(migrateAppearance({ ...raw, appearance_version: 2.5 }).values.appearance_version).toBe(2);
+    expect(migrateAppearance({ ...raw, appearance_version: 1 }).values.appearance_version).toBe(2);
+  });
+
   it('non-object input is treated as an empty file', () => {
     expect(migrateAppearance(null).values.color_scheme).toBe('modern');
     expect(migrateAppearance([1, 2]).values.color_scheme).toBe('modern');
@@ -150,6 +158,13 @@ describe('readSettings() runs the migration on the raw file (temp data dir)', ()
     const r = await readTwice({ color_scheme: 'rose', icon_pack: 'lucide', ui_density: 'compact', title_bar_style: 'native', appearance_version: 2 });
     expect(r.first).toMatchObject({ color_scheme: 'rose', icon_pack: 'lucide', ui_density: 'compact', title_bar_style: 'native' });
     expect(r.writesAfterSecond).toBe(0);
+  });
+
+  it('a file from a newer build keeps its version and is never rewritten', async () => {
+    const r = await readTwice({ color_scheme: 'ember', icon_pack: 'lucide', ui_density: 'compact', title_bar_style: 'native', appearance_version: 3 });
+    expect(r.first).toMatchObject({ color_scheme: 'ember', appearance_version: 3 });
+    expect(r.writesAfterSecond).toBe(0);
+    expect(r.onDisk.appearance_version).toBe(3);
   });
 
   it('no settings file: the defaults, and nothing is written', async () => {

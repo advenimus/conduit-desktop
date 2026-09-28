@@ -87,6 +87,7 @@ describe('appearance migration parity: boot-inline.js, migrate.ts and the main p
       { version: null, platform: 'macos', scheme: 'ocean', pack: null, density: null },
       { version: null, platform: 'windows', scheme: 'macos-graphite', pack: null, density: null },
       { version: '2', platform: 'macos', scheme: 'rose', pack: 'material', density: 'compact' },
+      { version: '3', platform: null, scheme: 'ember', pack: 'lucide', density: 'compact' },
     ];
     for (const seed of rows) {
       const { boot, renderer, main } = runAll(seed);
@@ -99,7 +100,7 @@ describe('appearance migration parity: boot-inline.js, migrate.ts and the main p
     fc.assert(
       fc.property(
         fc.record({
-          version: value('2', '1', '3', '0', 'two'),
+          version: value('2', '1', '3', '7', '2.5', '0', 'two'),
           platform: value('default', 'macos', 'windows', 'ubuntu', '__proto__', 'constructor'),
           scheme: value('ocean', 'modern', 'ember', 'forest', 'amethyst', 'rose', 'midnight', 'macos-blue', 'macos-graphite', 'win-blue', 'win-sun-valley', 'ubuntu-yaru', 'ubuntu-gnome', 'toString'),
           pack: value('codicons', 'lucide', 'tabler', 'phosphor', 'fluent', 'material'),

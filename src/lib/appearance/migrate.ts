@@ -43,13 +43,19 @@ function lookup(map: Record<string, string>, key: string): string | undefined {
   return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
 }
 
+/** A higher version was written by a later build: keeping it stops that build's migration from running again. */
+export function keptVersion(value: unknown): number {
+  const stored = Number(value);
+  return Number.isInteger(stored) && stored > TABLE.version ? stored : TABLE.version;
+}
+
 export function migrateAppearance(raw: RawAppearance): MigratedAppearance {
   const d = TABLE.defaults;
   const ui_density = pick<Density>(raw.ui_density, TABLE.densities, d.ui_density as Density);
 
   if (Number(raw.appearance_version) >= TABLE.version) {
     return {
-      appearance_version: TABLE.version,
+      appearance_version: keptVersion(raw.appearance_version),
       color_scheme: pick<SchemeId>(raw.color_scheme, TABLE.schemes, d.color_scheme as SchemeId),
       icon_pack: pick<IconPackId>(raw.icon_pack, TABLE.iconPacks, d.icon_pack as IconPackId),
       ui_density,

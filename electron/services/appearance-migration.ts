@@ -69,6 +69,12 @@ function lookup(map: Readonly<Record<string, string>>, key: string): string | un
   return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
 }
 
+/** A higher version was written by a later build: keeping it stops that build's migration from running again. */
+function keptVersion(value: unknown): number {
+  const stored = Number(value);
+  return Number.isInteger(stored) && stored > TABLE.version ? stored : TABLE.version;
+}
+
 /** Runs on the parsed settings file before defaults are spread over it, so the version check sees raw values. */
 export function migrateAppearance(input: unknown): AppearanceMigration {
   const raw = isRecord(input) ? input : {};
@@ -89,7 +95,7 @@ export function migrateAppearance(input: unknown): AppearanceMigration {
     icon_pack = pick(raw.icon_pack, TABLE.iconPacks, lookup(TABLE.packByPlatform, platform) ?? d.icon_pack);
   }
 
-  const values: AppearanceSettings = { appearance_version: TABLE.version, color_scheme, icon_pack, ui_density, title_bar_style };
+  const values: AppearanceSettings = { appearance_version: keptVersion(raw.appearance_version), color_scheme, icon_pack, ui_density, title_bar_style };
   const changed =
     Object.prototype.hasOwnProperty.call(raw, LEGACY_KEY) ||
     (Object.keys(values) as Array<keyof AppearanceSettings>).some((key) => raw[key] !== values[key]);

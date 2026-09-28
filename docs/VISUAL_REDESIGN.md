@@ -1522,7 +1522,7 @@ The same rules run in the main process on every settings read (`electron/service
 
 **Every rule, the version check included, reads the raw stored values: in the main process the parsed file before defaults are spread over it.** `readSettings()` builds `{ ...defaultSettings, ...raw }` (`settings.ts:163`), and the new defaults include `appearance_version: 2` (6.1), so a check on the merged object would treat every legacy file as migrated and skip the whole migration. The main process calls `migrateAppearance(raw)` and applies its result to the merged settings: it sets the migrated keys and deletes `platform_theme`. The renderer reads `localStorage` directly.
 
-1. If `raw.appearance_version >= 2`: validate only. An unknown scheme becomes `modern`, an unknown pack `codicons`, an unknown density `comfortable`. Stop.
+1. If `raw.appearance_version >= 2`: validate only. An unknown scheme becomes `modern`, an unknown pack `codicons`, an unknown density `comfortable`. An integer version above 2 (written by a later build) is kept, never written back as 2, in the main process, `boot-inline.js`, `migrate.ts` and the `useAppearance` storage mirror, so that build's own migration does not run again after a downgrade and re-upgrade. Stop.
 2. `platform = raw.platform_theme ?? "default"`, `scheme = raw.color_scheme ?? "ocean"`.
 3. `icon_pack = valid(raw.icon_pack) ? raw.icon_pack : PACK_BY_PLATFORM[platform] ?? "codicons"`.
 4. `color_scheme = RETIRED[scheme] ?? (platform === "default" && scheme === "ocean" ? "modern" : scheme)`, then validate.

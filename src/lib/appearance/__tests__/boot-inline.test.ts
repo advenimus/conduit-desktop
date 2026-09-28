@@ -99,6 +99,12 @@ describe("boot-inline.js", () => {
     expect(localStorage.getItem("conduit-icon-pack")).toBe("lucide");
   });
 
+  it("keeps a newer appearance version instead of writing 2 over it", () => {
+    runBoot({ storage: { "conduit-appearance-version": "3", "conduit-color-scheme": "rose" } });
+    expect(root.getAttribute("data-scheme")).toBe("rose");
+    expect(localStorage.getItem("conduit-appearance-version")).toBe("3");
+  });
+
   it("falls back to the user agent for data-os and to 1 for the zoom", () => {
     setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
     runBoot();
