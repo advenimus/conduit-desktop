@@ -1,0 +1,1036 @@
+{
+  "packages": [
+    {
+      "id": "W1-ICONS",
+      "title": "Icon registry, six packs and the icon codegen",
+      "wave": 1,
+      "depends_on": [],
+      "owns": [
+        "src/lib/icons/**",
+        "scripts/icons/**",
+        "scripts/__tests__/icon-packs.test.ts",
+        "public/licenses/**",
+        "package.json",
+        "package-lock.json"
+      ],
+      "deliverables": [
+        "Registry per spec 5.1: types.ts (123 names), store.ts, loader.ts with bootIconPack(), preloadAllIconPacks() and getPackMapping(id), create-themed-icon.ts, Icon.tsx (with the pack prop), serialize.ts (iconToSvg), licenses.ts, index.ts with the 12 new named exports",
+        "Packs: codicons.tsx + generated/codicons.ts (static), material.tsx + generated/material.ts, lucide.ts, tabler.ts (from default.ts), phosphor.ts (from macos.ts, playerStopFilled fixed), fluent.ts (from windows.ts); the 12 new names in every pack (spec 5.3, Appendix A), including the shown/hidden pairs panelLeft/panelLeftOff and panelRight/panelRightOff; ubuntu.ts deleted",
+        "scripts/icons/generate-icon-packs.mjs + mapping.mjs with --check mode; npm script icons:generate; generated public/licenses/third-party-icons.txt",
+        "package.json: devDependencies @iconify-json/codicon@1.2.73, @iconify-json/material-symbols-light@1.2.94, lucide-react@1.48.0 (exact); @tabler/icons-react, @phosphor-icons/react, @fluentui/react-icons moved to devDependencies with unchanged ranges",
+        "Deprecated shims so current callers compile: IconTheme, THEME_ICON_DEFAULTS, loadIconPack(theme) mapping default/ubuntu to tabler, macos to phosphor, windows to fluent, useIconThemeStore alias"
+      ],
+      "acceptance": [
+        "npx vitest run src/lib/icons scripts/__tests__/icon-packs.test.ts passes (spec 8.1 row W1-ICONS)",
+        "npm ls --omit=dev --parseable | grep -E \"lucide|tabler|phosphor|fluentui|iconify\" prints nothing",
+        "node scripts/icons/generate-icon-packs.mjs --check exits 0",
+        "After npm run build: for p in lucide tabler phosphor fluent material; do ls dist/assets | grep -qE \"^$p-.*\\.js$\" || echo \"missing $p\"; done prints nothing, and ls dist/assets | grep -c codicons prints 0 (Codicons ship in the entry chunk)",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W1-ICONS --base <wave base> exits 0 (before W1-HARNESS lands: git diff --name-only $(git merge-base HEAD <wave base>)...HEAD and git status --porcelain list only paths in owns)"
+      ]
+    },
+    {
+      "id": "W1-TOKENS",
+      "title": "Design tokens, schemes, density, appearance runtime and migration",
+      "wave": 1,
+      "depends_on": [
+        "W1-ICONS"
+      ],
+      "owns": [
+        "src/index.css",
+        "src/styles/**",
+        "src/themes/**",
+        "tailwind.config.js",
+        "src/lib/themes.ts",
+        "src/lib/schemes.ts",
+        "src/lib/appearance/**",
+        "src/hooks/useTheme.ts",
+        "src/lib/terminalTheme.ts",
+        "src/lib/__tests__/terminalTheme.test.ts",
+        "index.html",
+        "overlay.html",
+        "picker.html",
+        "vite.config.ts",
+        "src/main.tsx",
+        "src/overlay.tsx",
+        "src/picker.tsx",
+        "src/components/overlay/OverlayApp.tsx",
+        "src/test/setup.ts",
+        "electron/ipc/settings.ts",
+        "electron/services/appearance-migration.ts",
+        "electron/services/__tests__/appearance-migration.test.ts",
+        "src/components/settings/SettingsDialog.tsx",
+        "src/components/settings/SettingsHelpers.tsx",
+        "src/components/settings/tabs/AppearanceTab.tsx",
+        "src/components/entries/entryIcons.ts",
+        "scripts/__tests__/appearance-migration-parity.test.ts"
+      ],
+      "deliverables": [
+        "src/styles/{tokens,schemes,density,base}.css and components/{cards,tabs,sash}.css with every token in spec 2.2-2.9 as revised: Modern exact values, the 6 universal schemes with the 2.3 overrides (Forest dark muted and faint, Ocean light tab-fg), 10% tone tints, and the tab, status bar, activity, code, grip, indent and underline tokens; the selected-row re-scope of both --c-* and --color-* (2.11); the focus rules (2.7); 8px scrollbars (2.8)",
+        "src/index.css rewritten to the 2.1 skeleton and the 2.10 @theme block; platform CSS, native-schemes.css, tailwind.config.js and src/lib/themes.ts deleted",
+        "src/styles/metrics.ts mirror of layout tokens; resolveCssColor (2.12)",
+        "Appearance runtime (6.2): boot-inline.js (sets --c-zoom from window.electron.zoomFactor() when present), the conduitAppearanceBoot Vite plugin and markers in the three HTML shells, useAppearance (useTheme.ts re-exports it; dispatches conduit:appearance-applied and never sends window_chrome_update), migrate.ts, migration-table.json, shell-colors.json, COLOR_SCHEMES with Modern first and preview colors",
+        "Settings keys and defaults (6.1) in electron/ipc/settings.ts; main-process migration (6.3) that reads the raw file before defaults, with write-back; SettingsDialog, SettingsHelpers and AppearanceTab minimal edits (6.4 first paragraph)",
+        "terminalTheme uses resolveCssColor('--c-editor'); entryIcons.ts uses text-entry-* classes; OverlayApp theme sync reads the new keys; entry files call bootIconPack(); splash uses --c-boot-bg/--c-boot-fg",
+        "src/test/setup.ts stubs window.matchMedia and ResizeObserver when missing"
+      ],
+      "acceptance": [
+        "npx vitest run src/styles src/lib/appearance src/lib/__tests__/terminalTheme.test.ts electron/services/__tests__/appearance-migration.test.ts scripts/__tests__/appearance-migration-parity.test.ts passes, including every contrast gate in 2.11 for 7 schemes x 2 modes (exact color-mix), the raw-value version check and the temp-dir readSettings() integration test",
+        "git grep -nE \"data-platform|conduit-platform-theme|platform_theme\" -- src electron index.html overlay.html picker.html finds only the migration code and its tests",
+        "grep -l conduit-appearance-version dist/index.html dist/overlay.html dist/picker.html lists all three files (the inlined boot script)",
+        "npm run dev:electron on a fresh profile shows Modern dark, and Settings > Appearance previews each of the 7 schemes live",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W1-TOKENS --base <wave base> exits 0 (before W1-HARNESS lands: git diff --name-only $(git merge-base HEAD <wave base>)...HEAD and git status --porcelain list only paths in owns)"
+      ]
+    },
+    {
+      "id": "W1-FREEZE",
+      "title": "Ref-counted freeze registry for native web views",
+      "wave": 1,
+      "depends_on": [],
+      "owns": [
+        "src/lib/native-freeze/**",
+        "src/hooks/useNativeViewVisibility.ts",
+        "src/hooks/__tests__/useNativeViewVisibility.test.tsx",
+        "src/App.tsx",
+        "src/components/sync/SyncDialogFrame.tsx",
+        "src/components/sync/ConflictReviewPanel.tsx",
+        "src/components/common/ConfirmDialog.tsx",
+        "src/components/layout/DragContext.tsx",
+        "src/components/sync/__tests__/SyncDialogFrame.freeze.test.tsx"
+      ],
+      "deliverables": [
+        "src/lib/native-freeze/index.ts with the API in spec 4.9, the legacy event bridge and window.__conduitFreeze in dev",
+        "useNativeViewVisibility computes shouldBeNative from useIsFrozen() (replaces useNativeViewVisibility.ts:46-82)",
+        "App.tsx: the two dispatch effects (389-395, 410-415) become useFreeze(anyOverlayOpen, 'legacy') and useFreeze(sidebarOverlayOpen, 'sidebar')",
+        "SyncDialogFrame, ConflictReviewPanel and ConfirmDialog hold a 'dialog' freeze while mounted (closes the sync-dialog gap)",
+        "DragContext holds a 'drag' freeze between startDrag and endDrag and keeps web_session_hide_all and conduit:drag-change"
+      ],
+      "acceptance": [
+        "npx vitest run src/lib/native-freeze src/hooks/__tests__/useNativeViewVisibility.test.tsx src/components/sync/__tests__/SyncDialogFrame.freeze.test.tsx passes (mounting SyncDialogFrame alone makes isFrozen() true)",
+        "Manual: with a web session open and Settings closed, a sync dialog opened from the review banner or the take-over prompt appears above the page (today the native view covers it, because sync dialogs are not in the App.tsx flag list); the floating side bar and tab drags still freeze",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W1-FREEZE --base <wave base> exits 0 (before W1-HARNESS lands: git diff --name-only $(git merge-base HEAD <wave base>)...HEAD and git status --porcelain list only paths in owns)"
+      ]
+    },
+    {
+      "id": "W1-PRIMITIVES",
+      "title": "UI primitives, layer stack, gallery and legacy report",
+      "wave": 1,
+      "depends_on": [
+        "W1-TOKENS",
+        "W1-ICONS",
+        "W1-FREEZE"
+      ],
+      "owns": [
+        "src/components/ui/**",
+        "gallery.html",
+        "src/gallery.tsx",
+        "src/components/sync/useEscapeLayer.ts",
+        "scripts/redesign/legacy-classes.mjs",
+        "scripts/__tests__/legacy-classes.test.ts"
+      ],
+      "deliverables": [
+        "Every primitive in spec section 4 (4.2-4.15) as one file each, barrel index.ts and cx.ts, including: Dialog with onSubmit (one form around header, body and footer), the portal prop and no animation; Button loadingLabel and data-cv-text-button; Spinner text; Menu items as button[role=menuitem]; ListRow as a button when clickable, with opacity-only reveal; Radio as label > input; the Switch off state on the checkbox tokens; Tabs panel and underline variants; IconButton radius 4; the count badge metrics",
+        "layers.ts (useLayer, useEscapeLayer); src/components/sync/useEscapeLayer.ts becomes a re-export",
+        "gallery.html + src/gallery.tsx with scheme, mode, density and pack switches (dev server only), including every focusable primitive focused inside a Card and inside a tab strip",
+        "scripts/redesign/legacy-classes.mjs: reports the 4.16 legacy patterns (uppercase and tracking, text-base, text-xl and bg-well on code blocks included) found inside class strings only, per path, with the Appendix B allowlist and the 10.5 dead files excluded"
+      ],
+      "acceptance": [
+        "npx vitest run src/components/ui scripts/__tests__/legacy-classes.test.ts passes (spec 8.1 row W1-PRIMITIVES)",
+        "The gallery renders in all 7 schemes x 2 modes x 2 densities with no console errors, and every focus ring is fully visible inside the Card and the tab strip",
+        "node scripts/redesign/legacy-classes.mjs src/components/ui reports 0 findings",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W1-PRIMITIVES --base <wave base> exits 0 (before W1-HARNESS lands: git diff --name-only $(git merge-base HEAD <wave base>)...HEAD and git status --porcelain list only paths in owns)"
+      ]
+    },
+    {
+      "id": "W1-HARNESS",
+      "title": "Harness selector pairs, dialog detection and the ownership check",
+      "wave": 1,
+      "depends_on": [],
+      "owns": [
+        "scripts/verify/lib/selectors.mjs",
+        "scripts/verify/lib/flows.mjs",
+        "scripts/verify/lib/team-flows.mjs",
+        "scripts/verify/lib/settings-flows.mjs",
+        "scripts/verify/lib/backup-flows.mjs",
+        "scripts/verify/lib/sync-flows.mjs",
+        "scripts/verify/lib/sync-panels.mjs",
+        "scripts/verify/lib/sync-dialogs.mjs",
+        "scripts/verify/lib/password-flows.mjs",
+        "scripts/verify/lib/ui-forms.mjs",
+        "scripts/verify/suites/mcp.mjs",
+        "scripts/verify/README.md",
+        "scripts/__tests__/verify-selectors.test.ts",
+        "scripts/redesign/check-owns.mjs",
+        "scripts/redesign/lint-count.mjs",
+        "scripts/redesign/work-packages.json",
+        "scripts/__tests__/check-owns.test.ts"
+      ],
+      "deliverables": [
+        "selectors.mjs with every selector pair in Appendix B (Union column, B35 to B46 included) resolved by a scope-level pickSelector(scope, hook, legacy); no comma union is passed to querySelector or closest (spec 8.2)",
+        "openDialogs and dialogDetails query [role=dialog][aria-label]; scoped [role=dialog] clicks narrowed (spec 8.3)",
+        "scripts/redesign/work-packages.json (a copy of the section 10 package list) and check-owns.mjs <ID> --base <ref>, which fails when git diff --name-only $(git merge-base HEAD <ref>)...HEAD or git status --porcelain lists a path outside that package's owns; lint-count.mjs, which prints the ESLint error count for src through the ESLint Node API (ESLint 10 ships no line-per-error formatter)",
+        "README section on stable data-cv hooks, the busy-text rule (B35) and the chrome text rules (8.4)"
+      ],
+      "acceptance": [
+        "npx vitest run scripts/__tests__ passes (selector tests with mixed fixtures, check-owns tests and the existing harness tests)",
+        "npm run verify passes all 41 scenarios against the unchanged UI (local Supabase running)",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W1-HARNESS --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-FOUNDATION",
+      "title": "Shared foundations during wave 2 (standing package)",
+      "wave": 2,
+      "depends_on": [
+        "W1-ICONS",
+        "W1-TOKENS",
+        "W1-FREEZE",
+        "W1-PRIMITIVES",
+        "W1-HARNESS"
+      ],
+      "owns": [
+        "src/components/ui/**",
+        "gallery.html",
+        "src/gallery.tsx",
+        "src/components/sync/useEscapeLayer.ts",
+        "src/index.css",
+        "src/styles/tokens.css",
+        "src/styles/schemes.css",
+        "src/styles/density.css",
+        "src/styles/base.css",
+        "src/styles/metrics.ts",
+        "src/styles/__tests__/**",
+        "src/lib/icons/**",
+        "src/lib/appearance/**",
+        "src/lib/schemes.ts",
+        "src/lib/terminalTheme.ts",
+        "src/lib/__tests__/terminalTheme.test.ts",
+        "src/lib/native-freeze/**",
+        "src/hooks/useNativeViewVisibility.ts",
+        "src/hooks/__tests__/useNativeViewVisibility.test.tsx",
+        "src/hooks/useTheme.ts",
+        "src/main.tsx",
+        "src/overlay.tsx",
+        "src/picker.tsx",
+        "index.html",
+        "overlay.html",
+        "picker.html",
+        "vite.config.ts",
+        "electron/ipc/settings.ts",
+        "electron/services/appearance-migration.ts",
+        "electron/services/__tests__/appearance-migration.test.ts",
+        "scripts/verify/**",
+        "scripts/redesign/**",
+        "scripts/icons/**",
+        "scripts/__tests__/verify-selectors.test.ts",
+        "scripts/__tests__/verify-harness.test.ts",
+        "scripts/__tests__/verify-sync-files.test.ts",
+        "scripts/__tests__/verify-sync-flows.test.ts",
+        "scripts/__tests__/icon-packs.test.ts",
+        "scripts/__tests__/legacy-classes.test.ts",
+        "scripts/__tests__/check-owns.test.ts",
+        "scripts/__tests__/appearance-migration-parity.test.ts",
+        "public/licenses/**",
+        "package.json",
+        "package-lock.json"
+      ],
+      "deliverables": [
+        "Opens when wave 2 starts and closes when W2-WORKBENCH merges. It is the only package that edits the shared foundations in wave 2: primitives, tokens and styles (except tabs.css, cards.css and sash.css), icons, the appearance runtime, the freeze registry, the harness, the redesign scripts and the package manifests",
+        "Takes change requests from the other wave-2 packages one at a time and lands each as its own small commit with tests, against the contracts in this spec; a request that would change a contract is written into the spec first",
+        "Keeps the gallery, the token gates and the harness selector tests green after every change"
+      ],
+      "acceptance": [
+        "npx vitest run src/components/ui src/styles src/lib/icons src/lib/appearance src/lib/native-freeze scripts/__tests__ passes after each change",
+        "node scripts/verify/run.mjs smoke passes after each harness change",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-FOUNDATION --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-MAIN",
+      "title": "Main process: frameless window, zoom, overlay colors, menu popup, web view corners and drag regions, toast overlay",
+      "wave": 2,
+      "depends_on": [
+        "W1-TOKENS"
+      ],
+      "owns": [
+        "electron/main.ts",
+        "electron/preload.cts",
+        "electron/ipc/index.ts",
+        "electron/ipc/window-chrome.ts",
+        "electron/ipc/__tests__/window-chrome.test.ts",
+        "electron/ipc/web.ts",
+        "electron/services/web/manager.ts",
+        "electron/services/web/__tests__/manager.chrome.test.ts",
+        "electron/services/overlay/overlay-manager.ts",
+        "electron/services/window-chrome/**",
+        "electron-builder.yml",
+        "src/types/ipc.d.ts",
+        "scripts/__tests__/window-chrome-parity.test.ts"
+      ],
+      "deliverables": [
+        "window-chrome/options.ts (titleBarOptions, zoomOptions, shellColor) and palette.ts per spec 7.1-7.5",
+        "ipc/window-chrome.ts: window_chrome_update (setTitleBarOverlay only while overlayActive, in try/catch, flipping overlayActive and emitting window-chrome:state on the first throw), window_chrome_app_menu, window_chrome_get_state, window_chrome_control and the window-chrome:state event with overlayActive; registered in ipc/index.ts",
+        "main.ts: new window options with webPreferences zoomFactor and zoomMode 'isolated' (no setZoomFactor at ready-to-show), zoomMode 'isolated' on the picker window, setSheetOffset on macOS, the Linux --ozone-platform=x11 switch with the CONDUIT_OZONE=wayland opt-out, and the Help menu item Use Native Title Bar on Windows/Linux custom (7.1)",
+        "preload.cts: synchronous zoomFactor() on the window.electron bridge; src/types/ipc.d.ts declares it (7.4)",
+        "electron-builder.yml: linux.executableArgs [\"--ozone-platform=x11\"] (D-26)",
+        "web_session_update_position accepts radius; the web manager applies setBorderRadius(round(radius x zoom)) to every attached view (new sub-tab, switch, close, show, bounds) when the value differs, never for WebView2 (spec 3.7); the user-origin no-drag stylesheet on every web-session dom-ready (D-27); the stale getContentBounds comment at manager.ts:93-95 rewritten",
+        "Overlay manager: width 458, right margin 4, zoomMode 'isolated', setBottomInset (spec 7.6)"
+      ],
+      "acceptance": [
+        "npx vitest run electron/services/window-chrome electron/ipc/__tests__/window-chrome.test.ts electron/services/web/__tests__/manager.chrome.test.ts scripts/__tests__/window-chrome-parity.test.ts passes",
+        "node scripts/verify/run.mjs password lifecycle passes on the wave-2 integration branch (these suites drive the application menu)",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-MAIN --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-TITLEBAR",
+      "title": "Title bar, window frame and window-chrome client",
+      "wave": 2,
+      "depends_on": [
+        "W1-PRIMITIVES"
+      ],
+      "owns": [
+        "src/components/shell/WindowFrame.tsx",
+        "src/components/shell/titlebar/**",
+        "src/lib/window-chrome.ts",
+        "src/lib/__tests__/window-chrome.test.ts"
+      ],
+      "deliverables": [
+        "WindowFrame (spec 3.1) and TitleBar full and minimal variants (spec 3.2): leading and trailing reserves, the pill (14px icon at .8 opacity), layout controls that swap panelLeft/panelLeftOff and panelRight/panelRightOff and take sidebarOpen, onToggleSidebar, aiOpen and onToggleAi as props (no store imports), the menu button, the reactive caption fallback with VS Code colors, native mode",
+        "src/lib/window-chrome.ts: --c-zoom and useZoomFactor(), both WCO reserves with the 0..300 clamp and the 0/138 fallback, openAppMenu(), the single debounced window_chrome_update sender driven by conduit:appearance-applied (a rejected invoke is ignored), the state store with overlayActive, the debug flag conduit:debug-caption-fallback"
+      ],
+      "acceptance": [
+        "npx vitest run src/components/shell/titlebar src/lib/__tests__/window-chrome.test.ts passes",
+        "node scripts/redesign/legacy-classes.mjs src/components/shell/WindowFrame.tsx src/components/shell/titlebar reports 0 findings",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-TITLEBAR --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-SIDEBAR",
+      "title": "Primary side bar on the PR #12 model",
+      "wave": 2,
+      "depends_on": [
+        "W1-PRIMITIVES",
+        "W1-FREEZE"
+      ],
+      "owns": [
+        "src/components/layout/Sidebar.tsx",
+        "src/components/layout/SidebarPanel.tsx",
+        "src/components/layout/SidebarWindowControls.tsx",
+        "src/components/layout/VaultContextBar.tsx",
+        "src/components/layout/TeamInvitationBanner.tsx",
+        "src/components/layout/__tests__/SidebarPanel.test.tsx",
+        "src/stores/sidebarStore.ts",
+        "src/stores/__tests__/sidebarStore.test.ts",
+        "src/components/entries/EntryTree.tsx",
+        "src/components/entries/__tests__/EntryTree.roles.test.tsx",
+        "src/components/vault/VaultSwitcherMenu.tsx",
+        "src/components/layout/openHomeTab.ts",
+        "src/components/layout/__tests__/openHomeTab.test.ts"
+      ],
+      "deliverables": [
+        "Side bar per spec 3.5: part title row, search, 22px tree rows with roles and keyboard, the empty twistie slot on leaves, indent guides and the rename input, docked in the left card, floating card with a workbench-only scrim, footer removed",
+        "handleHome moved verbatim from Sidebar.tsx:165-206 to src/components/layout/openHomeTab.ts (export openHomeTab) in the same change that removes the footer",
+        "sidebarStore: chromeWidth in spareWidth, updated from conduit:appearance-applied in the same task (setChromeWidth kept for tests), favoritesOnly + setFavoritesOnly (persisted via ui_state favorites-filter)",
+        "VaultSwitcherMenu on the Popover and Menu primitives (keeps data-context-menu; items are buttons); hooks data-cv-vault-switcher and data-sidebar-panel (Appendix B, B16 and B17)"
+      ],
+      "acceptance": [
+        "npx vitest run src/components/layout/__tests__/SidebarPanel.test.tsx src/components/layout/__tests__/openHomeTab.test.ts src/stores/__tests__/sidebarStore.test.ts src/components/entries/__tests__/EntryTree.roles.test.tsx passes",
+        "node scripts/redesign/legacy-classes.mjs src/components/layout/Sidebar.tsx src/components/layout/SidebarPanel.tsx src/components/layout/SidebarWindowControls.tsx src/components/layout/VaultContextBar.tsx src/components/layout/TeamInvitationBanner.tsx src/components/layout/openHomeTab.ts reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "Manual checks happen in W2-WORKBENCH, once the shell is mounted",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-SIDEBAR --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-ACTIVITYBAR",
+      "title": "Activity bar",
+      "wave": 2,
+      "depends_on": [
+        "W1-PRIMITIVES",
+        "W2-SIDEBAR"
+      ],
+      "owns": [
+        "src/components/shell/activitybar/**"
+      ],
+      "deliverables": [
+        "ActivityBar per spec 3.4 with Vault, Favorites, Home, Quick Connect, Account and Settings; hover and active icon colors",
+        "actions.ts with the Account popup menu; Home calls openHomeTab() from src/components/layout/openHomeTab.ts"
+      ],
+      "acceptance": [
+        "npx vitest run src/components/shell/activitybar passes",
+        "node scripts/redesign/legacy-classes.mjs src/components/shell/activitybar reports 0 findings",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-ACTIVITYBAR --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-TABS",
+      "title": "Editor card, connected tabs, splits and web view corners",
+      "wave": 2,
+      "depends_on": [
+        "W1-PRIMITIVES",
+        "W1-FREEZE"
+      ],
+      "owns": [
+        "src/components/layout/PaneTabBar.tsx",
+        "src/components/layout/Pane.tsx",
+        "src/components/layout/PaneContent.tsx",
+        "src/components/layout/LayoutRenderer.tsx",
+        "src/components/layout/SplitContainer.tsx",
+        "src/components/layout/DropZoneOverlay.tsx",
+        "src/components/layout/DragContext.tsx",
+        "src/components/layout/tabs/**",
+        "src/components/layout/__tests__/PaneTabBar.test.tsx",
+        "src/components/shell/EditorCard.tsx",
+        "src/lib/layout/**",
+        "src/stores/entryStore.ts",
+        "src/components/connections/QuickConnect.tsx",
+        "src/components/sessions/WebView.tsx",
+        "src/components/sessions/RdpView.tsx",
+        "src/components/sessions/__tests__/RdpView.resize.test.tsx",
+        "src/styles/components/tabs.css"
+      ],
+      "deliverables": [
+        "Connected tabs per spec 3.6 in src/styles/components/tabs.css, with roles, keyboard, state dot, inactive-tab hover color, drop marker, sticky + with its 4px margins, split button and editor actions dimmed to 50% in unfocused panes",
+        "Transitional props so the app keeps working until W2-WORKBENCH: legacySidebarToggle (default true) keeps today's hamburger, and rightSlot stays optional; W4-CLEANUP removes both",
+        "EditorCard with data-cv-editor-card and data-square-bottom-left / data-square-bottom-right (spec 3.7); split separators kept 4px in the layout flow with a centered 1px line; drop zones restyled",
+        "WebView.tsx sends radius per the 3.7 rules and includes it in the de-duplication key; getContentAreaFallback() replaces the innerWidth - 250 / innerHeight - 40 guesses",
+        "RdpView's layout-changed handler: last-requested check, 150ms trailing debounce and one 500ms retry (spec 3.7)"
+      ],
+      "acceptance": [
+        "npx vitest run src/components/layout src/lib/layout src/components/layout/tabs src/components/sessions/__tests__/RdpView.resize.test.tsx passes",
+        "node scripts/redesign/legacy-classes.mjs src/components/layout/PaneTabBar.tsx src/components/layout/Pane.tsx src/components/layout/PaneContent.tsx src/components/layout/LayoutRenderer.tsx src/components/layout/SplitContainer.tsx src/components/layout/DropZoneOverlay.tsx src/components/layout/DragContext.tsx src/components/layout/tabs src/components/shell/EditorCard.tsx reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "Manual checks happen in W2-WORKBENCH, once the shell is mounted",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-TABS --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-STATUSBAR",
+      "title": "Status bar",
+      "wave": 2,
+      "depends_on": [
+        "W1-PRIMITIVES",
+        "W2-TITLEBAR"
+      ],
+      "owns": [
+        "src/components/shell/statusbar/**",
+        "src/components/sync/PersonalSyncIndicator.tsx",
+        "src/components/vault/CloudSyncIndicator.tsx",
+        "src/components/vault/TeamSyncIndicator.tsx",
+        "src/components/common/StartupStatus.tsx"
+      ],
+      "deliverables": [
+        "StatusBar per spec 3.10 with every item in its table: hover text, pressed background and tabular numerals; state dots as the 16px circleFilled; the zoom item reads useZoomFactor() from src/lib/window-chrome.ts; the indicators render as status bar items (default exports kept)",
+        "Review item keeps title \"Review changes from your other devices\" and adds data-cv-review-button (B13)"
+      ],
+      "acceptance": [
+        "npx vitest run src/components/shell/statusbar passes",
+        "node scripts/redesign/legacy-classes.mjs src/components/shell/statusbar reports 0 findings",
+        "The harness run (openConflictReview through the status bar) happens at W2-WORKBENCH, once the status bar is mounted",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-STATUSBAR --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-AI",
+      "title": "AI secondary side bar",
+      "wave": 2,
+      "depends_on": [
+        "W1-PRIMITIVES"
+      ],
+      "owns": [
+        "src/components/shell/auxbar/**",
+        "src/stores/auxBarStore.ts",
+        "src/stores/__tests__/auxBarStore.test.ts",
+        "src/components/ai/ChatPanel.tsx"
+      ],
+      "deliverables": [
+        "auxBarStore and the AI card per spec 3.8 (persisted open state and width, sash, rightPanelWidth = width + 4)",
+        "ChatPanel header (ChatPanel.tsx:222-295) restyled as the 32px part title with a close button"
+      ],
+      "acceptance": [
+        "npx vitest run src/stores/__tests__/auxBarStore.test.ts passes",
+        "node scripts/redesign/legacy-classes.mjs src/components/shell/auxbar reports 0 findings",
+        "Manual checks happen in W2-WORKBENCH, once the shell is mounted",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-AI --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-MENUS",
+      "title": "Native popup menu restyle and hardening",
+      "wave": 2,
+      "depends_on": [
+        "W1-ICONS",
+        "W1-TOKENS"
+      ],
+      "owns": [
+        "src/utils/contextMenu.ts",
+        "src/utils/__tests__/contextMenu.test.ts",
+        "electron/ipc/menu.ts",
+        "electron/ipc/menu-svg.ts",
+        "electron/ipc/__tests__/menu.test.ts",
+        "electron/ipc/__tests__/menu-svg.test.ts"
+      ],
+      "deliverables": [
+        "menu.ts per spec 7.7: sizes, font, colors (inkSecondary and dangerHover included), selection, keyboard, escaping, id allowlist, index-based selection, the 12px shadow margin with the flip and clamp done on the visible rect, margin clicks that dismiss, sanitizeSvg in menu-svg.ts",
+        "contextMenu.ts: semantic icons with the old-key map (5.6), iconSvg per item, resolved hex colors"
+      ],
+      "acceptance": [
+        "npx vitest run electron/ipc/__tests__/menu.test.ts electron/ipc/__tests__/menu-svg.test.ts src/utils/__tests__/contextMenu.test.ts passes",
+        "Manual checks happen in W2-WORKBENCH, once the shell is mounted",
+        "npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-MENUS --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W2-WORKBENCH",
+      "title": "Workbench integration, banners, shortcuts and screen gates",
+      "wave": 2,
+      "depends_on": [
+        "W2-MAIN",
+        "W2-TITLEBAR",
+        "W2-ACTIVITYBAR",
+        "W2-SIDEBAR",
+        "W2-TABS",
+        "W2-STATUSBAR",
+        "W2-AI",
+        "W2-MENUS",
+        "W1-HARNESS"
+      ],
+      "owns": [
+        "src/App.tsx",
+        "src/App.test.tsx",
+        "src/test/setup.ts",
+        "src/components/shell/Workbench.tsx",
+        "src/components/shell/BannerStack.tsx",
+        "src/components/shell/index.ts",
+        "src/components/shell/__tests__/**",
+        "src/hooks/useKeyboardShortcuts.ts",
+        "src/hooks/__tests__/useKeyboardShortcuts.test.ts",
+        "src/components/sync/SyncBanner.tsx",
+        "src/components/sync/SyncBanners.tsx",
+        "src/components/auth/AuthScreen.tsx",
+        "src/components/onboarding/OnboardingWizard.tsx",
+        "src/styles/components/cards.css",
+        "src/styles/components/sash.css"
+      ],
+      "deliverables": [
+        "App.tsx gates inside WindowFrame (spec 3.1); Workbench with cards, gaps, in-flow sashes with grips and cursors, and density dividers (3.3, cards.css and sash.css); accent bar, offline banner, robot toggle, AI divider and StartupStatus strip removed; AI state from auxBarStore; TitleBar wired to sidebarStore and auxBarStore through its props; SplitContainer gets legacySidebarToggle={false} and no rightSlot",
+        "BannerStack and the VS Code style SyncBanner (3.9): neutral info and lock tones, a warning tint, link-button actions with exact labels, data-cv-banner-text; hub offline banner moved into BannerStack",
+        "useKeyboardShortcuts: Ctrl/Cmd+P, Ctrl/Cmd+Alt+B matched on e.code, and F10 or a lone Alt opening the application menu on win32/linux custom, never inside [data-session-keyboard] (3.2)",
+        "src/App.test.tsx fixed; chromeText.test.tsx for the rules in 8.4",
+        "Merges the wave-2 integration branch into the release branch once its acceptance passes"
+      ],
+      "acceptance": [
+        "npm run verify passes all 41 scenarios (mcp included) on the wave-2 integration branch",
+        "Manual on macOS (the wave-2 packages' checks, run here once the shell is mounted): traffic lights at {11,10} on macOS 26 or later and centered in the 35px bar; the window drags; CONDUIT_TITLE_BAR=native restores the native frame; the pill focuses side bar search; both layout controls toggle and swap glyphs; the bar stays 35 DIP at ui_scale 0.75 and 1.5; Vault toggles the side bar with today's titles; Favorites opens it filtered; Home opens the Home tab as before; pin/unpin and dock/undock by window width, with web sessions live beside the docked side bar; tab states, reorder, cross-pane drop; a split line between two web sessions can be grabbed across its full 4px in Comfortable and Compact; web view bottom corners rounded in Comfortable, square in Compact, and square card corners beside a one-corner view; the AI control and Ctrl/Cmd+Alt+B toggle the AI side bar, and width and state survive a restart; tab, tree, new-tab, vault and Account menus render with the active pack, work with the keyboard, and close on a click in their shadow margin",
+        "Manual on macOS: a local page whose body sets -webkit-app-region: drag, opened as a web session, does not move the window and its buttons still click (D-27)",
+        "An RDP session against a real host logs one rdp_resize per density switch, AI toggle and banner change",
+        "Screens S1 to S3 of spec 8.6 captured by hand from npm run dev:electron in Modern dark and light for the owner (the automated set comes with W4-HARNESS)",
+        "node scripts/redesign/legacy-classes.mjs src/App.tsx src/components/shell/Workbench.tsx src/components/shell/BannerStack.tsx src/components/shell/index.ts reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W2-WORKBENCH --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-SETTINGS",
+      "title": "Settings dialog, Appearance tab and settings tabs",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/settings/**"
+      ],
+      "deliverables": [
+        "SettingsDialog on Dialog size xl with NavList (keeps w-52) and hooks B1 to B4, B7, B22 to B24 and B36, B37, B39 to B41 (the sync plan line, the Multi-device sync h3, the Backup toggles as <label> + direct-child Switch, the backup files list, the cloud backup badge)",
+        "Appearance tab per spec 6.4 (schemes, mode, icon packs with <Icon pack> previews after preloadAllIconPacks(), density, UI scale, title bar)",
+        "Every tab on SettingsRow, FormField, Select, Checkbox and Switch; legacy map 4.16 applied; busy texts kept (B35)"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/settings reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "Manual: Appearance previews live and Cancel reverts scheme, mode, pack, density and zoom",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-SETTINGS --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-ENTRIES",
+      "title": "Entry dialogs and forms",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/entries/**"
+      ],
+      "deliverables": [
+        "EntryDialog and EntryDialogSidebar on Dialog (onSubmit where the dialog has a form) and NavList; entry tabs on FormField, Select and Checkbox; FolderDialog on Dialog",
+        "ColorPicker and IconPicker on Popover; Field.tsx, DefaultableSelect and DefaultableCheckbox rebuilt on primitives",
+        "iconRegistry.ts untouched (D-19); EntryTree.tsx only for leftovers of 4.16"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/entries reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-ENTRIES --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-VAULT",
+      "title": "Vault hub and vault dialogs",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/vault/**"
+      ],
+      "deliverables": [
+        "Every vault dialog on Dialog, with onSubmit for form dialogs (UnlockDialog keeps its placeholders, its Please wait... label and data-cv-error, B8, B30, B35); BackupManagerDialog gets data-cv-backup-manager and keeps its Master password placeholder and Restore, Confirm and Close buttons (B25, B42)",
+        "VaultHub landing page on ListRow; recent vault rows are buttons whose title is the path (B26, B44)",
+        "VaultSwitcherMenu leftovers (menu items stay buttons, B43); CredentialManager, CredentialForm, AuditLogViewer, VaultSettingsDialog, DeviceSetupDialog and the rest migrated; dead files skipped"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/vault reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-VAULT --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-SYNC",
+      "title": "Sync dialogs and panels",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH",
+        "W3-MISC"
+      ],
+      "owns": [
+        "src/components/sync/**"
+      ],
+      "deliverables": [
+        "SyncDialogFrame rebuilt on Dialog (harnessLabel = title, layer sync); DialogButton and smallButton on Button with loadingLabel where a busy text shows (Opening..., Checking..., B35); InlineError on Callout; PasswordInput on the primitive",
+        "ConflictReviewPanel (harnessLabel \"Review changes\") with hooks B11; RecentlyDeletedPanel passes layer=\"stacked\" to ConfirmDialog and drops its div.relative.z-[70] wrapper in the same change, hooks B18, B19; OtherCopiesPanel B20; MassChangeNotice B21; SyncDevicesList B5; SyncNoticeList B6 and B38; IdleLockSetting keeps its aria-label (B28); Loading..., Looking for copies... and Comparing... stay visible (Spinner text, B35)",
+        "Files restyled in wave 2 (PersonalSyncIndicator, SyncBanner, SyncBanners) get only 4.16 leftovers; useEscapeLayer.ts stays a re-export until W4-CLEANUP"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/sync reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-SYNC --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-DASHBOARD",
+      "title": "Dashboards",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/dashboard/**"
+      ],
+      "deliverables": [
+        "DashboardOverview, EntryDashboard and the other dashboard views on Card, ListRow, Button, IconButton and SectionHeader; the local IconButton (EntryDashboard.tsx:20-37) replaced"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/dashboard reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-DASHBOARD --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-AI",
+      "title": "AI chat body and AI dialogs",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/ai/**"
+      ],
+      "deliverables": [
+        "ChatPanel body, EngineSelector, ModelPicker (Popover and Menu), McpSetupDialog and EnginePicker on primitives; compact icons for chips (5.4)"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/ai reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-AI --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-AUTH-ONBOARDING",
+      "title": "Sign-in and onboarding screens",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/auth/**",
+        "src/components/onboarding/**"
+      ],
+      "deliverables": [
+        "AuthScreen and OnboardingWizard on primitives with Button size lg CTAs and text-display titles; the auth text \"Continue without signing in\" unchanged"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/auth src/components/onboarding reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-AUTH-ONBOARDING --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-MISC",
+      "title": "Tools, import, about, what's new, upgrade, feedback, connections, common",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/tools/**",
+        "src/components/import/**",
+        "src/components/about/**",
+        "src/components/whats-new/**",
+        "src/components/upgrade/**",
+        "src/components/feedback/**",
+        "src/components/connections/**",
+        "src/components/common/**"
+      ],
+      "deliverables": [
+        "ConfirmDialog rebuilt on Dialog with a compatible API plus cancelLabel and layer (4.8); without a layer it renders in place (portal={false}) so today's z-[70] wrapper keeps working until W3-SYNC passes layer=\"stacked\"",
+        "AboutDialog with the Licenses view (5.8); WhatsNewDialog, QuickConnect, PasswordGeneratorDialog, SshKeyGeneratorDialog, ImportDialog and FeedbackDialog on Dialog",
+        "common/StartupStatus.tsx (restyled in wave 2) gets only 4.16 leftovers; dead files skipped"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/tools src/components/import src/components/about src/components/whats-new src/components/upgrade src/components/feedback src/components/connections src/components/common reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-MISC --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-SESSIONS",
+      "title": "Session views and markdown",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/sessions/**",
+        "src/components/markdown/**"
+      ],
+      "deliverables": [
+        "Web toolbar and WebSubTabBar, RDP, VNC, terminal and command views (toolbars, error and empty states), DocumentView and MarkdownEditor (Tabs primitive) on primitives; terminal fonts and ANSI colors unchanged (non-goal)"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/sessions src/components/markdown reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-SESSIONS --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-PICKER",
+      "title": "Credential picker window",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/components/picker/**"
+      ],
+      "deliverables": [
+        "CredentialPickerApp and its lists on primitives; inline SVGs replaced by semantic icons; drag header kept (CredentialPickerApp.tsx:114-117); window size unchanged"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/picker reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "Manual: Cmd/Ctrl+Shift+Space opens the picker in Modern dark and light with the active icon pack",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-PICKER --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-OVERLAY",
+      "title": "Toast overlay visuals",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH",
+        "W2-MAIN"
+      ],
+      "owns": [
+        "src/components/overlay/**"
+      ],
+      "deliverables": [
+        "OverlayToast and OverlayUpdateNotification per spec 4.15 (300ms slide-in); OverlayApp container p-1 gap-1; data-toast kept"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src/components/overlay reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-OVERLAY --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W3-FOUNDATION",
+      "title": "Shared foundations and everything outside the wave-3 directories (standing package)",
+      "wave": 3,
+      "depends_on": [
+        "W2-WORKBENCH"
+      ],
+      "owns": [
+        "src/App.tsx",
+        "src/App.test.tsx",
+        "src/main.tsx",
+        "src/overlay.tsx",
+        "src/picker.tsx",
+        "src/gallery.tsx",
+        "src/index.css",
+        "src/styles/**",
+        "src/lib/**",
+        "src/stores/**",
+        "src/hooks/**",
+        "src/utils/**",
+        "src/types/**",
+        "src/test/**",
+        "src/components/ui/**",
+        "src/components/layout/**",
+        "src/components/shell/**",
+        "index.html",
+        "overlay.html",
+        "picker.html",
+        "gallery.html",
+        "vite.config.ts",
+        "vitest.config.ts",
+        "electron/**",
+        "scripts/**",
+        "public/**",
+        "package.json",
+        "package-lock.json",
+        "electron-builder.yml"
+      ],
+      "deliverables": [
+        "Opens when wave 3 starts and closes when the last other wave-3 package merges. It owns every file no wave-3 directory package owns: the primitives, styles, icons, appearance runtime, freeze registry, stores, hooks, shared libraries, the shell and layout components, App.tsx, the main process, the harness, the scripts and the manifests",
+        "Takes change requests from the wave-3 packages one at a time and lands each as its own small commit with tests, against the contracts in this spec; a request that would change a contract is written into the spec first",
+        "Keeps the gallery, the token gates and the harness selector tests green after every change"
+      ],
+      "acceptance": [
+        "npx vitest run passes with no failures after each change",
+        "npm run verify passes after each change to scripts/verify or to the main process",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W3-FOUNDATION --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W4-HARNESS",
+      "title": "Final harness selectors and the appearance suite",
+      "wave": 4,
+      "depends_on": [
+        "W3-SETTINGS",
+        "W3-ENTRIES",
+        "W3-VAULT",
+        "W3-SYNC",
+        "W3-DASHBOARD",
+        "W3-AI",
+        "W3-AUTH-ONBOARDING",
+        "W3-MISC",
+        "W3-SESSIONS",
+        "W3-PICKER",
+        "W3-OVERLAY",
+        "W3-FOUNDATION"
+      ],
+      "owns": [
+        "scripts/verify/**",
+        "scripts/__tests__/verify-harness.test.ts",
+        "scripts/__tests__/verify-selectors.test.ts"
+      ],
+      "deliverables": [
+        "Old selector alternatives removed (Appendix B, W4 column)",
+        "suites/appearance.mjs (opt-in) producing the spec 8.6 screenshot sets; run.mjs optIn support so all skips it"
+      ],
+      "acceptance": [
+        "npx vitest run scripts/__tests__ passes",
+        "npm run verify passes all scenarios",
+        "node scripts/verify/run.mjs appearance writes the 8.6 screenshot sets",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W4-HARNESS --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W4-DOCS",
+      "title": "FEATURES.md, What's New and spec status",
+      "wave": 4,
+      "depends_on": [
+        "W3-SETTINGS",
+        "W3-ENTRIES",
+        "W3-VAULT",
+        "W3-SYNC",
+        "W3-DASHBOARD",
+        "W3-AI",
+        "W3-AUTH-ONBOARDING",
+        "W3-MISC",
+        "W3-SESSIONS",
+        "W3-PICKER",
+        "W3-OVERLAY",
+        "W3-FOUNDATION"
+      ],
+      "owns": [
+        "docs/FEATURES.md",
+        "release-notes/manifest.json",
+        "docs/VISUAL_REDESIGN.md"
+      ],
+      "deliverables": [
+        "FEATURES.md sections Window, Appearance, Splash Screen, Sidebar, Tab Bar, Split-View Pane Layout, Keyboard Shortcuts, Dialogs, Notifications & Indicators, Context Menus, Menus and the sync indicator lines rewritten for the new UI; the dropped side bar item count, the Help > Use Native Title Bar item, F10/Alt menu access and Linux running under XWayland recorded",
+        "release-notes/manifest.json: the Appendix C highlights in the pending release entry",
+        "Spec status line updated to shipped"
+      ],
+      "acceptance": [
+        "node -e \"JSON.parse(require('fs').readFileSync('release-notes/manifest.json','utf8'))\" exits 0",
+        "grep -n \"Platform themes\" docs/FEATURES.md mentions them only as retired",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W4-DOCS --base <wave base> exits 0"
+      ]
+    },
+    {
+      "id": "W4-CLEANUP",
+      "title": "Dead files, compatibility shims and final checks",
+      "wave": 4,
+      "depends_on": [
+        "W3-SETTINGS",
+        "W3-ENTRIES",
+        "W3-VAULT",
+        "W3-SYNC",
+        "W3-DASHBOARD",
+        "W3-AI",
+        "W3-AUTH-ONBOARDING",
+        "W3-MISC",
+        "W3-SESSIONS",
+        "W3-PICKER",
+        "W3-OVERLAY",
+        "W3-FOUNDATION"
+      ],
+      "owns": [
+        "src/**",
+        "scripts/redesign/**"
+      ],
+      "deliverables": [
+        "The 9 dead files in spec 10.5 deleted",
+        "useFreeze(anyOverlayOpen, \"legacy\") and the App.tsx overlay flag list removed once every dialog self-registers; the legacy event bridge in native-freeze and the conduit:overlay-change, conduit:sidebar-overlay-change and conduit:drag-change events removed",
+        "Shims removed: IconTheme, THEME_ICON_DEFAULTS, loadIconPack(theme), useIconThemeStore alias, src/hooks/useTheme.ts re-export, src/components/sync/useEscapeLayer.ts, old popup menu icon keys, the legacySidebarToggle and rightSlot props with the old hamburger code; ConfirmDialog portals by default",
+        "src/components/__tests__/icon-sizes.test.ts (spec 5.2 size policy, with the 14px pill exception) and src/components/__tests__/overlay-freeze.test.tsx (each of the 24 overlays listed at App.tsx:389 today holds a freeze by itself)"
+      ],
+      "acceptance": [
+        "node scripts/redesign/legacy-classes.mjs src reports 0 findings outside the Appendix B allowlist (dead files excluded)",
+        "npx vitest run src/components/__tests__/icon-sizes.test.ts src/components/__tests__/overlay-freeze.test.tsx passes",
+        "git grep -n \"useFreeze(anyOverlayOpen\" -- src and git grep -nE \"conduit:(overlay|sidebar-overlay|drag)-change\" -- src both find nothing",
+        "npm run verify passes all scenarios",
+        "npx vitest run passes with no failures",
+        "npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors",
+        "node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)",
+        "npm run build passes",
+        "node scripts/redesign/check-owns.mjs W4-CLEANUP --base <wave base> exits 0"
+      ]
+    }
+  ]
+}
