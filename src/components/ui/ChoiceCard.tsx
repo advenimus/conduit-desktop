@@ -68,6 +68,7 @@ export function ChoiceCard({ value, label, description, children, className, dis
       aria-checked={checked}
       tabIndex={focusable ? 0 : -1}
       data-cv-choice={value}
+      data-selected={checked ? "" : undefined}
       disabled={disabled}
       onClick={() => group?.onChange(value)}
       className={cx(

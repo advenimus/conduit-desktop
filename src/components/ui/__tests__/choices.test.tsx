@@ -128,6 +128,9 @@ describe("ChoiceGroup and ChoiceCard", () => {
     expect(first).toHaveAttribute("data-cv-choice", "codicons");
     expect(first).toHaveAttribute("aria-checked", "true");
     expect(first).toHaveAttribute("tabindex", "0");
+    // The checked card sits on bg-selected-inactive, so its muted description is re-scoped (spec 2.11).
+    expect(first).toHaveAttribute("data-selected");
+    expect(screen.getByRole("radio", { name: /Lucide/ })).not.toHaveAttribute("data-selected");
 
     first.focus();
     fireEvent.keyDown(first, { key: "ArrowDown" });

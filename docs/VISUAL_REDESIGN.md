@@ -671,7 +671,8 @@ With the values in this section every gate passes in all 14 scheme and mode comb
 ```css
 /* base.css. Tailwind utilities read the --color-* theme variables, which @theme declares on :root
    and which resolve there, so the re-scope must redeclare them as well as the --c-* tokens. */
-:where([aria-selected="true"], [data-selected]) {
+:where([role="option"][aria-selected="true"], [role="treeitem"][aria-selected="true"], [role="row"][aria-selected="true"],
+       [role="gridcell"][aria-selected="true"], [data-selected]) {
   --c-ink-muted: var(--c-ink-secondary);   --color-ink-muted: var(--c-ink-secondary);
   --c-ink-faint: var(--c-ink-secondary);   --color-ink-faint: var(--c-ink-secondary);
   --c-accent-text: var(--c-ink);           --color-link: var(--c-ink);
@@ -679,7 +680,7 @@ With the values in this section every gate passes in all 14 scheme and mode comb
 }
 ```
 
-[V] The repo's Tailwind 4.2.1 compiles `text-ink-muted` to `color: var(--color-ink-muted)` and emits `--color-ink-muted: var(--c-ink-muted)` on `:root`, so a descendant that only redeclares `--c-ink-muted` would still inherit the value resolved at the root [test-compiled, review pass]. `ListRow`, `TreeRow` and `NavList` rows set `aria-selected` or `data-selected`. Status colors are not re-scoped: inside rows they are only used for icons, which pass 3:1 on `selected` (lowest 4.06).
+[V] The repo's Tailwind 4.2.1 compiles `text-ink-muted` to `color: var(--color-ink-muted)` and emits `--color-ink-muted: var(--c-ink-muted)` on `:root`, so a descendant that only redeclares `--c-ink-muted` would still inherit the value resolved at the root [test-compiled, review pass]. `ListRow`, `TreeRow` and `NavList` rows set `aria-selected` or `data-selected`, and a checked `ChoiceCard` sets `data-selected` (its description is muted text on `selected-inactive`). The selector names row roles only: a selected tab (`.cv-tab`, `Tabs`) sits on its own surface, and re-scoping it would turn the active Home tab icon (`--c-accent-text`, 3.6) into `--c-ink`; a `ListRow` with `role="tab"` sets `data-selected` as well [wave 1 review]. Gate 4 also covers `ink` and `ink-secondary` on `selected-inactive` over `overlay` and `sidebar`. Status colors are not re-scoped: inside rows they are only used for icons, which pass 3:1 on `selected` (lowest 4.06).
 
 **Known limits** [V computed]. Hover backgrounds are transient and not gated. Card borders (`stroke` on `shell`, 1.13 to 1.75:1) are decorative. Input boundaries match VS Code and are faint: Modern dark `input-bg` `#191A1B` on the dialog overlay `#202122` is 1.08:1 and its border `#333536` is 1.31:1; Modern light's `#D8D8D866` border is 1.10:1. That is accepted because every input has a visible label. Checkboxes, radios and the Switch do not rely on it: their boundary is `checkbox-border` (3.26:1 or better).
 
@@ -1281,7 +1282,7 @@ Native `title` only (D-21): a native tooltip cannot be covered by a native web v
 | Primitive | Recipe | Notes |
 |---|---|---|
 | `Card` | `rounded-md border border-card-border bg-well p-3` | [V] inner containers radius 6 |
-| `ChoiceCard` + `ChoiceGroup` | group `role="radiogroup"`, grid; card `role="radio" aria-checked`, `flex flex-col gap-1.5 rounded-md border border-card-border bg-transparent p-2 text-left hover:border-(--c-control-border)`; checked `border-accent bg-selected-inactive`; roving focus with arrows | Appearance scheme and icon pack pickers (6.4); replaces `SchemeCard` (`AppearanceTab.tsx:302-344`) |
+| `ChoiceCard` + `ChoiceGroup` | group `role="radiogroup"`, grid; card `role="radio" aria-checked`, `flex flex-col gap-1.5 rounded-md border border-card-border bg-transparent p-2 text-left hover:border-(--c-control-border)`; checked `border-accent bg-selected-inactive` + `data-selected` (the 2.11 re-scope); roving focus with arrows | Appearance scheme and icon pack pickers (6.4); replaces `SchemeCard` (`AppearanceTab.tsx:302-344`) |
 | `Callout` | `flex gap-2 rounded-md border p-2.5 text-label`; tones `info` (`bg-info-bg border-info-border`, icon `text-info`), `warning`, `danger`, `success`; title `font-semibold text-ink`; body `text-ink-secondary`; danger body text is `<p data-cv-error>`; optional actions row `mt-2 flex gap-2` of `Button sm`; `size="sm"` uses `p-2` | replaces 46 callouts and `InlineError` (`PasswordFields.tsx:40-47`) |
 | `Banner` | the 26px banner from 3.9, `role="status"`; used only by `BannerStack` | |
 | `EmptyState` | `flex flex-col items-center gap-2 py-8 text-center`; icon 32 `text-ink-faint`; title `text-body text-ink-secondary`; description `text-label text-ink-muted`; optional action `Button` | about 15 today |

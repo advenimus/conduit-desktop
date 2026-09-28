@@ -21,6 +21,8 @@ export interface ListRowProps extends Omit<HTMLAttributes<HTMLElement>, "onClick
 }
 
 const ARIA_SELECTED_ROLES = new Set(["option", "treeitem", "row", "gridcell", "tab"]);
+// base.css re-scopes these roles by aria-selected; a selected tab needs data-selected as well.
+const RESCOPED_ROLES = new Set(["option", "treeitem", "row", "gridcell"]);
 
 export function rowStateClasses(selected: boolean, inactive: boolean): string {
   if (!selected) return "text-ink-secondary hover:bg-hover";
@@ -30,7 +32,8 @@ export function rowStateClasses(selected: boolean, inactive: boolean): string {
 /** aria-selected inside a listbox, tree or grid; data-selected elsewhere. Both trigger the 2.11 re-scope. */
 export function selectionAttributes(selected: boolean, role: string | undefined): Record<string, string> {
   if (!selected) return {};
-  return role && ARIA_SELECTED_ROLES.has(role) ? { "aria-selected": "true" } : { "data-selected": "" };
+  if (!role || !ARIA_SELECTED_ROLES.has(role)) return { "data-selected": "" };
+  return RESCOPED_ROLES.has(role) ? { "aria-selected": "true" } : { "aria-selected": "true", "data-selected": "" };
 }
 
 function isIconSource(value: RowLeadingContent): value is IconSource {

@@ -63,6 +63,17 @@ describe("ListRow", () => {
     expect(screen.getByRole("option")).toHaveAttribute("aria-selected", "true");
     expect((screen.getByText("Unfocused").closest("[data-selected]") as HTMLElement).className).toContain("bg-selected-inactive");
   });
+
+  it("a selected row with role=tab keeps aria-selected and adds data-selected, since tabs are not re-scoped by role", () => {
+    render(
+      <ListRow role="tab" selected>
+        Tab row
+      </ListRow>,
+    );
+    const tab = screen.getByRole("tab");
+    expect(tab).toHaveAttribute("aria-selected", "true");
+    expect(tab).toHaveAttribute("data-selected");
+  });
 });
 
 describe("TreeRow", () => {

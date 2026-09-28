@@ -24,7 +24,8 @@ const MODERN_FALLBACK = new Set([":root:not([data-scheme]).dark", ":root:not([da
 const MODE_BASE = new Set([":root", ":root.dark", ":root.light"]);
 const OS_SELECTOR = /^:root\[data-os="(macos|windows|linux)"\]$/;
 const DENSITY_SELECTOR = /^:root(\[data-density="compact"\])?$/;
-const RESCOPE_SELECTOR = ':where([aria-selected="true"], [data-selected])';
+const RESCOPE_SELECTOR =
+  ':where([role="option"][aria-selected="true"], [role="treeitem"][aria-selected="true"], [role="row"][aria-selected="true"], [role="gridcell"][aria-selected="true"], [data-selected])';
 const WHITE: Rgba = { r: 1, g: 1, b: 1, a: 1 };
 const COMBOS = SCHEME_IDS.flatMap((scheme) => MODES.map((mode) => ({ scheme, mode })));
 
@@ -189,6 +190,12 @@ function gatesFor(r: TokenResolver): Gate[] {
   const selectedRow = composite(c("selected"), c("sidebar"));
   add("ink on selected", c("ink"), selectedRow, 4.5);
   add("ink-secondary on selected", c("ink-secondary"), selectedRow, 4.5);
+  // ...and on selected-inactive: unfocused list rows and the checked ChoiceCard (in a dialog or the side bar)
+  for (const s of ["overlay", "sidebar"]) {
+    const inactiveRow = composite(c("selected-inactive"), c(s));
+    add(`ink on selected-inactive over ${s}`, c("ink"), inactiveRow, 4.5);
+    add(`ink-secondary on selected-inactive over ${s}`, c("ink-secondary"), inactiveRow, 4.5);
+  }
   // 5. white on filled buttons and badges
   for (const bg of ["btn-primary-bg", "btn-primary-hover", "badge-bg", "btn-danger-bg", "btn-danger-hover"]) add(`white on ${bg}`, WHITE, c(bg), 4.5);
   // 6. non-text
