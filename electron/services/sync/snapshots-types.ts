@@ -96,6 +96,15 @@ export interface UndoChoice {
   readonly fields: readonly RegKey[];
 }
 
+export interface SnapshotRekeyReport {
+  /** Snapshots whose diff.json is now under the ring's current epoch. */
+  readonly rekeyed: number;
+  /** Folders removed: the snapshots' copies of W, unreadable snapshots, leftovers of failed takes. */
+  readonly removed: number;
+  /** Steps that failed (logged); the old password may still open what they left. */
+  readonly failed: number;
+}
+
 export interface SnapshotStorePort {
   take(input: TakeSnapshotInput): Promise<SnapshotRef>;
   /** Newest first. */
@@ -115,4 +124,10 @@ export interface SnapshotStorePort {
    * decrypted with `ring` (the snapshot epoch must be reachable) and re-encrypted via prepareWrite.
    */
   undoWrites(id: string, current: SyncState, choice: UndoChoice, ring: KeyRing, ctx: SyncContext): Promise<readonly LocalWrite[]>;
+  /**
+   * After a password change on this device (4.8): removes each snapshot's copy of W (undo reads
+   * only diff.json) and rewrites diff.json with its secrets under ring.current. Never throws;
+   * each failure is logged and counted.
+   */
+  rekey(ring: KeyRing): Promise<SnapshotRekeyReport>;
 }

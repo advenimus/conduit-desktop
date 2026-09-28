@@ -276,6 +276,11 @@ export interface LocalJson {
   /** Candidate dev -> label, so conflict versions can show "Vault 2.conduit". */
   readonly candidateLabels: Readonly<Record<string, string>>;
   readonly contentRepairShas: readonly string[];
+  /**
+   * 4.8: this device changed the master password and S is still under the old one until the
+   * next publish; staged copies of S in incoming/ are removed after that publish (absent: false).
+   */
+  readonly dropStagedAfterPublish?: boolean;
 }
 
 // ---------- _sync register values (3.5) ----------

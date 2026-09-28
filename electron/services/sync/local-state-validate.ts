@@ -245,7 +245,7 @@ const candidateLabels: Check<Readonly<Record<string, string>>> = (v, at, errs) =
 };
 
 /** Keys added after the first local.json format; older files lack them. */
-const LOCAL_JSON_OPTIONAL_KEYS: ReadonlySet<string> = new Set(['sideFilesConfirmedAtMs']);
+const LOCAL_JSON_OPTIONAL_KEYS: ReadonlySet<string> = new Set(['sideFilesConfirmedAtMs', 'dropStagedAfterPublish']);
 
 const localJson = obj<LocalJson>({
   version: literal([LOCAL_JSON_VERSION] as const),
@@ -273,6 +273,7 @@ const localJson = obj<LocalJson>({
   candidateLabels,
   contentRepairShas: arrayOf(sha256Hex),
   sideFilesConfirmedAtMs: nullable(msTime),
+  dropStagedAfterPublish: bool,
 }, LOCAL_JSON_OPTIONAL_KEYS);
 
 /** Strict validation of parsed JSON (types, hex lengths, known notice kinds). */

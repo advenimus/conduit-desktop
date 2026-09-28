@@ -3,6 +3,7 @@
  * injection: kill -9 during a publish, ENOSPC): leftovers in a lineage's tmp/ (VACUUM INTO
  * snapshots, baseline and pre-sync copies, review copies) and the open's {syncRoot}/tmp peek
  * copies are removed once they are an hour old; quarantine/ keeps the newest few for 30 days.
+ * clearFolder empties quarantine/ and incoming/ after a password change (4.8).
  * Every step only logs its failures (the next start tries again).
  */
 
@@ -45,14 +46,14 @@ async function entries(dir: string, host: FilesHost): Promise<Entry[]> {
   return out;
 }
 
-async function removeAll(dir: string, names: readonly string[], host: FilesHost): Promise<number> {
+async function removeAll(dir: string, names: readonly string[], host: FilesHost, what = 'a leftover scratch file'): Promise<number> {
   let removed = 0;
   for (const name of names) {
     try {
       await host.fs.rm(path.join(dir, name), { recursive: true, force: true });
       removed++;
     } catch (err) {
-      host.logger.warn(`${SYNC_LOG_PREFIX} could not remove a leftover scratch file`, { file: name, code: errCode(err) });
+      host.logger.warn(`${SYNC_LOG_PREFIX} could not remove ${what}`, { folder: path.basename(dir), file: name, code: errCode(err) });
     }
   }
   return removed;
@@ -64,6 +65,19 @@ export async function cleanupScratch(dir: string, nowMs: number, host: FilesHost
   const removed = await removeAll(dir, old, host);
   if (removed > 0) host.logger.info(`${SYNC_LOG_PREFIX} removed leftover scratch files`, { folder: path.basename(dir), removed });
   return removed;
+}
+
+/** Removes everything in `dir` (4.8 private copies under an old password); failures are logged; returns the count. */
+export async function clearFolder(dir: string, host: FilesHost): Promise<number> {
+  let names: string[];
+  try {
+    names = await host.fs.readdir(dir);
+  } catch (err) {
+    if (isErrno(err, 'ENOENT') || isErrno(err, 'ENOTDIR')) return 0;
+    host.logger.warn(`${SYNC_LOG_PREFIX} could not list a folder of private copies`, { folder: path.basename(dir), code: errCode(err) });
+    return 0;
+  }
+  return removeAll(dir, names, host, 'a private copy');
 }
 
 /** Keeps the QUARANTINE_KEEP newest quarantined copies younger than QUARANTINE_MAX_AGE_MS; returns the removed count. */
