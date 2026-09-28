@@ -6,6 +6,7 @@
 import { exists, readSyncState, waitFor } from './ui.mjs';
 import { clickBannerAction, clickInDialog, dialogSelector, stubDialogs, typeIntoLabeled, waitForBanner } from './ui-forms.mjs';
 import { dialogDetails, unlockOutcome, waitForDialog } from './sync-flows.mjs';
+import { SELECTORS, existsIn } from './selectors.mjs';
 
 export const PASSWORD_CHANGED_TITLE = 'Master password changed';
 export const DAMAGED_TITLE = "This computer's copy is damaged";
@@ -48,11 +49,11 @@ export async function submitPasswordChanged(device, newPassword, { previousPassw
 
 /**
  * After a button in an unlock-time dialog: waits until the dialog closes or shows an inline error
- * (InlineError's p.text-red-400; the danger icon is an svg), then returns sync-flows unlockOutcome().
+ * (InlineError's p.text-red-400 or the data-cv-error hook; the danger icon is an svg), then returns sync-flows unlockOutcome().
  */
 async function outcomeAfterDialog(device, title, { timeoutMs = 90_000 } = {}) {
   const sel = dialogSelector(title);
-  await waitFor(async () => !(await exists(device, sel)) || exists(device, `${sel} p.text-red-400`), {
+  await waitFor(async () => !(await exists(device, sel)) || existsIn(device, SELECTORS.dialogError, { scope: sel }), {
     timeoutMs,
     label: `${device.name}: "${title}" closed or showing an error`,
   });

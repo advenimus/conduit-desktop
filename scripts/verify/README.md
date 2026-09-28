@@ -449,6 +449,81 @@ device's syncRoot).
 `importExport(d, file, passphrase)` (`import_execute_export` into the active vault, then the renderer
 reloads). The importer only creates folders and entries (new ids); it never writes an existing row.
 
+## UI hooks and the text the harness reads
+
+The visual redesign (`docs/VISUAL_REDESIGN.md` 8.2 to 8.4 and Appendix B) restyles every screen the
+harness drives. These rules keep the suites working while it lands, one directory at a time.
+
+### Stable `data-cv-*` hooks (`lib/selectors.mjs`)
+
+- Every harness selector that matched a Tailwind class is a pair in `SELECTORS`: `{hook, legacy}`.
+  `hook` is a `data-cv-*` attribute (the Appendix B "Hook added by" column says which package adds it);
+  `legacy` is the class selector today's markup matches.
+- `pickSelector(scope, hook, legacy)` picks one half per scope: the hook when any element inside the
+  scope carries it, else the legacy selector. The halves are never joined into one comma list:
+  `querySelector` would return whichever match comes first and `closest()` whichever ancestor is
+  nearest, so a restyled Card that still has `rounded-md`, or the first `<span>` of a row, would win
+  over the hooked element. `pickClosest(el, scope, pair)` replaces `el.closest(css)` the same way and
+  stays inside the scope. A pair with a `probe` decides on that selector instead of the hook: for an
+  element that is not always rendered (the Cloud Backup badge, the rows of an empty list), the probe
+  is a hook of the same component that always is.
+- Page code gets the helpers as its second argument and the pairs as `cv.S`:
+  `evaluateIn(d, (root, cv) => cv.pickAll(document.querySelector(root), cv.S.deviceRow).length, root)`.
+  The function travels to the renderer as source text (`inPage`), so it may use only its arguments and
+  page globals, never a constant of its module. Node-side helpers: `existsIn(d, pair, {scope})`,
+  `textIn(d, pair, {scope})` and `clickIn(d, label, pair, {scope, exact, index})`, which clicks like
+  `ui.clickText` and resolves the pair again on every try. `scope` is a CSS selector; each matching
+  element is its own scope (one decision per dialog for `[data-dialog-content]`).
+- Markup that adds a hook puts it on the element the harness reads or clicks: the button itself for
+  the review button, the side bar toggle and the vault switcher, the text element for the banner text,
+  the plan line and the notice text. Keep the attributes other code relies on (`data-dialog-content`,
+  `data-tabbar`, `data-sidebar-panel`, `data-docked`, `data-content-area`, `data-context-menu`,
+  `data-popover`, `data-toast`, `data-bare`, `data-session-keyboard`), the placeholders the flows type
+  into (B30), the recent vault `title` paths (B26, B44), the `Close` and idle-lock `aria-label`s (B12,
+  B28), and `label > input` for checkboxes and radios (B29, B46).
+- Hover-revealed actions hide with `opacity: 0` only. Clicks skip elements that are
+  `visibility: hidden` or have no layout box (B45).
+- A new pair needs old, new and mixed fixtures in `scripts/__tests__/verify-selectors.test.ts`; the
+  test fails for a pair without them. The mixed fixture puts an element with the legacy class next to
+  the hooked one, earlier in the document or nearer as an ancestor, and the test proves that a comma
+  union would pick it. W4-HARNESS deletes the legacy halves once every hook has landed.
+
+### Dialog detection (8.3)
+
+`openDialogs`, `dialogDetails` and the scoped sync-dialog clicks read `[role=dialog][aria-label]`
+(`SYNC_DIALOG`). The Dialog primitive names ordinary dialogs with `aria-labelledby` and sets
+`aria-label` only through `harnessLabel`, which only the sync-style shells pass. A dialog that sets
+`aria-label` counts as a sync dialog, and `waitForUnlockOutcome` then reports `{outcome: 'dialog'}`.
+
+### Busy texts (B35)
+
+The flows wait on these texts, so each stays visible text inside its dialog or button while the work
+runs: `Opening...` (take-over), `Please wait...` (unlock), `Checking...` (Syncing paused), `Loading...`
+(Recently deleted, mass change), `Looking for copies...` (Other copies) and `Comparing...` (candidate
+preview). Use `Button loading loadingLabel="..."` or `Spinner text="..."`. A bare spinner, `aria-busy`
+alone or a visually hidden label breaks the waits.
+
+### Text on permanent chrome (8.4)
+
+Permanent chrome is the title bar, activity bar, status bar, side bar part title and layout controls.
+It comes first in the DOM, so the unscoped lookups would find it before any dialog.
+
+1. No button's visible text equals `Review`, `Use here instead`, `Lock Current Vault`, `New Vault`,
+   `Not Now` or `Open Vault File`: the flows click those with `selector: 'button'` and take the first
+   match.
+2. No visible text contains `Loading...`, `Please wait...`, `Opening...`, `Checking...`,
+   `Comparing...`, `Looking for copies...`, `Sync now`, `Nothing to review`, `Unlock Vault`,
+   `Set a master password`, `Select a vault to get started` or `Continue without signing in`: the
+   flows look for them in the page text.
+3. The minimal title bar renders no text nodes: a page whose whole text is `Loading...` is the loading
+   screen.
+4. No `role="dialog"` or `role="status"` on chrome; `role="status"` belongs to the banners, which
+   `banners(d)` reads.
+5. The command center pill has no `title` attribute.
+
+`src/components/shell/__tests__/chromeText.test.tsx` (added by W2-WORKBENCH) checks these rules on a
+fully rendered workbench.
+
 ## Gotchas
 
 - Playwright locator clicks time out in this app. Use `ui.clickText` / `ui.clickSelector` (DOM clicks);

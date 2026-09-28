@@ -4,6 +4,7 @@
 
 import fs from 'node:fs';
 import { passwordSession } from './supabase.mjs';
+import { SELECTORS, SYNC_DIALOG, clickIn, existsIn } from './selectors.mjs';
 import {
   bodyText,
   clickSelector,
@@ -39,11 +40,11 @@ export function waitForScreen(device, screen, { timeoutMs = 60_000 } = {}) {
   return waitFor(async () => (await currentScreen(device)) === screen, { timeoutMs, label: `${device.name}: ${screen} screen` });
 }
 
-/** Titles of the open sync dialogs (role=dialog with an aria-label). */
+/** Titles of the open sync dialogs (role=dialog with an aria-label; other dialogs have none, spec 8.3). */
 export function openDialogs(device) {
-  const titles = device.page.evaluate(() =>
-    [...document.querySelectorAll('[role=dialog]')].filter((el) => el.getClientRects().length > 0).map((el) => el.getAttribute('aria-label') ?? ''),
-  );
+  const titles = device.page.evaluate((css) =>
+    [...document.querySelectorAll(css)].filter((el) => el.getClientRects().length > 0).map((el) => el.getAttribute('aria-label') ?? ''),
+  SYNC_DIALOG);
   return withTimeout(titles, 10_000, `${device.name}: read dialogs`);
 }
 
@@ -94,7 +95,7 @@ export function waitForUnlockOutcome(device, { timeoutMs = UNLOCK_TIMEOUT_MS } =
     const dialogs = await openDialogs(device);
     // `text` was read before the dialog check and can predate the dialog: read it again.
     if (dialogs.length > 0) return { outcome: 'dialog', dialogs, text: await bodyText(device, { timeoutMs: 10_000 }) };
-    if (!text.includes('Please wait...') && (await exists(device, '[data-dialog-content] .text-red-400'))) {
+    if (!text.includes('Please wait...') && (await existsIn(device, SELECTORS.unlockError, { scope: '[data-dialog-content]' }))) {
       return { outcome: 'error', text };
     }
     return null;
@@ -177,8 +178,8 @@ export function listEntries(device) {
 /** Opens "Review changes" from the sync indicator or the review banner. */
 export async function openConflictReview(device, { timeoutMs = 30_000 } = {}) {
   await waitFor(async () => {
-    if (await exists(device, 'button[title="Review changes from your other devices"]')) {
-      await clickSelector(device, 'button[title="Review changes from your other devices"]', { timeoutMs: 5_000 });
+    if (await existsIn(device, SELECTORS.reviewButton)) {
+      await clickIn(device, null, SELECTORS.reviewButton, { timeoutMs: 5_000 });
       return true;
     }
     const text = await bodyText(device, { timeoutMs: 10_000 });

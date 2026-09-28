@@ -4,10 +4,10 @@
 
 import { listEntries } from './flows.mjs';
 import { withPrivateCopy } from './sync-files.mjs';
-import { clickText, exists, invoke, waitFor, withTimeout } from './ui.mjs';
+import { clickText, exists, invoke, waitFor } from './ui.mjs';
+import { SELECTORS, textIn } from './selectors.mjs';
 
 const UNLOCK_INPUT = 'input[placeholder="Enter master password"]';
-const UNLOCK_ERROR = '[data-dialog-content] p.text-red-400';
 const COMPARED_FIELDS = ['id', 'name', 'entry_type', 'folder_id', 'parent_entry_id', 'host', 'port', 'username', 'domain', 'notes', 'credential_type'];
 
 /**
@@ -60,8 +60,8 @@ export async function recentlyDeletedList(device, { showAll = true } = {}) {
 }
 
 /** The unlock dialog's error line, or null. */
-export function unlockErrorLine(device) {
-  return withTimeout(device.page.evaluate((sel) => document.querySelector(sel)?.innerText?.trim() ?? null, UNLOCK_ERROR), 10_000, `${device.name}: read unlock error`);
+export async function unlockErrorLine(device) {
+  return (await textIn(device, SELECTORS.dialogError, { scope: '[data-dialog-content]' }))?.trim() ?? null;
 }
 
 /** [Cancel] on the unlock dialog (after a refused password); waits until it has closed. */
