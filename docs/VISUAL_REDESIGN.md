@@ -1379,7 +1379,7 @@ Everything lives in `src/lib/icons/` (W1-ICONS). Call sites keep importing named
 
 | Pack id | Label | Package and version | Delivery | License | Notes |
 |---|---|---|---|---|---|
-| `codicons` | Codicons (default) | `@iconify-json/codicon@1.2.73` | codegen, static | CC-BY-4.0 | D-1; 115 of 123 names are native Codicons, 8 have no Codicon and use Lucide glyphs (Appendix A.1) |
+| `codicons` | Codicons | `@iconify-json/codicon@1.2.73` | codegen, static | CC-BY-4.0 | the default pack (D-1); the card label is the plain pack name, as 5.7 lists it; 115 of 123 names are native Codicons, 8 have no Codicon and use Lucide glyphs (Appendix A.1) |
 | `lucide` | Lucide | `lucide-react@1.48.0` | named imports, lazy chunk | ISC | `strokeWidth` 1.5 at 16px [ADAPT: Lucide's default 2 reads heavy next to Codicons] |
 | `tabler` | Tabler (Classic) | `@tabler/icons-react` 3.38.0 installed (range `^3.36.1` kept) | existing pack, lazy chunk | MIT | stroke 1.5 as today (`types.ts:185`) |
 | `phosphor` | Phosphor | `@phosphor-icons/react` 2.1.10 | existing pack, lazy chunk | MIT | weight `regular`, `fill` for filled names |
