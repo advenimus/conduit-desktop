@@ -1,6 +1,14 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useId } from "react";
+import { IconButton, TabPanel, Tabs, type TabItem } from "../ui";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { toolbarActions, type ToolbarAction } from "./markdownToolbar";
+
+type EditorTab = "write" | "preview";
+
+const TABS: ReadonlyArray<TabItem<EditorTab>> = [
+  { value: "write", label: "Write" },
+  { value: "preview", label: "Preview" },
+];
 
 interface MarkdownEditorProps {
   value: string;
@@ -10,7 +18,8 @@ interface MarkdownEditorProps {
 }
 
 export default function MarkdownEditor({ value, onChange, placeholder = "Write markdown...", minRows = 8 }: MarkdownEditorProps) {
-  const [tab, setTab] = useState<"write" | "preview">("write");
+  const [tab, setTab] = useState<EditorTab>("write");
+  const idBase = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleToolbar = useCallback(
@@ -30,73 +39,40 @@ export default function MarkdownEditor({ value, onChange, placeholder = "Write m
   );
 
   return (
-    <div className="border border-stroke rounded overflow-hidden bg-well">
-      {/* Tab bar */}
-      <div className="flex items-center border-b border-stroke bg-raised/50">
-        <button
-          type="button"
-          onClick={() => setTab("write")}
-          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-            tab === "write"
-              ? "text-ink border-b-2 border-conduit-500"
-              : "text-ink-muted hover:text-ink"
-          }`}
-        >
-          Write
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("preview")}
-          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-            tab === "preview"
-              ? "text-ink border-b-2 border-conduit-500"
-              : "text-ink-muted hover:text-ink"
-          }`}
-        >
-          Preview
-        </button>
-      </div>
+    <div className="overflow-hidden rounded border border-input-border bg-input">
+      <Tabs idBase={idBase} items={TABS} value={tab} onChange={setTab} className="border-b border-divider" />
 
-      {/* Toolbar (write mode only) */}
-      {tab === "write" && (
-        <div className="flex items-center gap-0.5 px-2 py-1 border-b border-stroke bg-raised/30 flex-wrap">
-          {toolbarActions.map((action, i) =>
-            "separator" in action ? (
-              <div key={i} className="w-px h-4 bg-stroke mx-1" />
+      <TabPanel idBase={idBase} value={tab}>
+        {tab === "write" ? (
+          <>
+            <div className="flex flex-wrap items-center gap-0.5 border-b border-divider px-2 py-1">
+              {toolbarActions.map((action, i) =>
+                "separator" in action ? (
+                  <div key={i} className="mx-1 h-4 w-px bg-divider" />
+                ) : (
+                  <IconButton key={i} size="sm" icon={action.icon} label={action.title} onClick={() => handleToolbar(action)} />
+                )
+              )}
+            </div>
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={placeholder}
+              rows={minRows}
+              className="block w-full resize-y bg-transparent px-3 py-2 font-mono text-body text-(--c-input-fg) placeholder:text-(--c-input-placeholder)"
+            />
+          </>
+        ) : (
+          <div className="min-h-[8rem] overflow-y-auto px-3 py-2">
+            {value.trim() ? (
+              <MarkdownRenderer content={value} />
             ) : (
-              <button
-                key={i}
-                type="button"
-                title={action.title}
-                onClick={() => handleToolbar(action)}
-                className="p-1 rounded hover:bg-well text-ink-muted hover:text-ink transition-colors"
-              >
-                <action.icon size={14} stroke={1.5} />
-              </button>
-            )
-          )}
-        </div>
-      )}
-
-      {/* Content area */}
-      {tab === "write" ? (
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          rows={minRows}
-          className="w-full px-3 py-2 bg-transparent text-sm text-ink focus:outline-none resize-y font-mono"
-        />
-      ) : (
-        <div className="px-3 py-2 min-h-[8rem] overflow-y-auto">
-          {value.trim() ? (
-            <MarkdownRenderer content={value} />
-          ) : (
-            <p className="text-sm text-ink-faint italic">Nothing to preview</p>
-          )}
-        </div>
-      )}
+              <p className="text-body italic text-ink-faint">Nothing to preview</p>
+            )}
+          </div>
+        )}
+      </TabPanel>
     </div>
   );
 }

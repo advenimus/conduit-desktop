@@ -6,6 +6,8 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import { toast } from "../common/Toast";
 import { formatFileSize } from "../../lib/format";
 import { friendlyConnectionError } from "../../lib/errorMessages";
+import { Button } from "../ui";
+import { SessionConnecting, SessionError, SessionStatePanel } from "./SessionStates";
 
 interface DirtyRegion {
   x: number;
@@ -815,65 +817,36 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
 
   if (rdpMode === "xfreerdp") {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-canvas text-ink-muted">
-        <div className="text-lg mb-2">RDP Session Active</div>
-        <div className="text-sm text-ink-faint mb-1">
-          Connected via FreeRDP (external window)
-        </div>
-        <div className="text-xs text-ink-faint">
-          Server requires NLA — using xfreerdp subprocess
-        </div>
+      <SessionStatePanel className="h-full w-full">
+        <div className="mb-2 text-title">RDP Session Active</div>
+        <div className="mb-1 text-body text-ink-faint">Connected via FreeRDP (external window)</div>
+        <div className="text-label text-ink-faint">Server requires NLA — using xfreerdp subprocess</div>
         {onClose && (
-          <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-raised hover:bg-raised rounded text-sm"
-          >
+          <Button className="mt-4" onClick={onClose}>
             Disconnect
-          </button>
+          </Button>
         )}
-      </div>
+      </SessionStatePanel>
     );
   }
 
-  // Connecting state — spinner
   if (status === "connecting") {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-canvas text-ink-muted">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ink-muted mb-4" />
-        <div className="text-sm font-medium">
-          {reconnecting ? "Reconnecting..." : "Connecting to RDP session..."}
-        </div>
-        {reconnecting && (
-          <div className="text-xs text-ink-faint mt-2">
-            Waiting for server to release previous session
-          </div>
-        )}
-      </div>
+      <SessionConnecting
+        text={reconnecting ? "Reconnecting..." : "Connecting to RDP session..."}
+        detail={reconnecting ? "Waiting for server to release previous session" : undefined}
+      />
     );
   }
 
-  // Disconnected with error
   if (error || status === "disconnected") {
     const friendly = error ? friendlyConnectionError(error, "rdp") : "Disconnected";
-    const showRaw = !!error && friendly !== error;
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-canvas text-ink-muted px-6">
-        <div className="text-red-400 mb-2">Connection Error</div>
-        <div className="text-sm text-center max-w-md">{friendly}</div>
-        {showRaw && (
-          <div className="text-xs text-ink-faint font-mono mt-2 max-w-md text-center break-all">
-            {error}
-          </div>
-        )}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-raised hover:bg-raised rounded text-sm"
-          >
-            Close
-          </button>
-        )}
-      </div>
+      <SessionError
+        message={friendly}
+        raw={error && friendly !== error ? error : null}
+        actions={onClose && <Button onClick={onClose}>Close</Button>}
+      />
     );
   }
 
@@ -881,7 +854,7 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
     <div
       ref={containerRef}
       data-session-keyboard
-      className="h-full w-full flex items-center justify-center bg-canvas overflow-hidden outline-none relative"
+      className="h-full w-full flex items-center justify-center bg-editor overflow-hidden outline-none relative"
       tabIndex={0}
       onClick={handleContainerClick}
       onKeyDown={handleKeyDown}
@@ -903,7 +876,7 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
         onContextMenu={handleContextMenu}
       />
       {rdpMode && (
-        <div className="absolute bottom-1 right-2 text-[10px] text-white/20 pointer-events-none select-none">
+        <div className="absolute bottom-1 right-2 text-badge text-white/20 pointer-events-none select-none">
           FreeRDP
         </div>
       )}

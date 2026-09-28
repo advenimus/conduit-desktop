@@ -5,16 +5,11 @@ import { useNativeViewVisibility } from "../../hooks/useNativeViewVisibility";
 import WebBrowserToolbar from "./web/WebBrowserToolbar";
 import WebSubTabBar from "./web/WebSubTabBar";
 import WebAutofillBar, { type PickerStep, type PickedSelectors } from "./web/WebAutofillBar";
-import { AlertTriangleIcon } from "../../lib/icons";
+import WebCertWarning, { type CertError } from "./web/WebCertWarning";
+import { Button } from "../ui";
+import { SessionError, SessionStatePanel } from "./SessionStates";
 import { toast } from "../common/Toast";
 import { formatFileSize } from "../../lib/format";
-
-interface CertError {
-  url: string;
-  error: string;
-  issuer: string;
-  subject: string;
-}
 
 type AutofillStatus = "idle" | "filling" | "success" | "error";
 
@@ -756,7 +751,7 @@ export default function WebView({ sessionId, entryId, isActive = true }: WebView
       )}
 
       {/* WebContentsView container */}
-      <div ref={containerRef} className="flex-1 bg-canvas relative">
+      <div ref={containerRef} className="flex-1 bg-editor relative">
         {/* Frozen screenshot — shown whenever native view is not live */}
         {frozenScreenshot && (
           <img
@@ -770,69 +765,28 @@ export default function WebView({ sessionId, entryId, isActive = true }: WebView
           />
         )}
         {!isReady && !error && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-ink-muted">Loading web session...</div>
-          </div>
+          <SessionStatePanel surface={false} className="absolute inset-0 text-body">Loading web session...</SessionStatePanel>
         )}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-red-400 mb-2">Failed to load web session</div>
-              <div className="text-ink-faint text-sm max-w-md">{error}</div>
-              <button
+          <SessionError
+            surface={false}
+            className="absolute inset-0 px-6"
+            title="Failed to load web session"
+            message={error}
+            actions={
+              <Button
                 onClick={() => {
                   setError(null);
                   webviewCreated.current = false;
                   createWebview();
                 }}
-                className="mt-4 px-4 py-2 bg-raised hover:bg-raised rounded text-sm"
               >
                 Retry
-              </button>
-            </div>
-          </div>
+              </Button>
+            }
+          />
         )}
-        {certError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-canvas">
-            <div className="max-w-lg text-center px-8">
-              <AlertTriangleIcon size={48} className="text-yellow-500 mx-auto mb-4" />
-              <h2 className="text-lg font-semibold text-ink mb-2">
-                Your connection is not private
-              </h2>
-              <p className="text-sm text-ink-muted mb-4">
-                The certificate for{" "}
-                <span className="text-ink font-mono">{certError.url}</span> is not trusted.
-              </p>
-              <div className="bg-panel border border-stroke rounded p-3 text-left text-xs text-ink-muted mb-6 space-y-1">
-                <div>
-                  <span className="text-ink-faint">Error:</span> {certError.error}
-                </div>
-                <div>
-                  <span className="text-ink-faint">Issuer:</span> {certError.issuer}
-                </div>
-                <div>
-                  <span className="text-ink-faint">Subject:</span> {certError.subject}
-                </div>
-              </div>
-              <p className="text-xs text-ink-faint mb-6">
-                This may indicate a self-signed certificate, an expired certificate, or a potential
-                security risk. Only proceed if you trust this server.
-              </p>
-              <div className="flex justify-center gap-3">
-                <button
-                  onClick={handleAcceptCert}
-                  className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded text-sm"
-                >
-                  Proceed Anyway
-                </button>
-              </div>
-              <p className="text-xs text-ink-faint mt-3">
-                To always skip this warning, enable "Ignore certificate errors" in the entry
-                settings.
-              </p>
-            </div>
-          </div>
-        )}
+        {certError && <WebCertWarning certError={certError} onProceed={handleAcceptCert} />}
       </div>
     </div>
   );

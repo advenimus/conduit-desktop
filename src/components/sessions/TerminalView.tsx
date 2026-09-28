@@ -343,7 +343,7 @@ export default function TerminalView({
   }, [terminal, sessionId]);
 
   return (
-    <div data-session-keyboard className="h-full w-full bg-canvas overflow-hidden">
+    <div data-session-keyboard className="h-full w-full bg-editor overflow-hidden">
       <div
         ref={terminalRef}
         className="h-full w-full"
