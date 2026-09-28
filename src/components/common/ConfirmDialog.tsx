@@ -1,10 +1,15 @@
-import { useFreeze } from "../../lib/native-freeze";
+import { Button, Dialog, type DialogLayer } from "../ui";
 
 interface ConfirmDialogProps {
   title: string;
   message: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   variant?: "danger" | "default";
+  /** Without a layer the confirm renders in place, so a caller's own z-index wrapper still applies (spec 4.8). */
+  layer?: DialogLayer;
+  /** Off by default: Escape is swallowed and the confirm stays open (spec 3.12.1). */
+  closeOnEscape?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -13,41 +18,35 @@ export default function ConfirmDialog({
   title,
   message,
   confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   variant = "default",
+  layer,
+  closeOnEscape = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  useFreeze(true, "dialog", title);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div data-dialog-content className="bg-panel border border-stroke rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="px-6 py-4 border-b border-stroke">
-          <h2 className="text-lg font-semibold text-ink">{title}</h2>
-        </div>
-
-        <div className="px-6 py-4">
-          <p className="text-sm text-ink-secondary">{message}</p>
-        </div>
-
-        <div className="px-6 py-4 border-t border-stroke flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-ink-secondary bg-raised hover:bg-raised rounded transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className={`px-4 py-2 text-sm font-medium text-white rounded transition-colors ${
-              variant === "danger"
-                ? "bg-red-600 hover:bg-red-500"
-                : "bg-conduit-600 hover:bg-conduit-500"
-            }`}
-          >
+    <Dialog
+      open
+      title={title}
+      onClose={onCancel}
+      hideClose
+      closeOnEscape={closeOnEscape}
+      layer={layer ?? "base"}
+      portal={layer !== undefined}
+      width={448}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCancel}>
+            {cancelLabel}
+          </Button>
+          <Button variant={variant === "danger" ? "danger" : "primary"} onClick={onConfirm}>
             {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </>
+      }
+    >
+      <p className="text-ink-muted">{message}</p>
+    </Dialog>
   );
 }
