@@ -6,9 +6,8 @@ import { useAppIcon } from "../../hooks/useAppIcon";
 import { invoke } from "../../lib/electron";
 import { showContextMenu } from "../../utils/contextMenu";
 import PendingVaultsWarning, { PendingBadge } from "../sync/PendingVaultsWarning";
-import {
-  AlertCircleIcon, CheckIcon, ChevronRightIcon, FingerprintIcon, FolderOpenIcon, LoaderIcon, LockIcon, PlusIcon, RefreshIcon, UsersIcon, WifiOffIcon
-} from "../../lib/icons";
+import { AlertCircleIcon, CheckIcon, FingerprintIcon } from "../../lib/icons";
+import { Badge, Button, IconSlot, ListRow, Spinner, type IconSource } from "../ui";
 
 /**
  * Full-screen vault landing page shown on launch and when returning from lock/close.
@@ -139,32 +138,23 @@ export default function VaultHub() {
   return (
     <div className="flex-1 flex items-center justify-center p-8">
       <div
-        className={`w-full rounded-xl border border-stroke-dim bg-panel/50 shadow-lg overflow-hidden ${
+        className={`w-full rounded-lg border border-card-border bg-sidebar overflow-hidden ${
           hasContent ? "max-w-3xl" : "max-w-md"
         }`}
       >
-        {/* Auto-connect error banner */}
         {autoConnectError && (
-          <div className="flex items-center gap-2 px-5 py-3 bg-red-500/10 border-b border-red-500/20">
-            <AlertCircleIcon
-              size={16}
-              className="text-red-400 flex-shrink-0"
-            />
-            <p className="text-sm text-red-300 flex-1">{autoConnectError}</p>
-            <button
-              onClick={handleRetryAutoConnect}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-red-300 hover:text-red-200 hover:bg-red-500/20 rounded transition-colors"
-            >
-              <RefreshIcon size={12} />
+          <div className="flex items-center gap-2 px-5 py-3 bg-danger-bg border-b border-danger-border">
+            <AlertCircleIcon size={16} className="text-danger flex-shrink-0" />
+            <p className="text-body text-danger flex-1">{autoConnectError}</p>
+            <Button size="sm" icon="refresh" onClick={handleRetryAutoConnect}>
               Retry
-            </button>
+            </Button>
           </div>
         )}
 
         <PendingVaultsWarning />
 
         <div className={`flex ${hasContent ? "min-h-[400px]" : ""}`}>
-          {/* ── Left Panel: Branding + Actions ── */}
           <div
             className={`flex flex-col items-center justify-center p-8 ${
               hasContent ? "w-[260px] flex-shrink-0" : "w-full"
@@ -176,98 +166,61 @@ export default function VaultHub() {
               className="w-20 h-20 mb-5 rounded-2xl"
               draggable={false}
             />
-            <h1 className="text-2xl font-bold text-ink mb-1">Conduit</h1>
-            <p className="text-sm text-ink-muted mb-8 text-center">
+            <h1 className="text-display text-ink mb-1">Conduit</h1>
+            <p className="text-body text-ink-muted mb-8 text-center">
               Select a vault to get started
             </p>
 
             <div className="w-full space-y-2">
-              <button
-                onClick={handleNewVault}
-                disabled={isLoading}
-                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-medium text-white bg-conduit-600 hover:bg-conduit-500 rounded-lg transition-colors disabled:opacity-50"
-              >
-                <PlusIcon size={16} />
+              <Button size="lg" variant="primary" icon="plus" fullWidth onClick={handleNewVault} disabled={isLoading}>
                 New Vault
-              </button>
-              <button
-                onClick={handleOpenVault}
-                disabled={isLoading}
-                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm font-medium text-ink-secondary border border-stroke-dim rounded-lg hover:bg-well transition-colors disabled:opacity-50"
-              >
-                <FolderOpenIcon size={16} />
+              </Button>
+              <Button size="lg" variant="secondary" icon="folderOpen" fullWidth onClick={handleOpenVault} disabled={isLoading}>
                 Open Vault File
-              </button>
+              </Button>
             </div>
           </div>
 
-          {/* ── Divider + Right Panel ── */}
           {hasContent && (
             <>
-              {/* Vertical divider */}
-              <div className="w-px bg-stroke-dim my-6" />
+              <div className="w-px bg-divider my-6" />
 
-              {/* Right Panel: Vault sections */}
-              <div className="flex-1 py-5 px-5 overflow-y-auto flex flex-col justify-center gap-5">
-                {/* Team Vaults Section */}
+              <div className="flex-1 min-w-0 py-5 px-5 overflow-y-auto flex flex-col justify-center gap-5">
                 {showTeamSection && (
                   <div>
-                    <h2 className="text-[11px] font-semibold text-ink-faint uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
-                      <UsersIcon size={12} className="text-conduit-400" />
-                      Team Vaults
-                    </h2>
-                    <div className="rounded-lg border border-stroke-dim overflow-hidden">
+                    <SectionTitle icon="users" iconClassName="text-info">Team Vaults</SectionTitle>
+                    <div className="rounded-md border border-card-border p-1">
                       {teamLoading ? (
-                        <div className="flex items-center justify-center gap-2 py-6 text-ink-muted">
-                          <LoaderIcon size={16} className="animate-spin" />
-                          <span className="text-sm">Loading...</span>
+                        <div className="flex items-center justify-center py-6 text-body text-ink-muted">
+                          <Spinner size={16} text="Loading..." />
                         </div>
                       ) : teamVaults.length > 0 ? (
                         teamVaults.map((vault) => (
-                          <button
+                          <ListRow
                             key={vault.id}
                             onClick={() => handleTeamVault(vault)}
                             disabled={isOffline || isLoading}
-                            className="group flex items-center gap-3 w-full text-left px-3.5 py-2.5 hover:bg-well transition-colors border-b border-stroke-dim last:border-b-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <div className="w-7 h-7 rounded-md bg-conduit-500/10 flex items-center justify-center flex-shrink-0">
-                              <UsersIcon
-                                size={14}
-                                className="text-conduit-400"
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-ink truncate">
-                                {vault.name}
-                              </div>
-                              {vault.description && (
-                                <div className="text-xs text-ink-muted truncate">
-                                  {vault.description}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              {isOffline && (
-                                <span className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-amber-400 bg-amber-500/10 rounded">
-                                  <WifiOffIcon size={10} />
-                                  Offline
+                            leading={<RowTile icon="users" className="bg-info-bg text-info" />}
+                            description={vault.description || undefined}
+                            meta={
+                              <>
+                                {isOffline && (
+                                  <Badge tone="warning" icon="wifiOff">
+                                    Offline
+                                  </Badge>
+                                )}
+                                <span>
+                                  {vault.member_count} {vault.member_count === 1 ? "member" : "members"}
                                 </span>
-                              )}
-                              <span className="text-[11px] text-ink-faint">
-                                {vault.member_count}{" "}
-                                {vault.member_count === 1
-                                  ? "member"
-                                  : "members"}
-                              </span>
-                              <ChevronRightIcon
-                                size={14}
-                                className="text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity"
-                              />
-                            </div>
-                          </button>
+                              </>
+                            }
+                            trailing={<RowChevron />}
+                          >
+                            <span className="text-ink">{vault.name}</span>
+                          </ListRow>
                         ))
                       ) : (
-                        <div className="px-4 py-5 text-center text-sm text-ink-muted">
+                        <div className="px-4 py-5 text-center text-body text-ink-muted">
                           No team vaults available
                         </div>
                       )}
@@ -275,57 +228,41 @@ export default function VaultHub() {
                   </div>
                 )}
 
-                {/* Team Vaults upgrade card for non-team members */}
                 {showTeamUpgrade && (
                   <div>
-                    <h2 className="text-[11px] font-semibold text-ink-faint uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
-                      <UsersIcon size={12} className="text-conduit-400" />
-                      Team Vaults
-                    </h2>
-                    <div className="flex rounded-lg border border-stroke-dim overflow-hidden">
-                      {/* Left: feature list */}
+                    <SectionTitle icon="users" iconClassName="text-info">Team Vaults</SectionTitle>
+                    <div className="flex rounded-md border border-card-border overflow-hidden">
                       <div className="flex-1 bg-well px-4 py-4">
                         <ul className="space-y-2">
                           {["Shared vaults for your team", "Zero-knowledge sharing", "Folder permissions", "Audit log"].map((f) => (
-                            <li key={f} className="flex items-center gap-2 text-xs text-ink-secondary">
-                              <CheckIcon size={12} className="text-conduit-400 flex-shrink-0" />
+                            <li key={f} className="flex items-center gap-2 text-label text-ink-secondary">
+                              <CheckIcon size={12} className="text-info flex-shrink-0" />
                               {f}
                             </li>
                           ))}
                         </ul>
                       </div>
-                      {/* Right: CTA */}
                       <div className="flex-1 px-4 py-4 flex flex-col items-center justify-center">
-                        <span className="text-[10px] font-semibold text-ink-faint uppercase tracking-wider mb-3">
+                        <span className="text-meta font-semibold text-ink-muted mb-3">
                           Teams Plan
                         </span>
-                        <button
-                          onClick={() => invoke('auth_open_account')}
-                          className="px-4 py-2 text-xs font-medium text-white bg-conduit-600 hover:bg-conduit-500 rounded-lg transition-colors"
-                        >
+                        <Button variant="primary" onClick={() => invoke('auth_open_account')}>
                           Upgrade to Teams &rarr;
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Recent Vaults Section */}
                 {hasRecentVaults && (
                   <div>
                     <div className="flex items-center justify-between mb-2 px-1">
-                      <h2 className="text-[11px] font-semibold text-ink-faint uppercase tracking-wider flex items-center gap-1.5">
-                        <LockIcon size={12} className="text-ink-faint" />
-                        Recent Vaults
-                      </h2>
-                      <button
-                        onClick={() => clearRecentVaults()}
-                        className="text-[11px] text-ink-faint hover:text-ink-muted transition-colors"
-                      >
+                      <SectionTitle icon="lock" className="">Recent Vaults</SectionTitle>
+                      <Button variant="link" size="sm" onClick={() => clearRecentVaults()}>
                         Clear All
-                      </button>
+                      </Button>
                     </div>
-                    <div className="rounded-lg border border-stroke-dim overflow-hidden">
+                    <div className="rounded-md border border-card-border p-1">
                       {recentVaults.slice(0, 5).map((vaultPath) => {
                         const fileName =
                           vaultPath
@@ -338,42 +275,24 @@ export default function VaultHub() {
                             ? parts.slice(0, -1).join("/")
                             : "";
                         return (
-                          <button
+                          <ListRow
                             key={vaultPath}
                             onClick={() => handlePersonalVault(vaultPath)}
                             onContextMenu={(e) => handleRecentVaultContextMenu(e, vaultPath)}
                             disabled={isLoading}
-                            className="group flex items-center gap-3 w-full text-left px-3.5 py-2.5 hover:bg-well transition-colors border-b border-stroke-dim last:border-b-0 disabled:opacity-50"
                             title={vaultPath}
+                            leading={<RowTile icon="folderOpen" className="bg-well text-ink-muted" />}
+                            description={dir}
+                            meta={
+                              <>
+                                <PendingBadge vaultPath={vaultPath} />
+                                {biometricVaults.has(vaultPath) && <FingerprintIcon size={16} className="text-info" />}
+                              </>
+                            }
+                            trailing={<RowChevron />}
                           >
-                            <div className="w-7 h-7 rounded-md bg-raised flex items-center justify-center flex-shrink-0">
-                              <FolderOpenIcon
-                                size={14}
-                                className="text-ink-muted"
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-ink truncate">
-                                {fileName}
-                              </div>
-                              <div className="text-xs text-ink-faint truncate">
-                                {dir}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <PendingBadge vaultPath={vaultPath} />
-                              {biometricVaults.has(vaultPath) && (
-                                <FingerprintIcon
-                                  size={14}
-                                  className="text-conduit-400"
-                                />
-                              )}
-                              <ChevronRightIcon
-                                size={14}
-                                className="text-ink-faint opacity-0 group-hover:opacity-100 transition-opacity"
-                              />
-                            </div>
-                          </button>
+                            <span className="text-ink">{fileName}</span>
+                          </ListRow>
                         );
                       })}
                     </div>
@@ -386,4 +305,36 @@ export default function VaultHub() {
       </div>
     </div>
   );
+}
+
+function SectionTitle({
+  icon,
+  iconClassName = "text-ink-muted",
+  className = "mb-2 px-1",
+  children,
+}: {
+  icon: IconSource;
+  iconClassName?: string;
+  className?: string;
+  children: string;
+}) {
+  return (
+    <h2 className={`flex items-center gap-1.5 text-meta font-semibold text-ink-muted ${className}`}>
+      <IconSlot icon={icon} size={12} compact className={iconClassName} />
+      {children}
+    </h2>
+  );
+}
+
+/** The 28px icon tile a hub row leads with (spec 3.11). */
+function RowTile({ icon, className }: { icon: IconSource; className: string }) {
+  return (
+    <span className={`flex size-7 items-center justify-center rounded-md ${className}`}>
+      <IconSlot icon={icon} />
+    </span>
+  );
+}
+
+function RowChevron() {
+  return <IconSlot icon="chevronRight" className="text-ink-faint" />;
 }

@@ -1,4 +1,6 @@
-import { CheckIcon, LockIcon, RefreshIcon, UsersIcon } from "../../lib/icons";
+import { CheckIcon } from "../../lib/icons";
+import { Button, Dialog, DialogHeader } from "../ui";
+
 interface ProVaultLockDialogProps {
   lockedByEmail: string;
   lockedAt: string;
@@ -37,79 +39,62 @@ export default function ProVaultLockDialog({
   onCancel,
 }: ProVaultLockDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div data-dialog-content className="bg-panel border border-stroke rounded-lg shadow-xl w-[600px] flex overflow-hidden">
-        {/* Left: Lock info + actions */}
-        <div className="flex-1 p-6">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <LockIcon size={20} className="text-amber-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-ink">Team Vault In Use</h2>
-            </div>
-          </div>
+    <Dialog
+      open
+      title="Team Vault In Use"
+      icon="lock"
+      tone="warn"
+      width={600}
+      hideClose
+      closeOnEscape={false}
+      onClose={onCancel}
+      layout="custom"
+    >
+      <div className="flex min-h-0">
+        <div className="flex-1 min-w-0 pb-4">
+          <DialogHeader />
+          <div className="px-4 space-y-4 text-body">
+            <p className="text-ink-secondary">
+              Another person has this team vault open. Without the Teams plan, one person can use it at a time.
+            </p>
 
-          {/* Description */}
-          <p className="text-sm text-ink-secondary mb-4">
-            Another person has this team vault open. Without the Teams plan, one person can use it at a time.
-          </p>
-
-          {/* Lock info */}
-          <div className="p-3 rounded-md bg-well border border-stroke mb-5 space-y-1">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-ink-muted">In use by:</span>
-              <span className="text-ink font-medium">{lockedByEmail}</span>
+            <div className="p-3 rounded-md bg-well border border-card-border space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-ink-muted">In use by:</span>
+                <span className="text-ink font-medium">{lockedByEmail}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-ink-muted">Since:</span>
+                <span className="text-ink">{formatLockTime(lockedAt)}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-ink-muted">Since:</span>
-              <span className="text-ink">{formatLockTime(lockedAt)}</span>
-            </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button
-              onClick={onCancel}
-              className="px-4 py-2 text-sm text-ink-secondary hover:text-ink rounded-md hover:bg-well transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onRetry}
-              className="px-4 py-2 text-sm text-ink-secondary hover:text-ink rounded-md hover:bg-well transition-colors flex items-center gap-1.5"
-            >
-              <RefreshIcon size={14} />
-              Try Again
-            </button>
+            <div className="flex gap-2">
+              <Button onClick={onCancel}>Cancel</Button>
+              <Button icon="refresh" onClick={onRetry}>
+                Try Again
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Right: Upgrade benefits */}
-        <div className="w-[220px] bg-well/50 border-l border-stroke-dim p-6 flex flex-col justify-center">
-          <span className="text-[11px] font-semibold text-ink-faint uppercase tracking-wider mb-4">
-            Teams Plan
-          </span>
+        <div className="w-[220px] bg-well border-l border-divider p-6 flex flex-col justify-center">
+          <span className="text-meta font-semibold text-ink-muted mb-4">Teams Plan</span>
 
           <ul className="space-y-2.5 mb-5">
             {["Everyone on the team at once", "Shared team vaults", "Audit log"].map((benefit) => (
-              <li key={benefit} className="flex items-center gap-2 text-xs text-ink-secondary">
-                <CheckIcon size={12} className="text-conduit-400 flex-shrink-0" />
+              <li key={benefit} className="flex items-center gap-2 text-label text-ink-secondary">
+                <CheckIcon size={12} className="text-info flex-shrink-0" />
                 {benefit}
               </li>
             ))}
           </ul>
 
-          <button
-            onClick={onUpgrade}
-            className="w-full px-4 py-2.5 text-sm font-medium bg-conduit-600 text-white rounded-lg hover:bg-conduit-500 transition-colors flex items-center justify-center gap-1.5"
-          >
-            <UsersIcon size={14} />
+          <Button variant="primary" icon="users" fullWidth onClick={onUpgrade}>
             Upgrade to Teams
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

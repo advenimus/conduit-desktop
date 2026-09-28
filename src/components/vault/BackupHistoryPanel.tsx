@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useVaultStore } from "../../stores/vaultStore";
 import { useAuthStore } from "../../stores/authStore";
 import { DatabaseIcon, HistoryIcon } from "../../lib/icons";
+import { Button, Spinner } from "../ui";
 
 interface Props {
   onOpenManager: () => void;
@@ -39,38 +40,32 @@ export default function BackupHistoryPanel({ onOpenManager }: Props) {
     <div className="pt-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <HistoryIcon size={14} className="text-ink-muted" />
-          <span className="text-xs font-medium text-ink-secondary">Backup History</span>
+          <HistoryIcon size={16} className="text-ink-muted" />
+          <span className="text-label font-semibold text-ink-secondary">Backup History</span>
         </div>
         {limitLabel && (
-          <span className="text-[10px] text-ink-muted">{limitLabel}</span>
+          <span className="text-badge text-ink-muted">{limitLabel}</span>
         )}
       </div>
 
       {loadingBackups ? (
-        <div className="flex items-center gap-2 py-2">
-          <div className="w-3 h-3 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-ink-muted">Loading backups...</span>
-        </div>
+        <Spinner size={12} text="Loading backups..." className="py-2 text-label text-ink-muted" />
       ) : cloudBackups.length === 0 ? (
-        <p className="text-xs text-ink-muted py-1">
+        <p className="text-label text-ink-muted py-1">
           No backup snapshots yet. Backups are created automatically each time your vault syncs.
         </p>
       ) : (
-        <div className="flex items-center justify-between py-2 px-3 rounded bg-well/50">
+        <div className="flex items-center justify-between py-2 px-3 rounded-md bg-well">
           <div className="flex items-center gap-2">
-            <DatabaseIcon size={14} className="text-ink-muted" />
-            <span className="text-xs text-ink-secondary">
+            <DatabaseIcon size={16} className="text-ink-muted" />
+            <span className="text-label text-ink-secondary">
               {cloudBackups.length} backup{cloudBackups.length !== 1 ? "s" : ""} across{" "}
               {vaultCount} vault{vaultCount !== 1 ? "s" : ""}
             </span>
           </div>
-          <button
-            onClick={onOpenManager}
-            className="px-3 py-1.5 text-xs font-medium text-conduit-400 hover:bg-conduit-600/10 rounded"
-          >
+          <Button variant="link" size="sm" onClick={onOpenManager}>
             Manage Backups...
-          </button>
+          </Button>
         </div>
       )}
     </div>
