@@ -115,7 +115,18 @@ describe("SidebarPanel", () => {
     const floatingHandle = floating.container.querySelector(".cursor-col-resize") as HTMLElement;
     expect(floatingHandle.style.right).toBe("-6px");
     expect(floatingHandle.className).toContain("w-3");
-    expect(floatingHandle.style.top).toBe("2px");
+  });
+
+  it("runs both hit areas over the panel's full height and names them for the harness (G7 skips them)", () => {
+    for (const docked of [true, false]) {
+      const view = renderPanel(docked);
+      const handle = view.container.querySelector(".cursor-col-resize") as HTMLElement;
+      expect(handle.hasAttribute("data-cv-sidebar-resize")).toBe(true);
+      expect(handle.className).toContain("top-0");
+      expect(handle.className).toContain("bottom-0");
+      expect(handle.style.top).toBe("");
+      view.unmount();
+    }
   });
 
   it("shows a 4px accent line on the edge after a 300ms hover, and at once while resizing", () => {
