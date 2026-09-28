@@ -1225,8 +1225,8 @@ Icons render at 12, 16, 20, 24, 32 or 48px. The restyle rounds today's 10 and 11
 Settings > Appearance, first section (in the slot of the retired Platform Theme block), `data-cv-appearance="icon-pack"`:
 
 - Section label `Icon pack`: a `<label>` in the tab's section label style, like its three siblings (6.4).
-- `ChoiceGroup` (3 columns, `gap-2`) of six `ChoiceCard`s (`value` = pack id, `data-cv-choice={id}`) in this order: **Lucide**, Phosphor, Hugeicons, Material Symbols, Fluent, Tabler (Classic).
-- Each card: a preview well (`flex h-8 items-center gap-2 rounded bg-well px-2`) with `folder`, `terminal`, `desktop`, `globe`, `key`, `search`, `settings`, `cloud` at 16px in `text-ink-secondary`, rendered from that card's pack with `<Icon name pack={id} />`; the label (`text-label font-semibold text-ink`), with a neutral `Badge` "Default" on Lucide; the description (`text-meta text-ink-muted`) from `ICON_PACKS`:
+- `ChoiceGroup` (2 columns, `gap-2`) of six `ChoiceCard`s (`value` = pack id, `data-cv-choice={id}`) in this order: **Lucide**, Phosphor, Hugeicons, Material Symbols, Fluent, Tabler (Classic).
+- Each card: a preview well (`flex h-8 items-center gap-2 rounded bg-well px-2`) with `folder`, `terminal`, `desktop`, `globe`, `key`, `search`, `settings`, `cloud` at 16px in `text-ink-secondary`, rendered from that card's pack with `<Icon name pack={id} />` (two columns, because the eight icons with their 8px gaps need 200px and a third of today's 768px dialog leaves 148px inside a card, which squeezed them to about 12px; two columns leave 235px); the label (`text-label font-semibold text-ink`), with a neutral `Badge` "Default" on Lucide; the description (`text-meta text-ink-muted`) from `ICON_PACKS`:
 
 | Pack | Description |
 |---|---|
@@ -1381,7 +1381,7 @@ R1-FOUNDATION adds the Icon pack section to today's tab; R3-SETTINGS restyles th
 
 | Section (`data-cv-appearance=`) | Control | Details |
 |---|---|---|
-| `icon-pack`: "Icon pack" | `ChoiceGroup`, 3 columns, 6 cards | 5.8 |
+| `icon-pack`: "Icon pack" | `ChoiceGroup`, 2 columns, 6 cards | 5.8 |
 | `scheme`: "Color Scheme" | `ChoiceGroup`, 3 columns (as today), 7 `ChoiceCard`s, Modern first | Preview: a `shell` strip with an `editor` block and an `accent` bar from `COLOR_SCHEMES[i].preview[mode]`; the label below. Replaces `SchemeCard` |
 | `mode`: "Brightness" | `SegmentedControl`: Dark, Light, System | label and options unchanged; beside UI Scale as today |
 | `scale`: "UI Scale" | the slider, the percentage and Reset | behavior and zoom sync unchanged |
@@ -2930,3 +2930,4 @@ Review of the wave-1 tip `5a0aeac`, 2026-09-28 (owner-intent and bugs lenses). F
 |---|---|---|
 | W1 | The Icon pack picker stayed optional in the layout check: the `settings-appearance` delta inserted the section only when its hook was present, so a later package could drop it and still pass | Fixed: the delta's `insertWhen` is removed, the section is required (8.6 step 3), and a test proves a missing section fails (8.1) |
 | W2 | The credential picker window draws the same inline SVGs in every pack, while the `packs` check compared only `<html data-cv-icon-pack>`, a pass that proved nothing about its glyphs | Fixed: the scenario compares the picker's icon markup across the packs and reports `deferred` until R3-PICKER (8.6); gate 1 (8.5), 3.15, 5.6 and R1-FOUNDATION's manual line say the picker row stays the same until then; R3-PICKER's acceptance asks for `pass` |
+| W3 | The Icon pack picker shipped in 2 columns (`f353cab`) while 5.8 and 6.4 said 3, with no spec commit | Fixed: 5.8 and 6.4 say 2 columns, with `f353cab`'s reason (the previews keep 16px) |
