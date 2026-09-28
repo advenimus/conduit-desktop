@@ -606,8 +606,7 @@ ignores icons and the case of headers in menus. Anything else is a difference.
 with its reason. A change removes a run of reference controls and inserts its replacement, or inserts
 before a reference control; with `insertWhen` the inserted controls are expected exactly when that
 selector matches on the screen. Today it holds one entry, `settings-appearance`: the Platform Theme block
-removed, the Icon pack section in its place once `[data-cv-appearance="icon-pack"]` renders, Modern
-before Ocean. A failure is never fixed by editing the reference; a new delta goes in through the wave's
+removed, the Icon pack section in its place (required: a tab without it fails), Modern before Ocean. A failure is never fixed by editing the reference; a new delta goes in through the wave's
 owner of `scripts/verify` (R1-HARNESS, R2-FOUNDATION, R3-FOUNDATION, R4-HARNESS), signed off by the
 wave's integrator and recorded in 8.6 of the spec.
 
