@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { invoke } from "../../lib/electron";
 import RecoveryPassphraseDialog from "./RecoveryPassphraseDialog";
-import {
-  AlertCircleIcon, CheckIcon, DesktopIcon, DevicesIcon, KeyIcon, LoaderIcon, ShieldCheckIcon
-} from "../../lib/icons";
+import { CheckIcon, DesktopIcon, KeyIcon, type IconComponent } from "../../lib/icons";
+import { Button, Callout, Dialog, Spinner, TextInput } from "../ui";
 
 interface DeviceSetupDialogProps {
   onComplete: () => void;
@@ -178,230 +177,154 @@ export default function DeviceSetupDialog({
     );
   }
 
+  const skip = (
+    <Button variant="ghost" onClick={onSkip}>
+      Skip for now
+    </Button>
+  );
+
+  const footer =
+    mode === "first-time" ? (
+      <>
+        {skip}
+        <Button variant="primary" onClick={handleGenerateKey}>
+          Generate Identity Key
+        </Button>
+      </>
+    ) : mode === "choose" ? (
+      skip
+    ) : mode === "passphrase" ? (
+      <>
+        <Button onClick={handleCancel}>Back</Button>
+        <Button variant="primary" onClick={handleRecoverWithPassphrase} disabled={!passphrase.trim()} loading={loading}>
+          Recover
+        </Button>
+      </>
+    ) : mode === "error" ? (
+      <>
+        <Button onClick={handleErrorBack}>Back</Button>
+        {skip}
+      </>
+    ) : undefined;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div data-dialog-content className="bg-panel border border-stroke rounded-lg shadow-xl w-[440px] p-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-conduit-500/10 flex items-center justify-center">
-            <DevicesIcon size={20} className="text-conduit-400" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-ink">
-              Set Up Team Access
-            </h2>
-            <p className="text-xs text-ink-muted">
-              Configure this device for team vaults
-            </p>
-          </div>
+    <Dialog open title="Set Up Team Access" icon="devices" width={440} hideClose closeOnEscape={false} onClose={onSkip} footer={footer}>
+      <p className="-mt-2 pl-9 text-label text-ink-muted">Configure this device for team vaults</p>
+
+      {mode === "loading" && (
+        <div className="flex items-center justify-center py-8">
+          <Spinner size={24} className="text-ink-muted" />
         </div>
+      )}
 
-        {/* Loading — checking backup status */}
-        {mode === "loading" && (
-          <div className="flex items-center justify-center py-8">
-            <LoaderIcon size={24} className="text-conduit-400 animate-spin" />
-          </div>
-        )}
+      {mode === "first-time" && (
+        <Callout tone="info" icon="shieldCheck" title="Identity Key Required">
+          Team vaults use zero-knowledge encryption. An identity key will
+          be generated for this device and a recovery passphrase will be
+          provided for backup.
+        </Callout>
+      )}
 
-        {/* First-time setup — no backup exists, generate new key */}
-        {mode === "first-time" && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-conduit-500/5 border border-conduit-500/20">
-              <ShieldCheckIcon size={20} className="text-conduit-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-ink">Identity Key Required</p>
-                <p className="text-xs text-ink-muted mt-1">
-                  Team vaults use zero-knowledge encryption. An identity key will
-                  be generated for this device and a recovery passphrase will be
-                  provided for backup.
-                </p>
-              </div>
-            </div>
+      {mode === "generating" && (
+        <div className="flex flex-col items-center gap-3 py-8">
+          <Spinner size={24} className="text-ink-muted" />
+          <p className="text-body text-ink">Generating identity key...</p>
+        </div>
+      )}
 
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={onSkip}
-                className="px-4 py-2 text-sm text-ink-muted hover:text-ink-secondary transition-colors"
-              >
-                Skip for now
-              </button>
-              <button
-                onClick={handleGenerateKey}
-                className="px-4 py-2 text-sm bg-conduit-600 text-white rounded-md hover:bg-conduit-500 transition-colors flex items-center gap-1.5"
-              >
-                Generate Identity Key
-              </button>
-            </div>
-          </div>
-        )}
+      {mode === "choose" && (
+        <>
+          <p className="text-body text-ink-secondary">
+            An identity key was previously set up on another device. Choose how
+            to recover it:
+          </p>
+          <RecoveryOption
+            icon={KeyIcon}
+            title="Enter Recovery Passphrase"
+            description="Use your 6-word recovery passphrase"
+            onClick={() => setMode("passphrase")}
+          />
+          <RecoveryOption
+            icon={DesktopIcon}
+            title="Authorize From Existing Device"
+            description="Approve access from a device you already use"
+            onClick={handleRequestDeviceAuth}
+            disabled={loading}
+          />
+        </>
+      )}
 
-        {/* Generating key spinner */}
-        {mode === "generating" && (
-          <div className="flex flex-col items-center gap-3 py-8">
-            <LoaderIcon size={32} className="text-conduit-400 animate-spin" />
-            <p className="text-sm text-ink">Generating identity key...</p>
-          </div>
-        )}
+      {mode === "passphrase" && (
+        <>
+          <p className="text-body text-ink-secondary">
+            Enter the 6-word recovery passphrase you saved when setting up
+            your first device.
+          </p>
+          <TextInput
+            value={passphrase}
+            onChange={(e) => setPassphrase(e.target.value)}
+            placeholder="word1 word2 word3 word4 word5 word6"
+            className="font-mono"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleRecoverWithPassphrase();
+            }}
+          />
+        </>
+      )}
 
-        {/* Choose recovery method — backup exists */}
-        {mode === "choose" && (
-          <div className="space-y-3">
-            <p className="text-sm text-ink-secondary mb-4">
-              An identity key was previously set up on another device. Choose how
-              to recover it:
-            </p>
-
-            <button
-              onClick={() => setMode("passphrase")}
-              className="w-full p-4 rounded-lg border border-stroke hover:border-conduit-500/50 hover:bg-well transition-colors text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <KeyIcon
-                  size={20}
-                  className="text-ink-muted group-hover:text-conduit-400 transition-colors"
-                />
-                <div>
-                  <p className="text-sm font-medium text-ink">
-                    Enter Recovery Passphrase
-                  </p>
-                  <p className="text-xs text-ink-muted">
-                    Use your 6-word recovery passphrase
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={handleRequestDeviceAuth}
-              disabled={loading}
-              className="w-full p-4 rounded-lg border border-stroke hover:border-conduit-500/50 hover:bg-well transition-colors text-left group disabled:opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                <DesktopIcon
-                  size={20}
-                  className="text-ink-muted group-hover:text-conduit-400 transition-colors"
-                />
-                <div>
-                  <p className="text-sm font-medium text-ink">
-                    Authorize From Existing Device
-                  </p>
-                  <p className="text-xs text-ink-muted">
-                    Approve access from a device you already use
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={onSkip}
-                className="text-sm text-ink-muted hover:text-ink-secondary transition-colors"
-              >
-                Skip for now
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Passphrase entry */}
-        {mode === "passphrase" && (
-          <div className="space-y-4">
-            <p className="text-sm text-ink-secondary">
-              Enter the 6-word recovery passphrase you saved when setting up
-              your first device.
-            </p>
-
-            <input
-              type="text"
-              value={passphrase}
-              onChange={(e) => setPassphrase(e.target.value)}
-              placeholder="word1 word2 word3 word4 word5 word6"
-              className="w-full px-3 py-2 rounded-md bg-well border border-stroke text-ink placeholder:text-ink-faint text-sm font-mono focus:outline-none focus:border-conduit-500/50"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleRecoverWithPassphrase();
-              }}
-            />
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={handleCancel}
-                className="px-4 py-2 text-sm text-ink-secondary hover:text-ink rounded-md hover:bg-well transition-colors"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleRecoverWithPassphrase}
-                disabled={loading || !passphrase.trim()}
-                className="px-4 py-2 text-sm bg-conduit-600 text-white rounded-md hover:bg-conduit-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {loading && <LoaderIcon size={14} className="animate-spin" />}
-                Recover
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Waiting for device authorization */}
-        {mode === "waiting" && (
-          <div className="flex flex-col items-center gap-4 py-6">
-            <LoaderIcon size={32} className="text-conduit-400 animate-spin" />
-            <div className="text-center">
-              <p className="text-sm text-ink">
-                Waiting for approval...
-              </p>
-              <p className="text-xs text-ink-muted mt-1">
-                Open Conduit on your existing device and approve the request
-              </p>
-            </div>
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 text-sm text-ink-secondary hover:text-ink rounded-md hover:bg-well transition-colors mt-2"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-
-        {/* Success */}
-        {mode === "success" && (
-          <div className="flex flex-col items-center gap-4 py-6">
-            <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-              <CheckIcon size={24} className="text-green-400" />
-            </div>
-            <p className="text-sm text-ink">
-              Device set up successfully!
+      {mode === "waiting" && (
+        <div className="flex flex-col items-center gap-4 py-6">
+          <Spinner size={24} className="text-ink-muted" />
+          <div className="text-center">
+            <p className="text-body text-ink">Waiting for approval...</p>
+            <p className="mt-1 text-label text-ink-muted">
+              Open Conduit on your existing device and approve the request
             </p>
           </div>
-        )}
+          <Button onClick={handleCancel}>Cancel</Button>
+        </div>
+      )}
 
-        {/* Error */}
-        {mode === "error" && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20">
-              <AlertCircleIcon
-                size={16}
-                className="text-red-400 mt-0.5 flex-shrink-0"
-              />
-              <p className="text-sm text-red-300">{error}</p>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={handleErrorBack}
-                className="px-4 py-2 text-sm text-ink-secondary hover:text-ink rounded-md hover:bg-well transition-colors"
-              >
-                Back
-              </button>
-              <button
-                onClick={onSkip}
-                className="px-4 py-2 text-sm text-ink-muted hover:text-ink-secondary transition-colors"
-              >
-                Skip for now
-              </button>
-            </div>
+      {mode === "success" && (
+        <div className="flex flex-col items-center gap-4 py-6">
+          <div className="flex size-12 items-center justify-center rounded-full bg-success-bg">
+            <CheckIcon size={24} className="text-success" />
           </div>
-        )}
-      </div>
-    </div>
+          <p className="text-body text-ink">Device set up successfully!</p>
+        </div>
+      )}
+
+      {mode === "error" && <Callout tone="danger">{error}</Callout>}
+    </Dialog>
+  );
+}
+
+function RecoveryOption({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+  disabled,
+}: {
+  icon: IconComponent;
+  title: string;
+  description: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="group flex w-full items-center gap-3 rounded-md border border-card-border p-3 text-left transition-colors hover:border-(--c-control-border) hover:bg-hover disabled:opacity-40"
+    >
+      <Icon size={20} className="shrink-0 text-ink-muted transition-colors group-hover:text-ink" />
+      <span className="min-w-0">
+        <span className="block text-body font-medium text-ink">{title}</span>
+        <span className="block text-label text-ink-muted">{description}</span>
+      </span>
+    </button>
   );
 }
