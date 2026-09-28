@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { DevicesIcon } from "../../lib/icons";
 import { syncApi, errorText } from "../../lib/sync-api";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
@@ -44,7 +43,7 @@ export default function SessionConflictDialog({ event }: { event: SessionConflic
 
   return (
     <SyncDialogFrame
-      icon={DevicesIcon}
+      icon="devices"
       tone="warn"
       title={`Also open on ${deviceNameOr(first?.deviceName)}`}
       footer={

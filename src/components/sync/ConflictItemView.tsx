@@ -4,7 +4,9 @@ import { useSyncStore } from "../../stores/syncStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { toast } from "../common/Toast";
 import type { ConflictItem, ResolveRequest } from "../../types/sync";
-import ConflictFieldRow, { smallButton } from "./ConflictFieldRow";
+import ConflictFieldRow from "./ConflictFieldRow";
+import SmallButton from "./SmallButton";
+import { Radio, TextInput } from "../ui";
 import { InlineError } from "./PasswordFields";
 import {
   appearanceRequest,
@@ -30,8 +32,8 @@ async function runResolve(request: ResolveRequest, success: string): Promise<voi
 
 function ItemBox({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="rounded-md border border-stroke bg-well/40 p-3 space-y-2">
-      <p className="text-sm font-medium text-ink">{title}</p>
+    <div data-cv-review-field="" className="space-y-2 rounded-md border border-card-border bg-well p-3">
+      <p data-cv-review-field-label="" className="text-body font-semibold text-ink">{title}</p>
       {children}
     </div>
   );
@@ -54,28 +56,28 @@ function AppearanceView({ item }: { item: Item<"appearance"> }) {
   const later = () => void useSyncStore.getState().snooze(item.snoozeKey).catch((err) => toast.error("Could not snooze", errorText(err, "Try again.")));
   return (
     <ItemBox title="Appearance">
-      <p className="text-xs text-ink-muted">Keep newest is selected. Change any choice, then Apply.</p>
+      <p className="text-label text-ink-muted">Keep newest is selected. Change any choice, then Apply.</p>
       {item.fields.map((f) => (
         <div key={f.key.reg} className="space-y-1">
-          <p className="text-xs font-medium text-ink-secondary">{f.label}</p>
+          <p className="text-label font-semibold text-ink-secondary">{f.label}</p>
           {f.versions.filter(canUseVersion).map((v) => (
-            <label key={v.id} className="flex items-center gap-2 text-xs cursor-pointer">
-              <input
-                type="radio"
-                name={`${item.snoozeKey}-${f.key.reg}`}
-                checked={selections[f.key.reg] === v.id}
-                onChange={() => setSelections({ ...selections, [f.key.reg]: v.id })}
-                className="accent-conduit-500"
-              />
+            <Radio
+              key={v.id}
+              value={v.id}
+              name={`${item.snoozeKey}-${f.key.reg}`}
+              checked={selections[f.key.reg] === v.id}
+              onChange={() => setSelections({ ...selections, [f.key.reg]: v.id })}
+              className="w-full"
+            >
               <span className="font-mono text-ink">{versionText(f, v)}</span>
               <span className="text-ink-muted">{versionCaption(v)}</span>
-            </label>
+            </Radio>
           ))}
         </div>
       ))}
       <div className="flex gap-2 pt-1">
-        <button type="button" disabled={busy} onClick={() => void apply()} className={smallButton(true)}>Apply</button>
-        <button type="button" disabled={busy} onClick={later} className={smallButton()}>Decide later</button>
+        <SmallButton primary disabled={busy} onClick={() => void apply()}>Apply</SmallButton>
+        <SmallButton disabled={busy} onClick={later}>Decide later</SmallButton>
       </div>
     </ItemBox>
   );
@@ -84,10 +86,10 @@ function AppearanceView({ item }: { item: Item<"appearance"> }) {
 function EditDeleteView({ item }: { item: Item<"edit-delete"> }) {
   return (
     <ItemBox title="Deleted and edited">
-      <p className="text-xs text-ink-secondary">{editDeleteText(item)}</p>
+      <p className="text-label text-ink-secondary">{editDeleteText(item)}</p>
       <div className="flex gap-2">
-        <button type="button" onClick={() => void runResolve({ kind: "edit-delete", row: item.row, choice: "keep" }, "Item kept.")} className={smallButton(true)}>Keep item</button>
-        <button type="button" onClick={() => void runResolve({ kind: "edit-delete", row: item.row, choice: "delete" }, "Item deleted.")} className={smallButton()}>Delete item</button>
+        <SmallButton primary onClick={() => void runResolve({ kind: "edit-delete", row: item.row, choice: "keep" }, "Item kept.")}>Keep item</SmallButton>
+        <SmallButton onClick={() => void runResolve({ kind: "edit-delete", row: item.row, choice: "delete" }, "Item deleted.")}>Delete item</SmallButton>
       </div>
     </ItemBox>
   );
@@ -98,11 +100,11 @@ function FolderDeleteView({ item, title }: { item: Item<"folder-delete">; title:
     void runResolve({ kind: "folder-delete", folder: item.folder, choice }, done);
   return (
     <ItemBox title="Folder deleted">
-      <p className="text-xs text-ink-secondary">{folderDeleteText(item, title)}</p>
+      <p className="text-label text-ink-secondary">{folderDeleteText(item, title)}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => choose("keep-with-changed", "Folder kept with changed items.")} className={smallButton(true)}>Keep folder with changed items</button>
-        <button type="button" onClick={() => choose("delete-all", "Folder deleted.")} className={smallButton()}>Delete folder and items</button>
-        <button type="button" onClick={() => choose("restore-all", "Folder restored.")} className={smallButton()}>Restore everything in folder</button>
+        <SmallButton primary onClick={() => choose("keep-with-changed", "Folder kept with changed items.")}>Keep folder with changed items</SmallButton>
+        <SmallButton onClick={() => choose("delete-all", "Folder deleted.")}>Delete folder and items</SmallButton>
+        <SmallButton onClick={() => choose("restore-all", "Folder restored.")}>Restore everything in folder</SmallButton>
       </div>
     </ItemBox>
   );
@@ -120,15 +122,15 @@ function CycleView({ item }: { item: Item<"cycle"> }) {
   const request = (choice: Extract<ResolveRequest, { kind: "cycle" }>["choice"]): ResolveRequest => ({ kind: "cycle", tbl: item.tbl, rowIds: item.rowIds, choice });
   return (
     <ItemBox title="Moved into each other">
-      <p className="text-xs text-ink-secondary">{cycleText(item, names)}</p>
+      <p className="text-label text-ink-secondary">{cycleText(item, names)}</p>
       <div className="flex flex-wrap gap-2">
         {a && b && item.rowIds.length === 2 && (
           <>
-            <button type="button" onClick={() => void runResolve(request({ kind: "put-under", child: a, parent: b }), "Moved.")} className={smallButton()}>Put {names[0]} in {names[1]}</button>
-            <button type="button" onClick={() => void runResolve(request({ kind: "put-under", child: b, parent: a }), "Moved.")} className={smallButton()}>Put {names[1]} in {names[0]}</button>
+            <SmallButton onClick={() => void runResolve(request({ kind: "put-under", child: a, parent: b }), "Moved.")}>Put {names[0]} in {names[1]}</SmallButton>
+            <SmallButton onClick={() => void runResolve(request({ kind: "put-under", child: b, parent: a }), "Moved.")}>Put {names[1]} in {names[0]}</SmallButton>
           </>
         )}
-        <button type="button" onClick={() => void runResolve(request({ kind: "all-root" }), "Moved to the top level.")} className={smallButton(true)}>All at top level</button>
+        <SmallButton primary onClick={() => void runResolve(request({ kind: "all-root" }), "Moved to the top level.")}>All at top level</SmallButton>
       </div>
     </ItemBox>
   );
@@ -158,9 +160,9 @@ function UndecryptableView({ item }: { item: Item<"undecryptable"> }) {
   const who = locked ? versionCaption(locked) : "another device";
   return (
     <ItemBox title={field.label}>
-      <p className="text-xs text-ink-secondary">A value saved on {who} used your old master password.</p>
+      <p className="text-label text-ink-secondary">A value saved on {who} used your old master password.</p>
       {asking && (
-        <input
+        <TextInput
           type="password"
           value={oldPassword}
           onChange={(e) => setOldPassword(e.target.value)}
@@ -169,17 +171,16 @@ function UndecryptableView({ item }: { item: Item<"undecryptable"> }) {
           }}
           placeholder="Old master password"
           autoFocus
-          className="w-full px-2 py-1 text-xs bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
         />
       )}
       <InlineError message={error} />
       <div className="flex gap-2">
         {asking ? (
-          <button type="button" disabled={oldPassword.length === 0} onClick={() => void recover()} className={smallButton(true)}>Recover</button>
+          <SmallButton primary disabled={oldPassword.length === 0} onClick={() => void recover()}>Recover</SmallButton>
         ) : (
-          <button type="button" onClick={() => setAsking(true)} className={smallButton(true)}>Enter old password</button>
+          <SmallButton primary onClick={() => setAsking(true)}>Enter old password</SmallButton>
         )}
-        <button type="button" onClick={() => void runResolve({ kind: "undecryptable-discard", key: field.key }, "Value discarded.")} className={smallButton()}>Discard</button>
+        <SmallButton onClick={() => void runResolve({ kind: "undecryptable-discard", key: field.key }, "Value discarded.")}>Discard</SmallButton>
       </div>
     </ItemBox>
   );
@@ -203,7 +204,7 @@ export default function ConflictItemView({ item, title }: { item: ConflictItem; 
     case "epoch":
       return (
         <ItemBox title="Master password">
-          <p className="text-xs text-ink-secondary">The master password was changed on two devices. Conduit asks you to choose when syncing.</p>
+          <p className="text-label text-ink-secondary">The master password was changed on two devices. Conduit asks you to choose when syncing.</p>
         </ItemBox>
       );
   }

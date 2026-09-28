@@ -1,4 +1,4 @@
-import { ClockIcon } from "../../lib/icons";
+import { Card, IconSlot, Select } from "../ui";
 
 interface IdleLockOption {
   readonly minutes: number;
@@ -33,24 +33,21 @@ interface IdleLockSettingProps {
 export default function IdleLockSetting({ minutes, onChange }: IdleLockSettingProps) {
   const value = normalizeIdleMinutes(minutes);
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-well border border-stroke-dim">
+    <Card className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <ClockIcon size={20} className={value > 0 ? "text-conduit-400" : "text-ink-faint"} />
+        <IconSlot icon="clock" size={20} className={value > 0 ? "text-link" : "text-ink-faint"} />
         <div>
-          <p className="text-sm font-medium text-ink">Lock the vault when idle</p>
-          <p className="text-xs text-ink-muted mt-0.5">Locks when this computer is idle or its screen locks. Open connections close.</p>
+          <p className="text-body font-semibold text-ink">Lock the vault when idle</p>
+          <p className="mt-0.5 text-label text-ink-muted">Locks when this computer is idle or its screen locks. Open connections close.</p>
         </div>
       </div>
-      <select
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        aria-label="Lock the vault when idle"
-        className="px-2 py-1.5 bg-panel border border-stroke rounded text-sm focus:outline-none focus:ring-2 focus:ring-conduit-500"
-      >
-        {idleLockOptions(value).map((o) => (
-          <option key={o.minutes} value={o.minutes}>{o.label}</option>
-        ))}
-      </select>
-    </div>
+      <div className="w-40 shrink-0">
+        <Select value={value} onChange={(e) => onChange(Number(e.target.value))} aria-label="Lock the vault when idle">
+          {idleLockOptions(value).map((o) => (
+            <option key={o.minutes} value={o.minutes}>{o.label}</option>
+          ))}
+        </Select>
+      </div>
+    </Card>
   );
 }

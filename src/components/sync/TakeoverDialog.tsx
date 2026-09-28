@@ -1,8 +1,8 @@
-import { DevicesIcon } from "../../lib/icons";
 import { syncApi } from "../../lib/sync-api";
 import { toast } from "../common/Toast";
 import type { OpenErrorPayload, TakeoverHolder } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
+import { Card } from "../ui";
 import { deviceNameOr, holderActivity, holderBusyText, providerName } from "./sync-copy";
 
 type OpenElsewhere = Extract<OpenErrorPayload, { code: "VAULT_OPEN_ELSEWHERE" }>;
@@ -24,10 +24,10 @@ function openPricing(): void {
 function HolderLine({ holder }: { holder: TakeoverHolder }) {
   const busy = holderBusyText(deviceNameOr(holder.deviceName), holder.busySessions, holder.busyJobs);
   return (
-    <div className="p-3 rounded-md bg-well border border-stroke space-y-1">
+    <Card className="space-y-1">
       <p className="text-ink">This vault is open on {holderActivity(holder)}.</p>
-      {busy && <p className="text-xs text-ink-muted">{busy}</p>}
-    </div>
+      {busy && <p className="text-label text-ink-muted">{busy}</p>}
+    </Card>
   );
 }
 
@@ -37,7 +37,7 @@ export default function TakeoverDialog({ payload, busy, onUseHere, onCancel }: T
   const freePlan = payload.limit === 1;
   return (
     <SyncDialogFrame
-      icon={DevicesIcon}
+      icon="devices"
       tone="warn"
       title="Vault open on another device"
       onEscape={onCancel}
@@ -45,8 +45,8 @@ export default function TakeoverDialog({ payload, busy, onUseHere, onCancel }: T
         <>
           {freePlan && <DialogButton onClick={openPricing}>Upgrade to Pro</DialogButton>}
           <DialogButton onClick={onCancel} disabled={busy}>Cancel</DialogButton>
-          <DialogButton variant="primary" onClick={onUseHere} disabled={busy} autoFocus>
-            {busy ? "Opening..." : "Use here instead"}
+          <DialogButton variant="primary" onClick={onUseHere} loading={busy} loadingLabel="Opening..." autoFocus>
+            Use here instead
           </DialogButton>
         </>
       }

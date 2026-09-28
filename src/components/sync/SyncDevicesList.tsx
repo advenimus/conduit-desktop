@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DesktopIcon, DeviceMobileIcon } from "../../lib/icons";
+import { IconSlot } from "../ui";
 import { syncApi } from "../../lib/sync-api";
 import type { SyncDeviceInfo } from "../../types/sync";
 import { busyText, formatAgo, providerPlace } from "./sync-copy";
@@ -32,18 +32,17 @@ export default function SyncDevicesList() {
   }, []);
   if (devices === null || devices.length === 0) return null;
   return (
-    <div className="rounded-lg border border-stroke-dim divide-y divide-stroke-dim">
+    <div className="divide-y divide-stroke-dim rounded-md border border-stroke-dim">
       {devices.map((d) => {
-        const Icon = isMobile(d.platform) ? DeviceMobileIcon : DesktopIcon;
         return (
-          <div key={d.deviceUuid} className="flex items-center gap-3 px-3 py-2">
-            <Icon size={16} className="text-ink-muted flex-shrink-0" />
+          <div key={d.deviceUuid} data-cv-device-row="" className="flex items-center gap-3 px-3 py-2">
+            <IconSlot icon={isMobile(d.platform) ? "deviceMobile" : "desktop"} className="shrink-0 text-ink-muted" />
             <div className="min-w-0">
-              <p className="text-sm text-ink truncate">
+              <p data-cv-device-name="" className="truncate text-body text-ink">
                 {d.name}
-                {d.thisDevice && <span className="text-xs text-ink-muted"> (this device)</span>}
+                {d.thisDevice && <span className="text-label text-ink-muted"> (this device)</span>}
               </p>
-              <p className="text-xs text-ink-muted truncate">{deviceLine(d)}</p>
+              <p data-cv-device-line="" className="truncate text-label text-ink-muted">{deviceLine(d)}</p>
             </div>
           </div>
         );

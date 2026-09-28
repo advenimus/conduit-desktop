@@ -1,102 +1,79 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import type { IconComponent } from "../../lib/icons";
-import { useEscapeLayer } from "./useEscapeLayer";
-import { useFreeze } from "../../lib/native-freeze";
+import type { ReactNode } from "react";
+import { Button, Dialog, type DialogTone, type IconSource } from "../ui";
 
-export type DialogTone = "info" | "warn" | "danger";
-
-const TONE_CLASSES: Readonly<Record<DialogTone, { box: string; icon: string }>> = {
-  info: { box: "bg-conduit-500/10", icon: "text-conduit-400" },
-  warn: { box: "bg-amber-500/10", icon: "text-amber-400" },
-  danger: { box: "bg-red-500/10", icon: "text-red-400" },
-};
+export type { DialogTone };
 
 interface SyncDialogFrameProps {
-  icon: IconComponent;
+  icon: IconSource;
   title: string;
   tone?: DialogTone;
-  width?: string;
+  /** Maximum width in px (today's fixed widths, spec 4.8). */
+  width?: number;
   children: ReactNode;
   /** null: no button row (a progress overlay). */
   footer: ReactNode;
+  /** Escape runs it; without one Escape is swallowed (spec 3.12.1). */
   onEscape?: () => void;
+  /** Wraps header, body and footer in one form, so Enter in a field and a submit button run it (B31). */
+  onSubmit?: () => void;
 }
 
-/** Moves focus into a dialog that opened without an autofocused control. */
-export function useDialogFocus() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el && !el.contains(document.activeElement)) el.focus();
-  }, []);
-  return ref;
-}
-
-/** Modal shell shared by the sync dialogs; sits above the unlock dialog (z-60). */
-export default function SyncDialogFrame({
-  icon: Icon,
-  title,
-  tone = "info",
-  width = "w-[440px]",
-  children,
-  footer,
-  onEscape,
-}: SyncDialogFrameProps) {
-  const toneClasses = TONE_CLASSES[tone];
-  const content = useDialogFocus();
-  useEscapeLayer(onEscape);
-  useFreeze(true, "dialog", title);
+/**
+ * Modal shell shared by the sync dialogs, on the sync layer above the unlock dialog. It renders in
+ * place: SyncLayer's sibling order decides which sync dialog paints on top.
+ */
+export default function SyncDialogFrame({ icon, title, tone = "info", width = 440, children, footer, onEscape, onSubmit }: SyncDialogFrameProps) {
+  const dismiss = onEscape ? ({ onClose: onEscape, closeOnEscape: true } as const) : ({ closeOnEscape: false } as const);
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div
-        ref={content}
-        tabIndex={-1}
-        data-dialog-content
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className={`bg-panel border border-stroke rounded-lg shadow-xl outline-none ${width} max-w-[calc(100vw-2rem)] max-h-[85vh] flex flex-col`}
-      >
-        <div className="flex items-center gap-3 px-6 pt-5 pb-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${toneClasses.box}`}>
-            <Icon size={20} className={toneClasses.icon} />
-          </div>
-          <h2 className="text-lg font-semibold text-ink">{title}</h2>
-        </div>
-        <div className="px-6 pb-4 space-y-3 text-sm text-ink-secondary overflow-y-auto">{children}</div>
-        {footer !== null && <div className="px-6 py-4 border-t border-stroke flex flex-wrap justify-end gap-2">{footer}</div>}
-      </div>
-    </div>
+    <Dialog
+      open
+      title={title}
+      icon={icon}
+      tone={tone}
+      width={width}
+      layer="sync"
+      harnessLabel={title}
+      hideClose
+      portal={false}
+      footer={footer}
+      onSubmit={onSubmit ? () => onSubmit() : undefined}
+      {...dismiss}
+    >
+      {children}
+    </Dialog>
   );
 }
 
-type ButtonVariant = "primary" | "default" | "danger";
+type DialogButtonVariant = "primary" | "default" | "danger";
 
-const BUTTON_CLASSES: Readonly<Record<ButtonVariant, string>> = {
-  primary: "text-white bg-conduit-600 hover:bg-conduit-500",
-  default: "text-ink-secondary hover:text-ink hover:bg-well",
-  danger: "text-white bg-red-600 hover:bg-red-500",
-};
+const BUTTON_VARIANT = { primary: "primary", default: "secondary", danger: "danger" } as const;
 
 interface DialogButtonProps {
   children: ReactNode;
-  onClick: () => void;
-  variant?: ButtonVariant;
+  onClick?: () => void;
+  variant?: DialogButtonVariant;
   disabled?: boolean;
   autoFocus?: boolean;
   type?: "button" | "submit";
+  icon?: IconSource;
+  /** Disables the button and shows `loadingLabel` as visible text (B35). */
+  loading?: boolean;
+  loadingLabel?: string;
 }
 
-export function DialogButton({ children, onClick, variant = "default", disabled, autoFocus, type = "button" }: DialogButtonProps) {
+export function DialogButton({ children, onClick, variant = "default", disabled, autoFocus, type = "button", icon, loading, loadingLabel }: DialogButtonProps) {
   return (
-    <button
+    <Button
       type={type}
+      variant={BUTTON_VARIANT[variant]}
       onClick={onClick}
       disabled={disabled}
       autoFocus={autoFocus}
-      className={`px-4 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${BUTTON_CLASSES[variant]}`}
+      icon={icon}
+      loading={loading}
+      loadingLabel={loadingLabel}
     >
       {children}
-    </button>
+    </Button>
   );
 }

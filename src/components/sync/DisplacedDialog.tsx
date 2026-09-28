@@ -1,4 +1,3 @@
-import { LockIcon } from "../../lib/icons";
 import { syncApi } from "../../lib/sync-api";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
@@ -55,7 +54,7 @@ export function displacingTitle(ev: DisplacingEvent): string {
 /** Shown from the moment vault access is blocked until the soft-lock notice replaces it. */
 export function DisplacingOverlay({ event }: { event: DisplacingEvent }) {
   return (
-    <SyncDialogFrame icon={LockIcon} tone="warn" title={displacingTitle(event)} footer={null}>
+    <SyncDialogFrame icon="lock" tone="warn" title={displacingTitle(event)} footer={null}>
       <p className="text-ink">Saving your last changes...</p>
       <p>Your open connections keep running.</p>
     </SyncDialogFrame>
@@ -74,7 +73,7 @@ export default function DisplacedDialog({ event }: { event: DisplacedEvent }) {
   };
   return (
     <SyncDialogFrame
-      icon={LockIcon}
+      icon="lock"
       tone="warn"
       title={copy.title}
       onEscape={close}
