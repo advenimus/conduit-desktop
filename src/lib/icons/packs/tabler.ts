@@ -15,7 +15,6 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconCircleCheck,
-  IconCircleFilled,
   IconCircleX,
   IconClock,
   IconCloud,
@@ -128,6 +127,7 @@ import { createElement, memo, type ComponentType } from "react";
 import type { IconProps as TablerIconProps } from "@tabler/icons-react";
 import { iconA11yAttributes } from "../a11y";
 import { DEFAULT_ICON_SIZE, type IconComponent, type IconMapping, type IconProps } from "../types";
+import { createStateDotIcon } from "./state-dot";
 
 const TABLER_STROKE_WIDTH = 1.5;
 
@@ -303,5 +303,5 @@ export const mapping: IconMapping = {
   collapseAll: wrap(IconFold),
   account: wrap(IconUserCircle),
   explorer: wrap(IconFiles),
-  circleFilled: wrap(IconCircleFilled),
+  circleFilled: createStateDotIcon("Tabler"),
 };

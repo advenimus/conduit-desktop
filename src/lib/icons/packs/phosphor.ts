@@ -107,7 +107,6 @@ import {
   Table,
   Quotes,
   ArrowsInLineVertical,
-  Circle,
   DotsThree,
   Files,
   List,
@@ -121,6 +120,7 @@ import { createElement, memo } from "react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { iconA11yAttributes } from "../a11y";
 import { DEFAULT_ICON_SIZE, type IconComponent, type IconMapping, type IconProps } from "../types";
+import { createStateDotIcon } from "./state-dot";
 
 type Weight = "regular" | "fill";
 
@@ -299,5 +299,5 @@ export const mapping: IconMapping = {
   collapseAll: wrap(ArrowsInLineVertical),
   account: wrap(UserCircle),
   explorer: wrap(Files),
-  circleFilled: wrap(Circle, "fill"),
+  circleFilled: createStateDotIcon("Phosphor"),
 };

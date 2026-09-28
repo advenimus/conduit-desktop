@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsDownUp,
-  Circle,
   CircleAlert,
   CircleCheck,
   CircleUser,
@@ -123,6 +122,7 @@ import {
 
 import type { IconMapping } from "../types";
 import { wrapLucide } from "./lucide-wrap";
+import { createStateDotIcon } from "./state-dot";
 
 const filled = { filled: true };
 
@@ -286,5 +286,5 @@ export const mapping: IconMapping = {
   collapseAll: wrapLucide(ChevronsDownUp),
   account: wrapLucide(CircleUser),
   explorer: wrapLucide(Files),
-  circleFilled: wrapLucide(Circle, filled),
+  circleFilled: createStateDotIcon("Lucide"),
 };

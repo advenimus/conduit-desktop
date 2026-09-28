@@ -19,6 +19,7 @@ import {
   FingerprintIcon,
 } from "..";
 import type { IconMapping, IconPackId } from "..";
+import { svgExtent } from "./svg-extent";
 
 const LAZY_PACKS: IconPackId[] = ["lucide", "tabler", "phosphor", "fluent", "material"];
 // The first import of the five lazy packs takes about 2.5 s alone and passed 5 s in a loaded full run.
@@ -161,6 +162,35 @@ describe("pack details", () => {
     const tabler = await loadIconPack("tabler");
     expect(markup(tabler.close)).toContain('stroke-width="1.5"');
     expect(markup(tabler.close, { stroke: 1 })).toContain('stroke-width="1"');
+  });
+});
+
+function extent(Component: IconMapping[keyof IconMapping], props: Record<string, unknown>) {
+  const { container, unmount } = render(<Component {...props} />);
+  const result = svgExtent(container.querySelector("svg")!);
+  unmount();
+  return result;
+}
+
+describe("state dot (circleFilled)", () => {
+  // Spec 3.6, 3.10 and 5.2: a 16px icon that draws an 8px disc in every pack, as Codicons does.
+  it.each([
+    ["16px", { size: 16 }],
+    ["20px", { size: 20 }],
+    ["12px", { size: 12 }],
+    ["compact", { size: 16, compact: true }],
+  ])("draws the Codicons disc in every pack at %s", async (_label, props) => {
+    const codicons = extent(getPackMapping("codicons")!.circleFilled, props);
+    for (const id of LAZY_PACKS) {
+      const mapping = await loadIconPack(id);
+      expect(extent(mapping.circleFilled, props), id).toEqual(codicons);
+    }
+  }, PRELOAD_TIMEOUT_MS);
+
+  it("is an 8px disc: half of the 16px box, two thirds of the 12px compact box", () => {
+    const codicons = getPackMapping("codicons")!;
+    expect(extent(codicons.circleFilled, { size: 16 })).toEqual({ viewBox: "0 0 16 16", x: [4, 12], y: [4, 12] });
+    expect(extent(codicons.circleFilled, { size: 12 })).toEqual({ viewBox: "0 0 12 12", x: [2, 10], y: [2, 10] });
   });
 });
 
