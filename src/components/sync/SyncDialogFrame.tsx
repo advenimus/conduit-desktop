@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import type { IconComponent } from "../../lib/icons";
 import { useEscapeLayer } from "./useEscapeLayer";
+import { useFreeze } from "../../lib/native-freeze";
 
 export type DialogTone = "info" | "warn" | "danger";
 
@@ -44,6 +45,7 @@ export default function SyncDialogFrame({
   const toneClasses = TONE_CLASSES[tone];
   const content = useDialogFocus();
   useEscapeLayer(onEscape);
+  useFreeze(true, "dialog", title);
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div

@@ -1,3 +1,5 @@
+import { useFreeze } from "../../lib/native-freeze";
+
 interface ConfirmDialogProps {
   title: string;
   message: string;
@@ -15,6 +17,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  useFreeze(true, "dialog", title);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div data-dialog-content className="bg-panel border border-stroke rounded-lg shadow-xl max-w-md w-full mx-4">

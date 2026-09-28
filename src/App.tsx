@@ -48,6 +48,7 @@ import FeedbackDialog from "./components/feedback/FeedbackDialog";
 import SyncLayer from "./components/sync/SyncLayer";
 import SyncBanners from "./components/sync/SyncBanners";
 import { useBackupStates } from "./hooks/useBackupStates";
+import { useFreeze } from "./lib/native-freeze";
 import type { TeamVaultSummary } from "./stores/teamStore";
 import { RobotIcon, WifiOffIcon } from "./lib/icons";
 
@@ -382,17 +383,13 @@ function App() {
     useSidebarStore.getState().setRightPanelWidth(showAiPanel ? aiPanelWidth + AI_PANEL_DIVIDER_WIDTH : 0);
   }, [showAiPanel, aiPanelWidth]);
 
-  // Notify child webviews when modals/overlays are shown (native webview covers HTML modals).
+  // Native web views paint over HTML, so these overlays freeze them while open.
   const sidebarExpanded = useSidebarStore((s) => s.isExpanded);
   const sidebarDockedOpen = useSidebarStore(selectIsDockedOpen);
   const sidebarMenuOpen = useSidebarStore((s) => s.menuOpen); // can spill past a docked sidebar's edge
   const anyOverlayOpen =
-    showQuickConnect || showSettings || showCredentials || showEntryDialog || showFolderDialog || showUnlockDialog || showCloudRestore || showAbout || showPasswordGenerator || showSshKeyGenerator || showImportDialog || showDeviceSetup || showCreateTeamVault || !!teamVaultToUnlock || !!editingEntryId || !!editingFolderId || !!pendingDeviceAuth || !!showVaultSettings || !!showExportDialog || showVaultImportDialog || showRenameVaultDialog || showChangePasswordDialog || !!feedbackType || showWhatsNew;
-  useEffect(() => {
-    document.dispatchEvent(
-      new CustomEvent("conduit:overlay-change", { detail: anyOverlayOpen })
-    );
-  }, [anyOverlayOpen]);
+    showQuickConnect || !!showSettings || showCredentials || showEntryDialog || showFolderDialog || showUnlockDialog || showCloudRestore || showAbout || showPasswordGenerator || showSshKeyGenerator || showImportDialog || showDeviceSetup || showCreateTeamVault || !!teamVaultToUnlock || !!editingEntryId || !!editingFolderId || !!pendingDeviceAuth || !!showVaultSettings || !!showExportDialog || showVaultImportDialog || showRenameVaultDialog || showChangePasswordDialog || !!feedbackType || showWhatsNew;
+  useFreeze(anyOverlayOpen, "legacy", "App overlay flags");
 
   // Dispatch layout-changed when sidebar mode/expansion changes
   // Immediate dispatch handles the instant part; delayed dispatch handles CSS transition end
@@ -404,15 +401,9 @@ function App() {
     return () => clearTimeout(timer);
   }, [sidebarExpanded, sidebarDockedOpen]);
 
-  // Screenshot-freeze: when sidebar panel opens as overlay,
-  // tell WebView to capture a screenshot and hide the native view so the
-  // sidebar HTML can render above it.
+  // The floating side bar, or a docked one whose vault menu spills past its edge.
   const sidebarOverlayOpen = sidebarExpanded && (!sidebarDockedOpen || sidebarMenuOpen);
-  useEffect(() => {
-    document.dispatchEvent(
-      new CustomEvent("conduit:sidebar-overlay-change", { detail: sidebarOverlayOpen })
-    );
-  }, [sidebarOverlayOpen]);
+  useFreeze(sidebarOverlayOpen, "sidebar", "side bar overlay");
 
   // Check vault status on startup and determine whether to show hub or auto-connect
   useEffect(() => {

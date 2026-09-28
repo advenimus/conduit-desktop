@@ -8,12 +8,14 @@
  * Two-path transition strategy:
  *   Path A — Session deactivated (isActive → false): Container is display:none,
  *            so no visual continuity is needed. Hide immediately, capture in background.
- *   Path B — Visual freeze (overlay/sidebar/drag while active): Session is still
- *            visible. Use atomic capture+hide IPC with safety timeout + onError handler.
+ *   Path B — Visual freeze (any freeze holder while active, see lib/native-freeze):
+ *            Session is still visible. Use atomic capture+hide IPC with safety timeout
+ *            + onError handler.
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { invoke } from "../lib/electron";
+import { useIsFrozen } from "../lib/native-freeze";
 
 interface UseNativeViewVisibilityOptions {
   sessionId: string;
@@ -42,10 +44,7 @@ export function useNativeViewVisibility({
   webviewReady,
   syncBounds,
 }: UseNativeViewVisibilityOptions): NativeViewVisibility {
-  // ── External state tracked via events ──────────────────────────
-  const [overlayOpen, setOverlayOpen] = useState(false);
-  const [sidebarOverlay, setSidebarOverlay] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
+  const frozen = useIsFrozen();
   const [frozenScreenshot, setFrozenScreenshot] = useState<string | null>(null);
 
   // Ref to track the last boundsKey so we can force a re-sync after restore
@@ -55,31 +54,11 @@ export function useNativeViewVisibility({
   const prevIsActiveRef = useRef(isActive);
 
   // ── Derive the single visibility boolean ───────────────────────
-  const shouldBeNative =
-    isActive && !overlayOpen && !sidebarOverlay && !dragActive && webviewReady;
+  const shouldBeNative = isActive && !frozen && webviewReady;
 
   // Keep a ref so async callbacks can read the latest value
   const shouldBeNativeRef = useRef(shouldBeNative);
   shouldBeNativeRef.current = shouldBeNative;
-
-  // ── Event listeners — pure state setters, no side effects ──────
-  useEffect(() => {
-    const handler = (e: Event) => setOverlayOpen(!!(e as CustomEvent).detail);
-    document.addEventListener("conduit:overlay-change", handler);
-    return () => document.removeEventListener("conduit:overlay-change", handler);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: Event) => setSidebarOverlay(!!(e as CustomEvent).detail);
-    document.addEventListener("conduit:sidebar-overlay-change", handler);
-    return () => document.removeEventListener("conduit:sidebar-overlay-change", handler);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: Event) => setDragActive(!!(e as CustomEvent).detail);
-    document.addEventListener("conduit:drag-change", handler);
-    return () => document.removeEventListener("conduit:drag-change", handler);
-  }, []);
 
   // Helper: ensure the native view is hidden (idempotent)
   const ensureHidden = useCallback(() => {
