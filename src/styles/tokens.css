@@ -206,6 +206,7 @@
   --c-entry-vnc: #c084fc;
   --c-entry-web: #22d3ee;
   --c-entry-credential: #facc15;
+  --c-entry-sshkey: #fb923c;
   --c-entry-document: #2dd4bf;
   --c-entry-command: #fbbf24;
   --c-entry-folder: var(--c-ink-muted);
@@ -311,6 +312,7 @@
   --c-entry-vnc: #7e22ce;
   --c-entry-web: #0e7490;
   --c-entry-credential: #a16207;
+  --c-entry-sshkey: #c2410c;
   --c-entry-document: #0f766e;
   --c-entry-command: #b45309;
   --c-entry-folder: var(--c-ink-muted);

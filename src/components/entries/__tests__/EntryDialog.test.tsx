@@ -62,6 +62,7 @@ describe("EntryDialog type step", () => {
     expect(ssh.className).toContain("border-card-border");
     expect(ssh.className).toContain("text-entry-ssh");
     expect(screen.getByRole("button", { name: "Web" }).className).toContain("text-entry-web");
+    expect(screen.getByRole("button", { name: "SSH Key" }).className).toContain("text-entry-sshkey");
   });
 
   it("keeps today's close behavior: no Escape, no scrim click, the close button closes", () => {

@@ -133,6 +133,7 @@
   --color-entry-vnc: var(--c-entry-vnc);
   --color-entry-web: var(--c-entry-web);
   --color-entry-credential: var(--c-entry-credential);
+  --color-entry-sshkey: var(--c-entry-sshkey);
   --color-entry-document: var(--c-entry-document);
   --color-entry-command: var(--c-entry-command);
   --color-entry-folder: var(--c-entry-folder);

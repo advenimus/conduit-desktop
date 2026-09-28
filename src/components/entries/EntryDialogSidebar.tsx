@@ -26,7 +26,7 @@ const TYPE_LABELS: Record<EntryType, string> = {
 export default function EntryDialogSidebar({ entryType, activeTab, onTabChange, credentialType }: EntryDialogSidebarProps) {
   const isSshKey = entryType === "credential" && credentialType === "ssh_key";
   const TypeIcon = isSshKey ? ShieldLockIcon : getEntryIcon(entryType, false);
-  const colorResult = getEntryColor(entryType);
+  const colorResult = isSshKey ? { className: "text-entry-sshkey", style: undefined } : getEntryColor(entryType);
   const label = isSshKey ? "SSH Key" : TYPE_LABELS[entryType];
   const items: NavEntry[] = getTabCategories(entryType).flatMap((category) => [
     { kind: "label" as const, id: `label-${category.label}`, label: category.label },
