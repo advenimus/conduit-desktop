@@ -1,30 +1,40 @@
-# Conduit visual redesign: implementation spec
+# Conduit visual restyle: implementation spec
 
-Status: ready to build. Written 2026-09-27 against branch `advenimus/unlimited-mcp-free` at `270ae43` (PR #12, the sidebar pin, is merged in). Revised 2026-09-28 after three adversarial reviews (fidelity, native, plan); the changes and the rejected points are listed in the Review log at the end. The redesign ships in the pending desktop release (PR #13).
+Status: ready to build. Written 2026-09-28 against branch `advenimus/visual-restyle` at `41d9657`, where wave 1 of the earlier redesign plan has landed (tokens, schemes, primitives, icon registry, freeze registry, harness hooks, migration) and the app still has today's layout; revised the same day after an owner-intent review and a plan review (Review log at the end). The restyle ships in the pending desktop release (PR #13).
 
-This document is self-contained. An engineer who has not read the research can build any work package from it. Numbers come from the installed VS Code 1.139.0 (`/Applications/Visual Studio Code.app`, commit `2242ebbb`) unless a line says otherwise.
+This spec replaces the earlier redesign spec, which rebuilt Conduit's layout as a copy of VS Code (custom title bar with a search pill, activity bar, status bar, floating cards, a reorganized side bar) and made Codicons, VS Code's own icons, the default. The owner rejected that build on 2026-09-28:
+
+> "Hold up, you've made it like an exact clone of vscode! I just wanted the styling and look. Now theres no vault access, a pointless title bar, etc. You dead ass copied icons from vscode as well! I said new icon packs lol"
+
+The request was always about the look: tabs, buttons and spacing similar to the new VS Code look, and new icon packs that can be changed in Settings, with a refreshed default. This spec keeps every part of today's layout and every feature where it is, and changes only how things look. The clone's branches (`advenimus/visual-redesign`, `redesign/w2-*`, `redesign/wave-2`, `redesign/w3-foundation-1`) are not built on; section 9.2 lists the few commits salvaged from them.
+
+The document is self-contained. An engineer who has not read the earlier spec or the research can build any work package from it.
 
 Tags used below:
 
 | Tag | Meaning |
 |---|---|
-| [V] | Verified in this session: code read, command run, or VS Code 1.139 file read. |
-| [A] | Assumption. Must be checked by the package that relies on it. |
+| [V] | Verified while writing this spec: code read, command run, package unpacked, or VS Code 1.139 file read. |
+| [A] | Assumption. The package that relies on it checks it. |
 | [ADAPT] | A deliberate difference from VS Code 1.139. The reason is given next to it. |
-| OD-n | A fixed owner decision (section 1.1). Do not reopen. |
-| D-n | A decision made by this spec (section 1.2). |
+| [BEFORE nn] | A reference shot of today's app (section 3.1), for example [BEFORE 07] is `dark-07-main-split-sidebar-pinned.png` and its light twin. |
+| OD-n | A fixed owner decision (1.1). Do not reopen. |
+| D-n | A decision made by this spec (1.2). |
+
+Paths written `<scratchpad>` mean `/private/tmp/claude-501/-Volumes-SSD-Storage-Orca-Workspaces-conduit-desktop-unlimited-mcp-free/8e769676-5d49-487b-92cc-bf1b85c9a47d/scratchpad`.
 
 ---
 
 ## 0. Summary
 
-- Conduit gets VS Code 1.139's "Modern UI" layout: a custom title bar, an activity bar, a docked or floating primary side bar, one editor card with VS Code "connected" tabs per split pane, the AI chat as a secondary side bar, and a status bar. Parts are floating cards (4px gaps, 8px radius, 1px border on a shell color). A Compact density removes gaps and radii.
-- A new default color scheme, **Modern**, uses VS Code "Dark 2026" / "Light 2026" values. The six universal schemes stay and map onto the same token set. The macOS, Windows and Ubuntu platform themes and their six native schemes are retired, with a one-time migration.
-- Icons become their own setting (`icon_pack`). Six packs: **Codicons** (default), Lucide, Tabler ("Classic"), Phosphor, Fluent, Material Symbols. Codicons ship through a build-time codegen from `@iconify-json/codicon`.
-- Type follows the OS font stack at 13px. Controls are 26px, list rows 22px, weights 400 and 600 only.
-- A shared primitive layer lands in `src/components/ui/`. A ref-counted freeze registry makes every dialog and popover hide native web views, which closes an existing gap (sync dialogs never froze web views).
-- The live `/verify` harness keeps passing through stable `data-cv-*` hooks. The migration pairs each class selector with its hook first (the hook wins wherever it exists) and removes the class-based fallbacks last.
-- Work is split into 30 packages in 4 waves (section 10). Files are owned by exactly one package per wave. Two standing packages (W2-FOUNDATION, W3-FOUNDATION) own the shared foundations during waves 2 and 3. Wave 2 lands on one integration branch.
+- **Restyle, not redesign.** Today's layout stays exactly: the native OS title bar, the side bar with every control (vault switcher, favorites, new entry, new folder, search, tree, onboarding and trial cards, footer with item count, sync indicators, Home, Settings and account), the PR #12 pin and auto-hide behavior, one tab bar per pane with its hamburger, `+` popup and AI toggle, splits and drag and drop, the right-docked AI panel, the banners, the StartupStatus strip, every dialog and screen. Section 3 fixes that layout as hard rules and gives the new styling of each existing component. Behavior stays too: tabs shrink to fit as today and keep their close buttons, every dialog closes exactly as it does today (3.12.1), banner actions stay buttons.
+- **The look** is inspired by VS Code 1.139's Modern UI without copying its structure or its colors: connected tabs inside today's tab bars, 26px buttons and inputs with 4px radii, 22px list rows, 8px-radius menus, dialogs and toasts, neutral gray selection, the system font at 13px, inset focus rings, 8px scrollbars. The **Modern** gray scheme is the default, with Conduit's own sky accent (D-25); the six universal schemes stay.
+- **Icons.** No VS Code icons anywhere: Codicons, their codegen, their package and their attribution go. Six packs are selectable in Settings > Appearance: **Lucide** (the new default, bundled), Phosphor, **Hugeicons** (new; `@hugeicons/core-free-icons@4.3.5`, MIT, checked in 5.10), Material Symbols, Fluent and Tabler ("Classic", today's icons). Users of the retired macOS, Windows and Ubuntu themes keep the pack they saw; everyone else gets Lucide. Custom entry icons that have a semantic twin follow the pack (5.11).
+- **Kept from wave 1:** tokens and schemes with their contrast gates, the retirement of the broken platform themes, the system font, the primitives in `src/components/ui/`, the ref-counted native-view freeze registry that keeps dialogs above web pages, the icon registry and pack switching, the harness hooks, the migration machinery. **Removed:** everything that only served the clone: density, card and gap tokens, title bar, activity bar, status bar and command center tokens, `ui_density`, `title_bar_style`, the counter-zoom variable, the glyph-swap button mode.
+- **Salvaged** from the abandoned wave 2: the popup context menu restyle and hardening (W2-MENUS), the shared 8px state dot, the Material Symbols padding fix and two smaller style fixes (9.2).
+- **Layout identity is tested, not eyeballed only.** An opt-in harness suite rebuilds the reference screens (signed-in and team states included), compares a DOM inventory of every control against today's app, checks geometry rules, fails on any clone part, checks all six icon packs in every window, and writes before and after images side by side (8.6).
+- **The owner sees the work early.** Owner gate 1 (the six packs in the real app) closes wave 1 and owner gate 2 (the restyled chrome, before and after) closes wave 2, before most of the work is built; gate 3 is the final review (8.5).
+- **Work** is 24 packages in 4 waves with disjoint file ownership per wave (section 10). `npm run verify` runs in the four integrator steps; wave-3 packages that touch harness-bound markup run targeted live suites.
 
 ---
 
@@ -34,265 +44,267 @@ Tags used below:
 
 | ID | Decision |
 |---|---|
-| OD-1 | Complete visual redesign modeled on VS Code 1.139 Modern UI and the 2026 Dark/Light themes. Tabs, buttons and spacing like VS Code. Part of PR #13. |
-| OD-2 | Custom title bar on macOS, Windows and Linux. macOS: hidden title bar with inset traffic lights. Windows/Linux: hidden title bar with Electron `titleBarOverlay` window buttons whose colors follow the theme, plus an in-app menu button that opens the application menu. Windows/Linux ship untested locally, so every path there is defensive. |
-| OD-3 | Layout: activity bar (Modern metrics), primary side bar (PR #12 pin/auto-hide model), editor area with VS Code tabs per pane (splits stay), AI chat as secondary side bar on the right, status bar that absorbs sync indicators, offline mode, trial days and FreeRDP startup status. Floating cards (4px gaps, 8px radius, 1px border on a shell color) with a Compact density (no gaps, no radii). No bottom panel. No command palette. The title bar center may hold a search pill only if it maps to an existing capability and is cheap and safe over native web views. |
-| OD-4 | Icon pack is its own setting. Default Codicons with CC-BY-4.0 attribution. Offer Codicons, Lucide, Tabler (Classic), Phosphor, Fluent, Material Symbols. Overlay window, picker window and popup context menus use the active pack. Custom entry icons (Tabler names in vault data) keep working. 16px icons, 12px compact where VS Code uses compact. |
-| OD-5 | Retire the platform themes and their six native schemes. Keep the six universal schemes, add Modern as default. Migration: untouched default (platform `default` + scheme `ocean`) moves to Modern once; other choices keep their scheme; retired platform users keep their pack (macos→phosphor, windows→fluent, ubuntu→tabler) and move to the nearest universal scheme. Migration runs in the main-process settings read and in the renderer boot path, idempotently. |
-| OD-6 | OS system font stack at 13px base. 12px buttons/labels, 11px metadata, 10px badges. Weights 400/600. Terminal fonts unchanged. |
-| OD-7 | Shared primitives in `src/components/ui/` (list in section 4). No new runtime dependencies except icon libraries. Local `cx()` helper. Visible keyboard focus rings everywhere. |
-| OD-8 | Replace the hand-listed overlay flags in `App.tsx` with a ref-counted overlay/freeze registry used by every dialog, popover and title-bar flyout. |
-| OD-9 | All tests and the 41-scenario `/verify` harness keep passing. Add `data-cv-*` hooks where the harness uses Tailwind classes. Never give chrome buttons the exact text of the unscoped harness labels: `Review`, `Use here instead`, `Lock Current Vault`, `New Vault`, `Not Now`, `Open Vault File`. Keep or update the sidebar titles the harness clicks. No `role=dialog` or `role=status` on permanent chrome. |
-| OD-10 | WCAG AA for text (faint text at least 4.5:1 where it is real text). ARIA roles for tabs, trees and menus. |
-| OD-11 | Update `docs/FEATURES.md` and the What's New source (`release-notes/manifest.json`) the way the repo does it. |
+| OD-1 | A visual refresh similar to the new VS Code look: its tabs, buttons and spacing. The look is borrowed, the layout is not. |
+| OD-2 | Keep today's layout and features exactly: the native OS frame and title bar (no custom title bar, no title bar overlay, no menu button), the side bar with every one of its controls, the PR #12 pin and auto-hide behavior, the pane tab bars with the hamburger, the `+` popup and the AI toggle where they are, splits and drag and drop, the right-docked AI panel, the banners, the StartupStatus strip, dialogs and screens. No activity bar, no status bar, no search pill, no card shell with gaps, no moved or removed controls, no new navigation. |
+| OD-3 | Change only the look, inspired by (not copied from) the new VS Code: tab shape, sizes, padding and states (for example the connected active tab and the close button's behavior); button sizes, radius and padding; spacing rhythm; list and tree rows; inputs; dialogs; menus; toasts; colors (the Modern gray scheme as the default); typography (system font, 13px); focus rings; scrollbars. Structure stays; styling changes. |
+| OD-4 | New icon packs, changeable in Settings, with a refreshed default. No VS Code icons: Codicons are removed with their codegen, dependency and attribution. The default is Lucide. The packs are Lucide, Phosphor, Hugeicons, Material Symbols, Fluent and Tabler ("Classic", today's icons). Users of the retired platform themes keep a sensible pack; everyone else defaults to Lucide. |
+| OD-5 | Keep the wave-1 foundation (tokens, the Modern scheme, universal schemes, retirement of the platform themes, the system font, the primitives, the freeze registry, the icon registry and pack switching, harness hooks, migration machinery). Drop what only served the cloned shell. |
+| OD-6 | Salvage from the abandoned wave 2 the popup menu restyle and hardening, the shared 8px state dot and style-only fixes. Never bring back the title bar, activity bar, status bar, workbench cards, editor card, AI side bar store or side bar restructuring. |
+| OD-7 | Carried from the earlier spec: the platform themes and their six native schemes stay retired; the six universal schemes stay; Modern is the default; the one-time migration runs in the main process and before first paint. |
+| OD-8 | Carried: the OS system font stack at 13px, 12px buttons and labels, 11px metadata, 10px badges, weights 400 and 600 only. Terminal fonts do not change. |
+| OD-9 | Carried: all tests and the 41-scenario `/verify` harness keep passing. Stable `data-cv-*` hooks replace class selectors in the harness. |
+| OD-10 | Carried: WCAG AA for text; visible keyboard focus on every control. |
+| OD-11 | Carried: `docs/FEATURES.md` and the What's New source (`release-notes/manifest.json`) are updated the way the repo does it. |
 
 ### 1.2 Decisions made by this spec
 
 | ID | Decision | Why |
 |---|---|---|
-| D-1 | **Codicons delivery: build-time codegen from `@iconify-json/codicon@1.2.73`** (devDependency, 385 KB, CC-BY-4.0) into a checked-in TypeScript module of path data. The same generator produces Material Symbols from `@iconify-json/material-symbols-light@1.2.94` (Apache-2.0). | (a) Every Codicon the mapping names exists in the set: 115 of the 123 semantic names have one, and the other 8 borrow Lucide glyphs (Appendix A.1). The set also has 68 pixel-drawn 12×12 `-compact` glyphs, 36 of them twins of mapped names, including `arrow-up`, `cloud-upload` and `cloud-download`, which `react-icons` lacks [V]. (b) `react-icons@5.7.0` is 88.3 MB unpacked [V `npm view`] for 612 glyphs we would use ~110 of, and ships its own snapshot of Codicons we cannot pin independently. (c) `@vscode/codicons` has no JS entry and its `latest` tag is a prerelease `0.0.46-24` [V]. (d) Iconify bodies contain only `path` and `g` with `fill`, `d`, `fill-rule`, `clip-rule` [V], so the generator emits plain React elements, no `dangerouslySetInnerHTML`. (e) One generator also covers Material Symbols, which has no maintained React package. |
-| D-2 | All icon libraries become **devDependencies**. The renderer is bundled by Vite and nothing under `electron/` or `mcp/` imports them [V grep]. | The packaged `app.asar` is 264.7 MB today and contains `@fluentui/react-icons` (11,632 entries) [V `npx asar list`]. Unpacked sizes: Fluent 178 MB, Tabler 74 MB, Phosphor 57 MB [V `du`]. Adding Lucide (35 MB) as a runtime dependency would grow it further. |
-| D-3 | Editor tabs use VS Code's **connected** style only. No pill option. | Connected is VS Code's default [V `workbench.experimental.modernUIEditorTabStyle` default `connected`]. One style halves the test matrix. |
-| D-4 | Density names: **Comfortable** (default, cards) and **Compact**. Setting `ui_density`. | Matches VS Code `window.density.layout` (`default`/`compact`) with a user-facing label. |
-| D-5 | The title bar is always **35 DIP tall and counter-zoomed** (`zoom: calc(1 / var(--c-zoom))`). Traffic-light position, the Windows/Linux overlay height and the caption reserve never change with `ui_scale`. | VS Code uses the same `counter-zoom` class [V `.titlebar-container.counter-zoom {zoom:calc(1 / var(--zoom-factor))}`]. It removes every zoom-dependent main-process call. [ADAPT] VS Code lets the title bar grow when zoom > 1 and the command center shows; Conduit keeps it constant because native window controls do not scale. |
-| D-6 | Title bar center: a **search pill** that dispatches the existing `conduit:focus-sidebar-search` event (`Sidebar.tsx:101-105`). No dropdown, no new floating surface. Shortcut Ctrl/Cmd+P (renderer only). | Maps to an existing capability. The only surface it opens is the side bar, which already freezes web views when it floats. A native accelerator is not added so Ctrl/Cmd+P still reaches remote sessions (print). |
-| D-7 | Windows/Linux menu button pops up the **native application menu** with `Menu.getApplicationMenu().popup()`. No HTML menu bar. | Native popups draw above native web views, include every item, the dynamic "Restart to Update" label and accelerator hints, and keep the harness's `clickMenuItem` working. |
-| D-8 | Defensive fallbacks for Windows/Linux: (1) HTML window controls whenever the main process reports the overlay inactive or the Window Controls Overlay reports itself not visible, re-evaluated on every state change (3.2); (2) a `title_bar_style` setting (`custom` default, `native`) plus env `CONDUIT_TITLE_BAR=native`, and a Help menu item `Use Native Title Bar` that sets it and restarts (7.1); (3) F10 and a lone Alt open the application menu (3.2). | The custom title bar is untested on these OSes. Hidden-menu accelerators need no fallback: with `titleBarStyle: 'hidden'` Electron registers the menu's accelerators and creates no menu bar [V Electron 44.4.5 `root_view.cc:52-56`, `native_window_views.cc:2077-2078`]. |
-| D-9 | Side bar keeps PR #12's default (**unpinned**, floats and auto-hides). Activity bar items: Vault, Favorites, Home, Quick Connect; bottom: Account, Settings. | OD-3 says keep the pin model. Each item maps to an existing capability. |
-| D-10 | AI secondary side bar toggle lives in the title bar layout controls, plus Ctrl/Cmd+Alt+B (renderer only). Its visibility and width persist. | VS Code puts the secondary side bar toggle in the title bar [V layout controls]. Ctrl/Cmd+Alt+B is free [V critic]. |
-| D-11 | Status bar: left = offline, personal sync, "N to review", cloud backup, team sync, FreeRDP build; right = active session, trial days, zoom (only when not 100%). | OD-3. The sync indicators are invisible today whenever the sidebar is closed (`Sidebar.tsx:513-525`). |
-| D-12 | Sync banners stay banners, restyled as VS Code's 26px banner part under the title bar. They keep `role="status"`. | VS Code banner part is 26px tall, 12px text [V JS `this.height=26`]. The harness reads banners by `[role=status]` [V `ui-forms.mjs:82-106`]. |
-| D-13 | Neutral gray selection and active states; accent only for primary buttons, focus, badges, links, progress and connection state. | VS Code 2026 "Focus" principle [V theme values]. |
-| D-14 | Five text levels: `ink`, `ink-secondary`, `ink-muted`, `ink-faint`, `ink-disabled`. `ink-faint` becomes AA (≥ 4.5:1) in every scheme; the old faint value moves to `ink-disabled`. | OD-10. Faint text fails 3:1 in almost every scheme today [V computed, section 2.11]. |
-| D-15 | In light mode, accent steps 300 and 400 (used only as text) are remapped per scheme to text-safe shades. | Light-mode `text-conduit-400` is 2.1:1 on white in Ocean today [V computed]. 163 of 164 `conduit-400` uses and all 19 `conduit-300` uses are text [V research counts]. |
-| D-16 | Status colors are VS Code 2026 values. Light warning uses 2026 Light's `problemsWarningIcon.foreground` `#895503` [V]. Light success is darkened from `#587C0C` to `#4B6A0A` [ADAPT]. | VS Code's `list.warningForeground` `#667309` reads as olive green, too close to "connected"; `#895503` is the amber 2026 Light already uses for warnings. `#587C0C` passes the light surfaces only barely (4.53:1 at the lowest) and falls below 4.5:1 on any success tint, so tone text on its own background would fail AA; `#4B6A0A` passes on every surface and tint (2.11). |
-| D-17 | Native web views get `View.setBorderRadius(round(7 × zoom))` (the card's 8px radius minus its 1px border) only when their container is flush with both bottom corners of the editor card (Comfortable density, Chromium engine). When a native view touches exactly one bottom corner, or is a WebView2, the card squares that corner instead. | `setBorderRadius` rounds all four corners [V `electron.d.ts:16118`], so a view on one corner cannot match the card; a square native view would paint over the card's rounded corner, because the card's `overflow:hidden` cannot clip a native view. WebView2 is a separate HWND and cannot be rounded [V `webview2-session.ts:155-163`]. |
-| D-18 | Tab status dot shows only non-connected states (connecting, reconnecting, disconnected). | VS Code shows no marker for a clean tab; the dot slot doubles as the close button like VS Code's dirty dot. The status bar shows the active session state. |
-| D-19 | Custom entry icons stay Tabler (`iconRegistry.ts`). | They are stored and synced as Tabler export names [V `iconRegistry.ts:213`]; renaming them is a data change. |
-| D-20 | Context menus stay in the HTML child window (`electron/ipc/menu.ts`) on every OS and get icons serialized from the active pack by the renderer. | The child window already floats above native web views without freezing them. [ADAPT] Stable VS Code uses native OS context menus on macOS (`window.menuStyle` defaults to `native` there [V]); Conduit keeps one HTML menu on all OSes so menus show the active icon pack and danger styling. |
-| D-21 | The freeze registry replaces `conduit:overlay-change` and `conduit:sidebar-overlay-change` as the source of truth. Tooltips stay native `title` (no DOM tooltip). | A native tooltip cannot be covered by a native view. |
-| D-22 | Harness: stable `data-cv-*` hooks. Wave 1 rewrites each class-based harness selector as a pair (hook, old class selector) resolved per scope by `pickSelector`, which uses the hook whenever the scope has one (8.2); wave 4 removes the class alternatives. Dialog detection narrows to `[role=dialog][aria-label]`. | Lets wave 3 migrate files independently. The Dialog primitive adds `role=dialog` to every dialog; without the narrowing, `waitForUnlockOutcome` would treat the unlock dialog itself as a sync dialog (section 8.3). |
-| D-23 | `font-medium`, `font-semibold` and `font-bold` all map to 600. | OD-6 (two weights). |
-| D-24 | Toast overlay window grows to 458 DIP wide (toast max 450 plus 4px padding each side). Toasts sit 8px from the right edge and 8px above the status bar. | VS Code toast `MAX_WIDTH=450` [V research]; Modern toasts: container `right: calc(8px - 4px)`, `bottom: calc(36px - 4px)`, each toast `margin: 4px` [V workbench CSS]. |
-| D-25 | Dialogs: radius 8, no backdrop blur, sizes 400/520/720/880, no open or close animation. | VS Code Modern dialog radius 8 [V `.modern-ui .monaco-dialog-box {border-radius: var(--vscode-cornerRadius-large)}`], min width 440 [V]. No animation rule matches `.monaco-dialog-box`; the 250ms entrance belongs to action-widget dropdowns and quick input [V]. |
-| D-26 | On Linux the app runs under XWayland this release (`--ozone-platform=x11`), with an opt-out. | Electron 38 and later run as native Wayland clients by default [V Electron 38 release notes], and Wayland forbids global window positions (`setPosition` is not supported there [V `electron.d.ts`]). The context menus, the toast overlay and the picker are positioned child windows. Every earlier Conduit release ran under X11 or XWayland. |
-| D-27 | Web sessions get a user-origin stylesheet that sets `app-region: no-drag` on every element. | With `titleBarStyle: 'hidden'` the window has no frame, so Electron honors drag regions from every WebContents, remote pages included [V Electron 44.4.5 `native_window.cc:104-105`, `electron_api_web_contents.cc:2440`, `electron_api_web_contents_view.cc:94-144`]. A site whose CSS sets `-webkit-app-region: drag` would otherwise move the Conduit window. |
+| D-1 | **Structure is frozen.** No component moves, no control is added, removed, hidden or reordered, and no existing title, `aria-label`, placeholder or visible text changes (icon-only buttons that have no name gain one, D-20; labels drawn in CSS `uppercase` show their own capitalization, 8.4). The one added control is the Icon pack picker that OD-4 asks for (5.8). Styling happens in place: class changes, primitives swapped in where the element already is, and the CSS files of section 2. | OD-2, OD-3. The layout inventory check (8.6) fails on any structural change. |
+| D-2 | **Connected tabs inside today's bar.** Each pane keeps its tab bar. Tabs take a "connected" look: the active tab is filled with the session surface color and joins the session below with rounded top corners and curved shoulders; inactive tabs sit on the strip color and show a rounded hover fill. The bar is 33px. Tabs keep today's sizing: they shrink to fit the pane, the label truncating first, down to a 78px floor (icon, dot and close stay whole); only when every tab is at the floor does the strip scroll. [ADAPT] The active fill starts 4px below the strip top instead of at it, because Conduit's strip sits directly under the accent line and the banners, not inside a bordered card. | VS Code 1.139's default tab style is `connected` [V `workbench.experimental.modernUIEditorTabStyle` default]; its tabs keep their width and scroll, which would push tabs out of view in a split with the AI panel open [BEFORE 18], so Conduit keeps its own shrink-to-fit. One style, no pill option. |
+| D-3 | **Tab close buttons stay visible on every tab**, as today: drawn in `--c-tab-fg` at rest and `--c-tab-fg-active` on the active or hovered tab, with the toolbar hover fill under the pointer. Tab widths never change on hover. | OD-2 forbids hidden controls; today every tab shows its × [BEFORE 10, 10b]. VS Code's hover-only close is an open owner question (gate 1, 8.5), not adopted. |
+| D-4 | **The tab status dot stays for every state** (connected, connecting, disconnected) in today's position after the title, with today's tooltip. It is drawn as the shared 8px state dot (5.4) in the state token colors. [ADAPT] VS Code has no connection state; its dirty dot swaps with the close button, which would hide the state of the active tab. | OD-2 keeps features: the green connected dot is information today [BEFORE 10]. |
+| D-5 | **The three top rows line up.** The side bar header, every pane tab bar and the AI panel header are 33px tall, so their bottom edges form one line. | Today they are 52, 36 and about 50px, and they do not line up [BEFORE 07, 18]. |
+| D-6 | **Neutral selection.** Selected tree rows, the active tab and menu highlights use neutral grays; the accent marks primary buttons, focus rings, links, badges, progress, the 2px top accent line and connection state only. | VS Code 2026 "Focus" principle [V theme values]. Today the tree selection is an accent pill and the active tab an accent tint. |
+| D-7 | **One density.** `ui_density`, `data-density`, the Compact variant, `density.css` and every density token are removed; the few metrics the restyle needs (tab strip 33, tab 24, list inset 4) become plain tokens. | Density only existed to remove the clone's card gaps (OD-5). |
+| D-8 | **No window chrome work.** The native frame stays on every OS. `title_bar_style`, the `--c-zoom` counter-zoom variable and every title bar, caption and overlay plan are dropped. The only main-process changes are the popup menu window (7.1) and the window background color (7.2). | OD-2. None of the clone's main-process code landed on this branch [V: `electron/ipc/window-chrome.ts`, `electron/services/window-chrome/` and `src/lib/window-chrome.ts` do not exist]. |
+| D-9 | **Lucide is the default pack and ships in the entry chunk**; the other five packs are lazy chunks. | The default must draw on the first frame with no load. A research bundle of 108 Lucide glyphs measured 38 KB raw and 11 KB gzip [V `<scratchpad>/iconlab/bundle.json`]; the Codicons module it replaces in the entry chunk is 75 KB of source (`src/lib/icons/generated/codicons.ts`). |
+| D-10 | **Hugeicons ships from `@hugeicons/core-free-icons@4.3.5`** (the official free set, MIT), one subpath import per glyph, rendered by a local adapter (5.2). `@hugeicons/react` is not used. | The official data is plain `[tag, attributes]` arrays [V]. The adapter emits only attributes that the popup menu sanitizer keeps (the `@hugeicons/react` component adds a `color` attribute to every `<svg>` [V `HugeiconsIcon.js`], which the sanitizer drops, so the "icons pass the sanitizer unchanged" test would fail), and it needs no runtime package. Subpath imports keep dev and test startup from parsing the 676 KB index module [V `dist/esm/index.js`]. |
+| D-11 | All icon libraries stay **devDependencies**. | The renderer is bundled by Vite and nothing under `electron/` or `mcp/` imports them [V grep, carried]. `@hugeicons/core-free-icons` is 80.4 MB unpacked [V `npm view`], so it must never reach `app.asar`. |
+| D-12 | **`circleFilled` is one shared 8px disc in every pack** (salvage of `588e2ad`, 5.4). | Each pack's own filled circle is 12 to 13px in a 16px box, so state dots would change size with the pack. |
+| D-13 | **Popup context menus stay in the HTML child window** (`electron/ipc/menu.ts`), restyled and hardened by the W2-MENUS salvage (7.1): 24px rows, 8px-radius panel, icons from the active pack, escaped labels, index-based selection, an SVG allowlist. | The child window floats above native web views without freezing them. The owner asked for new icon packs in menus too. |
+| D-14 | **The migration stays version 2.** Version 2 never shipped [V: neither `main` nor PR #13's branch `advenimus/unlimited-mcp-free` contains `electron/services/appearance-migration.ts`]. A stored `codicons` fails validation and becomes `lucide`; the retired keys `platform_theme`, `ui_density` and `title_bar_style` are deleted on every read (6.3). | No second migration is needed for development profiles. |
+| D-15 | **Toast window geometry is unchanged**: 400 × 500 DIP, 16px from the content corner, `p-4 gap-2` inside (`overlay-manager.ts:33-35`, `OverlayApp.tsx:79`). Only the toast cards restyle. [ADAPT] VS Code toasts are up to 450px wide and sit 8px from the edge. | OD-2: where toasts appear is layout [BEFORE 36]. |
+| D-16 | **The 2px accent line under the title bar stays**, and so does its twin at the top of the floating side bar, colored `--c-accent`. | Today's layout reference keeps it (INVENTORY section 1) [BEFORE 07]. |
+| D-17 | **Favorite stars get their own token**, `--c-favorite` (yellow, 2.2.4). | Today they use `text-yellow-400`; the legacy report would otherwise turn them into warning amber. |
+| D-18 | **Dialogs keep today's width.** The `Dialog` primitive gains a `width` prop (4.8) so every dialog keeps its current maximum width while taking the primitive's radius, surface, padding, typography and footer. | Width is part of the layout reference; the look does not need other widths. |
+| D-19 | **Surfaces directly under a tab strip use `--c-editor`**: terminals, RDP and VNC views, the web session toolbar, sub-tab and autofill bars, document and command headers, dashboards, empty panes. | The connected active tab is filled with `--c-editor`; the surface below must be the same color for the tab to join it. |
+| D-20 | **Styling hooks are `data-*` attributes** (`data-active`, `data-selected`, `data-drop-target`, `data-dragging`). The restyle adds no ARIA widget role (`tab`, `treeitem`) to a component that has no matching keyboard model. Icon-only buttons that have no accessible name today get one (`aria-label` plus a native `title`), which adds no visible text. | A style-only change must not promise keyboard behavior it does not implement; INVENTORY section 11 lists the unnamed buttons. |
+| D-21 | **`Popover freeze="auto"` probes `[data-cv-session-area]`**, which every pane's content container carries (3.5), instead of the clone's `[data-cv-editor-card]`. | Native web views live only inside pane content. No app code uses `Popover` yet [V grep], so nothing regresses before the hook exists. |
+| D-22 | **The native window background follows the scheme** (`backgroundColor` at creation, after Settings save and on OS theme changes). | Today it is the old Ocean navy `#0f172a` for every scheme (`main.ts:709`), which flashes while a window is resized over a gray Modern UI. |
+| D-23 | **Seven semantic icon names retire**: `panelLeft`, `panelLeftOff`, `panelRight`, `panelRightOff`, `collapseAll`, `account`, `explorer`. 116 names remain: today's 111 plus `menu` (the hamburger), `splitHorizontal` and `splitVertical` (tab menu), `ellipsis` (the tree's "Open With" item, old key `dots`) and `circleFilled` (state dots). | The seven only served the title bar and the activity bar [V grep: used only in the gallery and its tests]. |
+| D-24 | `font-medium`, `font-semibold` and `font-bold` all map to 600 (carried). | OD-8. |
+| D-25 | **Modern keeps VS Code's neutral grays but takes Conduit's own accent**: the sky ramp that Ocean uses (500 `#0EA5E9`, primary buttons 700 `#0369A1`), with Ocean light's text-safe 300 and 400 in light mode (2.2.2). Every contrast gate of 2.10 holds [V computed]. The owner confirms it at gate 1 (8.5). | VS Code's exact accent blue on top of its grays, font, row heights and connected tabs would make the default look read as VS Code at first glance, the impression the owner rejected. |
+| D-26 | **Every dialog keeps today's close behavior**: Escape, an outside click and a close button each work exactly where they work today, and nowhere else (3.12.1). The `Dialog` primitive gains `closeOnEscape` and draws its close button only where a dialog has one today (`hideClose` elsewhere); a dialog that cannot be dismissed (the recovery passphrase) passes neither `onClose` nor Escape. | Moving every dialog onto one primitive would otherwise add Escape and a close button to mandatory flows and drop outside-click closing from eight dialogs. |
+| D-27 | **Banner actions stay buttons**: `Button size="sm"` (22px) inside the 26px row, `primary` where today's action is primary; the offline banners keep their centered text and `Reconnect` button. | Key actions such as `Use here instead` and `Review` must stay prominent; VS Code's underlined link actions are not adopted. |
+| D-28 | **`App.tsx`'s legacy freeze and the legacy event bridge stay in this release.** Every overlay also holds its own freeze, and a test proves it (R4-CLEANUP); removing the legacy hold is a follow-up after the restyle ships. | Removing it changes the behavior that keeps native web pages from drawing over dialogs (the 32b bug) inside a release that only changes the look; the extra hold is harmless. |
+| D-29 | **Custom entry icons with a semantic twin follow the pack.** The 30 curated Tabler names that the Tabler pack maps from a semantic name (5.11) render through the active pack; the other 35 (brands and the rest) stay Tabler. Stored names never change. | With Lucide as the default, custom icons drawn in Tabler next to Lucide icons would make the pack switch look incomplete in the tree, the most visible icon surface. |
 
 ### 1.3 Non-goals (this release)
 
-- Bottom panel. Command palette or quick pick. HTML menu bar.
-- Pill tab style option.
-- Inactive-window title bar dimming (`titleBar.inactiveBackground`). It would add a Windows/Linux `setTitleBarOverlay` call on every focus change.
-- Making custom entry icons follow the icon pack.
-- Toasts following `ui_scale`, and popup menus following `ui_scale` (both unchanged today).
-- High-contrast themes, an RTL layout. (The title bar reserves still follow caption buttons that the OS mirrors, 3.2.)
-- Bumping `@tabler/icons-react` (3.38.0) or `@fluentui/react-icons` (2.0.321). The research sheets used newer versions [V critic]; previews in Settings render the installed glyphs live.
-- Terminal font, xterm padding and ANSI palette (`terminalTheme.ts:43-58`).
-- The picker window's dropped toasts (existing bug: `picker.tsx` never sets `setPushOverlayState`).
+- Every clone part: custom title bar, window controls overlay, menu button, search pill, activity bar, status bar, floating cards and gaps, Compact density, an editor card, an AI side bar store with persisted width, a side bar without its footer, the Account menu, new shortcuts (Ctrl/Cmd+P, Ctrl/Cmd+Alt+B, F10 or Alt for the menu), the Linux XWayland switch, rounded web views, the remote-page drag-region stylesheet.
+- Behavior fixes the clone made for its own layout: the RDP resize debounce (`0305304`, `a97cda2`), the content-size fallbacks. The restyle changes session sizes by a few pixels only (the tab bar goes from 36 to 33px, banners from about 32 to 26px).
+- Keyboard models for the tree and the tabs (arrow keys, roving focus). The tree and tabs stay mouse-first as today; their buttons stay reachable with Tab.
+- A pill tab style, high-contrast themes, a right-to-left layout.
+- Bumping icon packages other than adding Hugeicons (Lucide stays 1.48.0, Tabler 3.38.0, Phosphor 2.1.10, Fluent 2.0.321, Material Symbols Light 1.2.94 [V `node_modules`]).
+- Custom entry icons without a semantic twin following the pack: the 35 brand and other curated icons stay Tabler in every pack, and every stored name stays a Tabler name in vault data (`src/components/entries/iconRegistry.ts`, 5.11).
+- Terminal fonts, xterm padding and the ANSI palette (`terminalTheme.ts`).
+- Toasts and popup menus following `ui_scale` (unchanged today).
+- Any change of visible text, including the em dashes and arrows in today's strings.
+- Any change of how a dialog closes (D-26) and hover-only tab close buttons (D-3; an open owner question).
+- A "Third-party licenses" view in the About dialog: shipping the license file inside the app meets the license terms (5.9), and a new control would break D-1.
+- Removing `App.tsx`'s legacy freeze and the legacy event bridge (D-28): a follow-up after the release.
+- The terminal fit fix of `006661f` (skip fits while a terminal is hidden, so the PTY keeps its width). It is a behavior fix, not style; whether today's app has the bug is unverified [A]. It is tracked as its own change outside this release.
 
-### 1.4 Baseline: what the code does today
+### 1.4 Baseline: the branch today
 
 | Area | Fact | Source |
 |---|---|---|
-| Window | Native frame on every OS, `minWidth 1024`, `minHeight 700`, `backgroundColor '#0f172a'`. | `electron/main.ts:704-723` [V] |
-| Zoom | `ui_scale` applied with `setZoomFactor` at `ready-to-show` without sending `zoom-factor-changed`; live changes via `set-zoom-factor`. | `main.ts:725-733`, `853-858` [V] |
-| App menu | File, Edit, (dev) View, Tools, (mac) Window, Help. Items send `menu-action`. | `main.ts:400-674` [V] |
-| Layout | 2px accent bar, offline banner, `SyncBanners`, then a row: `Sidebar`, `SplitContainer` (AI robot toggle in the focused pane's tab bar), 4px AI divider, AI panel (`useState(400)`, not persisted). `StartupStatus` strip at the bottom. | `App.tsx:1067-1130`, `97-98` [V] |
-| Overlay flags | 24 dialog flags OR'ed into `conduit:overlay-change`. | `App.tsx:389-395` [V] |
-| Sidebar | Floating by default; docked when pinned and `viewportWidth - expandedWidth - rightPanelWidth - 480 >= 0`. Footer holds counts, sync indicators, Home, Settings, account. | `sidebarStore.ts:40-50`, `Sidebar.tsx:513-595` [V] |
-| Tabs | 36px bar, 32px floating tabs, always-visible 12px close, 8px status dot, 44px hamburger, `+` and AI toggle at right. | `PaneTabBar.tsx:333-445` [V] |
-| Tokens | Platform CSS imported before the `:root` defaults, so platform token overrides never apply (equal specificity, later wins). | `src/index.css:1-4`, `60-92` [V] |
-| Icons | Pack chosen by platform theme; overlay window never loads a pack; popup menu uses 25 hard-coded Tabler paths and has no `split` icon. | `useTheme.ts:45-59`, `electron/ipc/menu.ts:23-49` [V] |
-| Popup menus | 210px wide, 30px rows, `Inter` hard-coded, labels and ids interpolated into HTML unescaped. | `menu.ts:111-118`, `209-231`, `286-297` [V] |
-| Toasts | Overlay window 400×500, 16px from the content corner, no zoom. | `overlay-manager.ts:33-35`, `133-138` [V] |
-| Tests | `vitest`: 3 failures in `src/App.test.tsx` (`window.matchMedia` missing, stale strings). `tsc` clean. | PR #13 body [V] |
-| Scripts | There is no `build:electron` script; the full build is `npm run build`. | `package.json` [V] |
+| Layout | Today's layout, identical in structure to the pure original app (`advenimus/unlimited-mcp-free` at `270ae43`) except the Appearance tab: the Platform Theme block is gone and Modern is the first color scheme card. | `git diff 270ae43...41d9657 -- src/components` [V] |
+| Tokens | `src/styles/{tokens,schemes,density,base}.css`, `components/{cards,tabs,sash}.css`, `metrics.ts`, gated by `src/styles/__tests__/tokens-cascade.test.ts`. Modern is the default scheme. | [V read] |
+| Primitives | 30-odd primitives in `src/components/ui/` with a dev-only gallery. No app code uses them yet, except `src/components/sync/useEscapeLayer.ts`, a re-export. | [V grep] |
+| Freeze | `src/lib/native-freeze/` registry. `App.tsx` holds a `legacy` freeze for its 24 overlay flags and a `sidebar` freeze for the floating side bar; `SyncDialogFrame`, `ConflictReviewPanel`, `ConfirmDialog` and `DragContext` hold their own. | `App.tsx:386-406` [V] |
+| Icons | Six packs, Codicons default and statically imported (`pack-cache.ts`), 123 semantic names, Codicons and Material Symbols from a codegen (`scripts/icons/`), license file `public/licenses/third-party-icons.txt`. | [V read] |
+| Appearance | `src/lib/appearance/`: pre-paint `boot-inline.js` (sets class, `data-scheme`, `data-density`, `data-os`, `--c-zoom`), `useAppearance`, migration table version 2 in the renderer and the main process. | [V read] |
+| Settings | `color_scheme` (default `modern`), `theme`, `icon_pack` (default `codicons`), `ui_density`, `title_bar_style`, `appearance_version: 2`. Settings > Appearance has no icon pack picker. | `electron/ipc/settings.ts:63-128`, `AppearanceTab.tsx` [V] |
+| Popup menus | `electron/ipc/menu.ts`: 210px panels, 30px rows, `Inter`, 25 hard-coded Tabler paths, labels and ids interpolated into HTML unescaped. | [V read] |
+| Harness | `scripts/verify/lib/selectors.mjs` pairs every class selector with a `data-cv-*` hook through `pickSelector`; dialog detection reads `[role=dialog][aria-label]`. | [V read] |
+| Tests | `npx vitest run`: 250 files, 2919 tests, 3 failures, all in `src/App.test.tsx` (`window.electron.on` is undefined in `useBackupStates`). Both `tsc` runs are clean. `node scripts/redesign/lint-count.mjs` prints 0. | run 2026-09-28 [V] |
+| Build | There is no `build:electron` script; the full build is `npm run build`. | `package.json` [V] |
+
+### 1.5 What the clone added, and what happens to it
+
+| Clone part (earlier spec) | On this branch? | Restyle |
+|---|---|---|
+| Title bar, command center, window controls, native mode (W2-TITLEBAR, W2-MAIN) | No | Dropped. Settings keys `title_bar_style` and tokens `--c-titlebar-*`, `--c-cc-*`, `--c-traffic-reserve`, `--c-wco-*`, `--c-zoom` removed (9.1). |
+| Activity bar (W2-ACTIVITYBAR) | No | Dropped with its tokens `--c-activity*` and icon names `account`, `explorer`. |
+| Status bar (W2-STATUSBAR) | No | Dropped. Sync indicators stay in the side bar footer, trial days in the side bar, FreeRDP progress in the StartupStatus strip. |
+| Workbench cards, sashes with grips, Compact density (W2-WORKBENCH) | Tokens and CSS only | Dropped: `density.css`, `cards.css`, the grip, card and gap tokens, `metrics.ts`. |
+| Editor card, web view corner radius, RDP resize debounce (W2-TABS) | No | Dropped. The connected tab CSS is rewritten for today's bar (3.4). |
+| AI side bar store and part title (W2-AI) | No | Dropped. The AI panel keeps `App.tsx` state; its header restyles in place (3.7). |
+| Side bar restructure, footer removal, `openHomeTab` move (W2-SIDEBAR) | No | Dropped. The side bar restyles in place (3.6). |
+| Popup menu restyle and hardening (W2-MENUS) | No | **Salvaged** (7.1, 9.2). |
+| Shared state dot, Material trim, Callout dismiss, banner divider (wave 2 fixes) | No | **Salvaged** (9.2). |
+| Lessons from wave-2 fixes: the tab strip's hidden scrollbar (`8f53108`), the vault switcher's focus room (`4780b8c`), the drop overlay above xterm's scrollbar (`6528862`) | No | Folded into 2.6, 3.4 and 3.6. |
 
 ---
 
 ## 2. Design tokens
 
-### 2.1 File layout and the cascade fix
+Wave 1 built the token layer; this section is its contract after the restyle's cleanup (R1-FOUNDATION). Everything not listed here that `src/styles/` defines today is removed (9.1). Numbers come from the installed VS Code 1.139.0 (`/Applications/Visual Studio Code.app`, commit `2242ebbb`) unless a line says otherwise.
 
-**The bug being fixed.** `src/index.css:2-4` imports `platform-*.css` before the `:root` token block at `index.css:60`. `[data-platform="macos"]` and `:root` both have specificity (0,1,0), so the later `:root` wins and no platform token override ever applied [V: compiled CSS, `dist/assets/index-Asd-Qr4O.css` byte order, Electron probe]. Platform themes are retired (OD-5), but the same trap would hit density and scheme overrides.
+### 2.1 File layout and the cascade
 
-**The rule.** Precedence must come from specificity, never from file order:
+Precedence comes from specificity, never from file order (the platform CSS that wave 1 deleted never applied, because it was imported before `:root` with equal specificity [V, carried]):
 
 | Layer | Selector | Specificity | File |
 |---|---|---|---|
 | Mode-independent base | `:root` | (0,1,0) | `src/styles/tokens.css` |
-| Mode base (Modern primitives + derived formulas) | `:root.dark`, `:root.light` | (0,2,0) | `src/styles/tokens.css` |
-| OS font stacks | `:root[data-os="macos"]` etc. | (0,2,0) | `src/styles/tokens.css` (only defines `--c-font-*`, which no other layer defines) |
-| Density | `:root[data-density="compact"]` | (0,2,0) | `src/styles/density.css` (only defines density tokens, which only `:root` also defines) |
-| Scheme, per mode | `:root[data-scheme="ocean"].dark`, `:root[data-scheme="ocean"].light`, … | (0,3,0) | `src/styles/schemes.css` |
+| Mode base (Modern primitives and the formulas the universal schemes derive from) | `:root.dark`, `:root.light` | (0,2,0) | `src/styles/tokens.css` |
+| OS font stacks | `:root[data-os="macos"]` etc. | (0,2,0) | `src/styles/tokens.css` (defines only `--c-font-*`) |
+| Scheme, per mode | `:root[data-scheme="ocean"].dark`, `.light`, … | (0,3,0) | `src/styles/schemes.css` |
 | Modern exact values | `:root[data-scheme="modern"].dark, :root:not([data-scheme]).dark` (and `.light`) | (0,3,0) | `src/styles/schemes.css` |
 
-Every scheme block is mode-specific, so it always beats the mode base. No scheme defines mode-independent accents at (0,2,0) (that would tie with the mode base). Accent ramps are repeated inside each scheme's `.dark` and `.light` blocks.
-
-**New `src/index.css` skeleton** (W1-TOKENS):
+`src/index.css` after R1-FOUNDATION:
 
 ```css
 @import "tailwindcss";
 @import "./styles/tokens.css";
 @import "./styles/schemes.css";
-@import "./styles/density.css";
 @import "./styles/base.css";
-@import "./styles/components/cards.css";
 @import "./styles/components/tabs.css";
 @import "./styles/components/sash.css";
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
-@custom-variant compact (&:where([data-density="compact"], [data-density="compact"] *));
-@theme { /* section 2.10 */ }
+@theme { /* 2.9 */ }
 ```
 
-Delete: `src/themes/platform-macos.css`, `platform-windows.css`, `platform-ubuntu.css`, `native-schemes.css` (never imported [V]), `tailwind.config.js` (never loaded, and it `require()`s inside an ESM package [V]).
+`density.css`, `components/cards.css` and the `compact` custom variant are deleted.
 
-**Guard test** (`src/styles/__tests__/tokens-cascade.test.ts`, node environment): compile `src/index.css` with the repo's `@tailwindcss/postcss` (same approach as `scratchpad/redesign/compile-css.cjs`), then walk the PostCSS AST and assert:
+**Guard test** (`src/styles/__tests__/tokens-cascade.test.ts`, kept and trimmed): compile `src/index.css` with the repo's `@tailwindcss/postcss`, walk the PostCSS AST and assert:
 
-1. No selector contains `data-platform`.
+1. No selector contains `data-platform` or `data-density`.
 2. Every rule that sets a `--c-*` color token for a named scheme matches `^:root\[data-scheme="(modern|ocean|ember|forest|amethyst|rose|midnight)"\]\.(dark|light)$` (plus the two `:root:not([data-scheme])` Modern selectors).
-3. Every rule that sets a density token matches `^:root(\[data-density="compact"\])?$`.
-4. For each of the 7 schemes × 2 modes, a small resolver (specificity-ordered merge of the matching blocks, `var()` substitution, and exact floating-point `color-mix(in srgb, A p%, B)` evaluation, no rounding between steps) resolves **every token in the contract list (section 2.2) to a color**. No token may be missing in any combination.
-5. The contrast gates in section 2.11 hold for the resolved values.
+3. For each of the 7 schemes × 2 modes, the resolver (specificity-ordered merge, `var()` substitution, exact floating-point `color-mix(in srgb, …)` evaluation) resolves every token of the contract (2.2) to a color.
+4. The contrast gates of 2.10 hold.
+5. None of the removed tokens (9.1) is defined anywhere.
 
 ### 2.2 Token contract and Modern values
 
-Every token below resolves in every scheme and mode. "Base formula" is what the six universal schemes get from `:root.dark` / `:root.light`. "Modern" is the exact value in the Modern block. VS Code sources are 1.139 theme keys resolved from `extensions/theme-defaults/themes/2026-{dark,light}.json` [V].
+Every token below resolves in every scheme and mode. "Base formula" is what the six universal schemes get from `:root.dark` / `:root.light`; "Modern" is the exact value in the Modern block. VS Code sources are 1.139 theme keys resolved from `extensions/theme-defaults/themes/2026-{dark,light}.json` [V].
 
 #### 2.2.1 Primitive surfaces, text and borders
 
 | Token | Modern dark | Modern light | VS Code source | Notes |
 |---|---|---|---|---|
-| `--c-canvas` | `#121314` | `#FFFFFF` | `editor.background` | Legacy name; kept for existing `bg-canvas`. |
+| `--c-canvas` | `#121314` | `#FFFFFF` | `editor.background` | Legacy name, kept for existing `bg-canvas`. |
 | `--c-panel` | `#191A1B` | `#FAFAFD` | `sideBar.background` | Legacy name. |
-| `--c-raised` | `#2B2C2D` | `#E6E6E9` | `list.hoverBackground` (`#FFFFFF14` / `#00000014`) composited on the side bar | Opaque hover for legacy `bg-raised`. |
-| `--c-well` | `#121314` | `#F2F2F2` | dark `editor.background`; light `modernActivityBarItem.hoverBackground` | Recessed areas (segmented-control track, input wells). Code blocks use `--c-code-bg` (2.2.3). |
+| `--c-raised` | `#2B2C2D` | `#E6E6E9` | `list.hoverBackground` composited on the side bar | Opaque hover for legacy `bg-raised`. |
+| `--c-well` | `#121314` | `#F2F2F2` | dark `editor.background`; light `modernActivityBarItem.hoverBackground` | Recessed areas: segmented tracks, preview wells. |
 | `--c-ink` | `#EDEDED` | `#202020` | `list.activeSelectionForeground` / `foreground` | Emphasis: titles, selected rows. |
-| `--c-ink-secondary` | `#BFBFBF` | `#202020` | 2026 `foreground` (dark) / 2026 `foreground`, `sideBar.foreground`, `menu.foreground` (light) | Default body and control text. In Modern light it equals `ink`, as in 2026 Light. |
-| `--c-ink-muted` | `#9D9D9D` | `#606060` | dark [ADAPT]: Dark Modern `descriptionForeground` (2026 Dark uses `#8C8C8C`, which is `ink-faint` here; the extra step keeps D-14's five levels) / light 2026 `descriptionForeground` | Descriptions, labels. |
-| `--c-ink-faint` | `#8C8C8C` | `#6B6B6B` | 2026 dark `descriptionForeground` / [ADAPT] light: VS Code `#999999` placeholder fails AA; `#6B6B6B` is 5.12:1 | Metadata, placeholders. Must pass 4.5:1. |
-| `--c-ink-disabled` | `#555555` | `#BBBBBB` | `disabledForeground` | Disabled text and decorative marks only. |
-| `--c-stroke` | `#2A2B2C` | `#E4E5E6` | `surface.border` | Card and surface borders. |
-| `--c-stroke-dim` | `#333536` | `#F0F1F2` | `input.border` / `titleBar.border` | Keeps today's relation: brighter than `stroke` in dark, subtler in light [V theme-engine 3.1]. |
+| `--c-ink-secondary` | `#BFBFBF` | `#202020` | 2026 `foreground` | Default body and control text. |
+| `--c-ink-muted` | `#9D9D9D` | `#606060` | [ADAPT] dark: Dark Modern `descriptionForeground`; light: 2026 `descriptionForeground` | Descriptions, labels. |
+| `--c-ink-faint` | `#8C8C8C` | `#6B6B6B` | 2026 dark `descriptionForeground`; [ADAPT] light `#6B6B6B` (VS Code's `#999999` fails AA) | Metadata, placeholders. At least 4.5:1. |
+| `--c-ink-disabled` | `#555555` | `#BBBBBB` | `disabledForeground` | Disabled controls and decoration only. |
+| `--c-stroke` | `#2A2B2C` | `#E4E5E6` | `surface.border` | Surface borders. |
+| `--c-stroke-dim` | `#333536` | `#F0F1F2` | `input.border` / `titleBar.border` | |
 
 #### 2.2.2 Accent ramp (`--c-accent-50` … `--c-accent-950`)
 
-Tailwind exposes these as `conduit-*` (`index.css:10-20`). Semantic uses: 300 = link hover text, 400 = link / active text, 500 = accent fill, ring and border, 600 = primary button, 700 = primary button hover [V usage counts, research]. In **light** mode, 300 and 400 hold text-safe shades in every scheme (D-15).
+Tailwind exposes these as `conduit-*`. 300 = link hover text, 400 = link and active text, 500 = accent fill, ring and border; the primary button and its hover take two adjacent steps between 600 and 800, per scheme (2.3; Modern 700 and 800). In light mode, 300 and 400 hold text-safe shades in every scheme.
+
+**(restyle, D-25)** Modern takes Conduit's sky ramp, the one Ocean uses [V `schemes.css` Ocean blocks], instead of VS Code's blue (`#3994BC` / `#0069CC` before this review). The ramp lives in the mode bases (`:root.dark`, `:root.light` in `tokens.css`), which only Modern reads, since every universal scheme sets its own ramp.
 
 | Step | Modern dark | Modern light | Source |
 |---|---|---|---|
-| 50 | `#EBF4F8` | `#EBF3FB` | 90% white mix of the 500 |
-| 100 | `#D7EAF2` | `#D6E7F7` | 80% white mix |
-| 200 | `#B0D4E4` | `#A8CCEE` | 60% white mix |
-| 300 | `#53A5CA` | `#005BB5` | dark `textLink.activeForeground`; light [ADAPT] darker hover (VS Code uses the same `#0069CC`), 6.37:1 |
-| 400 | `#48A0C7` | `#0069CC` | `textLink.foreground` |
-| 500 | `#3994BC` | `#0D6FCF` | dark `focusBorder` without alpha; light [ADAPT] a step lighter than 600 so the 27 legacy `hover:bg-conduit-500` hovers stay visible (white on it 5.01:1) |
-| 600 | `#297AA0` | `#0069CC` | `button.background` |
-| 700 | `#2B7DA3` | `#0063C1` | `button.hoverBackground` |
-| 800 | `#1C4A5E` | `#004485` | 50% / 35% black mix |
-| 900 | `#143442` | `#003466` | 65% / 50% black mix |
-| 950 | `#0B1E26` | `#00203D` | 80% / 70% black mix |
+| 50 | `#F0F9FF` | `#F0F9FF` | Tailwind sky, as Ocean |
+| 100 | `#E0F2FE` | `#E0F2FE` | |
+| 200 | `#BAE6FD` | `#BAE6FD` | |
+| 300 | `#7DD3FC` | `#075985` | light: the text-safe 800, as Ocean light |
+| 400 | `#38BDF8` | `#0369A1` | light: the text-safe 700, as Ocean light |
+| 500 | `#0EA5E9` | `#0EA5E9` | the accent line, rings in dark mode, accent fills |
+| 600 | `#0284C7` | `#0284C7` | |
+| 700 | `#0369A1` | `#0369A1` | primary buttons, badges; the light focus ring |
+| 800 | `#075985` | `#075985` | primary button hover |
+| 900 | `#0C4A6E` | `#0C4A6E` | |
+| 950 | `#082F49` | `#082F49` | |
+
+Contrast on Modern's grays [V computed with an sRGB script during the restyle review; the tokens test of 2.1 re-checks it]: `accent-text` 7.53:1 on the dark overlay and 5.70:1 on the light shell; white on the primary button 5.93:1; `focus` on `selected` over `well` 4.60:1 (dark) and 3.80:1 (light); `info` on `info-bg` 6.29:1 and 4.93:1; `ink-secondary` on `menu-selection-bg` 7.00:1 and 14.18:1.
 
 #### 2.2.3 Layer and component tokens
 
 | Token | Base formula (dark) | Base formula (light) | Modern dark | Modern light | VS Code source |
 |---|---|---|---|---|---|
-| `--c-shell` | `var(--c-panel)` | `var(--c-canvas)` | `#191A1B` | `#FAFAFD` | `titleBar.activeBackground` = `modernUI.shellBackground` |
-| `--c-sidebar` | `var(--c-shell)` | `var(--c-shell)` | `#191A1B` | `#FAFAFD` | `sideBar.background` (also the AI card, [V] `.floating-panels .part.auxiliarybar`) |
-| `--c-editor` | `var(--c-canvas)` | `var(--c-panel)` | `#121314` | `#FFFFFF` | `editor.background` |
-| `--c-tabstrip` | `color-mix(in srgb, var(--c-panel) 70%, var(--c-raised))` | `color-mix(in srgb, var(--c-canvas) 94%, var(--c-ink))` | `#202122` | `#EAEAEA` | `editorGroupHeader.tabsBackground` (1.139 value; `main` has moved on, do not mix) |
+| `--c-shell` | `var(--c-panel)` | `var(--c-canvas)` | `#191A1B` | `#FAFAFD` | `titleBar.activeBackground`; the boot splash and the native window background (7.2) |
+| `--c-sidebar` | `var(--c-shell)` | `var(--c-shell)` | `#191A1B` | `#FAFAFD` | `sideBar.background`; the side bar and the AI panel |
+| `--c-editor` | `var(--c-canvas)` | `var(--c-panel)` | `#121314` | `#FFFFFF` | `editor.background`; every surface under a tab strip (D-19) |
+| `--c-tabstrip` | `color-mix(in srgb, var(--c-panel) 70%, var(--c-raised))` | `color-mix(in srgb, var(--c-canvas) 94%, var(--c-ink))` | `#202122` | `#EAEAEA` | `editorGroupHeader.tabsBackground` (1.139) |
 | `--c-overlay` | `color-mix(in srgb, var(--c-panel) 70%, var(--c-raised))` | `var(--c-panel)` | `#202122` | `#FAFAFD` | `editorWidget` / `menu` / `notifications.background` |
 | `--c-overlay-border` | `var(--c-stroke)` | `var(--c-stroke)` | `#2A2B2C` | `#E4E5E6` | `menu.border` |
-| `--c-card-border` | `var(--c-stroke)` | `var(--c-stroke)` | `#2A2B2C` | `#E4E5E6` | `surface.border` |
-| `--c-divider` | `var(--c-stroke)` | `var(--c-stroke-dim)` | `#2A2B2C` | `#F0F1F2` | `sideBarSectionHeader.border` |
+| `--c-card-border` | `var(--c-stroke)` | `var(--c-stroke)` | `#2A2B2C` | `#E4E5E6` | `surface.border`; `Card`, `ChoiceCard`, the vault hub card |
+| `--c-divider` | `var(--c-stroke)` | `var(--c-stroke-dim)` | `#2A2B2C` | `#F0F1F2` | `sideBarSectionHeader.border`; side bar edge, footer, banner rows |
 | `--c-control-border` | `var(--c-stroke-dim)` | `var(--c-stroke)` | `#333536` | `#D8D8D8` | `dropdown.border` |
-| `--c-editor-group-border` | `color-mix(in srgb, var(--c-ink) 9%, transparent)` | `var(--c-stroke)` | `#FFFFFF17` | `#E5E5E5` | `editorGroup.border` |
+| `--c-editor-group-border` | `color-mix(in srgb, var(--c-ink) 9%, transparent)` | `var(--c-stroke)` | `#FFFFFF17` | `#E5E5E5` | `editorGroup.border`; split lines |
 | `--c-hover` | `color-mix(in srgb, var(--c-ink) 8%, transparent)` | same | `#FFFFFF14` | `#00000014` | `list.hoverBackground` |
 | `--c-selected` | `color-mix(in srgb, var(--c-ink) 13%, transparent)` | `… 14%` | `#FFFFFF22` | `#00000025` | `list.activeSelectionBackground` |
 | `--c-selected-inactive` | `color-mix(in srgb, var(--c-ink) 8%, var(--c-sidebar))` | `… 9%` | `#2C2D2E` | `#DADADA99` | `list.inactiveSelectionBackground` |
 | `--c-toolbar-hover` | `color-mix(in srgb, var(--c-ink) 20%, transparent)` | `… 12%` | `#5A5D5E50` | `#0000001F` | `toolbar.hoverBackground` |
-| `--c-toolbar-active` | `color-mix(in srgb, var(--c-ink) 20%, transparent)` | `… 16%` | `#FFFFFF33` | `#D6D6D8` | `toolbar.activeBackground` |
-| `--c-activity-active-bg` | `var(--c-selected)` | same | `#FFFFFF22` | `#E4E6F1` | `modernActivityBarItem.activeBackground` |
-| `--c-activity-hover-bg` | `color-mix(in srgb, var(--c-ink) 7%, transparent)` | same | `#FFFFFF11` | `#F2F2F2` | `modernActivityBarItem.hoverBackground` |
-| `--c-activity-fg` | `var(--c-ink-faint)` | same | `#8C8C8C` | `#606060` | `activityBar.inactiveForeground` |
-| `--c-activity-fg-hover` | `var(--c-ink-secondary)` | same | `#BFBFBF` | `#3B3B3B` | `modernActivityBarItem.hoverForeground` (dark falls back to `modernTab.hoverForeground` = `list.hoverForeground`; light inherits Light Modern's `#3B3B3B`) [V] |
-| `--c-activity-fg-active` | `var(--c-ink)` | `var(--c-ink-secondary)` | `#EDEDED` | `#3B3B3B` | `modernActivityBarItem.activeForeground` (dark falls back to `modernTab.activeForeground` = `list.inactiveSelectionForeground`; light inherits Light Modern's `#3B3B3B`) [V] |
-| `--c-titlebar-fg` | `var(--c-ink-faint)` | same | `#8C8C8C` | `#606060` | `titleBar.activeForeground` |
-| `--c-statusbar-fg` | `var(--c-ink-faint)` | same | `#8C8C8C` | `#606060` | `statusBar.foreground` |
-| `--c-statusbar-hover` | `color-mix(in srgb, var(--c-ink) 10%, var(--c-shell))` | same | `#323233` | `#E3E3E5` | `statusBarItem.hoverBackground` |
-| `--c-statusbar-hover-fg` | `var(--c-ink)` | same | `#FFFFFF` | `#000000` | `statusBarItem.hoverForeground` (inherited from Dark/Light Modern) [V] |
-| `--c-statusbar-active` | `color-mix(in srgb, var(--c-ink) 20%, var(--c-shell))` | same | `#4B4C4D` | `#EEEEEE` | `statusBarItem.activeBackground` [V] |
-| `--c-cc-bg` | `var(--c-shell)` | `var(--c-editor)` | `#191A1B` | `#FFFFFF` | `commandCenter.background` |
-| `--c-cc-fg` | `var(--c-ink-secondary)` | `var(--c-ink)` | `#BFBFBF` | `#202020` | `commandCenter.foreground` |
-| `--c-cc-border` | `color-mix(in srgb, var(--c-ink) 12%, var(--c-shell))` | `var(--c-control-border)` | `#2E3031` | `#D8D8D8AA` | `commandCenter.border` |
-| `--c-cc-hover-bg` | `color-mix(in srgb, var(--c-ink) 6%, transparent)` | `color-mix(in srgb, var(--c-ink) 8%, transparent)` | `#FFFFFF0F` | `#DADADA4F` | `commandCenter.activeBackground` |
-| `--c-cc-hover-border` | `var(--c-control-border)` | same | `#333536` | `#D8D8D8` | `commandCenter.activeBorder` |
-| `--c-tab-fg` | `var(--c-ink-faint)` | `var(--c-ink-muted)` (ocean light overrides it to `#5C6C82`, 2.3) | `#8C8C8C` | `#606060` | `tab.inactiveForeground` (Modern UI reads it only in connected mode [V `.modern-ui-tabs.monaco-workbench:where(.modern-ui-connected-editor-tabs) {--modern-ui-editor-tab-inactive-foreground: var(--vscode-tab-inactiveForeground)}`]) |
-| `--c-tab-fg-active` | `var(--c-ink)` | `var(--c-ink)` | `#EDEDED` | `#202020` | `modernEditorTab.activeForeground`, which falls back to `modernTab.activeForeground` = `list.inactiveSelectionForeground` [V]. Modern UI ignores `tab.activeForeground` and `tab.unfocusedActiveForeground`: the unfocused active tab uses the same color. |
-| `--c-tab-fg-hover` | `var(--c-ink-secondary)` | `var(--c-ink)` | `#BFBFBF` | `#202020` | `modernEditorTab.hoverForeground` → `modernTab.hoverForeground` = `list.hoverForeground` [V] |
+| `--c-toolbar-active` | `color-mix(in srgb, var(--c-ink) 20%, transparent)` | `… 16%` | `#FFFFFF33` | `#D6D6D8` | `toolbar.activeBackground`; pressed icon buttons (the AI toggle, the pin) |
+| `--c-tab-fg` | `var(--c-ink-faint)` | `var(--c-ink-muted)` (Ocean light overrides it, 2.3) | `#8C8C8C` | `#606060` | `tab.inactiveForeground` |
+| `--c-tab-fg-active` | `var(--c-ink)` | `var(--c-ink)` | `#EDEDED` | `#202020` | `modernEditorTab.activeForeground` |
+| `--c-tab-fg-hover` | `var(--c-ink-secondary)` | `var(--c-ink)` | `#BFBFBF` | `#202020` | `modernEditorTab.hoverForeground` |
 | `--c-tab-active-bg` | `var(--c-editor)` | same | `#121314` | `#FFFFFF` | connected tab = `editor.background` |
-| `--c-tab-hover-bg` | `color-mix(in srgb, var(--c-ink-secondary) 6%, var(--c-tabstrip))` | same | same formula | same formula | [V] `.modern-ui-connected-editor-tabs … --modern-ui-editor-tab-hover-background: color-mix(in srgb, var(--vscode-foreground) 6%, …tabsBackground)` |
-| `--c-tab-underline` | `var(--c-accent)` | `var(--c-ink)` | `#3994BC` | `#000000` | `panelTitle.activeBorder` [V]; used only by `Tabs variant="underline"` (4.7) |
+| `--c-tab-hover-bg` | `color-mix(in srgb, var(--c-ink-secondary) 6%, var(--c-tabstrip))` | same | same formula | same formula | `.modern-ui-connected-editor-tabs … --modern-ui-editor-tab-hover-background` [V] |
+| `--c-tab-underline` | `var(--c-accent)` | `var(--c-ink)` | `#0EA5E9` | `#000000` | `panelTitle.activeBorder`; only `Tabs variant="underline"` |
 | `--c-input-bg` | `var(--c-well)` | `var(--c-editor)` | `#191A1B` | `#FFFFFF` | `input.background` |
 | `--c-input-fg` | `var(--c-ink)` | same | `#BFBFBF` | `#202020` | `input.foreground` |
 | `--c-input-border` | `var(--c-control-border)` | same | `#333536` | `#D8D8D866` | `input.border` |
-| `--c-input-placeholder` | `var(--c-ink-faint)` | same | `#8C8C8C` | `#6B6B6B` | [ADAPT] VS Code `#555555`/`#999999` fail AA |
+| `--c-input-placeholder` | `var(--c-ink-faint)` | same | `#8C8C8C` | `#6B6B6B` | [ADAPT] VS Code's placeholder colors fail AA |
 | `--c-dropdown-bg` | `var(--c-input-bg)` | same | `#191A1B` | `#FFFFFF` | `dropdown.background` |
 | `--c-dropdown-border` | `var(--c-control-border)` | same | `#333536` | `#D8D8D8` | `dropdown.border` |
 | `--c-checkbox-bg` | `var(--c-input-bg)` | `var(--c-well)` | `#242526` | `#EAEAEA` | `checkbox.background` |
-| `--c-checkbox-border` | `var(--c-ink-muted)` | same | `#707070` | `#868686` | `checkbox.border` (≥ 3:1 non-text) |
+| `--c-checkbox-border` | `var(--c-ink-muted)` | same | `#707070` | `#868686` | `checkbox.border` (at least 3:1) |
 | `--c-checkbox-fg` | `var(--c-ink)` | same | `#8C8C8C` | `#606060` | `checkbox.foreground` |
-| `--c-btn-primary-bg` | `var(--c-accent-700)` | same | `#297AA0` | `#0069CC` | `button.background` |
-| `--c-btn-primary-hover` | `var(--c-accent-800)` | same | `#2B7DA3` | `#0063C1` | `button.hoverBackground` |
+| `--c-btn-primary-bg` | `var(--c-accent-700)` | same | `#0369A1` | `#0369A1` | `button.background` role; Conduit sky 700 (D-25) |
+| `--c-btn-primary-hover` | `var(--c-accent-800)` | same | `#075985` | `#075985` | `button.hoverBackground` role; sky 800 |
 | `--c-btn-primary-fg` | `#FFFFFF` | same | `#FFFFFF` | `#FFFFFF` | `button.foreground` |
 | `--c-btn-secondary-bg` | `transparent` | `var(--c-well)` | `#00000000` | `#EAEAEA` | `button.secondaryBackground` |
 | `--c-btn-secondary-fg` | `var(--c-ink-secondary)` | `var(--c-ink)` | `#CCCCCC` | `#202020` | `button.secondaryForeground` |
 | `--c-btn-secondary-hover` | `var(--c-hover)` | same | `#FFFFFF10` | `#F2F3F4` | `button.secondaryHoverBackground` |
 | `--c-btn-secondary-border` | `var(--c-control-border)` | same | `#333536` | `#EAEAEA` | `button.secondaryBorder` |
-| `--c-btn-danger-bg` | `#C72E0F` | same | `#C72E0F` | `#C72E0F` | `statusBarItem.errorBackground` (light) [ADAPT: used in both modes; white 5.49:1] |
-| `--c-btn-danger-hover` | `#B42A1A` | same | `#B42A1A` | `#B42A1A` | [ADAPT] darker step, white 6.39:1 |
-| `--c-accent` | `var(--c-accent-500)` | same | `#3994BC` | `#0069CC` | `focusBorder` / `badge` hue |
-| `--c-accent-text` | `var(--c-accent-400)` | same (light 400 is text-safe) | `#48A0C7` | `#0069CC` | `textLink.foreground` |
-| `--c-accent-text-hover` | `var(--c-accent-300)` | same | `#53A5CA` | `#005BB5` | `textLink.activeForeground` |
-| `--c-focus` | `var(--c-accent-500)` | `var(--c-accent-600)` | `#3994BC` | `#0069CC` | `focusBorder` [ADAPT dark: VS Code `#3994BCB3` has 70% alpha, 3.17:1 effective; opaque is 5.09:1] |
-| `--c-badge-bg` | `var(--c-btn-primary-bg)` | same | `#307E9F` | `#0069CC` | `badge.background` |
+| `--c-btn-danger-bg` | `#C72E0F` | same | `#C72E0F` | `#C72E0F` | [ADAPT] `statusBarItem.errorBackground` (light), used in both modes |
+| `--c-btn-danger-hover` | `#B42A1A` | same | `#B42A1A` | `#B42A1A` | [ADAPT] darker step |
+| `--c-accent` | `var(--c-accent-500)` | same | `#0EA5E9` | `#0EA5E9` | the top accent line, accent fills (D-25) |
+| `--c-accent-text` | `var(--c-accent-400)` | same | `#38BDF8` | `#0369A1` | `textLink.foreground` role |
+| `--c-accent-text-hover` | `var(--c-accent-300)` | same | `#7DD3FC` | `#075985` | `textLink.activeForeground` role |
+| `--c-focus` | `var(--c-accent-500)` | `var(--c-accent-600)` | `#0EA5E9` | `#0369A1` | `focusBorder` role ([ADAPT] opaque; Modern light and five schemes override it, 2.3) |
+| `--c-badge-bg` | `var(--c-btn-primary-bg)` | same | `#0369A1` | `#0369A1` | `badge.background` role |
 | `--c-badge-fg` | `#FFFFFF` | same | `#FFFFFF` | `#FFFFFF` | `badge.foreground` |
-| `--c-menu-selection-bg` | `color-mix(in srgb, var(--c-accent) 15%, transparent)` | `… 10%` | `#3994BC26` | `#0069CC1A` | `menu.selectionBackground` |
-| `--c-menu-selection-border` | `var(--c-accent)` | same | `#3994BC` | `#0069CC` | `menu.selectionBorder` |
-| `--c-progress` | `var(--c-accent)` | same | `#878889` | `#0069CC` | `progressBar.background` |
+| `--c-menu-selection-bg` | `color-mix(in srgb, var(--c-accent) 15%, transparent)` | `… 10%` | `#0EA5E926` | `#0EA5E91A` | `menu.selectionBackground` role |
+| `--c-menu-selection-border` | `var(--c-accent)` | same | `#0EA5E9` | `#0EA5E9` | `menu.selectionBorder` role |
+| `--c-menu-danger-hover-bg` | `color-mix(in srgb, var(--c-danger) 10%, transparent)` | same | same formula | same formula | none in VS Code; the active danger item in popup and DOM menus |
+| `--c-progress` | `var(--c-accent)` | same | `#0EA5E9` | `#0EA5E9` | `progressBar.background` role |
 | `--c-scrollbar-thumb` | `color-mix(in srgb, var(--c-ink-muted) 52%, transparent)` | `… 75%` | `#A8A9AA85` | `#646464C0` | `scrollbarSlider.background` |
 | `--c-scrollbar-thumb-hover` | `… 56%` | `… 82%` | `#A8A9AA90` | `#646464D0` | `scrollbarSlider.hoverBackground` |
 | `--c-scrollbar-thumb-active` | `… 61%` | `… 88%` | `#A8A9AA9C` | `#646464E0` | `scrollbarSlider.activeBackground` |
-| `--c-drop-bg` | `color-mix(in srgb, var(--c-accent) 18%, transparent)` | same | `#3994BC1A` | `#0069CC15` | `list.dropBackground` (2026 theme) [V] |
-| `--c-code-bg` | `color-mix(in srgb, var(--c-ink) 6%, var(--c-editor))` | same | `#242526` | `#EAEAEA` | `textCodeBlock.background` (2026 theme) [V]; code blocks and prose `pre`/`code` |
-| `--c-menu-danger-hover-bg` | `color-mix(in srgb, var(--c-danger) 10%, transparent)` | same | same formula | same formula | none in VS Code; the popup menu's `dangerHover` (7.7) and the DOM `Menu` (4.10). 10%, like the tone tints: at 15% Ocean dark `danger` measured 4.25 on it [wave 1 review] |
-| `--c-sash-grip` | `color-mix(in srgb, var(--c-ink-secondary) 40%, transparent)` | same | `#BFBFBF66` | `#20202066` | `modernSash.gripForeground` = `foreground` at 40% alpha [V] |
-| `--c-indent-guide` | `color-mix(in srgb, var(--c-ink) 30%, var(--c-sidebar))` | `… 37%` | `#585858` | `#A9A9A9` | `tree.indentGuidesStroke` (registry default; the 2026 themes do not set it) [V] |
-| `--c-scrim` | `rgb(0 0 0 / 0.5)` | same | same | same | [ADAPT] unchanged from today's `bg-black/50` |
-| `--c-scrim-sidebar` | `rgb(0 0 0 / 0.2)` | same | same | same | unchanged from `SidebarPanel.tsx:36` |
+| `--c-drop-bg` | `color-mix(in srgb, var(--c-accent) 18%, transparent)` | same | `#0EA5E91A` | `#0EA5E915` | `list.dropBackground` alphas (2026) |
+| `--c-code-bg` | `color-mix(in srgb, var(--c-ink) 6%, var(--c-editor))` | same | `#242526` | `#EAEAEA` | `textCodeBlock.background` (2026) |
+| `--c-indent-guide` | `color-mix(in srgb, var(--c-ink) 30%, var(--c-sidebar))` | `… 37%` | `#585858` | `#A9A9A9` | `tree.indentGuidesStroke` |
+| `--c-scrim` | `rgb(0 0 0 / 0.5)` | same | same | same | [ADAPT] today's `bg-black/50` dialog backdrop |
+| `--c-scrim-sidebar` | `rgb(0 0 0 / 0.2)` | same | same | same | today's floating side bar backdrop (`SidebarPanel.tsx:36`) |
 
-#### 2.2.4 Status, connection state and entry-type colors
+#### 2.2.4 Status, connection state, entry-type and favorite colors
 
-Status colors do not change per scheme (VS Code keeps them fixed). They are text and icon colors. They pass 4.5:1 on shell, editor and overlay in both modes, and `danger`, `warning` and `success` also pass 4.5:1 on their own `-bg` token, where Badge puts them (2.11) [V computed].
+Status colors do not change per scheme. They pass 4.5:1 on shell, editor and overlay in both modes, and `danger`, `warning` and `success` also pass 4.5:1 on their own `-bg` tint (2.10).
 
 | Token | Dark | Light | VS Code source |
 |---|---|---|---|
 | `--c-danger` | `#F48771` | `#AD0707` | `errorForeground` |
-| `--c-warning` | `#E5BA7D` | `#895503` | dark `list.warningForeground`; light `problemsWarningIcon.foreground` (D-16) [V] |
-| `--c-success` | `#73C991` | `#4B6A0A` | dark `gitDecoration.addedResourceForeground`; light [ADAPT] darker than its `#587C0C` (D-16) |
-| `--c-info` | Modern `#3A94BC`; base `var(--c-accent-text)` | Modern `#0069CC`; base `var(--c-accent-text)` | `notificationsInfoIcon.foreground` |
-| `--c-danger-bg` / `--c-danger-border` | Modern `#3A1D1D` / `#BE1100`; base `color-mix(in srgb, var(--c-danger) 10%, var(--c-overlay))` / `color-mix(in srgb, var(--c-danger) 45%, transparent)` | Modern `#FDEDED` / `#AD0707`; base same formulas | `inputValidation.error*` |
-| `--c-warning-bg` / `--c-warning-border` | Modern `#352A05` / `#B89500`; base formulas as above | Modern `#FDF6E3` / `#B69500` | `inputValidation.warning*` |
-| `--c-info-bg` / `--c-info-border` | Modern `#1E3A47` / `#3994BC`; base formulas | Modern `#E6F2FA` / `#0069CC` | `inputValidation.info*` (2026 theme) [V] |
-| `--c-success-bg` / `--c-success-border` | base formulas (all schemes) | base formulas | none in VS Code |
-| `--c-state-connected` | `var(--c-success)` | same | |
+| `--c-warning` | `#E5BA7D` | `#895503` | dark `list.warningForeground`; light `problemsWarningIcon.foreground` |
+| `--c-success` | `#73C991` | `#4B6A0A` | dark `gitDecoration.addedResourceForeground`; light [ADAPT] darker than `#587C0C` so tone text passes on its tint |
+| `--c-info` | Modern `#38BDF8`; base `var(--c-accent-text)` | Modern `#0369A1`; base `var(--c-accent-text)` | `notificationsInfoIcon.foreground` role |
+| `--c-danger-bg` / `-border` | Modern `#3A1D1D` / `#BE1100`; base `color-mix(in srgb, var(--c-danger) 10%, var(--c-overlay))` / `color-mix(in srgb, var(--c-danger) 45%, transparent)` | Modern `#FDEDED` / `#AD0707`; base same formulas | `inputValidation.error*` |
+| `--c-warning-bg` / `-border` | Modern `#352A05` / `#B89500`; base formulas | Modern `#FDF6E3` / `#B69500` | `inputValidation.warning*` |
+| `--c-info-bg` / `-border` | base formulas in every scheme, Modern included (D-25) | base formulas | `inputValidation.info*` role |
+| `--c-success-bg` / `-border` | base formulas | base formulas | none |
+| `--c-state-connected` | `var(--c-success)` | same | tab dots, sync OK |
 | `--c-state-connecting` | `var(--c-warning)` | same | |
 | `--c-state-error` | `var(--c-danger)` | same | |
+| **`--c-favorite`** (new) | `#FACC15` | `#A16207` | none; today's `text-yellow-400` star in the side bar header and tree (D-17). At least 6.44:1 on any dark side bar or selected row, 3.39:1 on the lowest light pair (a selected row in Modern light) [V computed] |
 
-The base tint is 10%, not 12%: at 12% `danger` on its tint measures 4.48:1 in Ocean dark [V computed with exact `color-mix`].
+The base tint is 10%, not 12%: at 12% `danger` on its tint measures 4.48:1 in Ocean dark [V computed, carried].
 
-Entry-type identity colors replace the hard-coded Tailwind classes in `entryIcons.ts:61-80`. Dark keeps today's Tailwind 400 shades. Light moves to the 700 shades so the glyphs reach 3:1 against the light side bar (yellow-600 was 2.82:1) [V computed]:
+Entry-type identity colors (unchanged from wave 1): dark keeps Tailwind 400 shades, light uses 700 shades so glyphs reach 3:1 on light side bars.
 
 | Token | Dark | Light |
 |---|---|---|
@@ -305,17 +317,13 @@ Entry-type identity colors replace the hard-coded Tailwind classes in `entryIcon
 | `--c-entry-command` | `#FBBF24` | `#B45309` |
 | `--c-entry-folder` | `var(--c-ink-muted)` | `var(--c-ink-muted)` |
 
-Terminal ANSI colors stay fixed (`terminalTheme.ts:43-58`).
+Kept as they are: the team tokens `--c-team-bg`, `--c-team-border`, `--c-team-border-strong` (mixes of `--c-accent-500`) and their Tailwind names `team`, `team-border`, `team-border-strong`.
 
-Kept as they are: the team tokens `--c-team-bg`, `--c-team-border` and `--c-team-border-strong` (`index.css:95-99`, mixes of `--c-accent-500`), and their Tailwind names `team`, `team-border` and `team-border-strong` (`index.css:23-25`).
+### 2.3 Universal schemes on the contract
 
-### 2.3 Universal schemes on the new contract
+The six universal schemes keep their primitives and wave 1's overrides exactly (`src/styles/schemes.css`), minus the removed tokens (9.1).
 
-The six universal schemes keep their primitives exactly as today (`src/index.css:101-365` [V]), move into `schemes.css` as `:root[data-scheme="<id>"].dark` / `.light` blocks, and add only these overrides. Everything else comes from the base formulas.
-
-**Per-scheme overrides:**
-
-| Scheme | Mode | `--c-ink-faint` (new, AA) | `--c-ink-disabled` (= old faint) | `--c-ink-muted` | `--c-accent-300` / `--c-accent-400` | `--c-btn-primary-bg` / `-hover` |
+| Scheme | Mode | `--c-ink-faint` | `--c-ink-disabled` | `--c-ink-muted` | `--c-accent-300` / `-400` | `--c-btn-primary-bg` / `-hover` |
 |---|---|---|---|---|---|---|
 | ocean | dark | `#8B98AA` | `#64748b` | unchanged | ramp (`#7dd3fc` / `#38bdf8`) | 700 `#0369a1` / 800 `#075985` |
 | ocean | light | `#647185` | `#94a3b8` | `#617188` | 800 `#075985` / 700 `#0369a1` | 700 / 800 |
@@ -330,15 +338,11 @@ The six universal schemes keep their primitives exactly as today (`src/index.css
 | midnight | dark | `#748289` | `#506068` | unchanged | ramp | 700 `#0e7490` / 800 `#155e75` |
 | midnight | light | `#5B727D` | `#84a0ac` | unchanged | 800 `#155e75` / 700 `#0e7490` | 700 / 800 |
 
-The new faint values are the old faint mixed toward `--c-ink` in 1% steps until the minimum contrast on shell, editor and overlay reaches 4.5:1 [V computed, `scratchpad/spec/palette.py`]. The check uses the exact `color-mix()` result for the overlay, not a rounded hex: rounded, Forest dark passed at 4.50, but exactly its faint and muted measured 4.49, so both moved one step (`#7F9089`, `#7B9189`, now 4.55) [V computed, review pass]. The wave 1 review added `well` (composited on shell, editor, overlay and sidebar) to those surfaces, because cards, inputs and segmented controls put muted and faint text on it: the six light faint values moved further (Ocean 36%, Ember 26%, Forest 36%, Amethyst 28%, Rose 24%, Midnight 34% from the old faint), and Ocean light `ink-muted` moved 3% toward `ink` (`#64748b` was 4.34:1 on its `#f1f5f9` well) [V computed]. Buttons use the first ramp step whose contrast with white text is ≥ 4.5:1.
+Focus overrides: Ocean, Ember, Forest and Midnight light set `--c-focus: var(--c-accent-700)`, and so does Modern light (`#0369A1`, D-25); Amethyst dark sets `--c-focus: var(--c-accent-400)`. Ocean light sets `--c-tab-fg: #5C6C82` (4.54:1 on its tab strip) [V computed, carried].
 
-Focus overrides [wave 1 review]: Ocean, Ember, Forest and Midnight light set `--c-focus: var(--c-accent-700)`, and Amethyst dark sets `--c-focus: var(--c-accent-400)`. With the default step the ring fell below 3:1 on a selected row (2.48 to 2.98), which is where roving focus sits in Tabs, NavList and SegmentedControl (2.11 gate 6).
+Resolved derived surfaces [V computed, carried]:
 
-One more per-scheme override: Ocean light sets `--c-tab-fg: #5C6C82`. Its `ink-muted` (`#64748b`) measures 4.02:1 on the Ocean light tab strip (`#EAECEF`); `#5C6C82` measures 4.54:1 there [V computed].
-
-**Resolved derived surfaces** (formulas evaluated in sRGB) [V computed]:
-
-| Scheme | Mode | shell / sidebar | editor | tabstrip | overlay | hover (opaque on shell) | selected (opaque on shell) |
+| Scheme | Mode | shell / sidebar | editor | tabstrip | overlay | hover on shell | selected on shell |
 |---|---|---|---|---|---|---|---|
 | ocean | dark | `#1e293b` | `#0f172a` | `#243043` | `#243043` | `#2F394A` | `#394454` |
 | ocean | light | `#f8fafc` | `#ffffff` | `#EAECEF` | `#ffffff` | `#E5E8EB` | `#D7DADF` |
@@ -353,13 +357,13 @@ One more per-scheme override: Ocean light sets `--c-tab-fg: #5C6C82`. Its `ink-m
 | midnight | dark | `#0a1418` | `#000000` | `#0D181D` | `#0D181D` | `#1B2529` | `#263034` |
 | midnight | light | `#f4fafc` | `#ffffff` | `#E6EDEF` | `#ffffff` | `#E1E8EB` | `#D4DBDD` |
 
-Two facts this fixes [V critic]: in light mode every universal scheme now has the editor lighter than the shell (like VS Code), and the tab strip always differs from the editor, so a connected active tab never looks darker than its strip.
+In every scheme the tab strip differs from the editor, so a connected active tab always reads as part of the session, never as part of the strip.
 
-**Retired native schemes** (`macos-blue`, `macos-graphite`, `win-blue`, `win-sun-valley`, `ubuntu-yaru`, `ubuntu-gnome`): delete their blocks (`index.css:372-400`). The migration maps them (section 6.3).
+`src/lib/appearance/shell-colors.json` keeps `{scheme: {dark: {shell, fg}, light: {shell, fg}}}` for the boot splash and the window background. `shell` is the resolved `--c-shell`; `fg` becomes the resolved `--c-ink-faint` (it was `--c-titlebar-fg`, which is removed). Only one value changes: Modern light `fg` goes from `#606060` to `#6B6B6B`. The tokens test checks the JSON against the resolved tokens.
 
 ### 2.4 Typography
 
-Font stacks (VS Code 1.139 `.monaco-workbench` stacks [V], set on `<html data-os>`):
+Font stacks (VS Code 1.139 `.monaco-workbench` stacks [V], set on `<html data-os>`, unchanged from wave 1):
 
 ```css
 :root                   { --c-font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -372,109 +376,97 @@ Font stacks (VS Code 1.139 `.monaco-workbench` stacks [V], set on `<html data-os
                           --c-font-mono: "Ubuntu Mono", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace; }
 ```
 
-All four mono stacks are VS Code's `--monaco-monospace-font` per OS [V `.monaco-workbench.linux {--monaco-monospace-font: …}`]. `monospace` stays unquoted so it is the generic family.
-
-`Inter` is dropped. It was never bundled; the owner saw it only because it is installed locally [V critic 5]. Review screenshots on a machine without Inter.
-
-Terminals keep `Menlo, Monaco, "Courier New", monospace` (`TerminalView.tsx:89`, `CommandView.tsx:82`) (OD-6).
-
-Type ramp (VS Code `fontSize.*` tokens [V]; line heights follow VS Code's `1.4em` rounded to the 2px grid):
+`Inter` is not used; review screenshots on a machine without Inter installed. Terminals keep `Menlo, Monaco, "Courier New", monospace`.
 
 | Token | Size / line height | Weight | Tailwind | VS Code | Used for |
 |---|---|---|---|---|---|
-| `--c-text-display` | 26px / 32px | 600 | `text-display` | `fontSize.heading1` | Landing-page titles (auth, hub, welcome) |
-| `--c-text-title` | 18px / 24px | 600 | `text-title` (and `text-lg`) | `fontSize.heading2` | Page and large section titles |
-| `--c-text-heading` | 13px / 18px | 600 | `text-heading` | `fontSize.heading3` = 13px [V]; Modern dialog titles use it (`.modern-ui-notifications-dialogs … .dialog-message {font-size: var(--vscode-fontSize-heading3); font-weight: semiBold}` [V], which overrides the older 14px rule) | Dialog titles |
-| `--c-text-body` | 13px / 18px | 400 | `text-body` (and `text-sm`) | `fontSize.body1`, workbench base | Body, tabs, tree rows, inputs, menus |
-| `--c-text-label` | 12px / 16px | 400 / 600 | `text-label` (and `text-xs`) | `fontSize.label1` | Buttons, part titles and section headers (600), status bar, title bar |
-| `--c-text-meta` | 11px / 16px | 400 | `text-meta` | `fontSize.label2` | Metadata, group labels, keyboard hints |
-| `--c-text-badge` | 10px / 14px | 400 / 600 | `text-badge` | `fontSize.label3` | Badges |
+| `--c-text-display` | 26 / 32 | 600 | `text-display` | `fontSize.heading1` | Landing titles (auth, hub, welcome) |
+| `--c-text-title` | 18 / 24 | 600 | `text-title`, `text-lg` | `fontSize.heading2` | Page and large section titles |
+| `--c-text-heading` | 13 / 18 | 600 | `text-heading` | `fontSize.heading3` | Dialog titles |
+| `--c-text-body` | 13 / 18 | 400 | `text-body`, `text-sm` | `fontSize.body1` | Body, tabs, tree rows, inputs, menus |
+| `--c-text-label` | 12 / 16 | 400 / 600 | `text-label`, `text-xs` | `fontSize.label1` | Buttons, header titles, section labels |
+| `--c-text-meta` | 11 / 16 | 400 | `text-meta` | `fontSize.label2` | Metadata, group labels, counts |
+| `--c-text-badge` | 10 / 14 | 400 / 600 | `text-badge` | `fontSize.label3` | Badges |
 
-Weights: `--c-weight-regular: 400`, `--c-weight-strong: 600`. `font-medium`, `font-semibold`, `font-bold` all compile to 600 (D-23).
-
-`body { font-family: var(--c-font-ui); font-size: var(--c-text-body); line-height: var(--c-text-body-lh); color: var(--c-ink); }`. Do not change the `html` font size: Tailwind spacing is in `rem` and must stay 4px per unit.
+`body { font-family: var(--c-font-ui); font-size: 13px; line-height: 18px; color: var(--c-ink); }`. The `html` font size stays 16px, so Tailwind spacing stays 4px per unit.
 
 ### 2.5 Spacing, radii, sizes
 
-**Spacing.** VS Code's ramp (`spacing.size20 … size400` = 2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36, 40px [V]) equals Tailwind's default rem scale with a 16px root: `0.5`=2, `1`=4, `1.5`=6, `2`=8, `2.5`=10, `3`=12, `4`=16, `5`=20, `6`=24, `7`=28, `8`=32, `9`=36, `10`=40. Use those classes; add no spacing tokens. Dominant rhythm: 4px spacing, 4px control radius, 8px container radius, 1px stroke [V usage counts].
+**Spacing.** VS Code's ramp (2, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36, 40px [V]) equals Tailwind's default scale (`0.5` … `10`). Use those classes; no spacing tokens. Rhythm: 4px spacing, 4px control radius, 8px overlay radius, 1px strokes [V usage counts].
 
-**Radii** (`cornerRadius.*` [V]; policy from VS Code `roundedCorners.css`: controls 4, inner containers 6, overlays 8):
+**Radii:**
 
 | Token | Value | Tailwind | Use |
 |---|---|---|---|
-| `--c-radius-xs` | 2px | `rounded-xs` | Checkbox inner marks |
-| `--c-radius-sm` / `--c-radius-control` | 4px | `rounded`, `rounded-sm`, `rounded-control` | Buttons, inputs, selects, list rows, tabs, status bar items, activity pill, toolbar icon buttons (Modern UI sets `.monaco-action-bar .action-label` to `cornerRadius.small` [V `.modern-ui .monaco-action-bar .action-label {border-radius: var(--vscode-cornerRadius-small)}`]) |
-| `--c-radius-md` / `--c-radius-container` | 6px | `rounded-md`, `rounded-container` | Cards, callouts, menu items, title bar pill |
-| `--c-radius-lg` / `--c-radius-overlay` | 8px | `rounded-lg`, `rounded-overlay` | Menus, dialogs, popovers, toasts |
+| `--c-radius-xs` | 2px | `rounded-xs` | Rename inputs, checkbox marks |
+| `--c-radius-sm` | 4px | `rounded`, `rounded-sm`, `rounded-control` | Buttons, inputs, selects, rows, tab hover fill, icon buttons |
+| `--c-radius-md` | 6px | `rounded-md`, `rounded-container` | Cards, callouts, menu items |
+| `--c-radius-lg` | 8px | `rounded-lg`, `rounded-overlay` | Menus, dialogs, popovers, toasts, the vault hub card |
 | `--c-radius-xl` | 12px | `rounded-xl` | Legacy only |
-| `--c-radius-full` | 9999px | `rounded-full` | Count badges, switches, status dots |
-| `--c-card-radius` | 8px / 0 compact | `rounded-card` | Workbench cards |
+| `--c-radius-full` | 9999px | `rounded-full` | Count badges, switches |
 | `--c-tab-cap-radius` | 5px | (tabs.css) | Connected tab top corners and shoulders (4 + 1 stroke) [V] |
 
-**Control and row sizes:**
+**Control and row sizes** (unchanged):
 
 | Token | Value | Tailwind | Source |
 |---|---|---|---|
-| `--c-control-h-sm` | 22px | `h-control-sm` | VS Code small button (11px, 3px 6px padding) [V] |
-| `--c-control-h` | 26px | `h-control` | `.monaco-text-button` 4px 8px padding, 16px line, 1px border [V]; inputs 4px 6px padding at 13px [V] |
-| `--c-control-h-lg` | 32px | `h-control-lg` | [ADAPT] landing-page CTAs (auth, onboarding, hub); VS Code has no large button |
+| `--c-control-h-sm` | 22px | `h-control-sm` | VS Code small button [V] |
+| `--c-control-h` | 26px | `h-control` | `.monaco-text-button`, `.monaco-inputbox` [V] |
+| `--c-control-h-lg` | 32px | `h-control-lg` | [ADAPT] landing CTAs only |
 | `--c-row-h` | 22px | `h-row` | `ITEM_HEIGHT=22` [V] |
-| `--c-row-h-2line` | 36px | `h-row-2line` | [ADAPT] list rows with a description line (picker, vault hub) |
-| `--c-icon-sm` / `--c-icon` / `--c-icon-lg` | 12 / 16 / 24px | (props) | `codiconFontSize` 16, compact 12, activity bar 24 [V] |
-| `--c-toolbar-btn` | 22px | `size-toolbar` | `.monaco-action-bar .action-label {padding:3px}` + 16px icon; radius 4 in Modern UI [V] |
+| `--c-row-h-2line` | 36px | `h-row-2line` | [ADAPT] rows with a description |
+| `--c-icon-sm` / `--c-icon` / `--c-icon-lg` | 12 / 16 / 24px | (props) | VS Code icon sizes [V] |
+| `--c-toolbar-btn` | 22px | `size-toolbar` | `.monaco-action-bar .action-label` [V] |
 
-**Layout sizes** (mode-independent; density ones in section 2.9):
+**Layout sizes** (all on `:root`; the density versions are gone):
 
-| Token | Value | Source |
-|---|---|---|
-| `--c-titlebar-h` | 35px (DIP, counter-zoomed) | `Pne=35` with command center [V] |
-| `--c-traffic-reserve` | 70px (0 in full screen or native title bar) | `.mac .window-controls-container {width:70px}` [V] |
-| `--c-wco-reserve-start` / `--c-wco-reserve-end` | 0 / 138px until known, then from the WCO rect, each clamped to 0..300 (3.2) | `.windows .window-controls-container {width:calc(138px / zoom)}`; Linux reads both sides from `env(titlebar-area-*)` [V] |
-| `--c-cc-h` / `--c-cc-w` / `--c-cc-max-w` | 22px / 38vw / 600px | `.command-center-center {height:22px;width:38vw;max-width:600px}` [V] |
-| `--c-banner-h` | 26px | banner part `height=26` [V] |
-| `--c-part-title-h` | 32px | `AREA_HEIGHT_MODERN_UI=32` [V] |
-| `--c-section-h` | 28px | `--pane-header-size: 28px` [V research] |
-| `--c-statusbar-h` | 22px | `HEIGHT=22` [V] |
-| `--c-activity-item` | 36px | `FLOATING_ACTION_HEIGHT=36` [V] |
-| `--c-activity-pill` | 32px | `calc(action-height - 4px)` [V] |
-| `--c-zoom` | 1 (set from JS) | Used by the title bar counter-zoom |
+| Token | Value | Tailwind | Use |
+|---|---|---|---|
+| `--c-tabstrip-h` | 33px | `h-tabstrip` | Pane tab bars; also the side bar header and the AI header (D-5) |
+| `--c-tab-h` | 24px | (tabs.css) | Painted tab body |
+| `--c-tab-gutter-top` | 4px | (tabs.css) | Strip space above a tab |
+| `--c-tab-min-w` | 78px | (tabs.css) | A tab's floor while tabs shrink to fit: padding 8 + 4, icon 16, dot 12, close 20, three 6px gaps, the label at 0 (D-2) |
+| `--c-list-inset` | 4px | (`px-1`) | Row inset in the tree and lists |
+| `--c-banner-h` | 26px | `min-h-banner` | Banners (3.8) |
+| `--c-part-title-h` | 32px | `h-part-title` | `Tabs` strips (Markdown editor) |
+| `--c-section-h` | 28px | `h-section` | The team context bar |
 
-A TypeScript mirror of the numeric layout tokens lives in `src/styles/metrics.ts` (used by `sidebarStore` chrome math and the content-size fallbacks). A unit test asserts `metrics.ts` equals the values in `tokens.css` and `density.css`.
-
-**Electron code never imports from `src/`.** `electron/tsconfig.json` has `rootDir: "."`, so an import of `src/…` fails `tsc -p electron/tsconfig.json` and the harness build (TS6059). The main process keeps its own constants (for example the status bar heights 28 and 26 used for the toast inset, 7.6). Tests that compare the two sides read JSON with `fs.readFileSync`, or live in `scripts/__tests__/`, which neither tsconfig checks and vitest resolves across both trees.
+There is no TypeScript mirror of the layout tokens any more: `src/styles/metrics.ts` only fed the clone's chrome math.
 
 ### 2.6 Shadows, motion, z-index
 
 | Token | Value | Tailwind | Use |
 |---|---|---|---|
-| `--c-shadow-sm` | `none` | `shadow-sm` | Chrome is flat (VS Code sets `--vscode-shadow-sm` transparent in Modern UI [V]) |
-| `--c-shadow-md` | `0 0 6px rgba(0,0,0,.08)` | `shadow-md` | Modern UI zeroes only `shadow-sm`; `--vscode-shadow-md` keeps its value [V `.modern-ui.monaco-workbench {--vscode-shadow-sm: 0 0 0 0 transparent}`] |
-| `--c-shadow-overlay` | `0 0 12px rgba(0,0,0,.14)` | `shadow-lg`, `shadow-overlay` | Menus, popovers, toasts, floating side bar (`--vscode-shadow-lg` [V]) |
-| `--c-shadow-modal` | `0 0 20px rgba(0,0,0,.15)` | `shadow-xl`, `shadow-modal` | Dialogs (`--vscode-shadow-xl` [V]) |
+| `--c-shadow-sm` | `none` | `shadow-sm` | Flat chrome |
+| `--c-shadow-md` | `0 0 6px rgba(0,0,0,.08)` | `shadow-md` | |
+| `--c-shadow-overlay` | `0 0 12px rgba(0,0,0,.14)` | `shadow-lg`, `shadow-overlay` | Menus, popovers, toasts, the floating side bar |
+| `--c-shadow-modal` | `0 0 20px rgba(0,0,0,.15)` | `shadow-xl`, `shadow-modal` | Dialogs |
 
 | Token | Value | Use |
 |---|---|---|
-| `--c-motion-open` | 250ms | DOM menus and popovers: opacity 0→1 and `scale(.97)`→`scale(1)` from the anchor corner [V `.modern-ui.monaco-enable-motion .action-widget.action-widget-dropdown {animation: … .25s cubic-bezier(.22,1,.36,1)}`]. Dialogs do not animate (D-25) |
-| `--c-motion-close` | 150ms | DOM menus and popovers: to opacity 0 and `scale(.99)` |
-| `--c-motion-fast` | 100ms | Hover color changes, sash highlight (`background-color .1s ease-out` [V]), sash grip fade |
+| `--c-motion-open` | 250ms | DOM menus and popovers open; side bar slide-in |
+| `--c-motion-close` | 150ms | DOM menus and popovers close; side bar slide-out |
+| `--c-motion-fast` | 100ms | Hover colors, sash highlight fade |
 | `--c-ease-out` | `cubic-bezier(0.22, 1, 0.36, 1)` | All of the above |
-| `--c-sash-delay` | 300ms | Delay before a sash shows its hover color |
+| `--c-sash-delay` | 300ms | Delay before a resize handle lights up on hover |
 
-Under `@media (prefers-reduced-motion: reduce)`, set all three durations to `0ms` and disable the side bar slide. Never animate layout boxes that contain sessions (section 3.11).
+Under `prefers-reduced-motion: reduce` the three durations are `0ms`.
 
 | Token | Value | Layer |
 |---|---|---|
-| `--c-z-sticky` | 10 | Sticky `+` button in tab strips, drop-zone overlay |
-| `--c-z-sidebar-scrim` | 30 | Floating side bar scrim |
-| `--c-z-sidebar` | 40 | Floating side bar card |
+| `--c-z-sticky` | 10 | Sticky elements inside a pane |
+| `--c-z-sidebar-scrim` | 30 | Floating side bar backdrop (today `z-30`) |
+| `--c-z-sidebar` | 40 | Floating side bar (today `z-40`) |
 | `--c-z-dialog` | 50 | Dialogs, layer `base` |
-| `--c-z-dialog-sync` | 60 | Dialogs, layer `sync` (above unlock, as today `SyncDialogFrame.tsx:48`) |
-| `--c-z-dialog-stacked` | 70 | Dialogs, layer `stacked` (confirm above a sync panel, as today `RecentlyDeletedPanel.tsx:130`) |
-| `--c-z-popover` | 80 | Popovers and DOM menus (above any dialog that owns them) |
+| `--c-z-dialog-sync` | 60 | Dialogs, layer `sync` |
+| `--c-z-dialog-stacked` | 70 | Dialogs, layer `stacked` |
+| `--c-z-popover` | 80 | Popovers and DOM menus |
+
+The tab drop-zone overlay keeps today's `z-40` inside its pane: xterm's scrollbar has `z-index: 11` in the same stacking context, and the clone's move of the overlay to 10 put the scrollbar above it (fixed by `6528862`) [V diff].
 
 ### 2.7 Focus ring
 
-One rule set in `base.css`, zero specificity so components can refine it:
+Unchanged from wave 1 (`src/styles/base.css`):
 
 ```css
 :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="treeitem"],
@@ -484,195 +476,19 @@ One rule set in `base.css`, zero specificity so components can refine it:
   outline-offset: -1px;                  /* VS Code default: drawn inside [V] */
 }
 :where([data-cv-text-button], input[type="checkbox"], input[type="radio"], [data-cv-choice]):focus-visible {
-  outline-offset: 2px;                   /* VS Code text buttons and checkboxes [V]; choice cards [ADAPT] */
+  outline-offset: 2px;                   /* text buttons, checkboxes, choice cards */
 }
 ```
 
-VS Code draws the default ring inside the element: `.monaco-workbench [tabindex="0"]:focus, … button:focus, … input[type=checkbox]:focus {outline-width:1px; outline-style:solid; outline-offset:-1px}`, then moves it 2px outside only for `input[type=checkbox]:focus` and `.monaco-text-button:focus` [V]. An outside ring would be clipped by `.cv-card {overflow:hidden}`, `.cv-tabs {overflow-y:hidden}` and the 22px status bar. The `Button` primitive (text buttons) sets `data-cv-text-button`; `IconButton`, status bar items, title bar controls, tab close buttons and activity items keep the inset ring. The `Checkbox` and `Radio` inputs get the 2px ring because of the second rule, which beats the `input` part of the first (same zero specificity, later in the file). `ChoiceCard` (`data-cv-choice`) also takes the 2px ring [ADAPT, wave 1 review]: the checked card's 1px border is the accent, and `--c-focus` equals `--c-accent` in all seven dark schemes and in Modern light, so an inset ring would lie exactly on that border and show nothing (roving focus always lands on the checked card). `ChoiceGroup` keeps `p-[3px]` so a scrolling parent cannot clip the ring.
-
-This replaces `index.css:418-430`, which removed button focus outlines entirely (1 of 452 buttons re-added one [V research]). `:focus-visible` does not match mouse clicks on buttons, so pointer users see no ring. Composite fields whose wrapper shows focus keep `data-bare` on the inner input and put `focus-within:outline …` on the wrapper. The gallery (4.1) shows every focusable primitive focused inside a Card, and every one that can sit in a 29px row focused inside a tab strip, so a clipped ring is visible in review. Text `Button`s at `md` and `lg`, `Textarea`, `Tabs` (it brings its own 35px strip) and `ChoiceCard` are exempt from the strip: they never sit in a tab strip, the status bar or the title bar, and a 26px text button's 2px-outside ring needs 32px, more than the 29px Compact strip [wave 1 review]. `Button sm` and `link` stand in for text buttons there.
+The ring is drawn inside the element because outside rings are clipped by the tab strip (`overflow-y: hidden`), the side bar header and scrolling lists. Composite fields keep `data-bare` on the inner input and draw `focus-within` on the wrapper (the side bar search, the web session URL field). The gallery (4.1) shows every focusable primitive focused inside a `Card` and, except text `Button`s at `md` and `lg`, `Textarea`, `Tabs` and `ChoiceCard`, inside a 33px tab strip.
 
 ### 2.8 Other global rules in `base.css`
 
-- `:root.dark { color-scheme: dark } :root.light { color-scheme: light }` so native `<select>` popups, spinners and scrollbars follow the mode (missing today [V]).
-- `[data-os="macos"] body { -webkit-font-smoothing: antialiased; }` (VS Code does this on macOS).
-- `body { user-select: none }` and the input/`.allow-select` exceptions stay (`index.css:406-437`).
-- `::selection { background: color-mix(in srgb, var(--c-accent) 35%, transparent); }`.
-- Scrollbars: 8px, transparent track, thumb `--c-scrollbar-thumb` with hover/active variants, radius 4 [V: Modern UI uses 8 instead of the classic 10, `applyScrollbarSize(e){iAi(e?I4r:vHt)}` with `I4r=8`, `vHt=10`; slider radius `cornerRadius.small`]. `.scrollbar-autohide` keeps its JS fade but uses 8px and the token colors. `.xterm .xterm-viewport` keeps its 4px bar (`index.css:498-514`), and the tab strip keeps its 3px bar (3.6).
-- Keyframes kept: `toast-in/out`, `sidebar-in/out`, `indeterminate`. New: `cv-pop-in` / `cv-pop-out` (opacity + scale, section 2.6).
-
-### 2.9 Density
-
-`ui_density` sets `<html data-density="comfortable|compact">`. Comfortable values live in `:root`; Compact overrides in `:root[data-density="compact"]`.
-
-| Token | Comfortable | Compact | VS Code |
-|---|---|---|---|
-| `--c-gap` (between cards; card to status bar) | 4px | 0 | `--modern-ui-floating-card-margin` 4 / 0 [V] |
-| `--c-outer` (cards to window edge) | 4px | 0 | outer margin 4 [V]; [ADAPT] compact 0: the owner asked for "no gaps", and remote screens gain the pixels |
-| `--c-card-radius` | 8px | 0 | `cornerRadius.large` / 0 [V] |
-| `--c-card-border-w` | 1px | 0 (dividers take over) | [V] compact sets card border transparent |
-| `--c-activitybar-lane` | 8px | 4px | `--modern-ui-activitybar-lane` [V] |
-| `--c-activitybar-w` (card) | 44px | 40px | 36 + lane [V] |
-| `--c-activity-gap` | 8px | 4px | `FLOATING_ACTION_GAP` / compact [V] |
-| `--c-tabstrip-h` | 33px | 29px | `EDITOR_TAB_HEIGHT` modernUI 32 / 28, +1 connected [V]. [ADAPT] VS Code picks 28 from a separate setting (`window.density.editorTabHeight`, read as `partOptions.tabHeight === "compact"`), not from the layout density [V]; Conduit ties it to Compact because the owner asked Compact to free up room for sessions |
-| `--c-tab-h` (painted tab body) | 24px | 20px | `--editor-group-tab-height` [V] |
-| `--c-tab-gutter-top` | 4px | 4px | strip padding [V] |
-| `--c-statusbar-gutter` | 6px | 4px | `FLOATING_BOTTOM_PADDING` / compact [V] |
-| `--c-list-inset` | 4px | 2px | row inset [V research] |
-
-Typography, control heights (26/22/32) and row height (22) do not change with density, as in VS Code.
-
-In Compact, dividers replace card borders: title bar `border-bottom: 1px solid var(--c-divider)`; activity bar `border-right`; status bar `border-top`. Between the docked side bar and the editor, and between the editor and the AI side bar, the divider is the 1px line painted inside the 4px in-flow sash (3.3). Everything else touches.
-
-### 2.10 Tailwind v4 `@theme` mapping
-
-Complete block for `src/index.css`. Every entry below was test-compiled with the repo's Tailwind 4.2.1 and produced the expected utility (`h-control` → `height: var(--spacing-control)`, `rounded` → `border-radius: var(--radius)`, `bg-danger/10` → `color-mix(in oklab, …)`, `compact:` variant) [V `scratchpad/spec/tw/`].
+Unchanged from wave 1: `color-scheme` per mode; macOS font smoothing; `body { user-select: none }` with the input and `.allow-select` exceptions; `::selection` at 35% accent; 8px scrollbars with a transparent track and the thumb tokens (radius 4); `.scrollbar-autohide` fading through `--sb-opacity`; xterm's 4px scrollbar; keyframes `toast-in`, `toast-out`, `sidebar-in`, `sidebar-out`, `indeterminate`, `cv-pop-in`, `cv-pop-out`; the selected-row re-scope:
 
 ```css
-@theme {
-  /* fonts */
-  --font-sans: var(--c-font-ui);
-  --font-mono: var(--c-font-mono);
-  --font-weight-medium: 600;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 600;
-
-  /* type (legacy sizes re-pointed + named ramp) */
-  --text-xs: var(--c-text-label);   --text-xs--line-height: var(--c-text-label-lh);
-  --text-sm: var(--c-text-body);    --text-sm--line-height: var(--c-text-body-lh);
-  --text-lg: var(--c-text-title);   --text-lg--line-height: var(--c-text-title-lh);
-  --text-display: var(--c-text-display); --text-display--line-height: var(--c-text-display-lh);
-  --text-title:   var(--c-text-title);   --text-title--line-height:   var(--c-text-title-lh);
-  --text-heading: var(--c-text-heading); --text-heading--line-height: var(--c-text-heading-lh);
-  --text-body:    var(--c-text-body);    --text-body--line-height:    var(--c-text-body-lh);
-  --text-label:   var(--c-text-label);   --text-label--line-height:   var(--c-text-label-lh);
-  --text-meta:    var(--c-text-meta);    --text-meta--line-height:    var(--c-text-meta-lh);
-  --text-badge:   var(--c-text-badge);   --text-badge--line-height:   var(--c-text-badge-lh);
-
-  /* radii */
-  --radius: var(--c-radius-sm);              /* bare `rounded` (≈430 uses) now follows tokens */
-  --radius-xs: var(--c-radius-xs);
-  --radius-sm: var(--c-radius-sm);
-  --radius-md: var(--c-radius-md);
-  --radius-lg: var(--c-radius-lg);
-  --radius-xl: var(--c-radius-xl);
-  --radius-full: var(--c-radius-full);
-  --radius-control: var(--c-radius-sm);
-  --radius-container: var(--c-radius-md);
-  --radius-overlay: var(--c-radius-lg);
-  --radius-card: var(--c-card-radius);
-
-  /* shadows */
-  --shadow-sm: var(--c-shadow-sm);
-  --shadow-md: var(--c-shadow-md);
-  --shadow-lg: var(--c-shadow-overlay);
-  --shadow-xl: var(--c-shadow-modal);        /* 43 dialogs used a literal shadow-xl */
-  --shadow-overlay: var(--c-shadow-overlay);
-  --shadow-modal: var(--c-shadow-modal);
-
-  /* sizes (h-*, w-*, size-*, min-h-* …) */
-  --spacing-control: var(--c-control-h);
-  --spacing-control-sm: var(--c-control-h-sm);
-  --spacing-control-lg: var(--c-control-h-lg);
-  --spacing-row: var(--c-row-h);
-  --spacing-row-2line: var(--c-row-h-2line);
-  --spacing-toolbar: var(--c-toolbar-btn);
-  --spacing-titlebar: var(--c-titlebar-h);
-  --spacing-banner: var(--c-banner-h);
-  --spacing-part-title: var(--c-part-title-h);
-  --spacing-section: var(--c-section-h);
-  --spacing-statusbar: var(--c-statusbar-h);
-  --spacing-tabstrip: var(--c-tabstrip-h);
-  --spacing-activitybar: var(--c-activitybar-w);
-
-  /* legacy colors (unchanged names) */
-  --color-conduit-50: var(--c-accent-50);   /* … through 950, as today (index.css:10-20) */
-  --color-canvas: var(--c-canvas);  --color-panel: var(--c-panel);  --color-raised: var(--c-raised);
-  --color-well: var(--c-well);      --color-ink: var(--c-ink);      --color-ink-secondary: var(--c-ink-secondary);
-  --color-ink-muted: var(--c-ink-muted); --color-ink-faint: var(--c-ink-faint);
-  --color-stroke: var(--c-stroke);  --color-stroke-dim: var(--c-stroke-dim);
-  --color-team: var(--c-team-bg);   --color-team-border: var(--c-team-border); --color-team-border-strong: var(--c-team-border-strong);
-
-  /* new semantic colors */
-  --color-ink-disabled: var(--c-ink-disabled);
-  --color-shell: var(--c-shell);       --color-sidebar: var(--c-sidebar);     --color-editor: var(--c-editor);
-  --color-tabstrip: var(--c-tabstrip); --color-overlay: var(--c-overlay);     --color-overlay-border: var(--c-overlay-border);
-  --color-card-border: var(--c-card-border); --color-divider: var(--c-divider); --color-control: var(--c-control-border);
-  --color-hover: var(--c-hover);       --color-selected: var(--c-selected);   --color-selected-inactive: var(--c-selected-inactive);
-  --color-toolbar-hover: var(--c-toolbar-hover); --color-toolbar-active: var(--c-toolbar-active);
-  --color-accent: var(--c-accent);     --color-link: var(--c-accent-text);    --color-link-hover: var(--c-accent-text-hover);
-  --color-focus: var(--c-focus);       --color-badge: var(--c-badge-bg);      --color-code: var(--c-code-bg);
-  --color-btn-primary: var(--c-btn-primary-bg); --color-btn-primary-hover: var(--c-btn-primary-hover);
-  --color-btn-danger: var(--c-btn-danger-bg);   --color-btn-danger-hover: var(--c-btn-danger-hover);
-  --color-input: var(--c-input-bg);    --color-input-border: var(--c-input-border);
-  --color-danger: var(--c-danger);     --color-danger-bg: var(--c-danger-bg);   --color-danger-border: var(--c-danger-border);
-  --color-warning: var(--c-warning);   --color-warning-bg: var(--c-warning-bg); --color-warning-border: var(--c-warning-border);
-  --color-success: var(--c-success);   --color-success-bg: var(--c-success-bg); --color-success-border: var(--c-success-border);
-  --color-info: var(--c-info);         --color-info-bg: var(--c-info-bg);       --color-info-border: var(--c-info-border);
-  --color-entry-ssh: var(--c-entry-ssh); --color-entry-rdp: var(--c-entry-rdp); --color-entry-vnc: var(--c-entry-vnc);
-  --color-entry-web: var(--c-entry-web); --color-entry-credential: var(--c-entry-credential);
-  --color-entry-document: var(--c-entry-document); --color-entry-command: var(--c-entry-command);
-  --color-entry-folder: var(--c-entry-folder);
-}
-```
-
-Legacy utilities after wave 1 (no JSX change needed):
-
-| Utility | Before | After |
-|---|---|---|
-| `rounded` (≈430) | literal `.25rem` | `var(--radius)` = 4px, tokenized |
-| `shadow-xl` (43) | literal Tailwind shadow | modal shadow |
-| `shadow-lg` (9) | `--c-shadow-lg` | overlay shadow |
-| `text-sm` (558) | 14px / 20px | 13px / 18px |
-| `text-xs` (446) | 12px / 16px | 12px / 16px (tokenized) |
-| `text-lg` (39) | 18px / 28px | 18px / 24px |
-| `font-medium` (≈45) | 500 | 600 |
-| `font-mono` (51) | Tailwind default stack | per-OS VS Code mono stack |
-| `text-conduit-400` in light mode | 2.1 to 3.3:1 | ≥ 5:1 (D-15) |
-| `text-ink-faint` | 2.2 to 3.3:1 | ≥ 4.5:1 |
-
-The `text-sm` change shrinks most text by 1px on day one of wave 1. That is intended (OD-6).
-
-`text-[10px]` (74) and `text-[11px]` (36) are migrated by wave-3 packages to `text-badge` / `text-meta`.
-
-### 2.11 Contrast table
-
-Minimum contrast of each text token against the shell, editor and overlay surfaces of its scheme and mode, after the changes above [V computed, WCAG relative luminance]. "Faint before" is today's value.
-
-| Scheme / mode | ink | ink-secondary | ink-muted | ink-faint before → after | accent text | white on primary button (rest / hover) | focus ring |
-|---|---|---|---|---|---|---|---|
-| modern dark | 13.78 | 8.77 | 5.95 | 2.16 → 4.80 | 5.47 | 4.79 / 4.60 | 4.71 |
-| modern light | 15.64 | 15.64 (equals ink) | 6.04 | 2.73 → 5.12 | 5.18 | 5.39 / 5.91 | 5.18 |
-| ocean dark | 12.14 | 8.96 | 5.19 | 2.79 → 4.54 | 6.21 | 5.93 / 7.56 | 4.80 |
-| ocean light | 17.06 | 9.90 | 4.75 (was 4.55) | 2.45 → 4.73 | 5.67 | 5.93 / 7.56 | 5.67 |
-| ember dark | 14.85 | 9.04 | 4.80 | 2.53 → 4.53 | 7.78 | 5.18 / 7.31 | 6.28 |
-| ember light | 18.18 | 12.20 | 5.94 | 2.97 → 4.71 | 5.02 | 5.18 / 7.31 | 5.02 |
-| forest dark | 13.00 | 8.35 | 4.55 (was 4.49 exact) | 2.57 → 4.55 | 7.97 | 5.48 / 7.68 | 6.04 |
-| forest light | 16.59 | 10.73 | 5.21 | 2.52 → 4.81 | 5.16 | 5.48 / 7.68 | 5.16 |
-| amethyst dark | 14.13 | 8.19 | 4.56 (was 4.32) | 2.52 → 4.60 | 6.27 | 5.70 / 7.10 | 6.27 |
-| amethyst light | 17.14 | 12.02 | 6.33 | 3.05 → 4.91 | 5.29 | 5.70 / 7.10 | 5.29 |
-| rose dark | 14.23 | 8.72 | 4.52 (was 4.46) | 2.57 → 4.56 | 6.37 | 4.70 / 6.29 | 4.67 |
-| rose light | 16.74 | 12.83 | 6.78 | 3.28 → 4.82 | 5.87 | 4.70 / 6.29 | 4.39 |
-| midnight dark | 15.06 | 9.16 | 5.09 | 2.76 → 4.54 | 9.97 | 5.36 / 7.27 | 7.42 |
-| midnight light | 16.79 | 11.22 | 5.44 | 2.62 → 4.80 | 5.08 | 5.36 / 7.27 | 5.08 |
-
-Rules the gates enforce (section 2.1 test). The resolver evaluates `color-mix()` exactly (floating point, no rounding between steps) and composites alpha on the surface named in the pair:
-
-1. `ink`, `ink-secondary`, `ink-muted`, `ink-faint`, `accent-text`, `danger`, `warning`, `success`, `info` ≥ 4.5:1 on `shell`, `editor`, `overlay`.
-2. Chrome text on its own surface ≥ 4.5:1: `tab-fg` on `tabstrip`; `tab-fg-active` on `tab-active-bg`; `tab-fg-hover` on `tab-hover-bg`; `titlebar-fg` and `statusbar-fg` on `shell`; `statusbar-hover-fg` on `statusbar-hover` and on `statusbar-active`; `cc-fg` on `cc-bg`.
-3. Tone text on its own tint ≥ 4.5:1: `danger` on `danger-bg`, `warning` on `warning-bg`, `success` on `success-bg` (Badge, 4.12). `info` on `info-bg` ≥ 3:1, because info text never sits on it (Callout and Banner put text in `ink`, only the icon in `info`).
-4. Text inside a selected row ≥ 4.5:1 on `selected` composited over `sidebar`: `ink` and `ink-secondary`; the same two on `selected-inactive` over `overlay` and `sidebar`. Inside a selected row `ink-muted`, `ink-faint` and link colors are re-scoped (rule below), so they are not gated there. Text on inner surfaces [wave 1 review]: `ink-muted` and `ink-faint` ≥ 4.5:1 on `well` over `shell`, `editor`, `overlay` and `sidebar` (cards, inputs, segmented controls); `ink-secondary` ≥ 4.5:1 and the `ink-muted` menu icons ≥ 3:1 on `menu-selection-bg` over `overlay`; `danger` ≥ 4.5:1 on `menu-danger-hover-bg` over `overlay`.
-5. White on `btn-primary-bg`, `btn-primary-hover`, `badge-bg`, `btn-danger-bg`, `btn-danger-hover` ≥ 4.5:1.
-6. Non-text ≥ 3:1 (WCAG 1.4.11): `focus` (also on `selected` and `selected-inactive` over `overlay` and `sidebar`, and on `selected` over `well`, where roving focus sits), `checkbox-border` (on `shell`, `editor`, `overlay` and on `checkbox-bg`), `state-*` and `entry-*` against the surfaces they sit on, `activity-fg-active` on the active pill, `info` on `info-bg`.
-7. `ink-disabled` is exempt (disabled controls), and no component may use it for enabled text.
-
-With the values in this section every gate passes in all 14 scheme and mode combinations [V computed, review pass]. The lowest results: `tab-fg` on `tabstrip` 4.53 (Ocean dark), `danger` on `danger-bg` 4.63 (Ocean dark), `tab-fg-hover` on `tab-hover-bg` 7.39, `statusbar-hover-fg` on `statusbar-active` 7.22, `ink-secondary` on `selected` 6.09, `checkbox-border` on `checkbox-bg` 3.03 (Modern light), `info` on `info-bg` 3.51 (Modern dark). Gates added in the wave 1 review, lowest: `ink-faint` on `well` 4.52 and `ink-muted` on `well` 4.54 (Ocean light), `focus` on `selected` over `well` 3.08 (Rose light) and over `overlay` 3.10 (Modern dark), `danger` on `menu-danger-hover-bg` 4.62 (Ocean dark).
-
-**Selected rows.** Faint text, muted text and links fail on a selected row in almost every scheme (`ink-faint` on `selected`: 3.34 to 3.67 in all 14 combinations; Modern light link `#0069CC` on `#D6D6D8`: 3.72) [V computed]. So a selected row re-scopes those tokens for everything inside it, instead of each component swapping classes:
-
-```css
-/* base.css. Tailwind utilities read the --color-* theme variables, which @theme declares on :root
-   and which resolve there, so the re-scope must redeclare them as well as the --c-* tokens. */
+/* Muted, faint and link text fail AA on a selected row, so the row re-scopes them. Tailwind utilities read
+   the --color-* theme variables, which resolve on :root, so both names are redeclared. */
 :where([role="option"][aria-selected="true"], [role="treeitem"][aria-selected="true"], [role="row"][aria-selected="true"],
        [role="gridcell"][aria-selected="true"], [data-selected]) {
   --c-ink-muted: var(--c-ink-secondary);   --color-ink-muted: var(--c-ink-secondary);
@@ -682,672 +498,608 @@ With the values in this section every gate passes in all 14 scheme and mode comb
 }
 ```
 
-[V] The repo's Tailwind 4.2.1 compiles `text-ink-muted` to `color: var(--color-ink-muted)` and emits `--color-ink-muted: var(--c-ink-muted)` on `:root`, so a descendant that only redeclares `--c-ink-muted` would still inherit the value resolved at the root [test-compiled, review pass]. `ListRow`, `TreeRow` and `NavList` rows set `aria-selected` or `data-selected`, and a checked `ChoiceCard` sets `data-selected` (its description is muted text on `selected-inactive`). The selector names row roles only: a selected tab (`.cv-tab`, `Tabs`) sits on its own surface, and re-scoping it would turn the active Home tab icon (`--c-accent-text`, 3.6) into `--c-ink`; a `ListRow` with `role="tab"` sets `data-selected` as well [wave 1 review]. Gate 4 also covers `ink` and `ink-secondary` on `selected-inactive` over `overlay` and `sidebar`. Status colors are not re-scoped: inside rows they are only used for icons, which pass 3:1 on `selected` (lowest 4.06).
+The tree (3.6) sets `data-selected` on its selected rows, so it gets the re-scope without a `treeitem` role (D-20).
 
-**Known limits** [V computed]. Hover backgrounds are transient and not gated. Card borders (`stroke` on `shell`, 1.13 to 1.75:1) are decorative. Input boundaries match VS Code and are faint: Modern dark `input-bg` `#191A1B` on the dialog overlay `#202122` is 1.08:1 and its border `#333536` is 1.31:1; Modern light's `#D8D8D866` border is 1.10:1. That is accepted because every input has a visible label. Checkboxes, radios and the Switch do not rely on it: their boundary is `checkbox-border` (3.26:1 or better).
+### 2.9 Tailwind v4 `@theme` mapping
 
-### 2.12 Reading tokens from JavaScript
+Wave 1's block, minus the removed entries: `--radius-card`, `--spacing-titlebar`, `--spacing-statusbar`, `--spacing-activitybar` and the `compact` custom variant go. Added: `--color-favorite: var(--c-favorite)`. Kept, among others:
 
-Unregistered custom properties are returned by `getComputedStyle` as their specified token stream, so a `color-mix()` token comes back as text, not a color. Every JS reader must use one helper (W1-TOKENS):
-
-```ts
-// src/lib/appearance/resolveCssColor.ts
-/** Resolves a CSS color token (any syntax) to "#rrggbb" via a probe element, alpha flattened on `over`. */
-export function resolveCssColor(token: `--c-${string}`, over?: `--c-${string}`): string;
+```css
+@theme {
+  --font-sans: var(--c-font-ui);  --font-mono: var(--c-font-mono);
+  --font-weight-medium: 600;  --font-weight-semibold: 600;  --font-weight-bold: 600;
+  --text-xs: var(--c-text-label);  --text-sm: var(--c-text-body);  --text-lg: var(--c-text-title);
+  /* text-display, text-title, text-heading, text-body, text-label, text-meta, text-badge with line heights */
+  --radius: var(--c-radius-sm);  /* and radius-xs … radius-full, radius-control, radius-container, radius-overlay */
+  --shadow-sm: var(--c-shadow-sm);  --shadow-md: var(--c-shadow-md);  --shadow-lg: var(--c-shadow-overlay);
+  --shadow-xl: var(--c-shadow-modal);  --shadow-overlay: var(--c-shadow-overlay);  --shadow-modal: var(--c-shadow-modal);
+  --spacing-control: var(--c-control-h);  --spacing-control-sm: var(--c-control-h-sm);  --spacing-control-lg: var(--c-control-h-lg);
+  --spacing-row: var(--c-row-h);  --spacing-row-2line: var(--c-row-h-2line);  --spacing-toolbar: var(--c-toolbar-btn);
+  --spacing-tabstrip: var(--c-tabstrip-h);  --spacing-banner: var(--c-banner-h);
+  --spacing-part-title: var(--c-part-title-h);  --spacing-section: var(--c-section-h);
+  /* legacy colors conduit-50 … 950, canvas, panel, raised, well, ink*, stroke*, team* (unchanged names) */
+  /* semantic colors: ink-disabled, shell, sidebar, editor, tabstrip, overlay, overlay-border, card-border, divider,
+     control, hover, selected, selected-inactive, toolbar-hover, toolbar-active, accent, link, link-hover, focus,
+     badge, code, btn-primary(-hover), btn-danger(-hover), input, input-border, danger(-bg,-border),
+     warning(-bg,-border), success(-bg,-border), info(-bg,-border), entry-*, favorite */
+}
 ```
 
-Implementation: a hidden `<span>` with `color: var(<token>)`, read `getComputedStyle(span).color`, parse `rgb()`, `rgba()` and `color(srgb r g b / a)` (the forms Chromium serializes), composite alpha over `over` (default `--c-shell`), return `#rrggbb`. Unit tests cover all three input forms. An undeclared or misspelled token (or one that is not a color) does not fail by itself in Chromium: `color` is invalid at computed-value time and inherits the parent's color. So the probe sits inside a parent with a sentinel color (`rgba(1, 2, 3, 0.5)`), and a result equal to the sentinel throws [V Electron 44 probe, wave 1 review].
+Legacy utilities keep wave 1's re-pointing: bare `rounded` is 4px, `shadow-xl` the modal shadow, `text-sm` 13/18, `text-xs` 12/16, `text-lg` 18/24, `font-medium` 600, `font-mono` the per-OS stack.
 
-Callers: `terminalTheme.ts` (replaces `cssVar` + `hexToRgba`, `terminalTheme.ts:6-21`, which break on non-hex tokens [V]); `utils/contextMenu.ts` (popup colors); the title bar color sync (`window_chrome_update`, sent only by `src/lib/window-chrome.ts`, 3.2 and 7.2).
+### 2.10 Contrast gates
+
+The tokens test enforces these for all 7 schemes × 2 modes, with exact `color-mix()` evaluation and alpha composited on the named surface (carried from wave 1, minus the gates of removed tokens):
+
+1. `ink`, `ink-secondary`, `ink-muted`, `ink-faint`, `accent-text`, `danger`, `warning`, `success`, `info` ≥ 4.5:1 on `shell`, `editor`, `overlay`.
+2. Tab text on its own surface ≥ 4.5:1: `tab-fg` on `tabstrip`; `tab-fg-active` on `tab-active-bg`; `tab-fg-hover` on `tab-hover-bg`.
+3. Tone text on its own tint ≥ 4.5:1: `danger` on `danger-bg`, `warning` on `warning-bg`, `success` on `success-bg`; `info` on `info-bg` ≥ 3:1.
+4. Text in selected rows ≥ 4.5:1: `ink` and `ink-secondary` on `selected` over `sidebar`, and on `selected-inactive` over `overlay` and `sidebar`. Text on inner surfaces: `ink-muted` and `ink-faint` ≥ 4.5:1 on `well` over `shell`, `editor`, `overlay` and `sidebar`; `ink-secondary` ≥ 4.5:1 and `ink-muted` icons ≥ 3:1 on `menu-selection-bg` over `overlay`; `danger` ≥ 4.5:1 on `menu-danger-hover-bg` over `overlay`.
+5. White on `btn-primary-bg`, `btn-primary-hover`, `badge-bg`, `btn-danger-bg`, `btn-danger-hover` ≥ 4.5:1.
+6. Non-text ≥ 3:1: `focus` (also on `selected` and `selected-inactive` over `overlay` and `sidebar`, and on `selected` over `well`); `checkbox-border` on `shell`, `editor`, `overlay` and `checkbox-bg`; `state-*` and `entry-*` on the surfaces they sit on; **`favorite` on `sidebar` and on `selected` over `sidebar`** (new); `info` on `info-bg`.
+7. `ink-disabled` is exempt and never used for enabled text.
+
+Lowest results today [V computed, carried]: `tab-fg` on `tabstrip` 4.53 (Ocean dark), `danger` on `danger-bg` 4.63 (Ocean dark), `ink-faint` on `well` 4.52 (Ocean light), `focus` on `selected` over `well` 3.08 (Rose light), `checkbox-border` on `checkbox-bg` 3.03 (Modern light), `favorite` on `selected` 3.39 (Modern light). Modern's sky accent (D-25) stays above these lows: its lowest accent-derived result is `focus` on `selected` over `well`, 3.80 in light mode (2.2.2).
+
+Known limits: hover fills are not gated; surface borders are decorative; input borders are faint as in VS Code (every input has a visible label).
+
+### 2.11 Reading tokens from JavaScript
+
+`src/lib/appearance/resolveCssColor.ts` (wave 1) resolves any token to `#rrggbb` through a probe element, composites alpha over a surface, and throws for an undeclared token. Callers: `terminalTheme.ts` and `src/utils/contextMenu.ts` (the popup menu colors, 7.1).
 
 ---
 
-## 3. Layout
+## 3. The existing layout, restyled
 
-All sizes are CSS px at `ui_scale` 1.0 unless marked DIP. "Comfortable" and "Compact" are the two densities (section 2.9).
+All sizes are CSS px at `ui_scale` 1.0. "Today" means the branch at `41d9657`, whose layout equals the pure original app at `270ae43` (1.4).
 
-### 3.1 Shell structure and screen gates
+### 3.1 The reference set
 
-New components live in `src/components/shell/`. The tree:
+`<scratchpad>/restyle/before/` holds the layout that must not change. The scratchpad is temporary, so R1-HARNESS first copies the folder to `$HOME/.conduit-verify/restyle-before/` and commits a manifest of its files with their SHA-256 (8.6.1); from then on that folder is the reference.
 
-```
-WindowFrame            data-cv-window, h-screen, flex-col, bg-shell, text-ink
-├─ TitleBar            35 DIP, counter-zoomed (3.2); variant "full" or "minimal"
-├─ BannerStack         0..n banners, 26px each (3.9)
-├─ Workbench           flex-1, flex-row, position:relative (3.3)
-│  ├─ LeftCard         ActivityBar (3.4) + docked SideBar (3.5), one card
-│  ├─ Sash             only when the side bar is docked and open
-│  ├─ EditorCard       flex-1; SplitContainer → Pane → PaneTabBar + PaneContent (3.6)
-│  ├─ Sash             only when the AI side bar is open
-│  ├─ AuxCard          AI chat (3.8)
-│  └─ FloatingSideBar  absolute, only when the side bar floats (3.5)
-├─ StatusBar           22 + gutter (3.10)
-└─ portals             dialogs, DOM popovers (section 4)
-```
+- 62 dark and 62 light PNGs of the pure original app (`advenimus/unlimited-mcp-free` at `270ae43`), window 1280 × 800 (content 1280 × 768), device pixel ratio 2, real OS window captures (`screencapture -l`), so the native title bar, native web views and popup menu windows are in the images. Look: platform theme "Default (Conduit Classic)", scheme Ocean, Tabler icons. Compare **layout**, not colors or glyphs.
+- Shots 44 to 49 (below), the states the first capture could not reach without sign-in (INVENTORY section 10), added by R1-HARNESS: captured the same way on the base branch with scheme Ocean and the Tabler pack, whose side bar, footer, banners and team bar equal `270ae43`'s in structure [V: `git diff 270ae43 41d9657` changes only the scrollbar fade in `Sidebar.tsx` and the freeze calls in `App.tsx`; `VaultContextBar.tsx`, `TeamInvitationBanner.tsx`, `SyncBanner.tsx` and `VaultSwitcherMenu.tsx` are unchanged].
+- `INVENTORY.txt`: every visible control per region, with titles and aria-labels, in reading order; `INVENTORY-raw.json`: the DOM dump (54 screens) it was built from.
+- Test data: vault "Acme Infrastructure" with folders Production (db-01 SSH, DC-01 RDP, web-01 SSH to `127.0.0.1:1`, so its tab shows the red disconnected dot; favorite) and Staging (Build Mac VNC, Intranet Status web on a local test page; favorite), root items Domain Admin (credential) and Runbook (document); a second empty vault "Scratch". Sessions: Terminal (local shell), Runbook, web-01, and Intranet Status split into a right pane.
 
-Every screen renders inside `WindowFrame`, because the native frame is gone (OD-2). The gates in `App.tsx` change like this:
-
-| Screen | Today | New | Title bar |
+| Shot | Screen | Shot | Screen |
 |---|---|---|---|
-| Auth loading | `App.tsx:962-971`, `h-screen`, text exactly `Loading...` | `h-full` inside `WindowFrame` | minimal |
-| Sign-in | `AuthScreen` (`AuthScreen.tsx:24` `min-h-screen`) | `min-h-full` | minimal |
-| Onboarding | `OnboardingWizard` (`OnboardingWizard.tsx:81`) | `h-full` | minimal |
-| Team auto-connect | `App.tsx:984-993` | `h-full` | minimal |
-| Vault hub | `App.tsx:995-1065` with its own offline banner (`998-1010`) | `h-full`, offline banner moves into `BannerStack` | minimal |
-| Main | `App.tsx:1067-1130` | `Workbench` + `StatusBar` | full |
+| 00 | Sign-in screen | 21 | Vault switcher menu |
+| 01 | Vault hub, no recent vaults | 22 | New Entry type picker |
+| 02 | Create vault dialog over the hub | 23 | New SSH entry form |
+| 03 | Empty vault welcome (dark: side bar closed; light: pinned) | 24-29 | Edit RDP entry: General, Credentials, Information, Display, Resources, Security |
+| 04 | Floating side bar over the welcome (dark) | 30 | New Folder dialog |
+| 05 | Two panes, side bar hidden | 31 | Quick Connect dialog |
+| 06 | Side bar floating (backdrop, web view frozen) | 32 | Delete confirm (32b light: the web page over the dialog, a bug wave 1 fixed) |
+| 07 | Side bar pinned and docked | 33 | Recently deleted panel |
+| 08 | Side bar header, 2× crop | 34 | Other copies panel |
+| 09 | Side bar footer, 2× crop | 35 | Review changes panel |
+| 10 | Both tab bars, side bar docked, 1.5× crop | 36 | Four toasts |
+| 10b | Both tab bars with hamburgers, 1.5× crop | 37 | Toasts, 1.5× crop |
+| 11 | `+` new-tab popup | 38 | Search "web" with the clear button |
+| 12 | `+` popup, 1.5× crop | 39 | Favorites-only filter |
+| 13 | Tab context menu | 40 | Home dashboard tab |
+| 14 | Tree entry context menu | 41 | Vault hub with a recent vault |
+| 15 | Tree folder context menu | 42 | Unlock vault dialog |
+| 16, 17 | Entry menu with the Open With and Auto-type submenus | 43 | Document tab (light) |
+| 18 | AI panel open | 20-nn | Settings, every tab (`-partN` scrolled) |
+| 19 | AI engine dropdown | 44 | Signed in: footer row 2 with the account email and Sign Out (R1-HARNESS) |
+| 45 | Sign Out pressed: Confirm and Cancel (R1-HARNESS) | 46 | Cached mode: the offline banner and the footer's `offline` badge (R1-HARNESS) |
+| 47 | A team vault open: the tinted header, `VaultContextBar`, the team section of the vault menu (R1-HARNESS) | 48, 49 | The "Try Pro free for 30 days" card; the Pro trial status strip (R1-HARNESS) |
 
-The minimal title bar adds **no text nodes**: the harness treats a page whose whole `innerText` is `Loading...` as the loading screen (`scripts/verify/lib/flows.mjs:34`). Its buttons carry `aria-label`, never visible text. On the loading screen the minimal bar renders only the drag region and the reserves.
+The restyle suite (8.6) reproduces these screens with the same data and names, so each after-shot has a before twin.
 
-Removed from the main layout: the 2px accent bar (`App.tsx:1070`) and its twin in the floating side bar (`SidebarPanel.tsx:50`), the offline banner (`App.tsx:1072-1083`, now a status bar item), the robot toggle in the tab strip (`App.tsx:1092-1106`, now in the title bar), the 4px AI divider (`App.tsx:1109-1113`, now a sash) and the `StartupStatus` strip (`App.tsx:1130`, now a status bar item).
+### 3.2 Layout invariants
 
-### 3.2 Title bar
+These hold after every package. The restyle suite checks the ones marked (checked).
 
-The title bar is a fixed **35 DIP** strip on every OS [V VS Code `Pne=35`, the height with the command center shown]. It is counter-zoomed so the main process never has to follow `ui_scale` (D-5):
-
-```css
-.cv-titlebar { height: 35px; zoom: calc(1 / var(--c-zoom)); }   /* VS Code: .titlebar-container.counter-zoom */
-```
-
-**Zoom factor.** The main window is created with `webPreferences: {zoomFactor: clamp(ui_scale, 0.75, 1.5), zoomMode: 'isolated'}` (7.1), so the first frame already has the right zoom and nothing races at `ready-to-show` [V Electron 44.4.5 `electron_api_web_contents.cc:1044-1066` applies both before the first navigation]. `boot-inline.js` sets `--c-zoom` before first paint from `window.electron.zoomFactor?.()`, a synchronous preload call (7.4), or `1` when it is missing [A: `webFrame.getZoomFactor()` already returns the creation zoom at that point; the next step corrects it if not]. `src/lib/window-chrome.ts` then confirms the value with `invoke('get-zoom-factor')` and follows the `zoom-factor-changed` event (`main.ts:853-858`). It exports `useZoomFactor()`, which the status bar's zoom item reads (3.10).
-
-**Layout** (a 3-column grid `grid-template-columns: 1fr auto 1fr`, so the center stays centered):
-
-| Slot | macOS | Windows | Linux |
-|---|---|---|---|
-| Leading reserve | 70px for the traffic lights [V `.mac .window-controls-container {width:70px}`]; 0 in full screen | `--c-wco-reserve-start`: 0, unless an RTL system locale mirrors the caption buttons to the left [V Electron `win_frame_view.cc:251-256` builds the overlay rect with `GetMirroredRect`] | `--c-wco-reserve-start`: the caption buttons the desktop puts on the left (GTK `gtk-decoration-layout`, for example elementary OS) [V Electron `electron_frame_view_layout_linux.cc:135-171` has leading and trailing button rects] |
-| Left group | none (the menu stays in the OS menu bar) | 35×35 slot with a 22×22 **menu button** (`menu` icon), [ADAPT] in place of VS Code's app icon | same as Windows |
-| Center | search pill | search pill | search pill |
-| Right group | layout controls | layout controls | layout controls |
-| Trailing reserve | 0 | `--c-wco-reserve-end`: the caption buttons, 138px until known [V 3 × 46] | `--c-wco-reserve-end` [A: depends on the GTK theme] |
-| Group padding | `padding-top: 2px` on all groups [V Modern UI mac tweak] | none | none |
-
-The leading reserve comes before the menu button, so caption buttons on the left never cover it. VS Code does the same on Linux [V `.linux .titlebar-left .window-controls-container.wco-enabled {width: env(titlebar-area-x, 0px)}` plus a matching right container].
-
-**Native window options** (W2-MAIN, section 7.1): macOS uses `titleBarStyle: 'hidden'` with the traffic lights at `{x: 11, y: 10}` on macOS 26 or later and `{x: 10, y: 9}` before. That is VS Code's formula `o = floor((35 − (tahoe ? 14 : 16)) / 2)`, `{x: o + 1, y: o}`, with "tahoe" meaning Darwin major ≥ 25 [V VS Code `main.js`: `setWindowButtonPosition({x:o+1,y:o})`, `ky(i){return parseFloat(i)>=25}`]. Windows and Linux use `titleBarStyle: 'hidden'` plus `titleBarOverlay {color, symbolColor, height: 34}`. 34 is 35 − 1, as in VS Code [V `height:e.height?e.height-1:void 0`].
-
-**Drag regions.** `.cv-titlebar { -webkit-app-region: drag; }`. Every interactive child gets `-webkit-app-region: no-drag`: the menu button, the pill, the layout controls and the fallback caption buttons. No text is selectable in the title bar. Double-click on the drag region is left to the OS [A: maximize or zoom per OS setting; Windows and Linux in section 8.7]. The title bar needs no top-edge resizer strip: on Windows and Linux Electron tests the resize border before any drag region [V Electron 44.4.5 `native_window.cc:747-766` calls `ResizingBorderHitTest` before the draggable-region providers; `win_frame_view.cc:79-133` keeps a top resize band for overlay windows]. VS Code adds its 4px `.resizer` only in its own HTML caption mode (`window.controlsStyle: custom`) [V]. Section 8.7 checks top-edge resizing.
-
-**Search pill (command center, D-6).** It is a `<button data-cv-command-center>`:
-
-| Property | Value | Source |
+| # | Invariant | Source today |
 |---|---|---|
-| Height | 22px | [V] `.command-center-center {height:22px}` |
-| Width | `min(calc(38vw * var(--c-zoom)), 600px)`, min 200px | [V] 38vw / max 600; [ADAPT] `× --c-zoom` undoes the counter-zoom so the pill stays 38% of the window |
-| Shape | radius 6, 1px `--c-cc-border`, bg `--c-cc-bg`, `margin: 0 6px` | [V] `cornerRadius.medium`, `margin:0 6px` |
-| Hover | bg `--c-cc-hover-bg`, border `--c-cc-hover-border` | [V] |
-| Content | 14px `search` icon at `opacity: .8` (margin `auto 3px`), then the active vault name in 12px `--c-cc-fg`, truncated | [V] `.search-icon {font-size:14px; opacity:.8; margin:auto 3px}`; 14 is a named exception in the icon size test (5.2); label = vault name like VS Code shows the workspace name |
-| Action | click, Enter or Space dispatches `conduit:focus-sidebar-search` (handled at `Sidebar.tsx:101-105`: expands and focuses search) | existing capability |
-| Name | `aria-label="Search entries in {vault} (Ctrl+P)"` (`⌘P` on macOS), `aria-keyshortcuts` | |
-| Harness rule | **no `title` attribute**: `team-flows.mjs:46` clicks `button[title]` whose text contains the vault name, and the title bar comes first in DOM order | |
+| L-1 | The native OS frame and title bar; window minimum 1024 × 700. Content bounds are smaller than window bounds (checked). | `electron/main.ts:703-722` [BEFORE 07] |
+| L-2 | The main layout starts with a 2px accent line, full width, under the title bar; the floating side bar has its own at its top. The hub and sign-in screens have none. | `App.tsx:1061`, `SidebarPanel.tsx:50` [BEFORE 07, 41] |
+| L-3 | Under the accent line, full width: the offline banner (cached auth), then `SyncBanners`. The hub has its own offline banner at the top. | `App.tsx:1062-1075`, `990-1002` |
+| L-4 | The main row, left to right: the docked side bar (when docked), the pane area (`SplitContainer`), a 4px AI divider and the AI panel (when open), which pushes the panes left. | `App.tsx:1076-1117` (checked) |
+| L-5 | Side bar modes: hidden, floating (fixed overlay from the window top with a dimmed backdrop and frozen web views), docked (pinned and room to spare, pushes the panes). Width default 250, min 200, max 500; resize handle on the right edge. | `sidebarStore.ts:5-8`, `SidebarPanel.tsx` [BEFORE 04, 06, 07] (checked) |
+| L-6 | Side bar, top to bottom: header row, team context bar, admin onboarding card, invitation banner, search, tree, trial promotion card, trial status strip, footer row 1, footer row 2. | `Sidebar.tsx:303-590` (checked) |
+| L-7 | Header row, left to right: close or hide, pin, vault switcher (name and chevron), then favorites, new entry, new folder at the right. | [BEFORE 08], INVENTORY 2a (checked) |
+| L-8 | Footer row 1: item count, then the personal sync, cloud backup and team sync indicators; Home and Settings at the right. Row 2: the local-mode sign-in link, or the account email with the offline badge and Sign Out. | [BEFORE 09], INVENTORY 2h, 2i (checked) |
+| L-9 | Each pane has a tab bar: the hamburger at the left while the side bar is not docked open (an invisible spacer while the floating side bar is open), the tabs, then `+` at the right end, then the AI toggle, only in the focused pane. | `PaneTabBar.tsx:332-446`, `App.tsx:1083-1096` [BEFORE 05, 10, 10b] (checked) |
+| L-10 | A tab shows its type icon, its title (ellipsis at 120px), its status dot with today's tooltip, and a close button that is always visible. Tabs shrink to fit their bar, the title giving way first; every tab and its close button stay inside the bar in today's layouts (checked, G10). Double-click renames; tabs drag to reorder and to other panes; right-click opens today's menu. | `PaneTabBar.tsx:357-430` [BEFORE 10, 18] |
+| L-11 | Pane splits are 4px separators in the layout flow; drop zones overlay a pane while a tab is dragged. | `LayoutRenderer.tsx:44-50`, `DropZoneOverlay.tsx` |
+| L-12 | The AI panel: header with the engine picker and the model chip at the left, `+` (new conversation) at the right; the engine dropdown opens under the picker; the body below. Width 400, 300 to 800. | `ChatPanel.tsx:223-284`, `App.tsx:95-99` [BEFORE 18, 19] (checked) |
+| L-13 | The StartupStatus strip, while a FreeRDP task shows, is the last row of the window, full width. | `App.tsx:1121` |
+| L-14 | Popup menus are separate windows at the pointer (the `+` popup anchored to the right edge of `+`), with today's items, order, headers, separators and submenus. | INVENTORY 4, 5 [BEFORE 11-17] (checked) |
+| L-15 | Every dialog and panel keeps its title, content order, controls, labels, placeholders, button order and width. | INVENTORY 7, 8 [BEFORE 20-35, 42] (checked) |
+| L-16 | Toasts appear bottom right in the overlay window (400 × 500, 16px inset), up to five stacked. | `overlay-manager.ts:33-35`, `OverlayApp.tsx:79` [BEFORE 36] |
+| L-17 | Screens: loading (text exactly `Loading...`), sign-in, onboarding, team auto-connect, vault hub, main. | `App.tsx:952-1057` |
+| L-18 | The native application menu is unchanged. | INVENTORY 1 (checked) |
+| L-19 | Keyboard shortcuts are unchanged; none is added. | `useKeyboardShortcuts.ts` |
+| L-20 | No element of the clone exists: `[data-cv-titlebar]`, `[data-cv-activitybar]`, `[data-cv-statusbar]`, `[data-cv-command-center]`, `[data-cv-card]`, `[data-cv-editor-card]`, `.cv-card`, `.cv-workbench` (checked). | 1.5 |
+| L-21 | Every dialog closes exactly as today: Escape, an outside click and a close button work where they work today and nowhere else (unit tests per dialog, 3.12.1). | D-26 |
+| L-22 | Banner actions are buttons with today's labels; the primary one stays filled. The offline banners keep their centered text and `Reconnect` button. | `SyncBanner.tsx:33-44`, `App.tsx:1062-1074` (D-27) |
+| L-23 | Always-visible information stays always visible: hub row badges, dashboard timestamps and type labels, tab close buttons and status dots. Only what is hover-only today (the hub row chevron) appears on hover. | `VaultHub.tsx:363-373`, `DashboardOverview.tsx:283-291` |
 
-Ctrl/Cmd+P is a renderer shortcut only (W2-WORKBENCH adds it to `useKeyboardShortcuts.ts:13-143`), so the key still reaches remote sessions, which mark themselves with `data-session-keyboard` (`useKeyboardShortcuts.ts:158-161`).
+### 3.3 Window frame and accent line
 
-**Layout controls** (right group; `gap: 4px; padding-right: 4px` [V]). Each is a 22×22 IconButton (4.3):
+- `BrowserWindow` options are unchanged except `backgroundColor` (7.2).
+- The app roots (`App.tsx` main, hub, loading and auto-connect screens) use `bg-editor text-ink` instead of `bg-canvas` (same color in Modern dark).
+- The accent line becomes `<div data-cv-accent-line className="h-[2px] shrink-0 bg-accent" />` in `App.tsx` (R2-SHELL) and in the floating side bar (`SidebarPanel.tsx:50`, R2-SIDEBAR). Modern: `#0EA5E9` in both modes (D-25).
 
-| Control | Icon when shown / hidden | Action | Hook |
-|---|---|---|---|
-| Toggle primary side bar | `panelLeft` / `panelLeftOff` | `onToggleSidebar()` (same as Ctrl/Cmd+B) | `data-cv-layout="sidebar"` |
-| Toggle AI side bar | `panelRight` / `panelRightOff` | `onToggleAi()` (same as Ctrl/Cmd+Alt+B) | `data-cv-layout="ai"` |
+### 3.4 Pane tab bars
 
-VS Code keeps these buttons flat and swaps the glyph: the filled pane while the part is visible, the outlined `-off` pane while it is hidden [V `LayoutControlMenu` item `icon: panel-left-off, toggled: {condition: sideBarVisible, icon: panel-left}`, and the same pair for the secondary side bar]. The IconButtons keep `aria-pressed` for screen readers but do not use the pressed background (`pressedLook={false}`, 4.3). `TitleBar` takes `sidebarOpen`, `onToggleSidebar`, `aiOpen` and `onToggleAi` as props, and W2-WORKBENCH wires them to `sidebarStore` and `auxBarStore`, so the title bar imports neither store.
+Today (`PaneTabBar.tsx:332-446`): a 36px `bg-panel` bar with a bottom border, a 44px hamburger column with a right border, tabs with right borders and an accent-tinted active tab in medium weight, 13 or 14px icons, an always-visible 12px close, an 8px dot, and 18px `+` and robot buttons [BEFORE 10, 10b]. Tabs shrink to fit the pane (`min-w-0` with the default shrink, `PaneTabBar.tsx:377`): in a split with the AI panel open, the left pane's three tabs keep their icon, dot and × while their titles shrink to one letter [BEFORE 18].
 
-Titles: `Toggle Primary Side Bar (Ctrl+B)` and `Toggle AI Chat (Ctrl+Alt+B)`, with ⌘ and ⌥ on macOS.
+Restyled: connected tabs inside the same bar (D-2), still shrinking to fit, with every close button visible (D-3).
 
-**Windows/Linux menu button (D-7).** Click calls `openAppMenu()` from `src/lib/window-chrome.ts`, which runs `invoke('window_chrome_app_menu', {x, y})` with the button's bottom-left corner in CSS px (`getBoundingClientRect()`). The main process pops up `Menu.getApplicationMenu()` at that point (section 7.3). `aria-label="Application menu"`, `aria-haspopup="menu"`, hook `data-cv-app-menu`.
-
-**Keyboard access to the menu (D-8(3)).** A frameless window has no menu bar, so Alt and F10 do nothing natively [V Electron `root_view.cc:96-97` returns when there is no menu bar]. On Windows and Linux in custom mode, `useKeyboardShortcuts` (W2-WORKBENCH) calls `openAppMenu()` on F10, and on Alt pressed and released with no other key in between (VS Code's `window.customMenuBarAltFocus`), unless focus is inside `[data-session-keyboard]`, so remote sessions keep both keys. The native popup supports arrow keys, Enter and mnemonics once open [V `electron_api_menu_views.cc`: `MenuRunner::CONTEXT_MENU | MenuRunner::HAS_MNEMONICS`]. The menu's own accelerators (Ctrl+O, Ctrl+S, F1 and the rest) keep working without a menu bar, because Electron registers them with the window's focus manager [V `root_view.cc:52-56`, `native_window_views.cc:2077-2078`].
-
-**Caption button fallback (D-8(1)).** On Windows and Linux in custom mode, `window-chrome.ts` computes
-
-```ts
-const showFallback = !state.isFullScreen &&
-  (state.overlayActive === false || navigator.windowControlsOverlay?.visible !== true);
+```
+y=0   ┌──────────────────────────────────────────────────────────────────────────────┐  strip: --c-tabstrip
+y=4   │ [≡]   ╭─────────────────────╮ ▣ Runbook ● [×]    ▣ web-01 ● [×]      [+] [AI] │
+      │       │ ▣ Terminal ●    [×] │                                                 │
+y=28  │       │                     │                                                 │
+y=33  └───────┘                     └─────────────────────────────────────────────────┘
+               active fill (--c-tab-active-bg = --c-editor) from y=4 down to y=33,
+               joins the session surface below; 5px top corners, 5px concave shoulders
 ```
 
-and re-evaluates it on `geometrychange`, the `window-chrome:state` event, window `focus` and `visibilitychange`, never on a timer. `overlayActive` comes from `window_chrome_get_state` and `window-chrome:state` (7.2, 7.4). The fallback is three 46×35 buttons: codicons `chrome-minimize`, `chrome-maximize` or `chrome-restore`, and `chrome-close` [V: all exist in `@iconify-json/codicon`], 16px in `--c-titlebar-fg`. They render inside the trailing reserve (the leading one when the rect puts the caption buttons on the left), so a wrong "show" stays hidden under native buttons that do paint. They call `invoke('window_chrome_control', {action})`. Hover bg `#FFFFFF1A` in dark and `#0000001A` in light; close hover bg `#E81123E6` with a white glyph [V VS Code `.window-controls-container>.window-icon:hover`, `.window-icon.window-close:hover`]. Hook: `data-cv-caption`. `localStorage["conduit:debug-caption-fallback"] = "1"` forces them for testing.
+**Parts:**
 
-**Reserves.** `src/lib/window-chrome.ts` computes both from the Window Controls Overlay API:
+| Part | Restyled | Keeps |
+|---|---|---|
+| Strip | `.cv-tabstrip`: 33px (`--c-tabstrip-h`), `--c-tabstrip`, no bottom border, `overflow: hidden`. The session below starts at y=33. | `data-tabbar` |
+| Hamburger slot | Rendered under today's rule (not while docked open; transparent spacer while the floating side bar is open), in the strip's first `.cv-tabstrip-slot`. A 44px slot (`w-11`), no border, holding a 22 × 22 box with the pack's `menu` glyph at 16px in `ink-muted`; hover: box `--c-toolbar-hover`, glyph `ink`. While it is a spacer, the box has `opacity-0` and no hover. Hooks: `data-cv-sidebar-toggle`, `aria-expanded` (true while the side bar is open). | Titles `Open sidebar (Ctrl+B)` / `Close sidebar (Ctrl+B)`; click behavior |
+| Tabs row | `.cv-tabs`: flex 1, 4px top padding, `overflow-x: auto`, `scrollbar-width: none`. Tabs shrink to fit as today; only when every tab is at its 78px floor does the row overflow. Then a vertical wheel with `deltaX === 0` scrolls it horizontally, and a tab that becomes active calls `scrollIntoView({block: "nearest", inline: "nearest"})`. [ADAPT] VS Code keeps tab widths and draws a 3px overlay scrollbar; Chromium's native one takes 8 to 11px of the strip's height, and any `scrollbar-width` other than `auto` disables `::-webkit-scrollbar` styling (lesson of `8f53108`). | Drag over and drop on the empty strip |
+| Tab | `.cv-tab` `data-cv-tab={sessionId}`: 24px tall, `flex: 0 1 auto` with `min-width: var(--c-tab-min-w)` (78px), `padding: 0 4px 0 8px`, gap 6px, 13px regular, no dividers, `cursor: pointer`. Icon, dot and close never shrink; the label is the only part that gives way. Active tab: `data-active`. | Handlers, draggable, context menu; today's shrink-to-fit |
+| Icon | 16px. Entry tabs: the entry icon in its entry color (custom icons per 5.11). Other types: `terminal`, `desktop`, `globe`, `fileText`, `playerPlay`, `infoCircle` at 16. The Home dashboard tab: `home` in `--c-accent-text`. | Choice of icon per type |
+| Title | `.cv-tab-label`: `flex: 0 1 auto`, `min-width: 0`, `max-width: 120px`, ellipsis. | Text |
+| Status dot | A `<span title="…">` (today's tooltip logic) holding `circleFilled` at size 12, which draws the 8px disc (5.4): `--c-state-connected`, `--c-state-connecting` (with `animate-pulse`, none under reduced motion) or `--c-state-error`. | Position after the title; every state (D-4) |
+| Close | `IconButton size="sm" tone="inherit"` (20 × 20, `close` at 16px, radius 4, hover fill `--c-toolbar-hover`), class `cv-tab-close`, `label="Close {title}"`. Visible on every tab (D-3): the glyph is `--c-tab-fg` at rest and `--c-tab-fg-active` on the active or hovered tab. | Always visible; click closes; `stopPropagation` |
+| Rename input | 20px tall, 13px, `bg-input`, 1px `--c-focus` border, radius 2, `max-width: 120px`, `px-1`, class `cv-tab-rename` (shrinks like the label). | Enter commits, Escape cancels, blur commits |
+| Drop marker | `data-drop-target` on the tab: a 2px `--c-accent` bar at its left edge (`::before`), no layout shift. | Same drop logic |
+| Dragged tab | `data-dragging`: opacity .5. | |
+| `+` | `IconButton md` (22 × 22, `plus` 16), `mx-1`, hook `data-cv-new-tab`, in the strip's last `.cv-tabstrip-slot`, followed by `rightSlot` in the same slot. | `title="New Local Shell"`; the popup (3.13) anchored to its right edge |
+| AI toggle | Rendered by `App.tsx` into `rightSlot` as `IconButton md` (`robot` 16), `pressed={showAiPanel}` (pressed look: `--c-toolbar-active` fill, `ink` glyph; today it is highlighted without `aria-pressed`, and 8.6 allows the added attribute), `mr-1`, hook `data-cv-ai-toggle`. | `title="Toggle AI Panel"`; only in the focused pane |
 
-```ts
-const r = navigator.windowControlsOverlay.getTitlebarAreaRect();   // CSS px
-const start = Math.ceil(r.x * zoom);                                // the title bar is counter-zoomed, so DIP
-const end = Math.ceil((window.innerWidth - r.x - r.width) * zoom);
-```
-
-Each value is clamped to 0..300 DIP. When the rect is empty or a value falls outside that range, the reserves fall back to `start 0` and `end 138`. They recompute on `geometrychange` and on zoom changes and set `--c-wco-reserve-start` and `--c-wco-reserve-end`. CSS `env(titlebar-area-*)` is not used, because those values are page CSS px and the counter-zoom would divide them by the zoom a second time.
-
-**Full screen.** The main process sends `window-chrome:state` `{isFullScreen, isMaximized, overlayActive}` on `enter-full-screen`, `leave-full-screen`, `maximize` and `unmaximize`, and when the overlay fails (section 7.4). `<html data-fullscreen>` sets the macOS leading reserve to 0. Windows and Linux keep the bar; the reserves follow `geometrychange`, and the fallback caption buttons hide in full screen.
-
-**Colors.** bg `--c-shell`, fg `--c-titlebar-fg`. Compact adds `border-bottom: 1px solid var(--c-divider)` inside the 35px. `useAppearance` dispatches `conduit:appearance-applied` `{scheme, mode, density, iconPack}` after it applies a change (6.2). `src/lib/window-chrome.ts` is the only sender of `window_chrome_update`: once at boot and on every `conduit:appearance-applied`, debounced by 50ms, it sends the resolved hex values (`resolveCssColor('--c-shell')`, `resolveCssColor('--c-titlebar-fg')`) and the density. A rejected invoke (no handler yet, before W2-MAIN) is caught and ignored. The main process then updates the overlay and `backgroundColor` (section 7.2).
-
-**Native mode (D-8(2)).** With `title_bar_style: 'native'` or env `CONDUIT_TITLE_BAR=native`, the window keeps the OS frame, as today. `TitleBar` then renders as a plain 35px in-app toolbar: no drag region, no reserves, no menu button (the OS menu bar is back on Windows and Linux), pill and layout controls kept. This is a defensive fallback, so function wins over looks. The Help menu item `Use Native Title Bar` (7.1) switches to it when the custom title bar itself does not work.
-
-### 3.3 Workbench and cards
-
-`Workbench` is a flex row:
+**`src/styles/components/tabs.css`** (R1-FOUNDATION writes it; R2-TABS may tune it):
 
 ```css
-.cv-workbench { display:flex; gap: var(--c-gap); padding: var(--c-gap) var(--c-outer); min-height:0; flex:1; position:relative; }
-.cv-card { background: var(--c-editor); border: var(--c-card-border-w) solid var(--c-card-border);
-           border-radius: var(--c-card-radius); overflow: hidden; min-width:0; }
+/* Pane tab bars (spec 3.4) */
+@layer components {
+  .cv-tabstrip { position: relative; display: flex; align-items: stretch; height: var(--c-tabstrip-h);
+                 min-width: 0; overflow: hidden; background: var(--c-tabstrip); }
+  .cv-tabstrip-slot { display: flex; flex: none; align-items: center; padding-bottom: 1px; }
+  .cv-tabs { display: flex; align-items: flex-start; flex: 1 1 auto; min-width: 0;
+             overflow-x: auto; overflow-y: hidden; padding-top: var(--c-tab-gutter-top); scrollbar-width: none; }
+  /* Tabs shrink to fit as today; the label gives way first and a tab keeps its icon, dot and close whole. */
+  .cv-tab { position: relative; flex: 0 1 auto; min-width: var(--c-tab-min-w); display: flex; align-items: center;
+            gap: 6px; box-sizing: border-box; height: var(--c-tab-h); padding: 0 4px 0 8px;
+            font: 400 13px/18px var(--c-font-ui); color: var(--c-tab-fg); cursor: pointer; user-select: none; }
+  .cv-tab > * { flex: none; }
+  .cv-tab > .cv-tab-label, .cv-tab > .cv-tab-rename { flex: 0 1 auto; min-width: 0; max-width: 120px; }
+  .cv-tab > :not(.cv-tab-fill) { position: relative; z-index: 1; }
+  .cv-tab-fill { position: absolute; inset: 0; border-radius: var(--c-radius-sm); pointer-events: none; }
+  .cv-tab:not([data-active]):hover { color: var(--c-tab-fg-hover); }
+  .cv-tab:not([data-active]):hover > .cv-tab-fill { background: var(--c-tab-hover-bg); }
+  .cv-tab[data-active] { color: var(--c-tab-fg-active); z-index: 1; }
+  /* The active fill runs from the tab top to the strip bottom: -(33 - 4 - 24) = -5px. */
+  .cv-tab[data-active] > .cv-tab-fill {
+    bottom: calc(var(--c-tab-gutter-top) + var(--c-tab-h) - var(--c-tabstrip-h));
+    background: var(--c-tab-active-bg);
+    border-radius: var(--c-tab-cap-radius) var(--c-tab-cap-radius) 0 0; }
+  .cv-tab[data-active] > .cv-tab-fill::before,
+  .cv-tab[data-active] > .cv-tab-fill::after { content: ""; position: absolute; bottom: 0;
+    width: var(--c-tab-cap-radius); height: var(--c-tab-cap-radius); clip-path: inset(0); pointer-events: none; }
+  .cv-tab[data-active] > .cv-tab-fill::before { right: 100%; border-bottom-right-radius: var(--c-tab-cap-radius);
+    box-shadow: 2.5px 2.5px 0 2.5px var(--c-tab-active-bg); }
+  .cv-tab[data-active] > .cv-tab-fill::after { left: 100%; border-bottom-left-radius: var(--c-tab-cap-radius);
+    box-shadow: -2.5px 2.5px 0 2.5px var(--c-tab-active-bg); }
+  .cv-tab:first-child[data-active] > .cv-tab-fill::before { content: none; }  /* [V] connected-tab-left-edge */
+  .cv-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Close buttons stay visible on every tab (D-3); IconButton tone="inherit" leaves the color to these rules. */
+  .cv-tab .cv-tab-close { color: var(--c-tab-fg); }
+  .cv-tab[data-active] .cv-tab-close, .cv-tab:hover .cv-tab-close { color: var(--c-tab-fg-active); }
+  .cv-tab[data-drop-target]::before { content: ""; position: absolute; left: -1px; top: 0; bottom: 0; width: 2px;
+    background: var(--c-accent); z-index: 2; }
+  .cv-tab[data-dragging] { opacity: .5; }
+}
 ```
 
-The top padding is the 4px gap under the title bar or banners. The bottom padding is the gap above the status bar. [A] VS Code applies these margins in JS; the Comfortable values match its 4px card margin and 4px outer margin [V `--modern-ui-floating-card-margin` 4, outer margin 4].
+Geometry check: the strip is 4 + 24 + 5 = 33px; the active fill covers y = 4 to 33, so tab and session read as one surface; the shoulders sit at the strip bottom beside the fill. The hamburger sits in the strip's first `.cv-tabstrip-slot`; `+` and the right slot (the AI toggle) share its last one. The slots' 1px bottom padding centers a 22px button on the tab label line (y = 16). The floor is 8 + 16 + 6 + 0 + 6 + 12 + 6 + 20 + 4 = 78px (padding, icon, gap, label, gap, dot, gap, close, padding); at shot 18's layout (a split plus the AI panel; the left pane is about 312px wide [V measured on BEFORE 18], 282px after its `+` slot) three tabs fit at about 94px each, their titles showing a letter or two, as today.
 
-| Card | Background | Width | Comfortable | Compact |
-|---|---|---|---|---|
-| LeftCard (activity bar + docked side bar) | `--c-sidebar` | 44 or 40 + side bar width | radius 8, 1px border | radius 0, no border, `border-right: 1px solid var(--c-divider)` on the activity bar; a docked side bar is followed by the 4px sash, which paints its divider |
-| EditorCard | `--c-editor` | flex | radius 8, 1px border | none |
-| AuxCard (AI) | `--c-sidebar` | 300 to 800 | radius 8, 1px border | none; the 4px sash before it paints the divider |
+**States:**
 
-Hooks [wave 1 review]: every card is a `.cv-card`. The LeftCard carries `data-cv-card="left"` and the AuxCard `data-cv-card="aux"`, which `cards.css` paints `--c-sidebar` (`.cv-card[data-cv-card="left"], .cv-card[data-cv-card="aux"]`); the EditorCard keeps the `.cv-card` default `--c-editor` and carries `data-cv-editor-card`, which Popover `freeze="auto"` (4.9) and the web view corner radius rule (3.7, D-17) look for. `Workbench.tsx` (W2-WORKBENCH) sets `data-cv-card` on the side cards; W2-TABS's `EditorCard` sets `data-cv-editor-card`.
+| State | Look |
+|---|---|
+| Inactive | Strip color, `--c-tab-fg` text, close glyph `--c-tab-fg` |
+| Hover (inactive) | 24px fill `--c-tab-hover-bg`, radius 4, `--c-tab-fg-hover` text, close glyph `--c-tab-fg-active` |
+| Active | Connected fill `--c-tab-active-bg`, `--c-tab-fg-active` text and close glyph, regular weight (today medium) |
+| Pane not focused | Same colors [V: Modern UI keeps the unfocused active tab identical]; the AI toggle shows only in the focused pane, as today |
+| Connecting / reconnecting | Amber dot pulsing; tooltip `Reconnecting...` or the status |
+| Disconnected | Red dot; tooltip = the error text, e.g. `connect ECONNREFUSED 127.0.0.1:1` [BEFORE 10] |
+| Renaming | Input replaces the title (above) |
+| Dragging / drop target | Opacity .5 / 2px accent bar |
+| Many tabs | Each shrinks toward its 78px floor; past that the row scrolls with the wheel and keeps the active tab in view |
 
-The activity bar and a docked side bar share **one card** [V VS Code: "Joined into one card: side bar loses its left radii when activity bar is present"]. There is no divider between them in Comfortable, because both are `--c-sidebar`.
+**Tab context menu** (native popup, 3.13): items, order and ids unchanged. Icons are passed as semantic names: Rename `pencil`, Reconnect `refresh`, View Info `infoCircle` (today `home`), Send Ctrl+Alt+Delete `keyboard`, Copy Username `user`, Copy Password `key`, Split Right `splitHorizontal`, Split Down `splitVertical` (today both pass `split`, which the menu window has no icon for), Close Session `close` (danger). The `+` popup keeps its items; icons `plug` (Quick Connect), `home`, `terminal`, `folder`.
 
-[ADAPT] VS Code's Compact keeps a 4px outer margin and rounds the outermost corners. OD-3 asks Compact for "no gaps, no radii", so Conduit's Compact is flush to the window edges.
+### 3.5 Splits, drop zones and panes
 
-**Sashes** (resize handles between cards). Every sash is an element in the layout flow, 4px wide (4px tall when horizontal), never an overlay on a neighbour: a native web view paints over any HTML that overlaps it, so an overlapping hit area could not be grabbed next to a web session. In Comfortable the sash is the 4px gap between two cards. In Compact it is a 4px element that paints the left neighbour's background, the 1px divider at its center and the right neighbour's background (for the side bar sash: `background: linear-gradient(to right, var(--c-sidebar) 0 1.5px, var(--c-divider) 1.5px 2.5px, var(--c-editor) 2.5px)`), so it reads as a plain 1px divider; it takes 3px from its neighbours. The floating side bar's own sash may overlap the editor card, because the floating side bar holds a freeze (native views are hidden while it is open).
+- **Split separators** (`LayoutRenderer.tsx:44-50`): the `Separator` stays 4px in the layout flow (`w-1` or `h-1`), class `cv-split-sash` with `data-orientation`. It paints a centered 1px `--c-editor-group-border` line on `--c-editor`; after 300ms of hover, or at once while dragging, the whole 4px turns `--c-accent` (fade 100ms). Cursor `col-resize` / `row-resize` on macOS, `ew-resize` / `ns-resize` elsewhere.
+- **Drop zones** (`DropZoneOverlay.tsx`): the overlay keeps `absolute inset-0 z-40` (2.6). The zone keeps today's geometry (`zoneStyles`) and becomes `bg-(--c-drop-bg) outline outline-1 -outline-offset-1 outline-accent rounded`.
+- **Pane content** (`Pane.tsx`): every pane's content container gets `data-cv-session-area` (D-21) and keeps `data-content-area` on the focused one.
+- **Empty extra pane** (`PaneContent.tsx:164-170`): `bg-editor`, text `text-body text-ink-muted`, same text.
+- **Empty vault welcome** (`PaneContent.tsx:185-205`) [BEFORE 03]: `bg-editor`; title `text-title text-ink`; body `text-body text-ink-muted`; `Button variant="primary"` "New Entry" and `Button variant="secondary"` "Quick Connect", same order and texts.
+- **Loading states in panes**: the border spinners become `Spinner` (16 or 24) with their texts unchanged.
+- Sessions render as today (`display` toggling per session, `PaneContent.tsx:144-156`).
 
-- **Highlight.** The whole 4px turns `--c-accent` after `--c-sash-delay` (300ms) of hover, or at once while dragging, fading in over `--c-motion-fast`, with `border-radius: 2px` [V VS Code sash `background-color .1s ease-out`; `.modern-ui .monaco-sash:before {border-radius: calc(var(--vscode-sash-hover-size) / 2)}`].
-- **Grip** (Comfortable only). A sash between two cards shows three 2px dots in `--c-sash-grip` at its center: an `::after` of 2×2px, `border-radius: 50%`, with `box-shadow: 0 -5px currentColor, 0 5px currentColor` (vertical sash) or `-5px 0 currentColor, 5px 0 currentColor` (horizontal). The dots fade out over 100ms on hover and while dragging [V `.modern-ui .monaco-sash:not(.disabled):after {…}`, `.modern-ui .monaco-sash.hover:not(.disabled):after {opacity:0}`, `.modern-ui.modern-ui-compact .monaco-sash:not(.disabled):after {content:none}`]. Sashes inside a card, such as the editor split lines (3.6), have no grip [V `.modern-ui .part .monaco-sash:after {content:none}`].
-- **Cursor.** macOS `col-resize` / `row-resize`; Windows and Linux `ew-resize` / `ns-resize`. The side bar sash shows `e-resize` at the minimum width and `w-resize` at the maximum [V `.monaco-sash.mac.vertical {cursor:col-resize}`, `.monaco-sash.vertical {cursor:ew-resize}`, `.monaco-sash.vertical.minimum {cursor:e-resize}`].
+### 3.6 Side bar
 
-The side bar sash replaces `SidebarPanel.tsx:52-63`; the AI sash replaces `App.tsx:1109-1113`. Both live in `src/styles/components/sash.css`.
+**Panel** (`SidebarPanel.tsx`): `bg-sidebar border-r border-divider` in both modes (today `bg-canvas border-stroke`). Floating: `shadow-overlay` as a class (today an inline `boxShadow`), backdrop `bg-(--c-scrim-sidebar)` fading to transparent while closing (today `bg-black/20` to `bg-black/0`), `sidebar-in` / `sidebar-out` animations unchanged. Position, z-index, width, the element order and `data-sidebar-panel` / `data-docked` unchanged. The floating panel's own 2px accent line (`SidebarPanel.tsx:50`) takes `data-cv-accent-line` (3.3).
 
-**Space budget** at the minimum window, 1024×700 DIP [V `main.ts:707-708`: the minimum applies to the whole window, frame included], single pane, side bar floating and closed, AI closed. Today the OS title bar (and on Windows the menu bar) sits outside the web content; after the redesign the whole window is content:
+**Resize handle**: hit areas unchanged (8px wide at `right: 0` docked, 12px at `right: -6px` floating). The visible line becomes 4px of `--c-accent` at the side bar's edge (today 3px at 50% or 70% accent), shown after 300ms of hover (today 600ms) and at once while resizing, fading over 100ms.
 
-| Case | Session area after (DIP) | Today, macOS | Today, Windows | Change macOS / Windows |
-|---|---|---|---|---|
-| Comfortable, zoom 1.0 | 966 × 594 (width 1024 − 4 − 44 − 4 − 4 − 2 border; height 700 − 35 − 4 − 4 − 28 − 2 − 33) | 1024 × 634 (700 − 28 title bar [A: 32 on macOS 26] − 2 accent bar − 36 tab bar) | about 1024 × 611 (700 − 31 title bar − 20 menu bar [A] − 38) | width −5.7%; height −6.3% / −2.8% |
-| Compact, zoom 1.0 | 984 × 610 (1024 − 40; 700 − 35 − 26 − 29) | 1024 × 634 | about 1024 × 611 | width −3.9%; height −3.8% / −0.2% |
-| Comfortable, zoom 1.5 | 937 × 559 (viewport 683 × 467 CSS px; title bar 23.3 CSS px because it is counter-zoomed) | 1024 × 615 (672 − 57) | about 1024 × 592 (649 − 57) | width −8.5%; height −9.1% / −5.6% |
+**Header row** (`Sidebar.tsx:303-358`) [BEFORE 08], hook `data-cv-sidebar-header`:
 
-`MIN_CONTENT_WIDTH` (480, `sidebarStore.ts:8`) stays, but `spareWidth()` (`sidebarStore.ts:40-42`) must subtract the new chrome: `viewportWidth − chromeWidth − expandedWidth − rightPanelWidth − 480`. `chromeWidth = 2 × outer + activityBarWidth + gap` = 56 in Comfortable and 44 in Compact (2 × 0 + 40 + the 4px in-flow sash that follows a docked side bar and paints its divider). The store derives `chromeWidth` itself: it listens for `conduit:appearance-applied` (6.2) and sets `chromeWidth` from `metrics.ts` for the new density in the same task, so a density switch causes one layout pass (3.7). `Workbench` does not set it from an effect. `rightPanelWidth` becomes AI width + gap (4 in Comfortable, the 4px sash in Compact).
+| Element | Restyled | Keeps |
+|---|---|---|
+| Row | `flex h-tabstrip shrink-0 items-center gap-0.5 px-1` (33px, D-5; today `p-3`, 52px). Team vaults keep `border-l-2 border-l-team-border-strong bg-team`. | Order |
+| Close / hide | `IconButton md` with the `close` glyph (today a hand-drawn 14px X), `label` and `title` exactly as today (`Hide sidebar` + `Hide sidebar (Ctrl+B)` docked, `Close sidebar` + `Close sidebar (Ctrl+B)` floating). | `SidebarWindowControls.tsx` logic |
+| Pin | `IconButton md`, `pin` / `pinFilled` at 16 (today 14), `pressed={isPinned}` (pressed look replaces the accent text); `opacity-60` stays while pinned but too narrow to dock. | `aria-pressed`, `aria-label`, the three titles |
+| Vault switcher | The wrapper becomes `relative min-w-0 flex-1`, so a long name truncates before the buttons (fixes the overlap in INVENTORY 11). The button: `-ml-1 flex h-6 max-w-full min-w-0 items-center gap-0.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover` (13px in `ink`, the most prominent text in the header, as today's 13px name; 4px of room for the inset focus ring, lesson of `4780b8c`), name `truncate`, `chevronDown` 16 `text-ink-muted`. At the default 250px, `Acme Infrastructure` shows at least 12 characters before the ellipsis (macOS). Hook `data-cv-vault-switcher`. | `title` (path, network or "Open a vault"), menu toggle |
+| Right group | `flex shrink-0 items-center gap-0.5`: favorites `IconButton md` (`star`, or `starFilled` in `text-favorite` when on), new entry (`plus`), new folder (`folderPlus`). A read-only team vault disables the two create buttons (`disabled`, `disabledReason="View-only access"`). | Titles `Show favorites only` / `Show all entries`, `New Entry (Ctrl+E)`, `New Folder (Ctrl+Shift+N)` |
 
-### 3.4 Activity bar
+**Vault switcher menu** (`VaultSwitcherMenu.tsx`) [BEFORE 21]: the container keeps its place and size (`absolute top-full left-0 mt-1 w-[280px]`, `data-context-menu`) and takes the DOM menu look: `rounded-lg border border-overlay-border bg-overlay shadow-overlay py-1`. Section headers (`Personal Vaults`, team sections): `h-6 px-3 text-meta font-semibold text-ink-muted`, no uppercase. Rows: `MenuItem` look (24px, `mx-1 px-2`, radius 6, 13px `ink-secondary`, hover and keyboard `--c-menu-selection-bg` with a 1px `--c-menu-selection-border` outline); the current vault's mark is `check` 16 in `ink-secondary` (today accent); leading icons 16 in `ink-muted`. Separators `h-px my-[5px] bg-divider`. Every row stays a `<button>` with today's text (`Lock Current Vault` is clicked by the harness, B43). The recent-vault right-click menu (a popup) is unchanged.
 
-`src/components/shell/activitybar/ActivityBar.tsx` is a vertical `role="toolbar"` (`aria-orientation="vertical"`, `aria-label="Activity bar"`) of 36×36 buttons with roving `tabIndex` and Up, Down, Home and End keys. The top group comes first; the bottom group sits under `margin-top: auto`.
+**Team context bar** (`VaultContextBar.tsx`): `flex h-section items-center justify-between px-2` with today's team border and tint; the sync dot becomes `circleFilled` 12 in the state color (tooltip kept); "Team" `text-meta text-ink-muted`; the settings button `IconButton sm` `settings`, `label="Vault settings"`.
 
-| Metric | Comfortable | Compact | Source |
-|---|---|---|---|
-| Card width | 44 | 40 | [V] 36 + lane 8 or 4 |
-| Horizontal padding | 4 each side | 2 each side | lane / 2 |
-| Top and bottom padding | 4 | 4 | [A] |
-| Item box | 36 × 36 | 36 × 36 | [V] `FLOATING_ACTION_HEIGHT=36` |
-| Gap between items | 8 | 4 | [V] |
-| Icon | 24 | 24 | [V] |
-| Active and hover pill | 32 × 32, inset 2px, radius 4 | same | [V] `calc(action-height - 4px)`, `cornerRadius.small` |
-| Colors | icon `--c-activity-fg`; hover pill `--c-activity-hover-bg` + icon `--c-activity-fg-hover`; active pill `--c-activity-active-bg` + icon `--c-activity-fg-active` | same | [V] `.modern-ui .activitybar … .action-item.checked .action-label {color: var(--vscode-modernActivityBarItem-activeForeground)}` and the `:hover` rule with `modernActivityBarItem-hoverForeground` |
-| Focus | 1px `--c-focus` outline, offset −2px, on the pill | same | [A] |
+**Admin onboarding card** (`Sidebar.tsx:363-392`): `Callout tone="info" size="sm"` with `icon="users"`, title `Create your first team vault`, body text unchanged, `actions` = `Button size="sm" variant="primary"` "Create Team Vault", `onDismiss` (label `Dismiss`). Margin `mx-2 mt-2`.
 
-Items (D-9):
+**Invitation banner** (`TeamInvitationBanner.tsx`): per invite a row `flex items-center gap-2 px-2 py-1.5 bg-warning-bg border-b border-warning-border`, `users` 16 `text-warning`, text `text-label text-ink` (team name `font-semibold`), `IconButton sm` `check` (`label="Accept"`) and `close` (`label="Decline"`).
 
-| Position | Id and hook | Icon | Pressed when | Click | Title (native tooltip) |
+**Search** (`Sidebar.tsx:397-432`) [BEFORE 38]: container `px-2 pb-2` (hook `data-cv-sidebar-search`); the field becomes the `SearchInput` look: 26px, radius 4, `border-input-border bg-input`, `focus-within` ring, leading `search` 16 `text-ink-muted`, inner `<input data-bare>` 13px with `placeholder:text-(--c-input-placeholder)`, clear `IconButton sm` `close` `label="Clear search"` while text is typed. Escape clears, as today.
+
+**Tree container**: `px-1` (the 4px list inset), `scrollbar-autohide` and its fade unchanged.
+
+**Tree rows** (`EntryTree.tsx:895-1011`) [BEFORE 07, 38, 39] follow the `TreeRow` recipe (4.14) without its ARIA role (D-20):
+
+| Part | Restyled (today) |
+|---|---|
+| Row | `flex h-row items-center gap-1.5 rounded pr-2 text-body whitespace-nowrap cursor-pointer`, `padding-left: calc(4px + depth * 8px)` (today 28px rows, `depth * 16 + 8`) |
+| Twistie | The existing `<button>` becomes a 16 × 16 box (`size-4`) with `chevronRight` / `chevronDown` at 16 (today 12) in `ink-muted`; leaves keep a 16px spacer (`size-4`) so icons line up |
+| Icon | Entry icon 16 in its entry color (unchanged) |
+| Label | `text-ink-secondary`; inline markers after it: conflict dot, `lock` 12 `text-ink-faint` (locked), `lock` 12 `text-warning` (view-only folder), `starFilled` 12 `text-favorite` (today 10px icons) |
+| Hover | `bg-hover` |
+| Selected | `bg-selected text-ink` plus `data-selected` (today `bg-conduit-600/20 text-conduit-400`) |
+| Drop target | `bg-(--c-drop-bg) outline outline-1 -outline-offset-1 outline-accent` (today a ring) |
+| Locked | `opacity-60` (unchanged) |
+| Rename input | 20px, 13px, `bg-input`, 1px `--c-focus` border, radius 2, `px-1`, `flex-1` |
+| Multi-drag badge | Inline style background `var(--c-btn-primary-bg)` instead of `#6366f1`, radius 4, 12px |
+| Indent guides | For each ancestor level k, a 1px `--c-indent-guide` line at `left: calc(12px + k * 8px)` over the row height, `opacity: 0`, fading to 1 over 100ms while the tree container is hovered or has focus within [V VS Code `renderIndentGuides: onHover`] |
+| Flat-mode group label | `h-row px-2 pt-2 text-meta font-semibold text-ink-muted truncate`, no uppercase and no letter spacing; `title` kept |
+| Empty states | Team vault: `users` 32 `text-ink-faint`, title `text-body text-ink-muted`, hint `text-label text-ink-faint`; others `text-body text-ink-faint`, centered; texts unchanged |
+| Root drop zone | `h-6 mx-1 mt-1 rounded`; while dragging over: `bg-(--c-drop-bg) border border-dashed border-accent` |
+
+**Trial promotion** (`Sidebar.tsx:467-490`): `Callout tone="info" size="sm"` with `icon="sparkles"`, title `Try Pro free for 30 days`, action `Button size="sm" variant="primary"` with today's label, `onDismiss`. Margin `mx-2 mb-2`.
+
+**Trial status strip** (`Sidebar.tsx:491-512`): `mx-2 mb-2 flex h-7 items-center gap-2 rounded-md border px-2 text-label font-semibold`, tones: urgent `bg-danger-bg border-danger-border text-danger`, moderate `bg-warning-bg border-warning-border text-warning`, otherwise `bg-info-bg border-info-border text-ink`; `clock` 16 in the tone color; text unchanged.
+
+**Footer** (`Sidebar.tsx:513-590`) [BEFORE 09, 39], hook `data-cv-sidebar-footer`, `border-t border-divider`:
+
+| Element | Restyled | Keeps |
+|---|---|---|
+| Row 1 | `flex h-8 items-center justify-between gap-1 px-2` (today 40px) | Order |
+| Count | `text-meta text-ink-faint tabular-nums` | Text (`9 items`, `2 favorites`) |
+| Personal sync | `IconButton`-sized (22px) button, icon 16 (today 14) in the tone color: ok `text-success`, busy `text-accent` (spinning), warn `text-warning`, error `text-danger`, off `text-ink-faint`; hover `--c-toolbar-hover` | `title`, `aria-label="Sync: {label}"`, click opens Settings > Sync |
+| `N to review` | `h-5 rounded px-1.5 text-badge font-semibold text-warning bg-warning-bg hover:underline`; hook `data-cv-review-button` | Text, `title="Review changes from your other devices"` (B13) |
+| Cloud backup, team sync | 22px boxes, icons 16: green → `text-success`, blue → `text-info`, amber → `text-warning`, red → `text-danger`, faint → `text-ink-faint`; pulses unchanged | Titles |
+| Home, Settings | `IconButton md` `home` (`label="Home"`), `settings` (`label="Settings"`, `title="Settings (Ctrl+,)"`) | Actions |
+| Row 2, signed in | `flex h-8 items-center justify-between gap-2 px-2 border-t border-divider`; email `text-label text-ink-muted truncate hover:text-ink hover:underline`; offline `Badge tone="warning"` `offline`; `IconButton md` `logout` `tone="danger"` `label="Sign Out"`; confirming: `Button size="sm" variant="danger"` "Confirm" and `Button size="sm" variant="ghost"` "Cancel" | Texts, `title="Account Settings"`, the two-step sign-out |
+| Row 2, local mode | `px-2 py-1.5 border-t border-divider`, `Button variant="link" size="sm"` with `icon="login"` | Text `Sign in to start a free Pro trial` |
+
+### 3.7 AI panel
+
+- **Divider** (`App.tsx:1100-1104`): stays a 4px element in the flow, class `cv-sash cv-sash-ai`, hook `data-cv-ai-divider`: it paints `linear-gradient(to right, var(--c-editor) 0 1.5px, var(--c-divider) 1.5px 2.5px, var(--c-sidebar) 2.5px)`, a 1px line between the panes and the panel (today a 4px `bg-stroke` bar). Hover after 300ms or dragging: 4px `--c-accent`. Resize logic, limits and `display` toggling unchanged.
+- **Panel** (`App.tsx:1105-1114`): hook `data-cv-ai-panel`; width, `contain: strict` and `display` unchanged.
+- **ChatPanel root** (`ChatPanel.tsx:223`): `bg-sidebar` (today `bg-canvas`).
+- **Header** (`ChatPanel.tsx:225-284`) [BEFORE 18]:
+
+| Element | Restyled | Keeps |
+|---|---|---|
+| Row | `flex h-tabstrip shrink-0 items-center justify-between gap-1 px-2` (33px, D-5), hook `data-cv-ai-header`, no bottom border (the terminal below is `--c-editor`, which separates it) | Order |
+| Engine picker | `flex h-6 items-center gap-1.5 rounded px-1.5 text-label font-semibold text-ink-secondary hover:bg-hover hover:text-ink` (today a bordered well), `EngineLogo` 16, engine name, `chevronDown` 16 `text-ink-muted` | `title="Switch engine for this session"`, behavior |
+| Engine dropdown | Container keeps its place (`absolute top-full left-0 mt-1`, `min-w-[200px] max-h-72 overflow-y-auto`) with the DOM menu look (3.6 vault menu); rows `MenuItem` look with `EngineLogo` 16 and the name; the active engine keeps its `●` after the name, as visible text in `text-link` (`--c-accent-text`) [BEFORE 19] | Items, order, in-memory switch, the `●` (the inventory reads `Claude Code ●`) |
+| Model chip | `Button size="sm" variant="secondary"` look, `max-w-[160px] truncate` | `title`, click refetches models |
+| New conversation | `IconButton md` `plus` `label="New conversation"` | Action |
+
+- The body below the header (messages, the model picker of 3.16, terminal mode) is R3-AI's.
+
+### 3.8 Banners
+
+- **Sync banners** (`SyncBanner.tsx`, used by `SyncBanners`, `PromptBanner`, `SideFilesPausedBanner`): rendered through the `Banner` primitive (4.13): `min-height: 26px`, 12px text on a 16px line, icon 16 in a `pl-2.5 pr-1.5` slot, the divider drawn inside the row (`box-shadow: inset 0 -1px 0 var(--c-divider)`, so the row stays 26px, lesson of `ca9659c`). Actions stay buttons (D-27): `Button size="sm"` (22px) with `ml-2`, `variant="primary"` where the action is primary (today a filled `bg-conduit-600` button, `SyncBanner.tsx:39-41`) and `secondary` otherwise, so `Use here instead` and `Review` stay prominent. Tones: `info` and `lock` on `bg-selected` (icons `text-info`, `text-ink-muted`), `warn` on `bg-warning-bg` (icon `text-warning`). Text may wrap. `role="status"`, the text in `span.flex-1` plus `data-cv-banner-text`, and every action's exact label are kept (B14, B15, B34).
+- **Offline banners** (`App.tsx:990-1002` hub and `1062-1074` main): `Banner tone="warn" icon="wifiOff" status={false} align="center"` (today they have no `role="status"`, and the harness reads only sync banners by role): today's text and its `Reconnect` button (`Button size="sm" variant="secondary"`) stay centered as a group, as today (`justify-center`, `App.tsx:1064`).
+- Order and positions unchanged (L-3).
+
+### 3.9 StartupStatus strip
+
+`StartupStatus.tsx:84-130`: `flex h-6 shrink-0 items-center gap-2 border-t border-divider bg-shell px-2 text-label` (24px, today about 30px); icons 16: building `hammer` in `text-info` with `animate-pulse`, done `check` `text-success`, error `alertTriangle` `text-danger`; label `text-ink-muted`; message `text-ink-secondary`, `text-success` or `text-danger`; detail `text-ink-faint truncate`; progress track `h-1 w-48 rounded-full bg-selected` with an `animate-indeterminate` fill `bg-(--c-progress)`; dismiss `IconButton sm` `close` `label="Dismiss"`. Hook `data-cv-startup-status`. Events, texts and auto-dismiss unchanged.
+
+### 3.10 Surfaces under the tab strip
+
+These sit directly under an active tab, so they use `--c-editor` (D-19):
+
+| Component | Restyled | Keeps |
+|---|---|---|
+| `sessions/web/WebBrowserToolbar.tsx` | `h-9 bg-editor border-b border-divider px-2 gap-1`; Back, Forward, Refresh, Home, New Tab, Autofill as `IconButton md` (disabled `opacity-40`); the URL field as a 26px composite field (`rounded border border-input-border bg-input px-2`, `focus-within` ring, lock icon 16 `text-ink-muted`, inner input `data-bare` 13px) | Titles, order, the `Pick` developer button |
+| `sessions/web/WebSubTabBar.tsx` | `h-8 bg-editor border-b border-divider px-1 gap-0.5`; sub-tabs `h-6 px-2 rounded text-label text-ink-muted hover:bg-hover`, active `bg-selected text-ink` | Behavior |
+| `sessions/web/WebAutofillBar.tsx` | `h-8 bg-editor border-b border-divider`; the blue variant becomes `bg-info-bg border-info-border`; buttons `Button size="sm"` | Texts |
+| `sessions/DocumentView.tsx` headers | `bg-editor border-b border-divider`; `Edit` / `Save` `Button size="sm"` (primary), secondary actions `ghost`; the markdown toolbar row `bg-editor border-b border-divider` with `IconButton sm` buttons | Texts, word count |
+| `sessions/CommandView.tsx` header | `bg-editor border-b border-divider`; Stop `Button size="sm" variant="danger"`, Run `Button size="sm" variant="secondary"` | Texts |
+| Terminal, RDP, VNC, web view containers | `bg-canvas` → `bg-editor` (R3-SESSIONS) | Everything else |
+
+### 3.11 Screens outside the main layout
+
+- **Loading and team auto-connect** (`App.tsx:952-983`): `bg-editor`; the border spinner becomes `Spinner` 24 with the text as visible text; texts exactly `Loading...` (the harness treats a page whose whole text is `Loading...` as loading, B27) and `Connecting to team vault...`.
+- **Sign-in** (`AuthScreen.tsx`) [BEFORE 00] and **onboarding** (`OnboardingWizard.tsx`): primitives; `Button size="lg"` for the main actions, `text-display` titles, `Callout` for the trial note; layout and texts unchanged (`Continue without signing in` is read by the harness).
+- **Vault hub** (`VaultHub.tsx`) [BEFORE 01, 41]: the card `rounded-lg border border-card-border bg-sidebar`; left column: app icon, `Conduit` in `text-display`, subtitle `text-body text-ink-muted`, `Button size="lg" variant="primary" icon="plus"` "New Vault" and `Button size="lg" variant="secondary" icon="folderOpen"` "Open Vault File"; the column divider `border-divider`; right column: the `Recent Vaults` header (its own text, no longer drawn in capitals) as `text-meta font-semibold text-ink-muted` with the lock icon at 12, `Clear All` as `Button variant="link" size="sm"`, rows as clickable `ListRow` with a description (36px: name, then folder in `text-meta`) and a 28px `rounded-md bg-well` icon tile as `leading`. What is always visible today stays always visible (L-23): `PendingBadge` and the fingerprint icon go in the row's `meta` slot; only the chevron, hover-only today (`VaultHub.tsx:262-264`, `371-374`), goes in `trailing`. Each row stays `button[title="{path}"]` (B26, B44).
+- **Home dashboard** (`dashboard/`) [BEFORE 40]: `Card`, `ListRow`, `Button`, `SectionHeader`; the counts line `text-body text-ink-muted`; `Quick Connect` primary button with its `Kbd` hint. Entry rows are clickable `ListRow`s (double-click kept) with the relative time or the type label in `meta`, always visible as today (`DashboardOverview.tsx:283-291`); the type label drops its CSS uppercase (8.4).
+
+### 3.12 Dialogs, Settings and the Appearance tab
+
+- **Every dialog** moves onto `Dialog` (4.8) where it stands, keeping its width (`width` prop, D-18), title, content order, controls, footer order and close behavior (D-26, 3.12.1). Where a dialog has a close button today, it becomes `IconButton md` `close` `label="Close"`; dialogs without one pass `hideClose`. Scrim `--c-scrim`, no blur, no animation. Every dialog holds a freeze, so native web pages never draw over it (the 32b bug stays fixed; the restyle suite checks it).
+- **ConfirmDialog** [BEFORE 32]: message in `text-ink-muted`; `Button variant="secondary"` Cancel then `Button variant="danger"` or `"primary"` confirm, texts unchanged; no close button and no Escape, as today, except the stacked confirm of Recently deleted (3.12.1).
+- **Settings** [BEFORE 20-nn]: `Dialog` with today's width; the nav column keeps `w-52` and gains `data-cv-settings-nav`, as a `NavList` (22px rows, radius 4, icons 16, the Sessions group with its chevron, selected `bg-selected text-ink`); the content pane scrolls; footer Cancel (secondary) then Save (primary). Tabs use `SettingsRow`, `FormField`, `Select`, `Checkbox`, `Switch`, `SegmentedControl`, `Slider`, keeping every label, option and harness hook (B1-B4, B7, B22-B24, B36-B41).
+- **Appearance tab** (final, 6.4): Icon pack (first, in the slot of the retired Platform Theme block), Color Scheme, then Brightness and UI Scale side by side, as today.
+- **Entry dialogs** [BEFORE 22-30]: `EntryDialogSidebar` as `NavList`; group labels (drawn in capitals today) as `text-meta font-semibold text-ink-muted` without uppercase; the type chips keep their entry colors on neutral tiles; fields on `FormField`; footer Back, Cancel, Create or Save.
+- **Quick Connect** [BEFORE 31]: `SegmentedControl` for SSH, RDP, VNC, Web; fields on `FormField`; footer Cancel, Connect.
+- **Sync panels** [BEFORE 33-35]: `Dialog` with `harnessLabel` where the harness reads them (B9), hooks B5, B6, B11, B18-B21, B38; busy texts stay visible (B35).
+- **Vault dialogs** [BEFORE 02, 42]: `UnlockDialog` and the create dialog keep their placeholders, `Please wait...` and `data-cv-error` (B8, B30, B35).
+
+#### 3.12.1 Close behavior, dialog by dialog
+
+Today every dialog decides for itself whether Escape, a click on the scrim or a close button closes it [V: each file read on `41d9657`]. Each keeps exactly that (D-26, L-21). "Busy" is the dialog's own `canClose` guard (`step !== "importing"` or `"exporting"`). Each R3 package passes the props below and tests them: Escape, a scrim click and the close button's presence, per dialog.
+
+| Package | Dialog (file) | Escape today | Scrim click today | Close button today | `Dialog` props |
 |---|---|---|---|---|---|
-| Top 1 | `data-cv-activity="vault"`, also `data-cv-sidebar-toggle` + `aria-expanded` | `explorer` | side bar open and favorites filter off | closed: open the side bar with the filter off. Open with filter off: animated collapse (`conduit:animated-collapse`). Open with filter on: turn the filter off | `Open sidebar (Ctrl+B)` when closed; `Close sidebar (Ctrl+B)` when open and floating; `Hide sidebar (Ctrl+B)` when open and docked. These keep today's strings (`PaneTabBar.tsx:350`, `SidebarWindowControls.tsx:22,30`), so `team-flows.mjs:39-40` still works before wave 4 |
-| Top 2 | `favorites` | `star` (`starFilled` when pressed) | side bar open and favorites filter on | open the side bar with the filter on; if already so, collapse | `Favorites` |
-| Top 3 | `home` | `home` | never | `openHomeTab()` from `src/components/layout/openHomeTab.ts`: W2-SIDEBAR moves `handleHome` there verbatim from `Sidebar.tsx:165-206` when it removes the footer, so the logic is never deleted in between | `Home` |
-| Top 4 | `quick-connect` | `plug` | never | `conduit:quick-connect` | `Quick Connect (Ctrl+N)` |
-| Bottom 1 | `account` | `account` | never | native popup menu (4.10): header with the email (or "Local mode" / "Offline"), `Account Settings`, separator, `Sign Out` (danger, then `ConfirmDialog`). Local mode: `Sign in to start a free Pro trial` (`exitToSignIn()`) | `Account` |
-| Bottom 2 | `settings` | `settings` | never | `conduit:settings` | `Settings (Ctrl+,)` |
+| R3-SETTINGS | Settings (`SettingsDialog.tsx`) | cancels (reverts the live preview) | no | yes | `onClose={handleCancel}` |
+| R3-ENTRIES | New or edit entry, type step and form (`EntryDialog.tsx`) | no | no | yes | `closeOnEscape={false}` (unsaved input stays) |
+| R3-ENTRIES | Loading entry (`EntryDialog.tsx`) | no | no | no | `hideClose`, `closeOnEscape={false}` |
+| R3-ENTRIES | New or edit folder (`FolderDialog.tsx`) | no | no | yes | `closeOnEscape={false}` |
+| R3-VAULT | Unlock Vault and Create Vault (`UnlockDialog.tsx`) | cancels | no | no (a Cancel button) | `hideClose`, `onClose={onCancel}` |
+| R3-VAULT | Enable Quick Unlock (`BiometricSetupPrompt.tsx`) | dismisses like Not Now (`UnlockDialog`'s key handler) | no | no | `hideClose`, `onClose={onDismiss}` |
+| R3-VAULT | Change Password, Rename Vault, Welcome Back (`ChangePasswordDialog`, `RenameVaultDialog`, `CloudRestoreDialog`) | no | no | no | `hideClose`, `closeOnEscape={false}` |
+| R3-VAULT | Save Your Recovery Passphrase (`RecoveryPassphraseDialog.tsx`) | no | no | no | `hideClose`, `closeOnEscape={false}`, no `onClose`: it cannot be dismissed before the passphrase is saved |
+| R3-VAULT | Team Vault In Use (`ProVaultLockDialog.tsx`) | no | no | no | `hideClose`, `closeOnEscape={false}` |
+| R3-VAULT | Backup Manager (`BackupManagerDialog.tsx`, `z-[60]` today) | closes | no | yes | `layer="sync"` |
+| R3-VAULT | Export, Import Vault (`ExportDialog`, `VaultImportDialog`) | closes unless busy | closes unless busy | yes unless busy | `closeOnEscape={canClose}`, `closeOnScrim={canClose}`, `hideClose={!canClose}` |
+| R3-TEAM | Vault Settings, Audit Log, Password History (`VaultSettingsDialog`, `AuditLogViewer`, `PasswordHistoryDialog`) | no | no | yes | `closeOnEscape={false}` |
+| R3-TEAM | Create Team Vault, Team Vault unlock, Set Up Team Access, Device Authorization Request (`CreateTeamVaultDialog`, `TeamVaultUnlock`, `DeviceSetupDialog`, `DeviceAuthApprovalDialog`) | no | no | no | `hideClose`, `closeOnEscape={false}` |
+| R3-TEAM | Credential form (`CredentialForm.tsx`) | closes | no | yes | defaults |
+| R3-TEAM | Credentials (`CredentialManager.tsx`) | closes unless its form, unlock or delete confirm is open | no | yes | `closeOnEscape={!showForm && !showUnlock && !deletingId}` |
+| R3-TEAM | Select Credential (`CredentialPicker.tsx`, `z-[60]`) | closes | closes | yes | `closeOnScrim`, `layer="sync"` |
+| R3-SYNC | Review changes (`ConflictReviewPanel.tsx`) | closes | no | yes, `aria-label="Close"` (B12) | `layer="sync"`, `harnessLabel="Review changes"` |
+| R3-SYNC | The 13 dialogs on `SyncDialogFrame` | runs `onEscape` in the 10 that pass one; swallowed in `EpochPromptDialog`, `SessionConflictDialog`, `WaitingForDriveDialog` | no | no | `hideClose`, `onClose={onEscape}`, `closeOnEscape={Boolean(onEscape)}`, `layer="sync"`, `harnessLabel` |
+| R3-SYNC | The delete confirm inside Recently deleted (`RecentlyDeletedPanel.tsx` + `ConfirmDialog`) | cancels the confirm (the panel's `onEscape`) | no | no | `ConfirmDialog layer="stacked" closeOnEscape` |
+| R3-AI | Register MCP Tools (`McpSetupDialog.tsx`, `z-[60]`) | closes | closes | yes | `closeOnScrim`, `layer="sync"` |
+| R3-MISC | Confirm (`ConfirmDialog.tsx`: entry and folder delete, document delete) | no | no | no | `hideClose`, `closeOnEscape={false}` |
+| R3-MISC | About, What's New, Feedback (`AboutDialog`, `WhatsNewDialog`, `FeedbackDialog`) | closes | closes | yes | `closeOnScrim` |
+| R3-MISC | Import (`ImportDialog.tsx`) | closes unless busy | closes unless busy | yes unless busy | `closeOnEscape={canClose}`, `closeOnScrim={canClose}`, `hideClose={!canClose}` |
+| R3-MISC | Quick Connect, Password Generator, SSH Key Generator (`QuickConnect`, `PasswordGeneratorDialog`, `SshKeyGeneratorDialog`) | closes | no | yes | defaults |
 
-The favorites filter state moves from `Sidebar.tsx:39,124-134` into `sidebarStore` (`favoritesOnly`, `setFavoritesOnly`), still persisted through `ui_state_set('favorites-filter')`. The side bar's star button and the activity bar item then share it.
+Notes: Escape handlers that listen on the scrim today only fire while focus is inside the dialog; the primitive's layer stack traps focus in the dialog, so the result is the same. What's New keeps its arrow keys. The dead `TeamVaultMembersDialog`, `VaultSelector` and `FolderPermissionEditor` (10.5) are skipped.
 
-No badges this release.
+### 3.13 Popup menus
 
-### 3.5 Primary side bar
+The native child-window menus (`electron/ipc/menu.ts`) take the W2-MENUS restyle (7.1): panels sized to their longest label (220 to 320px), 24px rows with 6px radius and 8px gaps, 11px separators, headers `11px/600` in `ink-muted` without uppercase (INVENTORY shows `LOCAL SHELL`; after the restyle `Local Shell`), 8px panel radius, the overlay colors, a 12px transparent shadow margin, keyboard navigation, and icons from the active pack [BEFORE 11-17]. Items, order, submenus and anchoring are unchanged. Call sites keep passing today's keys, which `src/utils/contextMenu.ts` maps to semantic names (5.7), except the tab menu, which passes semantic names (3.4).
 
-The PR #12 model stays: `isPinned`, `openWhenDocked`, docked only when pinned and it fits (`sidebarStore.ts:44-54`), and auto-collapse when floating (D-9). Widths: min 200, max 500, default 250 (`sidebarStore.ts:5-7`) [ADAPT: VS Code's minimum is 170; the existing tests assert 200].
+### 3.14 Toasts
 
-**Docked.** It is the right part of the LeftCard, `expandedWidth` wide, and the sash sits on its right edge. Web sessions stay live beside it, as today.
+Window, position and stacking unchanged (D-15). `OverlayToast.tsx` and `OverlayUpdateNotification.tsx` render `ToastCard` (4.15): `rounded-lg border border-overlay-border bg-overlay p-2 shadow-overlay`, no colored left bar; a 16px icon in the tone color (success `circleCheck` `text-success`, info `infoCircle` `text-info`, warning `alertTriangle` `text-warning`, error `circleX` `text-danger`); title `text-body font-semibold text-ink`; message `text-body text-ink-secondary`; progress `h-1 rounded-full bg-selected` with a `bg-(--c-progress)` fill and `text-meta` labels; actions `Button size="sm"` (primary or secondary); close `IconButton sm` `close` `label="Dismiss"`. `data-toast` stays (click-through, `OverlayApp.tsx`). Animations `toast-in` / `toast-out` unchanged [BEFORE 36, 37].
 
-**Floating.** An absolutely positioned card inside `Workbench`:
+### 3.15 Credential picker window
 
-```css
-.cv-sidebar-float { position:absolute; z-index: var(--c-z-sidebar);
-  left: calc(var(--c-outer) + var(--c-activitybar-w) + var(--c-gap)); top: var(--c-gap); bottom: var(--c-gap);
-  width: <expandedWidth>px; background: var(--c-sidebar); border: 1px solid var(--c-card-border);
-  border-radius: var(--c-card-radius); box-shadow: var(--c-shadow-overlay); }
-.cv-sidebar-scrim { position:absolute; z-index: var(--c-z-sidebar-scrim); inset: 0;
-  left: calc(var(--c-outer) + var(--c-activitybar-w)); background: var(--c-scrim-sidebar); }
-```
+`src/components/picker/`: the 380 × 500 window, its drag header and its flows unchanged; lists on `ListRow`, fields on `TextInput` and `PasswordInput`, inline SVGs replaced by semantic icons, colors from tokens. The window follows the active icon pack through the `storage` event (5.6), which the `packs` scenario checks (8.6).
 
-The scrim covers only the workbench right of the activity bar. The title bar stays draggable and the activity bar stays clickable. That changes today's full-window scrim (`SidebarPanel.tsx:35-38`). Motion: `sidebar-in` 250ms and `sidebar-out` 150ms with `--c-ease-out`, animating transform and opacity only. The floating card holds a freeze while open (`useFreeze(open && floating, 'sidebar')`), and so does the vault menu while it spills over (`sidebarStore.menuOpen`, `App.tsx:388,410`).
+### 3.16 In-app pickers
 
-**Content, top to bottom:**
+Three pickers keep their place, size and layout and take only the overlay look; none is rebuilt on `Popover` or `Menu` (a grid turned into 24px menu rows, or a card that starts to float, would change the layout).
 
-1. **Part title row, 32px** [V `AREA_HEIGHT_MODERN_UI=32`], `padding-left: 8px`. On the left is the vault switcher: a `<button data-cv-vault-switcher>` with the vault name at 12px/600 in `--c-ink-secondary` (hover `--c-ink`), a 16px `chevronDown`, and `title` = the vault path (today `Sidebar.tsx:314-323`). On the right are 22×22 IconButtons: favorites (`star`/`starFilled`, `aria-pressed`), new entry (`plus`, `New Entry (Ctrl+E)`), new folder (`folderPlus`, `New Folder (Ctrl+Shift+N)`), pin (`pin`/`pinFilled`, titles from `SidebarWindowControls.tsx:10-14`) and close (`close`, titles from `SidebarWindowControls.tsx:22-31`). The pin and close buttons move from the left edge to the right end [ADAPT: VS Code puts part actions on the right]. The team tint stays (`Sidebar.tsx:305`: `border-l-2 border-l-team-border-strong bg-team`).
-2. **Vault context bar** (team vaults, `VaultContextBar.tsx`): a 28px row (`--c-section-h`), 12px text.
-3. **Admin onboarding card** (`Sidebar.tsx:373-403`) and **invitation banner** (`TeamInvitationBanner.tsx`): `Callout size="sm"` (4.13) with `margin: 4px 8px`.
-4. **Search**: `padding: 4px 8px 8px`. A `SearchInput` (4.4): 26px, 16px `search` icon, placeholder `Search entries...`, clear IconButton (`close`, 16px, `Clear search`). The `data-bare` inner-input pattern stays (`Sidebar.tsx:425-430`). Escape clears, as today (`Sidebar.tsx:414-419`).
-5. **Tree** (`EntryTree.tsx`), `flex-1`, scrolling, `padding: 0 var(--c-list-inset)` (4px, Compact 2px [V]):
-
-| Property | Value | Source |
-|---|---|---|
-| Row | 22px, radius 4, `display:flex; align-items:center; gap:6px` | [V] `ITEM_HEIGHT=22`; today 28px (`EntryTree.tsx:897`) |
-| Indent | `padding-left: calc(4px + depth * 8px)` | [V] `workbench.tree.indent` default 8; today `depth * 16 + 8` (`EntryTree.tsx:906`) |
-| Twistie | 16×16 box plus `padding-right: 6px`, `chevronRight` / `chevronDown` 16px, `--c-ink-muted`. Rows without children render the same empty slot, so leaf icons line up with folder icons at the same depth | [V] `.monaco-tl-twistie {width:16px; padding-right:6px; flex-shrink:0}` on every row |
-| Indent guides | a 1px `--c-indent-guide` line per ancestor level, at the center of that ancestor's twistie; shown while the tree is hovered or has `:focus-within` (opacity 0 → 1 over 100ms linear); guides on the path to the selected row at full strength, the others at 40% opacity | [V] `workbench.tree.renderIndentGuides` default `onHover`; `tree.inactiveIndentGuidesStroke` = stroke at 40% |
-| Icon | entry icon 16px in its `--c-entry-*` color | today `EntryTree.tsx:972` |
-| Label | 13px/400, `--c-ink-secondary`, ellipsis | |
-| Hover | bg `--c-hover` | |
-| Selected, tree focused | bg `--c-selected`, fg `--c-ink` | D-13; today `bg-conduit-600/20 text-conduit-400` (`EntryTree.tsx:903`) |
-| Selected, tree not focused | bg `--c-selected-inactive` | |
-| Keyboard focus | `outline: 1px solid var(--c-focus); outline-offset: -1px` | [V] `list.focusOutline` |
-| Drop target | bg `--c-drop-bg` + `outline: 1px solid var(--c-accent); outline-offset: -1px` | today `EntryTree.tsx:899` |
-| Locked | `opacity: .6` | today `EntryTree.tsx:901` |
-| Rename (F2 or the Rename menu item) | an input replaces the label: 22px tall, 13px, bg `--c-input-bg`, 1px `--c-focus` border, radius 2, filling the label area; Enter and blur commit, Escape cancels, as today | today `EntryTree.tsx:977-990`; same style as the tab rename (3.6) |
-| Flat-mode group label | 22px row, 11px/600, `--c-ink-muted`, no uppercase | [V] Modern UI drops uppercase; today `EntryTree.tsx:866-870` |
-| Multi-drag badge | inline style background `var(--c-btn-primary-bg)` instead of `#6366f1` | `EntryTree.tsx:935` |
-| ARIA | container `role="tree" aria-label="Entries"`; rows `role="treeitem"` with `aria-level`, `aria-expanded` (containers), `aria-selected`; roving `tabIndex`; Up, Down, Left, Right, Home, End, Enter (open) and F2 (rename) | OD-10 |
-
-6. **Trial promotion** (`Sidebar.tsx:465-489`): a dismissible `Callout` with `margin: 8px`. The trial **countdown** (`Sidebar.tsx:490-511`) moves to the status bar (3.10).
-7. **The footer is removed** (`Sidebar.tsx:513-595`). The sync indicators move to the status bar. Home and Settings move to the activity bar. The email, sign-out and local-mode sign-in move to the Account menu. The item count (`Sidebar.tsx:517-521`) is dropped [ADAPT: VS Code shows no counts. W4-DOCS records it].
-
-The empty-vault states in `EntryTree.tsx:1020-1040` become the `EmptyState` primitive.
-
-### 3.6 Editor card, panes and connected tabs
-
-The editor card holds `SplitContainer` (`SplitContainer.tsx:10-20`) unchanged. Split lines (`LayoutRenderer.tsx:44-50`) keep today's 4px `Separator` in the layout flow (`w-1` / `h-1`), so no hit area overlaps a pane that may hold a native web view (3.3). The separator paints a centered 1px `--c-editor-group-border` line on `--c-editor` (`background: linear-gradient(var(--c-editor-group-border), var(--c-editor-group-border)) center / 1px 100% no-repeat`, `100% 1px` when horizontal) and gets the sash highlight and cursors (3.3), but no grip.
-
-Each pane has its own tab strip (D-3, connected style only). Exact CSS for `src/styles/components/tabs.css`, taken from VS Code 1.139 [V `modern-ui-rules.css`: `--modern-ui-connected-tab-radius: cornerRadius.small`, `cap-radius: radius + stroke`, `gutter: size40 + stroke`, `top-inset: size40`, tab `border-block: size40 solid transparent`, `.tabs-container {padding-bottom: strokeThickness}`, active fill `top:-inset; bottom:-gutter-stroke; border-radius: cap cap 0 0`]:
-
-```css
-.cv-tabstrip { position:relative; display:flex; align-items:stretch; height:var(--c-tabstrip-h); background:var(--c-tabstrip); }
-.cv-tabs { display:flex; align-items:stretch; flex:1 1 auto; min-width:0; overflow-x:auto; overflow-y:hidden;
-           padding-bottom:1px; scrollbar-width:thin; }
-.cv-tabs::-webkit-scrollbar { height:3px; }                     /* [A] VS Code titleScrollbarSizing default */
-.cv-tab { position:relative; flex:0 0 auto; display:flex; align-items:center; box-sizing:border-box;
-          min-width:80px; max-width:240px;                       /* [V] min 80; [ADAPT] max 240 for long web titles */
-          height:calc(var(--c-tab-h) + 8px); border-block:4px solid transparent;
-          padding:0 33px 0 6px;                                  /* [V] 0 8px 0 6px; right = 28 + 5 shoulder for the close column */
-          font:400 13px/18px var(--c-font-ui); color:var(--c-tab-fg); cursor:default; user-select:none; }
-.cv-tab-fill { position:absolute; inset-inline:0; top:-4px; bottom:-5px; border-radius:4px; pointer-events:none; }
-.cv-tab:hover > .cv-tab-fill { background:var(--c-tab-hover-bg); }
-.cv-tab[aria-selected="true"] { color:var(--c-tab-fg-active); z-index:1; }
-.cv-tab[aria-selected="true"] > .cv-tab-fill { top:-4px; bottom:-5px; background:var(--c-tab-active-bg);
-          border-radius:5px 5px 0 0; }
-.cv-tab[aria-selected="true"] > .cv-tab-fill::before,
-.cv-tab[aria-selected="true"] > .cv-tab-fill::after { content:""; position:absolute; bottom:0; width:5px; height:5px;
-          clip-path:inset(0); pointer-events:none; }
-.cv-tab[aria-selected="true"] > .cv-tab-fill::before { right:100%; border-bottom-right-radius:5px;
-          box-shadow:2.5px 2.5px 0 2.5px var(--c-tab-active-bg); }
-.cv-tab[aria-selected="true"] > .cv-tab-fill::after { left:100%; border-bottom-left-radius:5px;
-          box-shadow:-2.5px 2.5px 0 2.5px var(--c-tab-active-bg); }
-.cv-tab:first-child[aria-selected="true"] > .cv-tab-fill::before { content:none; }      /* [V] connected-tab-left-edge */
-.cv-tab:not([aria-selected="true"]):hover { color:var(--c-tab-fg-hover); }          /* [V] modernEditorTab.hoverForeground */
-.cv-tab-icon { flex:none; width:16px; height:16px; margin-right:6px; position:relative; }
-.cv-tab-label { position:relative; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.cv-tab-actions { position:absolute; top:0; bottom:0; right:5px; width:24px; display:flex;
-          align-items:center; justify-content:center; z-index:2; }            /* [V] 24px column, right = shoulder */
-.cv-tab:not([aria-selected="true"]):not(:hover):not(:focus-within) > .cv-tab-actions { opacity:0; pointer-events:none; }
-.cv-tab[data-state]:not(:hover):not(:focus-within) > .cv-tab-actions { opacity:1; pointer-events:auto; }
-.cv-tab[data-drop-target]::before { content:""; position:absolute; left:-1px; top:0; bottom:0; width:2px;
-          background:var(--c-accent); z-index:3; }                       /* [V] 2px drag-and-drop border */
-.cv-tab[data-dragging] { opacity:.5; }
-.cv-editor-actions { display:flex; align-items:center; padding-right:8px; opacity:.5; }   /* [V] .title-actions {opacity:.5; padding-right:8px} */
-.cv-tabstrip[data-focused] .cv-editor-actions { opacity:1; }                      /* [V] .editor-group-container.active>.title>.title-actions {opacity:1} */
-```
-
-Focused and unfocused panes show the same tab colors: Modern UI sets `--modern-ui-editor-tab-unfocused-active-foreground` to the active foreground [V], so an unfocused pane is marked only by its dimmed editor actions. That cue matters in Conduit, where keystrokes go to the focused session.
-
-Geometry check: the strip is 4 + 24 + 4 + 1 = **33** (Compact 4 + 20 + 4 + 1 = **29**) [V `EDITOR_TAB_HEIGHT` modernUI 32 / compact 28, plus 1 when connected]. The active fill runs from the strip top to the strip bottom, so the tab and the session below read as one surface. The strip needs no bottom border: VS Code's connected border defaults to the surface color, so it is invisible [V `--modern-ui-connected-tab-border: var(--modern-ui-connected-tab-surface)`]. [ADAPT] VS Code extends the active fill 1px further (`bottom: -gutter - stroke`) to cover that invisible line. Conduit stops at the strip bottom, because `.cv-tabs` clips vertical overflow.
-
-**Tab parts** (`PaneTabBar.tsx:361-432` today):
-
-| Part | Spec |
-|---|---|
-| Icon | 16px. Entry tabs use the entry icon in its `--c-entry-*` color (today 13px, `PaneTabBar.tsx:458`). Other tabs use `typeIcons` at 16px (today 14px, `PaneTabBar.tsx:26-35`). Home uses `home` in `--c-accent-text`. |
-| Label | Session title, ellipsis (today `max-w-[120px]`, `PaneTabBar.tsx:404`). |
-| Close | IconButton 20×20 (hover target), radius 4, hover bg `--c-toolbar-hover`, `close` glyph at 16px (not compact), `aria-label="Close {title}"`, `tabIndex=-1`. The active tab always shows it; inactive tabs show it on hover or focus [V]. |
-| Status dot (D-18) | Only when `status !== "connected"`: `data-state="connecting"`, `"reconnecting"` or `"disconnected"` on the tab. The close slot then shows `circleFilled` 16px in `--c-state-connecting` (pulsing, 2s, off under reduced motion) or `--c-state-error`, and swaps to the close glyph on hover or focus [V: VS Code's dirty dot works the same way]. Its tooltip text comes from today's logic (`PaneTabBar.tsx:416-422`), moved to the tab's `title`. Connected tabs show no dot (today a green 8px dot, `PaneTabBar.tsx:407-423`). |
-| Rename | The input replaces the label: 22px tall, 13px, bg `--c-input-bg`, 1px `--c-focus` border, radius 2, `max-width:180px`. Enter commits and Escape cancels, as today (`PaneTabBar.tsx:391-402`). |
-| Drag and drop | Same data and handlers (`PaneTabBar.tsx:259-326`). The drop marker uses `data-drop-target` instead of the `border-l-2` class (`PaneTabBar.tsx:383-385`), so the layout does not shift. The dragged tab gets `data-dragging` (`PaneTabBar.tsx:386`). |
-| Overflow | Horizontal scroll. A vertical wheel scrolls horizontally when `deltaX === 0`. On activation the tab calls `scrollIntoView({block:'nearest', inline:'nearest'})`. |
-| New-tab `+` | IconButton 22×22 (`plus`) with `margin: 0 4px`, placed right after the last tab in a wrapper with `position: sticky; right: 0; z-index: 9` and bg `--c-tabstrip` [V `.tabs-bar-add-tab {position:sticky; right:0; z-index:9}`, `.tabs-bar-add-tab .action-label {margin:0 4px}`]. Title `New Local Shell`, hook `data-cv-new-tab`. Its menu is today's (`PaneTabBar.tsx:73-136`). |
-| Editor actions | Outside the scroller, right-aligned, `.cv-editor-actions` (8px right padding, 50% opacity while the pane is not focused): one IconButton `splitHorizontal`, `Split Right (Ctrl+\)` (`layoutStore.splitPane(paneId, "horizontal", activeId)`). The side bar hamburger (`PaneTabBar.tsx:336-358`) goes, because the activity bar replaces it: W2-TABS hides it behind a `legacySidebarToggle` prop (default `true`), W2-WORKBENCH passes `false` when it mounts the activity bar, and W4-CLEANUP deletes it. The AI toggle moves to the title bar: W2-WORKBENCH stops passing `rightSlot` (`App.tsx:1092-1106`), the prop stays optional until W4-CLEANUP removes it from `Pane`, `LayoutRenderer` and `SplitContainer`. |
-| ARIA | `.cv-tabs` has `role="tablist" aria-label="Sessions"`. Tabs have `role="tab"`, `aria-selected`, roving `tabIndex` and `aria-controls` → PaneContent's `role="tabpanel"` wrappers. Left, Right, Home and End move and activate. The strip gets `data-focused` when its pane is focused (the `isFocused` prop, unused today at `PaneTabBar.tsx:43`). |
-| Hooks | Keep `data-tabbar` on the strip. Add `data-cv-tab="{sessionId}"`. |
-
-**Tab context menu** (native popup, `PaneTabBar.tsx:147-247`). Same items, with icons from the active pack: Rename `pencil`, Reconnect `refresh`, View Info `infoCircle` (was `home`), Send Ctrl+Alt+Delete `keyboard`, Copy Username `user`, Copy Password `key`, Split Right `splitHorizontal`, Split Down `splitVertical` (today both use a missing `split` key, `PaneTabBar.tsx:175-176`), Close Session `close` (danger). New-tab menu icons: Quick Connect `plug`, Home Directory `home`, agents `terminal`, Browse... `folder`.
-
-**Empty pane**: the strip stays (for `+` and split). The dashboard fills the content area, as today.
-
-**Drop zones** (`DropZoneOverlay.tsx`): zone fill `--c-drop-bg`, 1px `--c-accent` border, radius 4, inset 4px.
-
-### 3.7 Session surfaces and native web views
-
-- The content area (`Pane.tsx:25-28`, `data-content-area` on the focused pane, kept) has bg `--c-editor`. RDP, VNC, terminal, document and dashboard views are HTML, so the card's `overflow:hidden` + radius clips them.
-- **Web views (D-17).** A native `WebContentsView` paints over HTML and ignores CSS clipping. `WebView.tsx:246-265` (`syncBounds`) adds `radius` to its `web_session_update_position` payload (`ipc/web.ts:128-131`) and includes it in the de-duplication key (`x|y|w|h|radius`, today `WebView.tsx:257-259`), so a radius-only change is still sent. The value is **7** (card radius 8 minus the 1px border) when all of these hold, else 0:
-  1. density is Comfortable;
-  2. the session engine is Chromium;
-  3. the container's bottom-left and bottom-right corners both sit within 1px of the editor card's inner bottom corners (compare `getBoundingClientRect()` of the container and of `[data-cv-editor-card]`).
-
-  The main process keeps `cornerRadiusDip` per web session and checks it before the unchanged-bounds early return in `updateBounds` (`manager.ts:405-410`). It applies `view.setBorderRadius(Math.round(radius * zoom))` to a view whenever that view's last applied value differs: in `updateBounds`, in `initTabView` and `initTabViewWithDipBounds` (every new sub-tab view, `manager.ts:1014-1072`), in `switchTab` and `closeTab` when a sub-tab view is attached (`manager.ts:614-628, 666-679`) and in `showSession`. It recomputes on zoom changes. A web session has one `WebContentsView` per sub-tab, so applying the radius to `tab.view` alone would leave new or switched sub-tabs square. `setBorderRadius` rounds all four corners [V `electron.d.ts:16118`; Electron keeps the radius per view and reapplies it on bounds changes, `electron_api_view.cc:488-518`], so the web page's top corners are rounded too, under the web toolbar. That is accepted.
-- **Square card corners.** A native view the card cannot clip must never sit on a rounded corner. `EditorCard` sets `data-square-bottom-left` and `data-square-bottom-right`, and CSS drops that corner's radius to 0, whenever a pane showing a native web view touches exactly that bottom corner while the view is square: a Chromium view in a pane that touches only one bottom corner (for example the left pane of a side-by-side split), or a **WebView2** view (Windows) in any corner pane. WebView2 cannot be rounded (a separate HWND placed by screen coordinates, `webview2-session.ts:155-163`). A Chromium view that touches both corners gets radius 7 instead, and the card keeps its corners.
-- **Remote pages cannot drag the window (D-27).** On every `dom-ready` of a web-session view (`setupTabEventHandlers`, `manager.ts:1212`), the main process calls `view.webContents.insertCSS('*, *::before, *::after { -webkit-app-region: no-drag !important; app-region: no-drag !important; }', {cssOrigin: 'user'})`. A user-origin `!important` declaration beats the page's own `!important` rules, and only main frames report drag regions [V Electron `electron_api_web_contents.cc:865-867` TODO]. Without it, a site whose CSS sets `-webkit-app-region: drag` (common in pages shared with Electron desktop apps) would become a window-drag handle and swallow clicks once the frame is gone [V `native_window.cc:104-105` (no frame with `titleBarStyle: 'hidden'`), `electron_api_web_contents.cc:2440` (regions ignored only when the window has a frame), `electron_api_web_contents_view.cc:94-144` (every `WebContentsView` is a drag-region provider)]. WebView2 is a separate process and is not affected. It can be tested on macOS (8.7).
-- **Freeze.** Every DOM surface that can overlap the editor card must hold a freeze (section 4.9): dialogs, DOM popovers, the floating side bar and drags. `useNativeViewVisibility.ts:58-59` then reads `isFrozen()` from the registry instead of three event booleans.
-- **Content-size fallbacks.** `entryStore.ts:49-50` and `QuickConnect.tsx:80-81` guess `innerWidth − 250` and `innerHeight − 40` when `[data-content-area]` is missing. They move to `getContentAreaFallback()` in `src/lib/layout/contentArea.ts`, which computes from `metrics.ts` (chrome width, title bar ÷ zoom, gaps, tab strip, status bar).
-- **RDP, VNC and terminal sizing.** VNC and terminals need no code change: each reads its own container. VNC reads the canvas rect for MCP clicks (`VncView.tsx:440`), and terminals refit with the xterm fit addon (`TerminalView.tsx:123,160,171,221,240,326`). RDP measures `clientWidth` and the canvas rect (`RdpView.tsx:486,514,576,630,652,731`) and needs the resize fix below. The new chrome only makes those containers smaller (3.3 budget). Their toolbars and error states restyle in W3-SESSIONS.
-- **RDP resolution churn.** RDP follows the container size, and today one layout change can send two to four identical `rdp_resize` requests: the `conduit:layout-changed` handler resizes at once and again at 50, 200 and 500ms, and compares against the size the server last confirmed, not the size it last requested (`RdpView.tsx:570-615`). W2-TABS changes that handler: it keeps `lastRequestedRef`, skips a request when the target is within 10px of the last requested size, and replaces the immediate call plus retries with one 150ms trailing debounce followed by a single 500ms retry that fires only if the server has not confirmed the size. The density switch is one layout pass (3.3: `chromeWidth` updates in the same task). Guardrail: never animate the size of a card that holds sessions; the floating side bar animates transform only. Acceptance: one `rdp_resize` log line per density switch, AI toggle and banner change against a real RDP host.
-- **MCP viewport.** `website_get_dimensions` reports `tab.view.getBounds()` (`manager.ts:965-972`), so agents see the smaller area. `/verify-mcp` runs after wave 2 (section 8.5).
-- **Screen coordinates.** WebView2 HWNDs, context menus and the toast overlay are placed from `getContentBounds()` (`manager.ts:92-105`, `menu.ts:145-148`, `overlay-manager.ts:133-138`). W2-MAIN rewrites the stale comment at `manager.ts:93-95`, which assumes a native title bar and menu bar above the content. A maximized or snapped frameless window on Windows can report an inset client area; 8.7 checks placement in those states.
-
-### 3.8 AI secondary side bar
-
-- `src/stores/auxBarStore.ts` (zustand): `{open, width, toggle(), setOpen(), setWidth(), commitWidth()}`. It persists in `localStorage` as `conduit:ai-panel-open` (default `false`) and `conduit:ai-panel-width` (default 400, clamped 300 to 800), with try/catch like `sidebarStore.ts:74-88`. Today the width is `useState(400)` and not persisted (`App.tsx:97-98`) (D-10).
-- It publishes `setRightPanelWidth(open ? width + 4 : 0)` to `sidebarStore` (the 4px is the gap in Comfortable and the in-flow sash in Compact, 3.3), replacing `App.tsx:381-383`. Maximum width: `maxRightPanelWidth(state, 800 + 4)`, as `App.tsx:526-529`.
-- Shortcut: Ctrl/Cmd+Alt+B in `useKeyboardShortcuts`. The shortcut table gains an optional `code` field matched against `e.code` (`KeyB`), because Option+B on macOS changes `e.key` to `∫` [A: macOS keyboard layout behavior].
-- The card keeps `contain: strict` (`App.tsx:1119`). It opens and closes without animation.
-- **Part title row, 32px** (W2-AI restyles the header of `ChatPanel.tsx:222-295`). Left: the engine switcher as a title-style button (engine logo 16, engine name 12px/600, `chevronDown` 16). Right: 22×22 IconButtons for model, new conversation (`plus`) and close (`close`, `Close AI Chat (Ctrl+Alt+B)`, calls `setOpen(false)`). Everything below the header belongs to W3-AI.
-
-### 3.9 Banners
-
-`BannerStack` sits between the title bar and the workbench and spans the full width, like VS Code's banner part [V `this.height=26`]. It hosts `SyncBanners` and, on the vault hub, the offline banner.
-
-| Property | Value |
-|---|---|
-| Row | `min-height: 26px; display: flex; align-items: center`, 12px text on a 26px line, an icon container with `padding: 0 6px 0 10px`, 10px right padding [V `.part.banner {font-size:12px}`, `.icon-container {padding:0 6px 0 10px}`, `.message-container {line-height:26px}`]. [ADAPT] The text may wrap to a second line instead of VS Code's single-line ellipsis, so no sync message is cut off |
-| Colors | tones `info` and `lock` (`SyncBanner.tsx:10-16`): bg `--c-selected` over `--c-shell`, as VS Code's `banner.background` = `list.activeSelectionBackground` [V]. Tone `warn`: bg `--c-warning-bg` [ADAPT: sync warnings such as changes to review or paused syncing must stand out; VS Code's banner only carries neutral notices]. Text `--c-ink`; icon 16px in `--c-info` (info), `--c-warning` (warn) or `--c-ink-muted` (lock); `border-bottom: 1px solid var(--c-divider)` |
-| Text | kept in `span.flex-1` plus hook `data-cv-banner-text` (harness `ui-forms.mjs:85`) |
-| Actions | `Button variant="link"` in `--c-ink`, always underlined, `padding: 3px; margin-left: 12px` [V `.message-actions-container a {color: var(--vscode-banner-foreground); padding:3px; margin-left:12px; text-decoration:underline}`]. They stay `<button>` elements with their exact labels, so the harness's exact `Review` (B14) and `Use here instead` (B34) still match. The `primary` flag (`SyncBanner.tsx:34-44`) no longer changes the look |
-| Semantics | `role="status"` kept (D-12, `SyncBanner.tsx:30`). These are the only `role="status"` elements outside dialogs |
-
-Adding or removing a banner calls `notifyLayoutChanged()`.
-
-### 3.10 Status bar
-
-`<footer data-cv-statusbar aria-label="Status bar">`. **Not** `role="status"` (OD-9).
-
-| Property | Comfortable | Compact | Source |
+| Picker | Today | Restyled | Keeps |
 |---|---|---|---|
-| Height | 22 bar + 6 bottom gutter = 28 | 22 + 4 = 26 | [V] `FLOATING_BOTTOM_PADDING=6` / 4 |
-| Side padding | 6 | 4 | [V] |
-| Border | none | `border-top: 1px solid var(--c-divider)` (inside the 22) | [V] Modern hides the top border; Compact dividers per 2.9 |
-| Background, text | `--c-shell`, `--c-statusbar-fg`, 12px/22px | same | [V] |
-| Item | `height:22px; padding:0 5px; margin:0 3px; border-radius:4px; gap:4px; font-variant-numeric: tabular-nums`, icon 16px | `margin:0 2px; padding:0 4px` | [V] `.statusbar-item {… font-variant-numeric: tabular-nums}`, so counts do not jitter |
-| Hover (buttons only) | bg `--c-statusbar-hover`, text and icon `--c-statusbar-hover-fg` (`hover:bg-(--c-statusbar-hover) hover:text-(--c-statusbar-hover-fg)`) | same | [V] `.statusbar-item>a:hover:not(.disabled) {color: var(--vscode-statusBarItem-hoverForeground)}` |
-| Pressed (buttons only) | bg `--c-statusbar-active` (`active:bg-(--c-statusbar-active)`) | same | [V] `.statusbar-item a:active:not(.disabled) {background-color: var(--vscode-statusBarItem-activeBackground)}` |
-| Tones | warning fg `--c-warning`; error fg `--c-danger`; busy icons spin (`animate-spin`, off under reduced motion) | same | [ADAPT] text color only, no colored item backgrounds |
+| `IconPicker` (`entries/IconPicker.tsx`, opened from the folder and entry forms) | a `fixed` 300px panel with a title, a search field, a `Use Default` button, uppercase category labels and 6-column grids of 36px cells (`IconPicker.tsx:54`, `:99`) | `rounded-lg border border-overlay-border bg-overlay shadow-overlay`; the search on `SearchInput`; category labels `text-meta font-semibold text-ink-muted` without uppercase (8.4); cells `hover:bg-hover`, the selected cell `bg-selected` with a 1px `--c-accent` outline (today an accent tint and ring); icons with a semantic twin drawn through the active pack (5.11) | Its position logic, width, header, search, `Use Default`, categories, 6-column grids and cell size |
+| `ColorPicker` (`entries/ColorPicker.tsx`) | a `fixed` 220px panel with a title, a `Use Default` button and an 8-column grid of 24px swatches (`ColorPicker.tsx:42`, `:64`) | the same overlay look; the selected swatch keeps its 2px ring, in `--c-accent` with its offset in `--c-overlay` | Position logic, width, header, `Use Default`, 8-column grid, swatch colors and size |
+| `ModelPicker` (`ai/ModelPicker.tsx`) | an in-flow `mx-4 mb-4` card in the chat body with a header (`Select a model`, a close button) and two-line rows (`ModelPicker.tsx:65`, `:75`) | the card in `bg-overlay border-overlay-border rounded-lg`; the close button `IconButton sm` `close`; rows as `ListRow` with a description; the current model `bg-selected` | In the flow of the chat body, its margins, header, texts and row order |
 
-Items (D-11), left to right, then right-aligned:
-
-| Side | Id (`data-cv-status=`) | Shown when | Content | Click | Tooltip (`title`) | Source today |
-|---|---|---|---|---|---|---|
-| Left | `offline` | `authMode === 'cached'` | `wifiOff` + `Offline`, warning tone | `useAuthStore.getState().tryReauthenticate()` | `Working offline, using cached features. Click to reconnect.` | `App.tsx:1072-1083` |
-| Left | `sync` | personal vault with a sync state | tone icon from `iconFor()` + `statusLabel()`; icon only when "Up to date" | `conduit:settings` → `sync` | `"{label}. {detail}"`; `aria-label="Sync: {label}"` | `PersonalSyncIndicator.tsx:43-53` |
-| Left | `review` | `conflictCount > 0` | `alertTriangle` + `{n} to review`, warning tone | `openView({kind:"review", row:null})` | `Review changes from your other devices` (kept for `flows.mjs:180`), plus hook `data-cv-review-button` | `PersonalSyncIndicator.tsx:54-62` |
-| Left | `cloud-backup` | as `CloudSyncIndicator` today | its icon and label | as today | as today | `vault/CloudSyncIndicator.tsx` |
-| Left | `team-sync` | team vault | as `TeamSyncIndicator` today | as today | as today | `vault/TeamSyncIndicator.tsx` |
-| Left | `freerdp` | a build task is shown | `loader` (spinning) + `Building FreeRDP helper...`; done: `check` + `FreeRDP helper ready`; error: `alertTriangle` + `FreeRDP build failed` (error tone) | none | the task detail | `common/StartupStatus.tsx:19-80`: same events, same auto-dismiss (4s done, 10s error) |
-| Right | `session` | the focused pane has an active session | type icon 16 + session title (max 240px, ellipsis); when not connected, the `circleFilled` icon at 16px (an 8px disc, like VS Code's dirty dot) in the state color | none (`<span>`) | `{type}: {title}, {status}` | new, from `layoutStore` + `sessionStore` |
-| Right | `trial` | `isTrialing && trialDaysRemaining >= 0` | `clock` + `Pro trial: {n} days left`; urgent → error tone, moderate → warning tone | none | same text | `Sidebar.tsx:490-511` |
-| Right | `zoom` | the zoom factor from `useZoomFactor()` (`src/lib/window-chrome.ts`, 3.2) is not 1 | `search` + `{pct}%` | `conduit:settings` → `appearance` | `Zoom {pct}%. Change it in Settings > Appearance.` | new |
-
-Text rule: no status bar item may show text exactly equal to the six unscoped harness labels (OD-9) or containing a reserved harness phrase (section 8.4).
-
-### 3.11 Zoom and coupling rules
-
-- `ui_scale` stays 0.75 to 1.5 (`main.ts:854`). Everything zooms except the title bar (counter-zoomed) and the toast overlay window (non-goal).
-- Main-process DIP math is unchanged (`manager.ts:81-90` `cssToDip`), because the renderer still sends page CSS px.
-- These call `notifyLayoutChanged()` (4.9), which dispatches the existing `conduit:layout-changed` event (listened to at `WebView.tsx:342`): density change, banner count change, side bar dock or undock, AI open, close and resize end, zoom change, and full-screen change. The existing dispatch sites (`App.tsx:377-379,398-405,540`, `Sidebar.tsx:263`, `LayoutRenderer.tsx:30`) stay until W4-CLEANUP routes them through the helper.
-- Minimum window size stays 1024×700 (`main.ts:707-708`).
+The two entry pickers open inside the entry and folder dialogs, whose freeze covers them; if one ever opens outside a dialog it holds its own through `useFreeze`, not through `Popover`.
 
 ---
 
 ## 4. Components
 
+The primitives in `src/components/ui/` landed in wave 1 and are only used by the gallery today [V grep]. The restyle puts them to work in place (D-1). This section is their contract, with the restyle's changes marked **(restyle)**.
+
 ### 4.1 Conventions
 
-- One small file per primitive in `src/components/ui/`, plus a barrel `src/components/ui/index.ts` and a local `cx.ts` (`export const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(" ")`). No new runtime dependency (OD-7).
-- Primitives take `className` (appended last) and forward `ref` and `data-*` props. Every interactive primitive uses the global focus rule (2.7). Primitives never set `outline: none`.
-- Utilities come from the `@theme` block in 2.10. Tokens without a theme name use Tailwind v4's variable shorthand, for example `bg-(--c-btn-secondary-bg)` (v4 syntax for `bg-[var(--c-btn-secondary-bg)]`) [V: test-compiled with the repo's Tailwind; `bg-(--c-btn-secondary-bg)` emits `background-color: var(--c-btn-secondary-bg)`, and the `z-`, `outline-`, `border-`, `accent-`, `text-`, `placeholder:` and `focus-within:` forms used below compile the same way].
-- Harness-bound markup rules (Appendix B) that primitives must keep:
-  - Dialog panels carry `data-dialog-content`, and the title is an `h2`.
-  - Labeled fields render as `<label><span>{label}</span>…control…</label>`, with the control *inside* the label (`ui-forms.mjs:28-38` fills the input inside the label whose first `span` equals the label).
-  - Checkboxes are `<label>` elements that wrap `input[type=checkbox]` and the text (`ui-forms.mjs:61-69`). Radios are the same with `input[type=radio]`, and the label's text is exactly the option text (`sync-dialogs.mjs:98-106`, B46).
-  - Inline errors are `<p data-cv-error>`.
-  - A dialog with a form passes `onSubmit` to `Dialog`, which then wraps header, body and footer in one `<form>` so the submit button is inside it (`[data-dialog-content] form button[type=submit]`, B31; 4.8).
-  - DOM menu items render `<button type="button" role="menuitem">` (the harness clicks `Lock Current Vault` with selector `button`, B43). Clickable `ListRow`s render `<button>` (B44).
-  - Actions revealed on hover or focus hide with `opacity: 0` only, never `visibility` or `display`: the harness skips elements that are `visibility: hidden` or have no layout box (`ui.mjs:85-88`, B45).
-  - Busy text stays visible text: `Button loading` keeps a visible label and `Spinner` can show text (4.2, 4.12, B35).
-- A shared gallery (`gallery.html` + `src/gallery.tsx`, dev server only, not in `rollupOptions.input`) renders every primitive in every state, including each focusable primitive focused inside a `Card` and, except the strip exemptions in 2.7, inside a tab strip. It has scheme, mode, density and icon pack switches. It is the screenshot source in section 8.6.
+- One small file per primitive, a barrel `src/components/ui/index.ts` and a local `cx()`. No new runtime dependency.
+- Primitives take `className` (appended last) and forward `ref` and `data-*` props. They never set `outline: none`.
+- Utilities come from the `@theme` block (2.9); tokens without a theme name use Tailwind v4's shorthand, for example `bg-(--c-btn-secondary-bg)`.
+- Harness-bound markup the primitives keep (Appendix B): dialog panels carry `data-dialog-content` and an `h2` title; labeled fields render `<label><span>{label}</span>…control…</label>`; checkboxes and radios are `<label>` elements wrapping the input and the exact text; inline errors are `<p data-cv-error>`; a dialog with a form wraps header, body and footer in one `<form>`; DOM menu items are `<button type="button" role="menuitem">`; clickable `ListRow`s are `<button>`s; actions revealed on hover hide with `opacity: 0` only; busy text stays visible text.
+- **Using a primitive in place (restyle).** When a package swaps a hand-written element for a primitive, the element keeps its position, its text, its `title`, its `aria-*` attributes and its `data-*` hooks. `IconButton` builds `aria-label` and `title` from `label`; where today's `title` differs from the accessible name (a shortcut hint), pass today's `title` explicitly, which wins over the default.
+- **The gallery** (`gallery.html` + `src/gallery.tsx`, dev server only) renders every primitive in every state, with scheme, mode and icon pack switches (**restyle:** the density switch and the workbench preview are removed). It shows each focusable primitive focused inside a `Card` and inside a 33px tab strip built from `tabs.css`, except text `Button`s at `md` and `lg`, `Textarea`, `Tabs` and `ChoiceCard`, which never sit in a strip.
 
 ### 4.2 Button
 
-`<Button variant size icon iconEnd loading fullWidth type="button" …>` (`src/components/ui/Button.tsx`).
+`<Button variant size icon iconEnd loading loadingLabel fullWidth type="button" …>`.
 
 | Part | Recipe | Source |
 |---|---|---|
-| Base | `inline-flex items-center justify-center gap-1 whitespace-nowrap rounded border select-none transition-colors duration-100 disabled:opacity-40 disabled:pointer-events-none` + `data-cv-text-button` (2px focus offset, 2.7) | [V] disabled `opacity:.4`; radius 4; `.monaco-text-button:focus {outline-offset:2px}` |
-| `sm` | `h-control-sm px-1.5 text-meta` (22px, 11px) | [V] small button 11px, `3px 6px` |
-| `md` (default) | `h-control px-2 text-label` (26px, 12px) | [V] `.monaco-text-button` 12px/16, `4px 8px`, 1px border |
-| `lg` | `h-control-lg px-3 text-body` (32px) | [ADAPT] landing-page CTAs only |
-| `primary` | `bg-btn-primary hover:bg-btn-primary-hover text-white border-transparent` | [V] `button.background` / hover |
-| `secondary` | `bg-(--c-btn-secondary-bg) text-(--c-btn-secondary-fg) border-(--c-btn-secondary-border) hover:bg-(--c-btn-secondary-hover)` | [V] `button.secondary*` |
-| `ghost` | `bg-transparent border-transparent text-ink-secondary hover:bg-hover hover:text-ink` | replaces 101 ghost buttons [V count] |
-| `danger` | `bg-btn-danger hover:bg-btn-danger-hover text-white border-transparent` | 2.2.3 |
-| `link` | `h-auto px-0 border-0 bg-transparent text-link hover:text-link-hover hover:underline` | [V] `textLink.*` |
-| Icon | 16px (`sm`: 12px, the compact glyph when the pack has one), 4px gap | [V] leading icon 16, 4px gap |
-| Loading | a spinning `loader` at the icon size replaces the icon (16px; in `sm` 12px with the compact glyph, as the Icon row, so a small button keeps its size) [wave 1 review]; the label stays visible: `loadingLabel` when given (for example `<Button loading loadingLabel="Opening...">`), else the children; `aria-busy="true"`; disabled | the harness reads `Opening...`, `Please wait...` and `Checking...` from the button text (B35) |
-| Order in footers | secondary first, primary last (right), as today (`SettingsDialog.tsx:218-231`) | |
+| Base | `inline-flex items-center justify-center gap-1 whitespace-nowrap rounded border select-none transition-colors duration-100 disabled:opacity-40 disabled:pointer-events-none` + `data-cv-text-button` (2px outside focus ring) | [V] VS Code text buttons |
+| `sm` | `h-control-sm px-1.5 text-meta` (22px, 11px) | [V] small button |
+| `md` (default) | `h-control px-2 text-label` (26px, 12px) | [V] `.monaco-text-button` |
+| `lg` | `h-control-lg px-3 text-body` (32px) | [ADAPT] landing CTAs only |
+| `primary` | `bg-btn-primary hover:bg-btn-primary-hover text-white border-transparent` | [V] |
+| `secondary` | `bg-(--c-btn-secondary-bg) text-(--c-btn-secondary-fg) border-(--c-btn-secondary-border) hover:bg-(--c-btn-secondary-hover)` | [V] |
+| `ghost` | `bg-transparent border-transparent text-ink-secondary hover:bg-hover hover:text-ink` | |
+| `danger` | `bg-btn-danger hover:bg-btn-danger-hover text-white border-transparent` | |
+| `link` | `h-auto px-0 border-0 bg-transparent text-link hover:text-link-hover hover:underline` | [V] |
+| Icon | 16px (`sm`: 12px), 4px gap | [V] |
+| Loading | a spinning `loader` at the icon size replaces the icon; the label stays visible (`loadingLabel` or the children); `aria-busy`; disabled | busy texts the harness reads (B35) |
 
-Replaces the 332 raw text buttons, `DialogButton` (`SyncDialogFrame.tsx:71-100`), `smallButton()` (`ConflictFieldRow.tsx:34-38`), the `ConfirmDialog` buttons (`ConfirmDialog.tsx:30-43`), and the toast and banner actions [V counts, primitives research].
+Footer order: secondary first, primary last, as today.
 
 ### 4.3 IconButton
 
-`<IconButton icon label size pressed tone …>`. `label` is required and becomes both `aria-label` and the native `title` (D-21). A shortcut hint is appended in parentheses by the caller.
+`<IconButton icon label size pressed tone disabledReason …>`. `label` is required and becomes `aria-label` and the default `title`.
 
 | Size | Box | Icon | Radius | Use |
 |---|---|---|---|---|
-| `sm` | 20 × 20 | 16 | 4 | tab close, field adornments, clear buttons [V close target 20] |
-| `md` (default) | 22 × 22 | 16 | 4 | toolbars, part titles, title bar, tab strip [V `.monaco-action-bar .action-label {padding:3px}`; Modern UI radius `cornerRadius.small`, `.modern-ui .monaco-action-bar .action-label {border-radius: var(--vscode-cornerRadius-small)}` overrides the classic 6] |
-| `lg` | 28 × 28 | 20 | 4 | landing pages only [ADAPT] |
+| `sm` | 20 × 20 | 16 | 4 | Tab close, clear buttons, dismiss buttons, small toolbars |
+| `md` (default) | 22 × 22 | 16 | 4 | Header and footer buttons, `+`, the AI toggle, toolbars |
+| `lg` | 28 × 28 | 20 | 4 | Landing pages only |
 
-Focus: the inset ring (2.7), because icon buttons often sit at a card or strip edge that clips.
-
-Colors: `text-ink-muted hover:text-ink hover:bg-toolbar-hover active:bg-toolbar-active`. `pressed` sets `aria-pressed="true"` and `bg-toolbar-active text-ink`; with `pressedLook={false}` it sets only `aria-pressed` (the title bar layout controls, which show state by swapping the glyph, 3.2). `tone="danger"` sets `hover:text-danger`. Disabled: `opacity-40`, plus a `title` that says why (as `Sidebar.tsx:376`, "View-only access"). Replaces the 120 icon-only buttons, 116 of which have no `aria-label` today [V].
+Colors: `text-ink-muted hover:text-ink hover:bg-toolbar-hover active:bg-toolbar-active`. `pressed` sets `aria-pressed="true"` and the pressed look `bg-toolbar-active text-ink`. **(restyle)** The `pressedLook` prop is removed: it existed for the clone's title bar buttons, which swapped glyphs instead. `tone="danger"` sets `hover:text-danger`. **(restyle)** `tone="inherit"` sets no text color at all, so the glyph takes its color from CSS around it (the tab close, 3.4); the hover fill stays. Disabled: `opacity-40` and `disabledReason` as the `title`. Focus: the inset ring.
 
 ### 4.4 Text fields
 
-| Primitive | Recipe | Notes |
-|---|---|---|
-| `TextInput` | `h-control w-full rounded border border-input-border bg-input px-1.5 text-body leading-4 text-(--c-input-fg) placeholder:text-(--c-input-placeholder)` | [V] 26px, `padding: 4px 6px`, 13px. `invalid` adds `border-danger` + `aria-invalid`. `leading`/`trailing` slots: 16px icons at 6px from the edge, input `pl-7`/`pr-7` |
-| `Textarea` | same colors, `min-h-[78px] px-1.5 py-1 text-body leading-[18px] resize-y` | |
-| `PasswordInput` | `TextInput` + trailing `IconButton sm` (`eye`/`eyeOff`) labeled `Show password`/`Hide password` | keeps today's strings (`PasswordFields.tsx:31`); replaces `PasswordFields.PasswordInput` |
-| `SearchInput` | wrapper `flex items-center gap-1.5 h-control px-1.5 rounded border border-input-border bg-input focus-within:outline focus-within:outline-1 focus-within:outline-(--c-focus) focus-within:-outline-offset-1`; inner `<input data-bare>`; leading `search` 16; trailing clear `IconButton sm` when not empty | today `Sidebar.tsx:398-433` |
-| `FormField` | `<div>` root (takes `className`, `ref` and `data-*`) holding `<label class="block"><span class="block text-label font-semibold text-ink-secondary mb-1">{label}</span>{control}</label>`, then, after the label, `{description && <span id class="block text-meta text-ink-muted mt-1">}{error && <p id data-cv-error class="text-meta text-danger mt-1">}`. The control gets `aria-describedby` (its own ids first, then description and error) and `aria-invalid` when there is an error | harness structure (4.1). Description and error stay out of the `<label>`, so they describe the control instead of joining its name, and no `<p>` sits inside a `<label>` [wave 1 review]. Generalizes `entries/Field.tsx:8-18` |
+| Primitive | Recipe |
+|---|---|
+| `TextInput` | `h-control w-full rounded border border-input-border bg-input px-1.5 text-body text-(--c-input-fg) placeholder:text-(--c-input-placeholder)`; `invalid` adds `border-danger` and `aria-invalid`; 16px leading and trailing slots |
+| `Textarea` | same colors, `min-h-[78px] px-1.5 py-1 text-body resize-y` |
+| `PasswordInput` | `TextInput` + trailing `IconButton sm` (`eye` / `eyeOff`, `Show password` / `Hide password`) |
+| `SearchInput` | wrapper `flex items-center gap-1.5 h-control px-1.5 rounded border border-input-border bg-input focus-within:outline focus-within:outline-1 focus-within:outline-(--c-focus) focus-within:-outline-offset-1`; inner `<input data-bare>`; leading `search` 16; trailing clear `IconButton sm` |
+| `FormField` | `<div>` root holding `<label><span class="block text-label font-semibold text-ink-secondary mb-1">{label}</span>{control}</label>`, then the description (`text-meta text-ink-muted`) and the error (`<p data-cv-error class="text-meta text-danger">`); the control gets `aria-describedby` and `aria-invalid` |
 
-Every field sets an explicit font size. 24 fields today have none and inherit 16px [V].
+Every field sets an explicit font size (24 fields today inherit 16px [V, carried]).
 
 ### 4.5 Select
 
-A native `<select>` wrapped for styling: `appearance-none h-control w-full rounded border border-(--c-dropdown-border) bg-(--c-dropdown-bg) pl-1.5 pr-6 text-body text-ink`, plus a `chevronDown` 16 at `right:4px`, `pointer-events-none`. The popup list follows `color-scheme` (2.8), which today leaves it light in dark mode. It keeps every `aria-label` (the harness selects `select[aria-label="Lock the vault when idle"]`, `settings-flows.mjs:11`). It replaces 20 raw selects and the inner selects of `DefaultableSelect` and `DefaultableCheckbox`.
+A native `<select>`: `appearance-none h-control w-full rounded border border-(--c-dropdown-border) bg-(--c-dropdown-bg) pl-1.5 pr-6 text-body text-ink` plus a `chevronDown` 16 at `right: 4px`. The popup list follows `color-scheme`. Every `aria-label` is kept (`select[aria-label="Lock the vault when idle"]`, B28).
 
 ### 4.6 Checkbox, Radio, Switch, Slider
 
-| Primitive | Recipe | Source |
-|---|---|---|
-| `Checkbox` | `<label class="inline-flex items-start gap-2 text-body text-ink-secondary">` + `<input type=checkbox class="peer appearance-none size-[18px] shrink-0 rounded-[3px] border border-(--c-checkbox-border) bg-(--c-checkbox-bg) checked:bg-btn-primary checked:border-btn-primary">` + a white `check` 16 icon shown by `peer-checked` + text. Focus ring 2px outside (2.7) | [V] 18×18, radius 3, `input[type=checkbox]:focus {outline-offset:2px}`. [ADAPT] accent fill when checked (VS Code draws a gray glyph on gray) |
-| `Radio` / `RadioGroup` | `<label>` wrapping `<input type=radio class="appearance-none size-4 rounded-full border border-(--c-checkbox-border) bg-(--c-checkbox-bg)">` and the option text (exactly the text, B46) + an 8px `--c-btn-primary-bg` inner dot when checked; focus ring 2px outside; the group uses `role="radiogroup"` and arrow keys | |
-| `Switch` | `<button role="switch" aria-checked>`: track 28 × 16 `rounded-full`; off: `bg-(--c-checkbox-bg)` with a 1px `border-(--c-checkbox-border)`; on: `bg-btn-primary`, border transparent; thumb 12 × 12, off `bg-ink-muted`, on white, `translate-x-3` | [ADAPT] VS Code has no switch; replaces `SecurityTab.tsx:98-109` (no role today). The off track's border is the 3:1 boundary (3.26:1 or better, 2.11); `--c-control-border` would be 1.31:1 |
-| `Slider` | native range, `w-full accent-(--c-accent) h-4`; min/mid/max row `text-meta text-ink-muted` | today `AppearanceTab.tsx:269-296` |
+| Primitive | Recipe |
+|---|---|
+| `Checkbox` | `<label class="inline-flex items-start gap-2 text-body text-ink-secondary">` + an 18 × 18 `appearance-none` input, radius 3, `border-(--c-checkbox-border) bg-(--c-checkbox-bg)`, checked `bg-btn-primary border-btn-primary` with a white `check`; 2px outside focus ring |
+| `Radio` / `RadioGroup` | `<label>` wrapping a 16px round input and the exact option text; checked shows an 8px `--c-btn-primary-bg` dot; `role="radiogroup"` with arrow keys |
+| `Switch` | `<button role="switch" aria-checked>`: track 28 × 16 `rounded-full`; off `bg-(--c-checkbox-bg)` with a 1px `--c-checkbox-border`; on `bg-btn-primary`; thumb 12 × 12 |
+| `Slider` | native range, `w-full accent-(--c-accent) h-4`; min, mid and max labels `text-meta text-ink-muted` |
 
 ### 4.7 Tabs, SegmentedControl, NavList
 
-| Primitive | Recipe | Semantics | Replaces |
-|---|---|---|---|
-| `Tabs` `variant="panel"` (default) | strip `flex items-center gap-1 h-part-title px-1`; tab `h-6 px-2.5 rounded text-body text-(--c-tab-fg) hover:bg-hover hover:text-(--c-tab-fg-hover)`; selected `bg-selected-inactive text-(--c-tab-fg-active)` | `role="tablist"`/`tab`, `aria-selected`, Left/Right/Home/End | `MarkdownEditor.tsx:36-58` underline tabs. [V] Modern panel tabs: 24px pills, 13px regular, radius 4, bg `list.inactiveSelectionBackground`; label `panelTitle.inactiveForeground` (`#8C8C8C` / `#606060`), hover `modernTab.hoverForeground`, checked `modernTab.activeForeground` |
-| `Tabs` `variant="underline"` | strip `flex items-end gap-4 h-part-title px-2 border-b border-divider`; tab `h-full px-0 text-body text-(--c-tab-fg) hover:text-(--c-tab-fg-hover) border-b-2 border-transparent`; selected `text-(--c-tab-fg-active) border-(--c-tab-underline)` | same | OD-7 names underline tabs. [V] `panelTitle.activeBorder` (`#3994BC` / `#000000`); VS Code's classic panel tabs. No screen uses it at launch; the gallery covers it |
-| `SegmentedControl` | container `inline-flex gap-0.5 p-0.5 rounded-md bg-well`; item `h-control-sm px-2 rounded text-label text-ink-muted hover:text-ink`; selected `bg-selected text-ink` | `role="radiogroup"` + `role="radio"`, arrows | both segmented styles (accent fill in 8 places, raised thumb in `AppearanceTab.tsx:188-208`). One neutral style (D-13) |
-| `NavList` | rows `flex items-center gap-2 h-row px-2 rounded text-body text-ink-secondary hover:bg-hover`; selected `bg-selected text-ink` plus `data-selected` (the 2.11 re-scope); group row with `chevronRight`/`chevronDown` 16; group label `h-row px-2 text-meta font-semibold text-ink-muted` | `role="navigation"` + buttons with `aria-current="page"` | `SettingsNav.tsx:53-68`, `EntryDialogSidebar.tsx:48-60`, `VaultSettingsDialog.tsx:809-822` (36px rows and accent tint today) |
+| Primitive | Recipe | Used for |
+|---|---|---|
+| `Tabs variant="panel"` | strip `flex items-center gap-1 h-part-title px-1`; tab `h-6 px-2.5 rounded text-body text-(--c-tab-fg) hover:bg-hover hover:text-(--c-tab-fg-hover)`; selected `bg-selected-inactive text-(--c-tab-fg-active)`; `role="tablist"` / `tab` with arrow keys | The Markdown editor's Write and Preview |
+| `Tabs variant="underline"` | strip `h-part-title border-b border-divider`; selected `border-b-2 border-(--c-tab-underline)` | gallery only |
+| `SegmentedControl` | container `inline-flex gap-0.5 p-0.5 rounded-md bg-well`; item `h-control-sm px-2 rounded text-label text-ink-muted hover:text-ink`; selected `bg-selected text-ink`; `role="radiogroup"` | Brightness, Quick Connect types, SSH auth method |
+| `NavList` | rows `flex items-center gap-2 h-row px-2 rounded text-body text-ink-secondary hover:bg-hover`; selected `bg-selected text-ink` + `data-selected`; group row with a chevron 16; group label `h-row px-2 text-meta font-semibold text-ink-muted` | Settings nav (keeps `w-52`), entry dialog nav, vault settings nav |
 
-The Settings nav container keeps the `w-52` class (208px) and adds `data-cv-settings-nav`. The harness clicks `.w-52 button` until wave 4 (Appendix B).
+The pane tab bars are not `Tabs`: they keep their own markup with `tabs.css` (3.4).
 
 ### 4.8 Dialog, ConfirmDialog and the layer stack
 
-**`Dialog`** (`src/components/ui/Dialog.tsx`):
+`<Dialog open onClose? title icon? tone? size="sm|md|lg|xl" width? layer="base|sync|stacked" harnessLabel? closeOnEscape? closeOnScrim? initialFocusRef? footer? hideClose? onSubmit? portal?>`
 
-```tsx
-<Dialog open onClose title icon? tone? size="sm|md|lg|xl" layer="base|sync|stacked"
-        harnessLabel? closeOnScrim? initialFocusRef? footer? hideClose? onSubmit? portal?>
-```
+**(restyle, D-26)** `closeOnEscape` (default `true`) decides whether Escape calls `onClose`; with `false` the dialog's layer still swallows Escape, so nothing underneath closes (`layers.ts`: "A layer without an Escape action still swallows the key" [V]). `onClose` may be left out only together with `hideClose` and `closeOnEscape={false}` (and no `closeOnScrim`): a dialog that cannot be dismissed, such as the recovery passphrase. The type makes the other combinations a compile error. Each dialog's values come from 3.12.1.
 
-| Part | Recipe | Source |
-|---|---|---|
-| Portal and scrim | portal to `document.body` (unless `portal={false}`, which renders in place); `fixed inset-0 flex items-center justify-center p-4 bg-(--c-scrim)`; z-index from `layer`: `--c-z-dialog` 50, `--c-z-dialog-sync` 60, `--c-z-dialog-stacked` 70; `data-cv-layer={layer}` on the scrim | today z-50 / `z-[60]` (`SyncDialogFrame.tsx:48`) / `z-[70]` (`RecentlyDeletedPanel.tsx:130`) |
-| Panel | `data-dialog-content role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}` + `relative flex w-full max-h-[85vh] flex-col overflow-hidden rounded-lg border border-overlay-border bg-overlay text-ink shadow-modal outline-none` | [V] radius 8, shadow xl (D-25) |
-| Form (`onSubmit`) | when `onSubmit` is set, the panel's only child is `<form data-cv-dialog-form class="flex min-h-0 flex-1 flex-col" onSubmit={…}>`, which wraps header, body and footer; the footer is the form's last child and holds the `type="submit"` button. Enter in a field submits, as today | the harness submits every vault form with `[data-dialog-content] form button[type=submit]` (B31); `UnlockDialog.tsx:245-387` wraps all three in one form today |
-| `harnessLabel` | also sets `aria-label={harnessLabel}`; only sync-style dialogs pass it (`SyncDialogFrame`, `ConflictReviewPanel`) | D-22 and 8.3: the harness reads `[role=dialog][aria-label]` as "sync dialogs" |
-| Width | `sm` 400, `md` 520, `lg` 720, `xl` 880 (`max-w-[400px]` …) | D-25; [ADAPT] VS Code's 440 min width applies to its message box only |
-| Header | `flex items-center gap-2 px-4 pt-4 pb-3`; optional tone tile `size-7 rounded-md` (`info` `bg-info-bg text-info`, `warn` `bg-warning-bg text-warning`, `danger` `bg-danger-bg text-danger`) with a 16px icon; `<h2 id={titleId} class="flex-1 mt-0.5 text-heading text-ink">` (13px/600); close `IconButton md` `close`, `label="Close"` | [V] Modern dialog title `fontSize.heading3` 13px, semibold, margin 2px top and 12px bottom, row padding 16px top. `aria-label="Close"` matches `sync-flows.mjs:171` |
-| Body | `min-h-0 flex-1 overflow-y-auto px-4 py-2 text-body text-ink-secondary space-y-3`. Message-box dialogs (`ConfirmDialog`, alerts) show their message in `text-ink-muted`; form dialogs keep `text-ink-secondary` | [V] `.modern-ui-notifications-dialogs … .dialog-message-detail {color: var(--vscode-descriptionForeground)}` |
-| Footer | the **last child** of the panel (of the form when `onSubmit` is set): `flex flex-wrap justify-end gap-2 px-4 pt-2 pb-4` + `data-cv-dialog-footer` | harness `${root} > div:last-child button` (`settings-flows.mjs:52`); the B3 union also matches `[data-cv-dialog-footer]` |
-| Motion | none: the dialog appears and disappears at once, and unmounts when `open` goes false | [V] no animation rule matches `.monaco-dialog-box` (D-25) |
-| No blur | `backdrop-blur-sm` goes (`SyncDialogFrame.tsx:48`, `ConfirmDialog.tsx`) | D-25 |
-| Behavior | `useFreeze(open, "dialog")` (4.9); `useLayer({onEscape: onClose, trapFocus: true})`; focus `initialFocusRef` or the first `[autofocus]`, else the panel; return focus to the opener on close; scrim click closes only when `closeOnScrim` (default `false`; `AboutDialog` passes `true`, as today at `AboutDialog.tsx:28-30`) | replaces the hand-written Escape in 30 files [V] |
+| Part | Recipe |
+|---|---|
+| Portal and scrim | portal to `document.body` (unless `portal={false}`); `fixed inset-0 flex items-center justify-center p-4 bg-(--c-scrim)`; z-index from `layer` (50, 60, 70); `data-cv-layer` |
+| Panel | `data-dialog-content role="dialog" aria-modal="true" aria-labelledby={titleId}` + `relative flex w-full max-h-[85vh] flex-col overflow-hidden rounded-lg border border-overlay-border bg-overlay text-ink shadow-modal` |
+| Width | `size`: `sm` 400, `md` 520, `lg` 720, `xl` 880. **(restyle)** `width` (px) overrides the step with an inline `max-width`, so a dialog keeps today's width (D-18): a dialog with `max-w-md` passes `width={448}`, `max-w-lg` 512, `max-w-xl` 576, `max-w-2xl` 672, `max-w-3xl` 768, `max-w-4xl` 896, an arbitrary `max-w-[Npx]` or a fixed `w-[Npx]` (the vault and team dialogs) passes N; a dialog whose width changes by step (the entry dialog: `max-w-md`, then `max-w-3xl` for the form) passes the step's value |
+| Form | with `onSubmit`, one `<form data-cv-dialog-form>` wraps header, body and footer (B31) |
+| `harnessLabel` | also sets `aria-label`; only sync-style dialogs pass it (B9) |
+| Header | `flex items-center gap-2 px-4 pt-4 pb-3`; optional tone tile `size-7 rounded-md`; `<h2 class="flex-1 text-heading text-ink">` (13px/600); close `IconButton md` `close` `label="Close"`, left out with `hideClose` |
+| Body | `min-h-0 flex-1 overflow-y-auto px-4 py-2 text-body text-ink-secondary`; message boxes show their message in `text-ink-muted` |
+| Footer | the last child: `flex flex-wrap justify-end gap-2 px-4 pt-2 pb-4` + `data-cv-dialog-footer` |
+| Motion | none |
+| Behavior | `useFreeze(open, "dialog")`; Escape to the top layer only, where it calls `onClose` when `closeOnEscape`; Tab trapped; initial focus; focus returns to the opener; scrim click closes only with `closeOnScrim` |
 
-`DialogHeader`, `DialogBody` and `DialogFooter` are exported for dialogs that need custom layouts (Settings, EntryDialog). A custom layout without a `DialogHeader` still gets a name: the panel renders a visually hidden `h2` with the title and points `aria-labelledby` at it. It never falls back to `aria-label`, which stays reserved for `harnessLabel` (8.3).
+`DialogHeader`, `DialogBody` and `DialogFooter` serve custom layouts (Settings, the entry dialog); a custom layout without a `DialogHeader` still gets a hidden `h2`.
 
-**`ConfirmDialog`** (`src/components/common/ConfirmDialog.tsx`, rebuilt on `Dialog` by W3-MISC). Props stay compatible with today's (`ConfirmDialog.tsx:1-8`): `title`, `message`, `confirmLabel = "Confirm"`, `variant: "default" | "danger"`, `onConfirm`, `onCancel`. New optional props: `cancelLabel = "Cancel"` and `layer`. The message renders in `text-ink-muted`. **Stacking during the migration:** when `layer` is not given, `ConfirmDialog` renders with `portal={false}` at the `base` z-index, exactly where today's markup sits. That keeps `RecentlyDeletedPanel`'s `div.relative.z-[70]` wrapper working (`RecentlyDeletedPanel.tsx:129-131`) whichever of W3-MISC and W3-SYNC merges first; a portal would move the confirm under the z-60 panel. W3-SYNC (which depends on W3-MISC) passes `layer="stacked"` and drops the wrapper in the same change. W4-CLEANUP makes the portal the default once every caller that needs a layer passes one.
+**ConfirmDialog** (`src/components/common/ConfirmDialog.tsx`, rebuilt on `Dialog` by R3-MISC): props compatible with today's plus `cancelLabel`, `layer` and `closeOnEscape` (default `false`, as today); always `hideClose`. Without `layer` it renders in place (`portal={false}`), so `RecentlyDeletedPanel`'s `z-[70]` wrapper keeps working until R3-SYNC passes `layer="stacked"` and `closeOnEscape` (the panel's Escape cancels that confirm today, 3.12.1).
 
-**Layer stack** (`src/components/ui/layers.ts`):
-
-```ts
-export function useLayer(opts: { ref: RefObject<HTMLElement>; onEscape?: () => void; trapFocus?: boolean }): void;
-export function useEscapeLayer(onEscape: (() => void) | undefined): void;   // same contract as today
-```
-
-One capturing `keydown` listener serves the whole stack. Escape goes to the top layer only and is swallowed with `stopImmediatePropagation` (today's semantics, `useEscapeLayer.ts:3-19`). Tab and Shift+Tab cycle inside the topmost layer that traps focus, together with every popover opened above it, so Tab from a popover inside a modal dialog never reaches the app behind it. The cycle skips hidden elements (`display: none`, `visibility: hidden`; `opacity: 0` stays reachable, B45) and stops once per radio group, on the checked radio or else the first, as the browser does. `src/components/sync/useEscapeLayer.ts` becomes a one-line re-export in wave 1 and is deleted in wave 4.
+**Layer stack** (`src/components/ui/layers.ts`): one capturing `keydown` listener; Escape goes to the top layer only; Tab cycles inside the topmost trapping layer and the popovers above it. `src/components/sync/useEscapeLayer.ts` stays a re-export until R4-CLEANUP.
 
 ### 4.9 Freeze registry (native web views)
 
-`src/lib/native-freeze/index.ts` (W1-FREEZE):
+`src/lib/native-freeze/` (wave 1): `acquireFreeze`, `isFrozen`, `subscribe`, `useIsFrozen`, `useFreeze(active, reason, label?)`, `notifyLayoutChanged`, `freezeHolders()` (and `window.__conduitFreeze` in development). `useNativeViewVisibility` reads `isFrozen()`.
 
-```ts
-export type FreezeReason = "dialog" | "popover" | "sidebar" | "drag" | "menu" | "legacy";
-export function acquireFreeze(reason: FreezeReason, label?: string): () => void; // release is idempotent
-export function isFrozen(): boolean;
-export function subscribe(listener: () => void): () => void;
-export function useIsFrozen(): boolean;                           // useSyncExternalStore
-export function useFreeze(active: boolean, reason: FreezeReason, label?: string): void;
-export function notifyLayoutChanged(): void;                     // rAF-coalesced "conduit:layout-changed"
-export function freezeHolders(): ReadonlyArray<{ reason: FreezeReason; label?: string; since: number }>;
-```
-
-- Holders live in a `Map<symbol, Holder>`, and the view is frozen while the map is not empty (OD-8). Subscribers are notified once per microtask batch.
-- **Legacy bridge**, removed by W4-CLEANUP: the module listens for `conduit:overlay-change`, `conduit:sidebar-overlay-change` and `conduit:drag-change` (`App.tsx:389-395,410-415`; `DragContext.tsx:35-48`) and maps each to one `legacy` holder. Old dispatchers therefore keep working while the directories migrate.
-- `useNativeViewVisibility.ts:46-82` drops its three booleans and listeners and computes `shouldBeNative = isActive && !useIsFrozen() && webviewReady`. Paths A and B (`useNativeViewVisibility.ts:89-165`) stay unchanged.
-- **Who holds a freeze**:
-  - every `Dialog`;
-  - wave 1's direct additions to the three shared shells: `SyncDialogFrame`, `ConflictReviewPanel` and `ConfirmDialog`. These close today's gap: sync dialogs never froze web views, because they are not in the `App.tsx:389-391` list;
-  - the floating side bar and the spilled vault menu;
-  - DOM popovers with `freeze="auto"` whose rect intersects `[data-cv-editor-card]` (and `freeze={true}` ones), until the panel unmounts: the freeze outlasts `open` by the `cv-pop-out` exit, so a web view shown again cannot paint over the fading panel;
-  - tab drags (`DragContext`).
-  
-  Native popup menus hold none (D-20).
-- In development, `window.__conduitFreeze = freezeHolders` for debugging.
+Who holds a freeze: every `Dialog`; `SyncDialogFrame`, `ConflictReviewPanel` and `ConfirmDialog` directly; `App.tsx` for its 24 overlay flags (`legacy`) and for the floating side bar or a spilled vault menu (`sidebar`); tab drags (`DragContext`); popovers with `freeze="auto"` whose rect intersects a `[data-cv-session-area]` (**restyle**, D-21), and `freeze={true}` ones, until they unmount. Native popup menus hold none (D-13). The legacy event bridge and the `App.tsx` flag list stay in this release (D-28): R4-CLEANUP adds the overlay-freeze test, which proves every overlay also holds its own freeze, and removing the legacy hold is a follow-up after the release.
 
 ### 4.10 Menus and popovers
 
-**Native popup menus** stay the main surface for context menus (D-20). The IPC contract is in section 7.7. The renderer helper `showContextMenu(x, y, items, opts)` (`src/utils/contextMenu.ts:35-61`) keeps its signature. `PopupMenuItem.icon` becomes a `SemanticIconName` (5.1) instead of a menu-local key. The helper serializes each icon to SVG with the active pack (5.6) and resolves colors with `resolveCssColor`.
+- **Native popup menus**: 7.1. `showContextMenu(x, y, items, opts)` keeps its signature.
+- **`Popover`**: `<Popover anchorRef open onClose placement freeze>`, positioned by `usePopoverPosition` (8px edge, 4px gap); panel `rounded-lg border border-overlay-border bg-overlay shadow-overlay p-1 z-(--c-z-popover)`; `cv-pop-in` 250ms and `cv-pop-out` 150ms; Escape and outside `mousedown` close it.
+- **`Menu`** inside a `Popover`, or inside an existing positioned container (the vault switcher and the AI engine dropdown keep theirs, 3.6, 3.7): items `<button role="menuitem">` 24px, `mx-1 px-2`, radius 6, 13px `ink-secondary`, icon 16 `ink-muted`; active item `bg-(--c-menu-selection-bg)` with a 1px `--c-menu-selection-border` outline; danger items `text-danger` on `--c-menu-danger-hover-bg`; separators `h-px my-[5px] bg-divider`; headers `h-6 px-3 text-meta font-semibold text-ink-muted`; Up, Down, Home, End, typeahead.
 
-**DOM `Popover`** (`src/components/ui/Popover.tsx`): `<Popover anchorRef open onClose placement="bottom-start|bottom-end|top-start" freeze="auto|true|false">`. Position comes from the existing `usePopoverPosition` (`src/hooks/usePopoverPosition.ts`, flip and clamp with an 8px edge and a 4px gap). Panel: `rounded-lg border border-overlay-border bg-overlay shadow-overlay p-1 z-(--c-z-popover)`. Motion: `cv-pop-in` over `--c-motion-open` (250ms) and `cv-pop-out` over `--c-motion-close` (150ms), from the anchor corner (2.6). It joins the layer stack (Escape) and closes on outside `mousedown`.
-
-**DOM `Menu`** (`src/components/ui/Menu.tsx`), rendered inside a `Popover`:
-
-| Part | Recipe | Source |
-|---|---|---|
-| Container | `role="menu"`, `min-w-[160px] py-1` | [V] min-width 160, `padding: 4px 0` |
-| Item | `<button type="button" role="menuitem">`, `flex w-[calc(100%-8px)] items-center gap-2 h-6 mx-1 px-2 rounded-md text-body text-ink-secondary`, icon 16 in `--c-ink-muted` | [V] item 24 tall, `margin: 0 4px`, radius 6; text `menu.foreground` (`#BFBFBF` / `#202020`). A `<button>` because the harness clicks `Lock Current Vault` with selector `button` (B43) |
-| Active item (hover or keyboard) | `bg-(--c-menu-selection-bg) outline outline-1 -outline-offset-1 outline-(--c-menu-selection-border)` | [V] 2026 `menu.selectionBackground` + `selectionBorder` |
-| Danger item | `text-danger`, icon `text-danger`; active background `bg-(--c-menu-danger-hover-bg)` instead of the selection tint, as the popup menu (7.7) | `danger` on the accent tint measured 4.29 in Ocean dark [wave 1 review] |
-| Separator | `role="separator"`, `h-px my-[5px] bg-divider` | [V] `margin: 5px 0` |
-| Header | `h-6 px-3 text-meta font-semibold text-ink-muted` (no uppercase) | [ADAPT] VS Code menus have no headers; Conduit's do (`PaneTabBar.tsx:84`) |
-| Keyboard | Up, Down, Home, End, Enter, Space, Escape, typeahead. Keys typed in a field inside the menu (ModelPicker's custom model id) stay with the field: no typeahead, no roving. Escape in that field still closes the popover, because the layer stack takes Escape before any element handler (4.8) | none today |
-
-Users: `VaultSwitcherMenu.tsx:111` (keeps `data-context-menu`), `ChatPanel.tsx:242,510`, `ModelPicker.tsx:65` (keeps `data-popover`), `ColorPicker.tsx:39`, `IconPicker.tsx:51`.
+Users: `VaultSwitcherMenu` and the `ChatPanel` engine dropdown, both inside their existing containers. `ModelPicker`, `ColorPicker` and `IconPicker` are not rebuilt on `Popover` or `Menu`: they keep their layout and take the overlay look (3.16).
 
 ### 4.11 Tooltips
 
-Native `title` only (D-21): a native tooltip cannot be covered by a native web view. `IconButton` sets it from `label`. Text buttons do not get a `title` unless the text is truncated. The command center pill never gets one (3.2).
+Native `title` only: a native tooltip cannot be covered by a native web view. Every title stays exactly as today (8.4).
 
 ### 4.12 Badge, Kbd, Spinner
 
-| Primitive | Recipe | Source |
-|---|---|---|
-| `Badge` | `inline-flex items-center h-4 px-1 rounded text-badge font-semibold`; tones: neutral `bg-selected text-ink-secondary`, accent `bg-badge text-white`, warning `bg-warning-bg text-warning`, danger `bg-danger-bg text-danger`, success `bg-success-bg text-success` (each tone text passes 4.5:1 on its tint, 2.11 rule 3) | [V] `fontSize.label3` 10px |
-| Count badge | `min-w-[18px] min-h-[18px] px-[5px] py-[3px] rounded-full text-badge font-normal leading-[11px] text-center`, accent tone | [V] `.monaco-count-badge {padding:3px 5px; border-radius:11px; min-width:18px; min-height:18px; line-height:11px; font-weight:400}`, 10px in Modern UI (`.modern-ui .monaco-count-badge {font-size: var(--vscode-fontSize-label3)}`) |
-| `Kbd` | `inline-flex items-center h-4 px-1 rounded border border-control text-meta font-mono text-ink-muted` | |
-| `Spinner` | a `<span class="inline-flex items-center">` root (takes `className`, `ref` and `data-*`) around the `loader` icon with `animate-spin` at 12, 16 or 24; the icon is `aria-hidden` unless the spinner has a `label` (then `role="img" aria-label`). With `text`, the root adds `gap-2` and the text follows the icon as visible text (for example `<Spinner text="Loading..." />`). Never `role="status"` | replaces 4 CSS border spinners (`App.tsx:966`, `App.tsx:988`, picker) and the inline `LoaderIcon` + text pairs in the sync panels, whose text the harness reads (B35) |
+| Primitive | Recipe |
+|---|---|
+| `Badge` | `inline-flex items-center h-4 px-1 rounded text-badge font-semibold`; tones neutral `bg-selected text-ink-secondary`, accent `bg-badge text-white`, warning, danger, success on their tints |
+| `CountBadge` | `min-w-[18px] min-h-[18px] px-[5px] rounded-full text-badge`, accent |
+| `Kbd` | `inline-flex items-center h-4 px-1 rounded border border-control text-meta font-mono text-ink-muted` |
+| `Spinner` | the `loader` icon spinning at 12, 16 or 24; optional visible `text`; never `role="status"` |
 
 ### 4.13 Containers
 
-| Primitive | Recipe | Notes |
-|---|---|---|
-| `Card` | `rounded-md border border-card-border bg-well p-3` | [V] inner containers radius 6 |
-| `ChoiceCard` + `ChoiceGroup` | group `role="radiogroup"`, grid; card `role="radio" aria-checked`, `flex flex-col gap-1.5 rounded-md border border-card-border bg-transparent p-2 text-left hover:border-(--c-control-border)`; checked `border-accent bg-selected-inactive` + `data-selected` (the 2.11 re-scope); roving focus with arrows | Appearance scheme and icon pack pickers (6.4); replaces `SchemeCard` (`AppearanceTab.tsx:302-344`) |
-| `Callout` | `flex gap-2 rounded-md border p-2.5 text-label`; tones `info` (`bg-info-bg border-info-border`, icon `text-info`), `warning`, `danger`, `success`; title `font-semibold text-ink`; body `text-ink-secondary`; danger body text is `<p data-cv-error>`; optional actions row `mt-2 flex gap-2` of `Button sm`; `size="sm"` uses `p-2` | replaces 46 callouts and `InlineError` (`PasswordFields.tsx:40-47`) |
-| `Banner` | the 26px banner from 3.9, `role="status"`; used only by `BannerStack` | |
-| `EmptyState` | `flex flex-col items-center gap-2 py-8 text-center`; icon 32 `text-ink-faint`; title `text-body text-ink-secondary`; description `text-label text-ink-muted`; optional action `Button` | about 15 today |
-| `SectionHeader` | `<h3 class="text-label font-semibold text-ink-secondary">` + optional `description` `text-meta text-ink-muted`; `mb-2` | must stay an `h3` (the harness reads Sync tab section titles from `h3`, `settings-flows.mjs:72`) |
-| `SettingsRow` | `grid gap-1 py-3 border-b border-divider last:border-0`; title `text-body font-semibold text-ink`; description `text-label text-ink-muted`; control below, `max-w-[420px]`; booleans put the `Checkbox` inline with the description, except toggle rows the harness drives (Backup's `Local Backup` and `Cloud Backup`): those keep the title as a `<label>` with exact text and a `Switch` as a direct child of the `.justify-between` / `data-cv-toggle-row` row (B22, B39) | [A] VS Code settings editor pattern |
+| Primitive | Recipe |
+|---|---|
+| `Card` | `rounded-md border border-card-border bg-well p-3` |
+| `ChoiceCard` + `ChoiceGroup` | group `role="radiogroup"`, grid; card `role="radio" aria-checked data-cv-choice`, `flex flex-col gap-1.5 rounded-md border border-card-border p-2 text-left hover:border-(--c-control-border)`; checked `border-accent bg-selected-inactive` + `data-selected`; 2px outside focus ring |
+| `Callout` | `flex gap-2 rounded-md border p-2.5 text-label`; tones `info`, `warning`, `danger`, `success` on their tints; title `font-semibold text-ink`; body `text-ink-secondary`; actions row of `Button sm`; `size="sm"` uses `p-2`. **(restyle, salvage `ee3bc39`)** `onDismiss` adds an in-flow `IconButton sm` `close` at the top right labeled `dismissLabel` (default `Dismiss`) |
+| `Banner` | the 26px banner (3.8), `role="status"`, text in `span.flex-1` + `data-cv-banner-text`. **(restyle)** Actions are `Button size="sm"` (22px): `{label, onClick, disabled?, primary?}`, `variant="primary"` when `primary`, else `secondary` (D-27; wave 1 drew underlined links). The divider is `box-shadow: inset 0 -1px 0 var(--c-divider)` (salvage `ca9659c`); `status={false}` omits `role="status"` for the offline banners; `align="center"` centers the icon, text and actions as one group, the text span not growing (the offline banners, as today; the harness reads `span.flex-1` only inside `role="status"` banners, B15) |
+| `EmptyState` | `flex flex-col items-center gap-2 py-8 text-center`; icon 32 `text-ink-faint`; title `text-body text-ink-secondary`; description `text-label text-ink-muted` |
+| `SectionHeader` | `<h3 class="text-label font-semibold text-ink-secondary">` (stays an `h3`, B37) |
+| `SettingsRow` | `grid gap-1 py-3 border-b border-divider last:border-0`; title `text-body font-semibold text-ink`; description `text-label text-ink-muted`; the Backup toggles keep their `<label>` and a direct-child `Switch` (B22, B39) |
 
 ### 4.14 ListRow and TreeRow
 
-`ListRow` (`src/components/ui/ListRow.tsx`): `flex items-center gap-1.5 h-row px-2 rounded text-body text-ink-secondary`.
+`ListRow`: `flex items-center gap-1.5 h-row px-2 rounded text-body text-ink-secondary`; a `<button>` when clickable; states hover `bg-hover`, selected `bg-selected text-ink`, unfocused selection `bg-selected-inactive`; `description` makes it 36px with a `text-meta text-ink-muted` line. `leading`: an icon source draws in a 16px box; **(restyle)** an element (the hub's 28px icon tile, an entry icon) sizes itself in a `shrink-0` slot. **(restyle)** `meta`: always visible, after the label and inside the clickable button, `shrink-0 text-meta text-ink-faint` (badges, timestamps, type labels; L-23). `trailing`: small `IconButton`s or a decorative chevron, revealed on hover or focus-within by opacity (B45), outside the clickable button.
 
-- Element: a `<button type="button">` when the row is clickable (the harness clicks recent vaults as `button[title="{path}"]`, B44), else a `<div>`. Selected rows set `aria-selected="true"` (inside a listbox or tree) or `data-selected`.
-- States: hover `bg-hover`; selected `bg-selected text-ink`; selected in an unfocused list `bg-selected-inactive`; focus `outline-1 -outline-offset-1 outline-(--c-focus)`.
-- Slots: `leading` (16px icon), `trailing` (20px IconButtons shown on hover or `focus-within`, hidden with `opacity-0` only, never `invisible` or `hidden`, B45). A `description` switches the row to `h-row-2line` with a `text-meta text-ink-muted` line; inside a selected row the global re-scope (2.11) turns it into `ink-secondary`.
-- `TreeRow` adds `depth` (8px per level), a twistie slot and `role="treeitem"`.
+`TreeRow`: 22px, `padding-left: calc(4px + depth * 8px)`, a 16px twistie slot on every row, 6px gaps. The entry tree applies this recipe to its own rows (3.6) without `role="treeitem"` (D-20).
 
-Users: `EntryTree`, `VaultHub.tsx:227,341` rows, `VaultSwitcherMenu`, `CredentialManager`, `BackupManagerDialog`, `SyncDevicesList`, the `ConflictReviewPanel` list, picker lists and `DashboardOverview` rows.
+### 4.15 Toasts
 
-### 4.15 Toasts (visual only)
+`ToastCard` (wave 1) is the toast body of 3.14. The toast API (`common/Toast.tsx`) and the overlay protocol are unchanged.
 
-The toast API is unchanged (`common/Toast.tsx:74-85`). `OverlayToast.tsx` and `OverlayUpdateNotification.tsx` (W3-OVERLAY) become:
+### 4.16 Legacy class map
 
-- container `data-toast flex items-start gap-2 w-full max-w-[450px] rounded-lg border border-overlay-border bg-overlay p-2 shadow-overlay` [V toast max width 450, radius 8, shadow lg]. The 4px colored left bar goes (`OverlayToast.tsx:13-18`) [ADAPT to VS Code];
-- icon 16 in the tone color, `mt-0.5 ml-1` [V 16px severity icon];
-- title `text-body font-semibold text-ink`; message `text-body text-ink-secondary`;
-- actions `mt-2 flex gap-1` of `Button sm`;
-- close `IconButton sm`;
-- progress track `h-1 rounded-full bg-selected` with fill `bg-(--c-progress)`;
-- animations: `toast-in` slides up from `translateY(100%)` with opacity 0 → 1 over 300ms `ease-out`, and `toast-out` reverses it; both 0ms under reduced motion [V `.notification-toast {transform: translate3d(0,100%,0); opacity:0; transition: transform .3s ease-out, opacity .3s ease-out}`];
-- the overlay container (`OverlayApp.tsx:92`) becomes `p-1 gap-1`: each toast then sits 4px inside the window, and with the window placement in 7.6 that is 8px from the window's right edge and 8px above the status bar, as in VS Code (D-24).
-
-`data-toast` must stay (`OverlayApp.tsx:61` switches click-through on it).
-
-### 4.16 Legacy class map for wave 3
-
-Each wave-3 package applies this map in its directory. It uses a primitive wherever one exists.
+Each package applies this map to the files it owns, using a primitive wherever one exists. `scripts/redesign/legacy-classes.mjs` reports these patterns inside class strings only.
 
 | Legacy | New |
 |---|---|
-| `bg-canvas` (page or session background) | `bg-editor` |
-| `bg-panel` on dialogs and popovers | primitive (`bg-overlay`) |
-| `bg-panel` on side panels | `bg-sidebar` |
-| `hover:bg-raised`, `hover:bg-well`, `hover:bg-stroke` (hover surfaces) | `hover:bg-hover` |
-| `bg-conduit-600/20 text-conduit-400`, `bg-conduit-500/10` (selection) | `bg-selected text-ink` (D-13) |
+| `bg-canvas` on a session, pane, screen or app root | `bg-editor` |
+| `bg-canvas` or `bg-panel` on the side bar or the AI panel | `bg-sidebar` |
+| `bg-panel` on a pane tab bar | `.cv-tabstrip` (`--c-tabstrip`) |
+| `bg-panel` on dialogs, menus and popovers | the primitive (`bg-overlay`) |
+| `bg-panel` on bars under a tab strip | `bg-editor` (D-19) |
+| `hover:bg-raised`, `hover:bg-well`, `hover:bg-stroke` | `hover:bg-hover` (rows, ghost buttons) or `hover:bg-toolbar-hover` (icon buttons) |
+| `bg-conduit-600/20 text-conduit-400`, `bg-conduit-500/10` (selection) | `bg-selected text-ink` + `data-selected` |
+| `bg-conduit-500/5 border-conduit-500/20` (info cards) | `Callout tone="info"` |
 | `bg-conduit-600 hover:bg-conduit-700/500 text-white` | `Button variant="primary"` |
 | `text-conduit-400 hover:text-conduit-300` (links) | `text-link hover:text-link-hover` or `Button variant="link"` |
-| `text-red-400/500`, `bg-red-500/10 border-red-500/20` | `text-danger`, `Callout tone="danger"` |
-| `text-amber-400`, `text-yellow-400/500`, `bg-amber-500/10` | `text-warning`, `bg-warning-bg` |
-| `text-green-400/500` | `text-success` |
+| `text-red-*`, `bg-red-500/10 border-red-500/20` | `text-danger`, `Callout tone="danger"` |
+| `text-amber-*`, `bg-amber-500/10` | `text-warning`, `bg-warning-bg` |
+| `text-yellow-400` on favorite stars | `text-favorite` (D-17) |
+| `text-yellow-*` elsewhere | `text-warning` |
+| `text-green-*`, `bg-green-500` | `text-success`; state dots `--c-state-*` |
+| `text-blue-400` (team sync) | `text-info` |
 | `text-[10px]`, `text-[11px]` | `text-badge`, `text-meta` |
 | `rounded-xl`, `shadow-xl`, `backdrop-blur-sm` on overlays | the `Dialog` primitive |
 | `text-2xl font-bold` headings | `text-display` or `text-title` |
-| `uppercase` with `tracking-wide` / `tracking-wider`, usually on `text-[10px]` or `text-xs` section labels (40 `uppercase` and 37 `tracking-wide*` class uses in 27 files [V count]) | `SectionHeader`, or `text-meta font-semibold text-ink-muted` with no uppercase and no letter spacing. Modern UI uses title case [V `.modern-ui .monaco-pane-view .pane>.pane-header>.title {text-transform:capitalize}`; `workbench.experimental.modernUIUppercaseViewHeaders` defaults to `false`] |
-| `text-base` (8) | `text-heading` for dialog titles, `text-body` elsewhere. Markdown prose variants (`prose-h2:text-base` in `markdownProseClasses.ts:5`) keep document heading sizes |
-| `text-xl` (6) | `text-title` |
-| `bg-well` (or `bg-raised`) on code blocks and prose `pre` / `code` | `bg-code` (`--c-code-bg`) |
-| Tailwind palette entry colors (`entryIcons.ts:61-80`) | `text-entry-ssh` and siblings |
+| `uppercase` with `tracking-wide*` on section labels | `text-meta font-semibold text-ink-muted`, no uppercase |
+| `text-base` | `text-heading` for dialog titles, `text-body` elsewhere |
+| `text-xl` | `text-title` |
+| `bg-well` or `bg-raised` on code | `bg-code` |
+| Tailwind palette entry colors | `text-entry-*` |
 | `w-8 h-8 border-2 … animate-spin` spinners | `Spinner` |
 
-`scripts/redesign/legacy-classes.mjs` matches these patterns only inside `className` / `class` strings and `cx()` arguments, so words such as the `uppercase` option in `src/utils/passwordGenerator.ts` are not findings.
-
-**Exception.** Classes named in Appendix B stay until the matching hook exists and W1-HARNESS's selector pair is merged. The dead files in section 10.5 are skipped.
+Classes the harness still reads (Appendix B allowlist) stay until their hook exists. The dead files (10.5) are skipped.
 
 ---
 
@@ -1355,1156 +1107,1140 @@ Each wave-3 package applies this map in its directory. It uses a primitive where
 
 ### 5.1 Registry API
 
-Everything lives in `src/lib/icons/` (W1-ICONS). Call sites keep importing named components (`CloseIcon`, `SettingsIcon`, …) from `src/lib/icons`, so wave 1 changes no call sites.
+Everything lives in `src/lib/icons/` (wave 1). Call sites keep importing named components (`CloseIcon`, `SettingsIcon`, …) or render `<Icon name>`; packs switch underneath them.
 
-| File | Contents |
+| File | Contents after R1-FOUNDATION |
 |---|---|
-| `types.ts` | `SEMANTIC_ICON_NAMES`: the 111 names of today (`types.ts:11-158`) plus 12 new ones in a "Layout and chrome" group (5.3), 123 in all. `SemanticIconName`. `IconProps { size?: number; className?: string; style?: CSSProperties; compact?: boolean; title?: string; stroke?: number }` (`stroke` is kept for compatibility and ignored by fill-based packs). `IconPackId = "codicons" \| "lucide" \| "tabler" \| "phosphor" \| "fluent" \| "material"`. `ICON_PACKS: ReadonlyArray<IconPackInfo>` with `{id, label, description, license, packageName, version}`. The old `IconTheme` type and `THEME_ICON_DEFAULTS` (`types.ts:176-189`) stay only as a deprecated shim until W4-CLEANUP. |
-| `store.ts` | zustand `useIconPackStore: {pack, mapping, status}`; `setIconPack(id)`. Loads are lazy and cached. A request counter drops a load that finishes after a newer request (fixes the pack-switch race [V critic]). Module-level listeners: `conduit:theme-change` with `detail.iconPack`, and `window` `storage` events for key `conduit-icon-pack` (the overlay and picker windows). Replaces `theme-store.ts`, which reads `conduit-platform-theme` (`theme-store.ts:20`). |
-| `loader.ts` | `loadIconPack(id)` (dynamic `import()` per pack, cached), `preloadAllIconPacks(): Promise<void>` (loads the five lazy packs, used by the Appearance tab, 5.7), `getPackMapping(id): IconMapping \| null` (a loaded pack's mapping, `null` until loaded) and `bootIconPack()`. Boot reads `localStorage["conduit-icon-pack"]` (after the boot migration, 6.3), sets Codicons synchronously (statically imported) and starts the lazy load of any other pack. The deprecated `loadIconPack(theme: IconTheme)` overload maps `default → tabler`, `macos → phosphor`, `windows → fluent`, `ubuntu → tabler` until W1-TOKENS removes its callers. |
-| `create-themed-icon.ts` | `createThemedIcon(name)`: a memo component that renders `mapping[name]` with `size` (default 16), `className`, `style` and `compact`. Icons are decorative by default (`aria-hidden="true" focusable="false"`); with `title` they render `role="img" aria-label={title}`. |
-| `Icon.tsx` | `<Icon name={SemanticIconName} size compact className pack? />` for data-driven places (menus, status bar, activity bar). With `pack` it renders from that pack's mapping (`getPackMapping`), falling back to the active pack until the pack has loaded; the Appearance tab's preview strips use it. |
-| `serialize.ts` | `iconToSvg(name, size = 16): string` for native popup menus. Renders into a detached `div` with `createRoot` + `flushSync` and returns the `<svg>` markup, cached per `pack:name:size`, with the cache cleared on pack change. |
-| `licenses.ts` | License metadata for the Licenses view (5.8) and the pack cards. |
-| `index.ts` | The 111 existing named exports plus `MenuIcon`, `PanelLeftIcon`, `PanelLeftOffIcon`, `PanelRightIcon`, `PanelRightOffIcon`, `SplitHorizontalIcon`, `SplitVerticalIcon`, `EllipsisIcon`, `CollapseAllIcon`, `AccountIcon`, `ExplorerIcon`, `CircleFilledIcon`, plus `Icon`, `useIconPackStore`, `setIconPack`, `bootIconPack`, `preloadAllIconPacks`, `getPackMapping`, `iconToSvg`, `ICON_PACKS`. |
-| `packs/*` | `codicons.tsx` and `material.tsx` (adapters over generated data), `lucide.ts`, `tabler.ts` (renamed from `default.ts`), `phosphor.ts` (from `macos.ts`; also fixes `playerStopFilled: wrap(Stop)` to `wrap(Stop, "fill")`, `macos.ts:254`), `fluent.ts` (from `windows.ts`). `ubuntu.ts` (an alias of the Tabler mapping, `ubuntu.ts:11-14`) is deleted. |
-| `generated/codicons.ts`, `generated/material.ts` | Checked-in generator output. Each maps a semantic name to `{ w, h, nodes, compact? }`, where `nodes` is a tree of `{ tag: "path" \| "g", attrs }` holding only `d`, `fill`, `fill-rule`, `clip-rule`, `transform` and `opacity`. The adapter renders `<svg viewBox="0 0 w h" width={size} height={size} fill="currentColor">` with `React.createElement`, never `dangerouslySetInnerHTML`. |
+| `types.ts` | `SEMANTIC_ICON_NAMES`: **116 names** (today's 111 plus `menu`, `splitHorizontal`, `splitVertical`, `ellipsis`, `circleFilled`; D-23 retires `panelLeft`, `panelLeftOff`, `panelRight`, `panelRightOff`, `collapseAll`, `account`, `explorer`). `IconProps { size?, className?, style?, compact?, title?, stroke? }`: `compact` now only matters for glyphs with a 12px variant (the state dot), `stroke` is honored by Lucide, Tabler and Hugeicons. `IconPackId = "lucide" \| "phosphor" \| "hugeicons" \| "material" \| "fluent" \| "tabler"`. `ICON_PACKS` in picker order (5.8). `DEFAULT_ICON_PACK = "lucide"`. The deprecated `IconTheme`, `THEME_ICON_DEFAULTS`, `PACK_BY_ICON_THEME` and `isIconTheme` are deleted (no callers outside `src/lib/icons` [V grep]). |
+| `pack-cache.ts` | Lucide is imported statically (`LUCIDE_MAPPING`, the initial mapping); `LAZY_ICON_PACKS` = phosphor, hugeicons, material, fluent, tabler, each a dynamic `import()` and therefore its own chunk. |
+| `store.ts` | zustand `useIconPackStore {pack, mapping, status, requested, error, loaded}`, `setIconPack(id)`, the request counter that drops stale loads, the `conduit:theme-change` (`detail.iconPack`) and `storage` (`conduit-icon-pack`) listeners; **(restyle)** the applied pack's id on `<html data-cv-icon-pack>` (5.6). The deprecated `setTheme` and `useIconThemeStore` go. |
+| `loader.ts` | `loadIconPack(id)`, `preloadAllIconPacks()`, `getPackMapping(id)`, `bootIconPack()` (reads `conduit-icon-pack`; Lucide applies at once, any other pack loads while Lucide shows). The deprecated `loadIconPack(theme)` overload goes. |
+| `create-themed-icon.ts`, `Icon.tsx`, `a11y.ts` | Unchanged: named memo components, `<Icon name pack? …>` (with `pack` for previews), decorative by default, `role="img"` with `title`. |
+| `serialize.ts` | `iconToSvg(name, size)` for popup menus, cached per `pack:name:size`, cleared on pack change. |
+| `glyph.ts` | Generated-glyph renderer, with the `trim` option of the Material salvage (5.4). |
+| `licenses.ts` | `ICON_PACK_LICENSES` for the six shipped packs (5.9). |
+| `index.ts` | The named exports for all 116 names (`PanelLeftIcon`, `PanelLeftOffIcon`, `PanelRightIcon`, `PanelRightOffIcon`, `CollapseAllIcon`, `AccountIcon`, `ExplorerIcon` go), the registry API, `ICON_PACKS`, `ICON_PACK_LICENSES`. |
+| `packs/lucide.ts` + `lucide-wrap.ts` | Lucide, `strokeWidth` 1.5 (1px at 16px, matching Tabler and Hugeicons). |
+| `packs/hugeicons.ts` + `hugeicons-wrap.ts` | **New** (5.2). |
+| `packs/phosphor.ts`, `packs/fluent.ts`, `packs/tabler.ts` | Today's mappings minus the retired names, `circleFilled` from the shared dot. |
+| `packs/material.tsx` + `generated/material.ts` | Material Symbols from the codegen, trimmed (5.4). |
+| `packs/state-dot.ts` | **New** (salvage, 5.4). |
+| `packs/codicons.tsx`, `generated/codicons.ts` | **Deleted.** |
 
-**Generator** `scripts/icons/generate-icon-packs.mjs` (`npm run icons:generate`, `--check` in tests):
+### 5.2 Packs and delivery
 
-1. Read the mapping source `scripts/icons/mapping.mjs` (semantic → Codicon name, Codicon compact name, Material name, Material fill flag).
-2. Read `node_modules/@iconify-json/codicon/icons.json` and `node_modules/@iconify-json/material-symbols-light/icons.json`, resolving aliases. Per-icon `width`/`height` overrides are honored: `settings-gear`, `terminal` and `files` are 24×24 and every `-compact` glyph is 12×12 [V].
-3. Tokenize each body with a strict parser that accepts only `<path …/>` and `<g …>…</g>` with the attributes above, and fail on anything else.
-4. Emit only the glyphs the mapping uses, sorted, with a do-not-edit header. Emit `public/licenses/third-party-icons.txt` from each package's `LICENSE` file (5.8).
-
-### 5.2 Delivery per pack
-
-| Pack id | Label | Package and version | Delivery | License | Notes |
+| Id | Label (picker) | Package, version | Delivery | License | Look |
 |---|---|---|---|---|---|
-| `codicons` | Codicons | `@iconify-json/codicon@1.2.73` | codegen, static | CC-BY-4.0 | the default pack (D-1); the card label is the plain pack name, as 5.7 lists it; 115 of 123 names are native Codicons, 8 have no Codicon and use Lucide glyphs (Appendix A.1) |
-| `lucide` | Lucide | `lucide-react@1.48.0` | named imports, lazy chunk | ISC | `strokeWidth` 1.5 at 16px [ADAPT: Lucide's default 2 reads heavy next to Codicons] |
-| `tabler` | Tabler (Classic) | `@tabler/icons-react` 3.38.0 installed (range `^3.36.1` kept) | existing pack, lazy chunk | MIT | stroke 1.5 as today (`types.ts:185`) |
-| `phosphor` | Phosphor | `@phosphor-icons/react` 2.1.10 | existing pack, lazy chunk | MIT | weight `regular`, `fill` for filled names |
-| `fluent` | Fluent | `@fluentui/react-icons` 2.0.321 | existing pack, lazy chunk | MIT | unsized `*Regular` / `*Filled` components as today (`windows.ts:120-133`) |
-| `material` | Material Symbols | `@iconify-json/material-symbols-light@1.2.94` | codegen, lazy chunk | Apache-2.0 | `*-outline-rounded` glyphs, `*-rounded` for filled names (Appendix A.3) |
+| `lucide` | Lucide | `lucide-react` 1.48.0 (exact) | named imports, **entry chunk** (default) | ISC (portions MIT, Feather) | 1.5 stroke, rounded line icons |
+| `phosphor` | Phosphor | `@phosphor-icons/react` 2.1.10 | named imports, lazy chunk | MIT | `regular` weight, `fill` for filled names |
+| `hugeicons` | Hugeicons | `@hugeicons/core-free-icons` 4.3.5 (exact) | one subpath import per glyph, lazy chunk | MIT | "Stroke Rounded" free set, 1.5 stroke on a 24px grid |
+| `material` | Material Symbols | `@iconify-json/material-symbols-light` 1.2.94 | codegen, lazy chunk | Apache-2.0 | outline rounded; filled rounded for filled names |
+| `fluent` | Fluent | `@fluentui/react-icons` 2.0.321 | named imports, lazy chunk | MIT | `*Regular` / `*Filled` |
+| `tabler` | Tabler (Classic) | `@tabler/icons-react` 3.38.0 (range `^3.36.1`) | named imports, lazy chunk | MIT | today's icons, 1.5 stroke |
 
-All six move to or land in **devDependencies** (D-2). The renderer is bundled by Vite and nothing under `electron/` or `mcp/` imports them [V grep]. Acceptance check: `npm ls --omit=dev --parseable` lists none of these packages.
+All six are devDependencies (D-11). Acceptance: `npm ls --omit=dev --parseable` lists none of them. `@iconify-json/codicon` is removed from `package.json` and `package-lock.json`.
 
-**Size policy.** Icons render at the requested size. The approved sizes are 12, 16, 20, 24, 32 and 48. Codicons are drawn on a 16px grid, so 13, 14 and 15 look soft [V critic: 183 call sites use 14]. Wave-3 packages round 13 and 14 to 16, 18 to 16 or 20, and 10 and 11 to 12. W4-CLEANUP adds a test that fails on any other `size={n}` under `src/components/`, except custom entry icons (`iconRegistry.ts`), `EngineLogo` and one named exception: the 14px search icon of the title bar pill (`data-cv-command-center`, VS Code's value, 3.2). State dots are the 16px `circleFilled` glyph, which draws an 8px disc, never an 8px icon.
+**The Hugeicons adapter** (`packs/hugeicons-wrap.ts`):
 
-### 5.3 New semantic names
+```ts
+import { createElement, memo } from "react";
+import { iconA11yAttributes } from "../a11y";
+import { DEFAULT_ICON_SIZE, type IconComponent, type IconProps } from "../types";
 
-| Name | Used by | Codicons | Lucide | Tabler | Phosphor | Fluent | Material |
-|---|---|---|---|---|---|---|---|
-| `menu` | title bar menu button | `menu` | `Menu` | `IconMenu2` | `List` | `NavigationRegular` | `menu-outline-rounded` |
-| `panelLeft` | layout control, side bar shown | `layout-sidebar-left` | `PanelLeft` | `IconLayoutSidebar` | `SidebarSimple` (fill) | `PanelLeftFilled` | `left-panel-close-outline-rounded` |
-| `panelLeftOff` | layout control, side bar hidden | `layout-sidebar-left-off` | `PanelLeftDashed` | `IconLayoutSidebarInactive` | `SidebarSimple` | `PanelLeftRegular` | `left-panel-open-outline-rounded` |
-| `panelRight` | layout control, AI shown | `layout-sidebar-right` | `PanelRight` | `IconLayoutSidebarRight` | `SidebarSimple` (fill) + `transform: scaleX(-1)` | `PanelRightFilled` | `right-panel-close-outline-rounded` |
-| `panelRightOff` | layout control, AI hidden | `layout-sidebar-right-off` | `PanelRightDashed` | `IconLayoutSidebarRightInactive` | `SidebarSimple` + `transform: scaleX(-1)` | `PanelRightRegular` | `right-panel-open-outline-rounded` |
-| `splitHorizontal` | split right | `split-horizontal` | `Columns2` | `IconLayoutColumns` | `SquareSplitHorizontal` | `SplitVerticalRegular` | `splitscreen-right-outline-rounded` |
-| `splitVertical` | split down | `split-vertical` | `Rows2` | `IconLayoutRows` | `SquareSplitVertical` | `SplitHorizontalRegular` | `splitscreen-bottom-outline-rounded` |
-| `ellipsis` | more actions | `ellipsis` | `Ellipsis` | `IconDots` | `DotsThree` | `MoreHorizontalRegular` | `more-horiz-outline-rounded` |
-| `collapseAll` | tree collapse | `collapse-all` | `ChevronsDownUp` | `IconFold` | `ArrowsInLineVertical` | `ArrowMinimizeVerticalRegular` | `unfold-less-outline-rounded` |
-| `account` | activity bar | `account` | `CircleUser` | `IconUserCircle` | `UserCircle` | `PersonCircleRegular` | `account-circle-outline-rounded` |
-| `explorer` | activity bar Vault | `files` (24×24) | `Files` | `IconFiles` | `Files` | `DocumentMultipleRegular` | `files-outline-rounded` |
-| `circleFilled` | tab state dot | `circle-filled` | `Circle` + `fill="currentColor"` | `IconCircleFilled` | `Circle` weight `fill` | `CircleFilled` | `circle-rounded` |
+/** One glyph of @hugeicons/core-free-icons: [tag, attributes] pairs on a 24px grid (IconSvgObject). */
+export type HugeiconsGlyph = ReadonlyArray<readonly [string, Readonly<Record<string, string | number>>]>;
 
-Every name above was checked against the installed or downloaded package [V: `lucide-react@1.48.0` exports; `@tabler/icons-react@3.38.0` `dist/esm/icons`; `@phosphor-icons/react@2.1.10` `dist/csr`; `@fluentui/react-icons@2.0.321` `lib/atoms/svg` typings; Iconify JSON for Codicons and Material]. The shown / hidden pairs follow VS Code: the Codicon, Phosphor `fill` and Fluent `Filled` glyphs draw the pane filled, the `-off` / regular glyphs draw it as an outline [V glyph paths]. Lucide and Tabler have no filled pane, so their hidden glyph is the dashed or inactive variant. Material Symbols names its glyphs by action, so the shown state uses `…-close` and the hidden state `…-open`.
+export const HUGEICONS_STROKE_WIDTH = 1.5;
+const TAGS: ReadonlySet<string> = new Set(["path", "circle", "ellipse", "line", "polyline", "polygon", "rect", "g"]);
 
-Orientation is [A] for Fluent and Phosphor, whose names describe the divider line. In each pair above, the "horizontal" entry is side-by-side panes, matching Conduit's `splitPane(paneId, "horizontal")` = Split Right (`PaneTabBar.tsx:231-236`). W1-PRIMITIVES' gallery shows both glyphs for a visual check.
+export function wrapHugeicon(glyph: HugeiconsGlyph, name: string, options: { filled?: boolean } = {}): IconComponent {
+  const Wrapped = memo(function WrappedHugeicon(props: IconProps) {
+    const size = props.size ?? DEFAULT_ICON_SIZE;
+    const strokeWidth = props.stroke ?? HUGEICONS_STROKE_WIDTH;
+    const children = glyph.map(([tag, { key, ...attrs }], index) => {
+      if (!TAGS.has(tag)) throw new Error(`Hugeicons ${name}: unexpected <${tag}>`);
+      return createElement(tag, {
+        ...attrs,
+        ...("strokeWidth" in attrs ? { strokeWidth } : {}),
+        ...(options.filled ? { fill: "currentColor" } : {}),
+        key: String(key ?? index),
+      });
+    });
+    return createElement(
+      "svg",
+      { viewBox: "0 0 24 24", width: size, height: size, fill: "none", className: props.className, style: props.style,
+        ...iconA11yAttributes(props.title) },
+      children,
+    );
+  });
+  Wrapped.displayName = `Hugeicons(${name})`;
+  return Wrapped;
+}
+```
 
-Full tables for all 123 names are in Appendix A.
+`packs/hugeicons.ts` imports each glyph from its own subpath (the package's `exports` map has a `./*` wildcard to `./dist/esm/*.js` with types in `./dist/types/*.d.ts` [V]):
 
-### 5.4 Compact glyphs
+```ts
+import Cancel01Icon from "@hugeicons/core-free-icons/Cancel01Icon";
+// … one import per glyph of Appendix A.2 …
+export const mapping: IconMapping = {
+  close: wrapHugeicon(Cancel01Icon, "Cancel01Icon"),
+  // …
+  starFilled: wrapHugeicon(StarIcon, "StarIcon", { filled: true }),
+  pinFilled: wrapHugeicon(PinIcon, "PinIcon", { filled: true }),
+  playerStopFilled: wrapHugeicon(StopIcon, "StopIcon", { filled: true }),
+  circleFilled: createStateDotIcon("Hugeicons"),
+};
+```
 
-36 of the 123 mapped names have a pixel-drawn 12×12 `-compact` Codicon [V], for example `close-compact`, `add-compact`, `chevron-down-compact`, `folder-compact` and `circle-filled-compact` (Appendix A.1). The Codicons adapter uses the compact glyph when `compact` is set or `size <= 12`. Other packs scale down.
+The data already carries `stroke="currentColor"`, round caps and joins and `strokeWidth: "1.5"` [V `Cancel01Icon.js`], so every glyph draws in the text color like the other packs. The free set has no filled style; the three filled names render the outline glyph with `fill="currentColor"` (each is one closed shape, plus a line for the pin's needle [V data]).
 
-Where to use `compact` (VS Code uses compact glyphs only in chat, chips and pickers [V]): `Button size="sm"`, `Badge` icons, chips in `ChatPanel` and the picker window's list rows. Tab close buttons, tree twisties, status bar and title bar icons stay at 16.
+### 5.3 Codegen (Material Symbols only) and the licenses file
 
-### 5.5 Loading in every window
+`scripts/icons/generate-icon-packs.mjs` (`npm run icons:generate`, `--check` in tests) keeps its strict body parser and emits only `src/lib/icons/generated/material.ts` and `public/licenses/third-party-icons.txt`.
 
-- `src/main.tsx`, `src/overlay.tsx` and `src/picker.tsx` call `bootIconPack()` before `createRoot().render()` (W1-TOKENS owns these entry files). Today the overlay window never loads a pack [V critic].
-- The overlay and picker windows follow pack changes through the `storage` event, as `OverlayApp.tsx:18-53` does for the theme.
+- `scripts/icons/mapping.mjs` rows become `row(name, material, materialFill)`: the `codicon` and `codiconCompact` columns, the seven retired names and the `circleFilled` row (the shared dot draws it) are removed. 115 rows.
+- The generator no longer reads `@iconify-json/codicon`, emits `generated/codicons.ts` or vendors `scripts/icons/licenses/codicon.txt` (deleted).
+- `LICENSE_SOURCES` lists the six shipped packs in picker order (5.9). `licenseText()` reads a package's own `LICENSE`, then `LICENSE.md`, then `LICENSE.txt`, and falls back to a vendored text: `@hugeicons/core-free-icons` ships `LICENSE.md` (MIT, "Copyright (c) 2025 Hugeicons") [V tarball]; Fluent and Material keep their vendored texts. The declared license is still checked against `package.json` (`MIT` for Hugeicons [V]).
 
-### 5.6 Popup menu icons
+### 5.4 The shared state dot and the Material trim (salvage)
 
-- `PopupMenuItem.icon` becomes `SemanticIconName`. During migration, `src/utils/contextMenu.ts` also accepts the old keys and maps them:
+- **State dot** (cherry-pick `588e2ad`, adapted): `packs/state-dot.ts` defines one 8px disc (`M8 4a4 4 0 1 1 0 8a4 4 0 0 1 0-8` in a 16px box, and a 12px compact variant with the same 8px disc) and `createStateDotIcon(label)`. Every pack's `circleFilled` is that icon, so tab dots and sync dots never change size with the pack. The commit's test compared every pack with Codicons; the port compares every pack with the disc's own geometry (`x: [4, 12], y: [4, 12]` at 16px; `[2, 10]` at 12px or compact) using the salvaged `__tests__/svg-extent.ts`.
+- **Material trim** (cherry-pick `47a782a`, code hunks only): `MATERIAL_TRIM = 1.35` viewBox units cut from each side, because Material Symbols keep a 2px padding on their 24px grid and drew about a third smaller than the other packs. 1.35 is the widest trim that clips no mapped glyph (`wifiOff` reaches x 1.41 and 22.61); with the retired names gone the set only shrinks, so it still clips nothing. The test compares the state dot with Lucide's instead of Codicons'.
 
-  | Old key | Semantic name |
-  |---|---|
-  | `play` | `playerPlay` |
-  | `edit`, `rename` | `pencil` |
-  | `copy`, `copy-host` | `copy` |
-  | `reconnect` | `refresh` |
-  | `connect` | `plug` |
-  | `folder-plus` | `folderPlus` |
-  | `external-link` | `externalLink` |
-  | `dots` | `ellipsis` |
-  | `chevron-right` | `chevronRight` |
-  | `star-off` | `star` |
-  | `split` | `splitHorizontal` |
-  | the rest | same name |
+### 5.5 Size policy
 
-  W4-CLEANUP removes the old-key type.
-- The helper sends `iconSvg: iconToSvg(name, 16)` per item. The main process sanitizes it (7.7) and sets the item `color`. Every pack draws with `currentColor` (Codicons, Material, Phosphor and Fluent fill it; Lucide and Tabler stroke it).
-- This fixes the missing `split` icon (`PaneTabBar.tsx:175-176` passes `split`, which `menu.ts:23-49` lacks) and the hard-coded Tabler paths.
-- W2-MENUS lands in wave 2, beside the packages whose menus pass semantic names (W2-TABS, W2-ACTIVITYBAR), so wave 2 never ships icon-less menus. Call sites may pass either old keys or semantic names until W4-CLEANUP converts the remaining old keys.
+Icons render at 12, 16, 20, 24, 32 or 48px. The restyle rounds today's 10 and 11 to 12, 13 and 14 to 16, 18 to 16 (or 20 in `lg` controls). `R4-CLEANUP` adds `src/components/__tests__/icon-sizes.test.ts`, which fails on any other literal `size={n}` under `src/components/`, except custom entry icons (`iconRegistry.ts`) and `EngineLogo`. State dots are the `circleFilled` glyph at 12 or 16, never a smaller icon.
 
-### 5.7 Settings UI for the pack
+### 5.6 Loading in every window
 
-The Appearance tab (6.4) shows a `ChoiceGroup` of six `ChoiceCard`s in 3 columns.
+`src/main.tsx`, `src/overlay.tsx` and `src/picker.tsx` call `bootIconPack()` before the first render (wave 1). The overlay and picker windows follow pack changes through the `storage` event (`store.ts` `handleStorage` [V]). Lucide being static means no window ever shows a missing icon. **(restyle)** Whenever a pack applies, the store writes its id to `<html data-cv-icon-pack>` in that window, so the `packs` scenario (8.6) can prove that every window, toasts and the credential picker included, follows each of the six packs.
 
-- **Preview strip**: `folder`, `terminal`, `desktop`, `globe`, `key`, `search`, `settings`, `cloud` at 16px in `--c-ink-secondary`, `gap-2`, inside a `rounded bg-well p-2` well 32px tall. They are rendered from that card's pack with `<Icon name pack={id}>`, so the tab calls `preloadAllIconPacks()` on mount (both in 5.1, W1-ICONS).
-- **Label**: the pack name, 12px/600. **Description**: 11px `text-ink-muted`, for example `VS Code icons · CC BY 4.0`.
-- **Order**: Codicons, Lucide, Tabler (Classic), Phosphor, Fluent, Material Symbols.
+### 5.7 Popup menu icons
 
-A click previews the pack live (`conduit:theme-change` `{iconPack}`). Save persists it and Cancel reverts it.
+`PopupMenuItem.icon` takes a semantic name or one of today's menu keys, which `src/utils/contextMenu.ts` maps (salvaged `LEGACY_MENU_ICON_KEYS`): `play` → `playerPlay`, `edit` and `rename` → `pencil`, `copy-host` → `copy`, `reconnect` → `refresh`, `connect` → `plug`, `folder-plus` → `folderPlus`, `external-link` → `externalLink`, `dots` → `ellipsis`, `chevron-right` → `chevronRight`, `star-off` → `star`, `split` → `splitHorizontal`; other keys are semantic names already. The helper sends each icon as `iconSvg: iconToSvg(name, 16)` from the active pack; the main process sanitizes it (7.1). R4-CLEANUP converts the remaining call sites to semantic names and deletes the map.
 
-### 5.8 Licenses view
+### 5.8 Settings pack picker
 
-`AboutDialog` (`src/components/about/AboutDialog.tsx`, W3-MISC) gains a `Button variant="link"` labeled `Third-party licenses`. It expands a section in the same dialog (size `md`):
+Settings > Appearance, first section (in the slot of the retired Platform Theme block), `data-cv-appearance="icon-pack"`:
 
-- a list of the six packs from `licenses.ts`: name, version, license, copyright;
-- a scrollable `<pre class="text-meta font-mono">` loaded with `fetch("./licenses/third-party-icons.txt")`. That file is generated into `public/`, which Vite copies to `dist/` (relative path, `vite.config.ts` `base: './'`).
+- Section label `Icon pack`: a `<label>` in the tab's section label style, like its three siblings (6.4).
+- `ChoiceGroup` (3 columns, `gap-2`) of six `ChoiceCard`s (`value` = pack id, `data-cv-choice={id}`) in this order: **Lucide**, Phosphor, Hugeicons, Material Symbols, Fluent, Tabler (Classic).
+- Each card: a preview well (`flex h-8 items-center gap-2 rounded bg-well px-2`) with `folder`, `terminal`, `desktop`, `globe`, `key`, `search`, `settings`, `cloud` at 16px in `text-ink-secondary`, rendered from that card's pack with `<Icon name pack={id} />`; the label (`text-label font-semibold text-ink`), with a neutral `Badge` "Default" on Lucide; the description (`text-meta text-ink-muted`) from `ICON_PACKS`:
 
-The Codicons line reads: "Codicons © Microsoft Corporation, licensed under CC BY 4.0. Converted from SVG to React path data." That is the attribution and the change notice CC-BY requires. The Material Symbols entry includes the Apache-2.0 text.
+| Pack | Description |
+|---|---|
+| Lucide | `Clean line icons · ISC` |
+| Phosphor | `Soft, rounded icons · MIT` |
+| Hugeicons | `Rounded line icons · MIT` |
+| Material Symbols | `Google Material icons · Apache 2.0` |
+| Fluent | `Windows 11 icons · MIT` |
+| Tabler (Classic) | `The classic Conduit icons · MIT` |
 
-### 5.9 Migration and custom icons
+- The tab calls `preloadAllIconPacks()` on mount, so the previews render from their own packs (an `<Icon pack>` falls back to the active pack until its pack loads).
+- A click selects the card, sets `icon_pack` in the dialog state and dispatches `conduit:theme-change` with `{iconPack}`, which previews the pack live in every window. Save persists it; Cancel reverts it (`SettingsDialog`'s snapshot already includes `iconPack` [V `SettingsDialog.tsx:40`]).
 
-`platform_theme` maps to `icon_pack`: `macos → phosphor`, `windows → fluent`, `ubuntu → tabler`, anything else → `codicons` (OD-5, section 6.3). Custom entry icons stay Tabler (D-19, `iconRegistry.ts:81,208-213`).
+### 5.9 Licenses and notices
+
+Only packs that ship are listed. `ICON_PACK_LICENSES` and the generated `public/licenses/third-party-icons.txt` (copied to `dist/` by Vite) carry, in picker order:
+
+| Pack | Notice |
+|---|---|
+| Lucide | Lucide © Lucide Icons and Contributors, licensed under ISC. Portions © Cole Bemis (Feather), licensed under MIT. |
+| Phosphor | Phosphor Icons © Phosphor Icons, licensed under MIT. |
+| Hugeicons | Hugeicons Free © Hugeicons, licensed under MIT. |
+| Material Symbols | Material Symbols © Google, licensed under Apache 2.0. Converted from SVG to React path data. |
+| Fluent | Fluent UI System Icons © Microsoft Corporation, licensed under MIT. |
+| Tabler (Classic) | Tabler Icons © Paweł Kuna, licensed under MIT. |
+
+The file holds each pack's full license text. No Codicons notice and no CC BY text remain. Shipping the file meets the license terms: Vite copies `public/` to `dist/`, and `electron-builder.yml` packs `dist/**/*` into the app [V]. **(restyle)** No About view is added: a "Third-party licenses" control would be a new control (D-1).
+
+### 5.10 Hugeicons verification record
+
+Checked 2026-09-28 [V]:
+
+| Check | Result |
+|---|---|
+| `npm view @hugeicons/core-free-icons` | version 4.3.5, license MIT, 80,424,685 bytes unpacked, 24,293 files, repository `github.com/hugeicons/hugeicons`, modified 2026-09-21 |
+| Tarball | `npm pack` into `<scratchpad>/restyle/hugeicons/`: integrity `sha512-Sv+NjHRPnQk+yZsGCMcGznCHdTfJR9PMMOEKcJYAQU4gy90dmlc9PwdtvYOImBZIjiheMsTLL5eMn2DmHxUiUg==` |
+| License file | `LICENSE.md`: the MIT text, "Copyright (c) 2025 Hugeicons". The README describes the free package as 6,000+ "Stroke Rounded" icons; the Pro terms (`PRO-LICENSE.md` in `@hugeicons/react`) cover only `@hugeicons-pro/*` packages |
+| Contents | 6,069 icon modules in `dist/esm`, each `export default [[tag, attrs], …]`; `sideEffects: false`; `exports` has `./*` → `./dist/esm/*.js` (types `./dist/types/*.d.ts`) |
+| Coverage | all 115 glyphs of Appendix A.2 exist; none is marked `@deprecated` (the older `LayoutTwoColumnIcon` and `LayoutTwoRowIcon` are, so A.2 uses `Layout2ColumnIcon` and `Layout2RowIcon`); 110 exact, 2 substitutes (`globeWww` → `InternetIcon`, `devices` → `ComputerPhoneSyncIcon`), 3 filled from outlines, `circleFilled` from the shared dot |
+| Menu sanitizer | the glyphs use only `path` (305), `circle` (10) and `ellipse` (1) with `d`, `stroke`, `stroke-linecap`, `stroke-linejoin`, `stroke-width`, `cx`, `cy`, `r`, `rx`, `ry`, `transform`, `fill-rule`, `clip-rule`, all on the allowlist of 7.1; the one `transform` (`matrix(1 0 0 -1 16 8.00024)` in `Tag01Icon`) passes its value check |
+| Bundle | the research bundle of 108 Hugeicons glyphs measured 88 KB raw, 23.5 KB gzip, as a lazy chunk [V `<scratchpad>/iconlab/bundle.json`] |
+| Not used | `@hugeicons/react@1.1.10` (MIT; adds a `color` attribute the sanitizer drops, D-10); `hugeicons-react@0.4.0` (CC0, an older wrapper over core 3.x); `@iconify-json/hugeicons@1.2.35` (MIT, 6,065 icons; its stroke bodies would need the codegen parser widened, and the official package is the source of truth) |
+
+The research copy is unpacked at `<scratchpad>/restyle/hugeicons/core/package/` (temporary). Once R1-FOUNDATION installs the package, the registry tests (every name maps) and `scripts/__tests__/menu-svg-packs.test.ts` (every glyph passes the sanitizer) repeat the coverage and allowlist checks on every run, so no research script needs to outlive the session.
+
+
+### 5.11 Custom entry icons (restyle, D-29)
+
+Custom entry and folder icons are stored as Tabler export names and resolved by `resolveIcon()` in `src/components/entries/iconRegistry.ts`, which imports `@tabler/icons-react` directly (65 curated names) [V]. With Lucide as the default, they would draw in Tabler style next to Lucide glyphs. R3-ENTRIES adds `CUSTOM_ICON_TWINS` to `iconRegistry.ts`: the 30 curated names that the Tabler pack itself maps from a semantic name [V computed from `packs/tabler.ts` and `iconRegistry.ts`], which `getEntryIcon()` and the `IconPicker` grid render through the active pack (the named themed components, for example `ServerIcon`):
+
+| Stored name | Semantic | Stored name | Semantic | Stored name | Semantic |
+|---|---|---|---|---|---|
+| `IconTerminal2` | `terminal` | `IconTerminal` | `terminalAlt` | `IconDeviceDesktop` | `desktop` |
+| `IconServer` | `server` | `IconServer2` | `serverAlt` | `IconWorld` | `globe` |
+| `IconWorldWww` | `globeWww` | `IconCloud` | `cloud` | `IconDatabase` | `database` |
+| `IconNetwork` | `network` | `IconKey` | `key` | `IconLock` | `lock` |
+| `IconShieldLock` | `shieldLock` | `IconFingerprint` | `fingerprint` | `IconCode` | `code` |
+| `IconBug` | `bug` | `IconTool` | `tool` | `IconDeviceFloppy` | `floppy` |
+| `IconFolder` | `folder` | `IconFolderOpen` | `folderOpen` | `IconFileText` | `fileText` |
+| `IconHome` | `home` | `IconUser` | `user` | `IconUsers` | `users` |
+| `IconStar` | `star` | `IconTag` | `tag` | `IconBolt` | `bolt` |
+| `IconRocket` | `rocket` | `IconCrown` | `crown` | `IconPlayerPlay` | `playerPlay` |
+
+The other 35 (the nine `IconBrand*` icons, `IconApi`, `IconRouter`, `IconWifi`, `IconCertificate`, `IconBraces`, `IconGitBranch`, `IconCpu`, `IconDeviceNintendo`, `IconArchive`, `IconFiles`, `IconBuilding`, `IconBriefcase`, `IconSitemap`, `IconHeart`, `IconBookmark`, `IconFlag`, `IconDiamond`, `IconFlame`, `IconMedal`, `IconTrophy`, `IconChartBar`, `IconChartPie`, `IconTrendingUp`, `IconCloudComputing`, `IconPuzzle`, `IconPackage`) keep their Tabler glyph in every pack. Stored names never change, so older builds and other devices read the same vault data. A test asserts that every twin equals the Tabler pack's own mapping (`packs/tabler.ts` maps the semantic name to the same export) and that every twin is a curated name.
 
 ---
 
-## 6. Settings
+## 6. Settings and migration
 
 ### 6.1 Keys
 
 | Key | Type | Default | Values | Read by |
 |---|---|---|---|---|
-| `color_scheme` | string | **`modern`** (was `ocean`, `settings.ts:119`) | `modern`, `ocean`, `ember`, `forest`, `amethyst`, `rose`, `midnight` | renderer; main (`backgroundColor`, 7.5) |
-| `theme` | string | `system` (unchanged) | `dark`, `light`, `system` | renderer; main via `set-native-theme` (`main.ts:846-850`) |
-| `icon_pack` | string | `codicons` | 6 pack ids | renderer |
-| `ui_density` | string | `comfortable` | `comfortable`, `compact` | renderer; main (toast inset, 7.6) |
-| `title_bar_style` | string | `custom` | `custom`, `native` | main at window creation (7.1) |
+| `color_scheme` | string | `modern` | `modern`, `ocean`, `ember`, `forest`, `amethyst`, `rose`, `midnight` | renderer; main (`backgroundColor`, 7.2) |
+| `theme` | string | `system` | `dark`, `light`, `system` | renderer; main (`set-native-theme`, `backgroundColor`) |
+| `icon_pack` | string | **`lucide`** (was `codicons`) | `lucide`, `phosphor`, `hugeicons`, `material`, `fluent`, `tabler` | renderer |
 | `appearance_version` | number | `2` | | migration |
-| ~~`platform_theme`~~ | removed | | | deleted by the migration |
+| `ui_scale` | number | `1.0` | 0.75 to 1.5 | unchanged |
+| ~~`platform_theme`~~, ~~`ui_density`~~, ~~`title_bar_style`~~ | retired | | | deleted by the migration (6.3) |
 
-The renderer mirrors appearance in `localStorage` so the first paint needs no IPC:
+`localStorage` mirrors for the first paint: `conduit-theme`, `conduit-color-scheme`, `conduit-icon-pack`, `conduit-appearance-version`. Retired and removed at boot: `conduit-platform-theme`, `conduit-density`.
 
-- `conduit-theme`
-- `conduit-color-scheme`
-- `conduit-icon-pack` (new)
-- `conduit-density` (new)
-- `conduit-appearance-version` (new)
+Code: `AppSettings` and `defaultSettings` in `electron/ipc/settings.ts:63-128`; `Settings` in `SettingsHelpers.tsx:6-26`; the dialog's initial state and snapshot in `SettingsDialog.tsx:36-60`; the `conduit:theme-change` detail becomes `{theme, colorScheme, iconPack}`.
 
-`conduit-platform-theme` is removed. `title_bar_style` is not mirrored, because only the main process reads it. Unknown values fall back to the defaults in both paths.
+### 6.2 Appearance runtime
 
-Code locations:
-
-- `AppSettings` and `defaultSettings`: `electron/ipc/settings.ts:63-148`.
-- `Settings`: `SettingsHelpers.tsx:6-26`.
-- The dialog's initial state: `SettingsDialog.tsx:42-60`.
-- The `conduit:theme-change` detail becomes `{theme, colorScheme, iconPack, density}`: `SettingsDialog.tsx:89-93,111-119`.
-
-### 6.2 Appearance runtime (replaces `useTheme`)
-
-`src/lib/appearance/` (W1-TOKENS):
+`src/lib/appearance/` (wave 1), after R1-FOUNDATION:
 
 | File | Role |
 |---|---|
-| `boot-inline.js` | The pre-paint script (plain ES5). It migrates `localStorage` with `migration-table.json` (inlined), then sets on `<html>`: the `dark` or `light` class, `data-scheme` (always set, `modern` included), `data-density`, `data-os` (`macos`, `windows` or `linux`, from `window.electron.platform`, `preload.cts:4`, falling back to `navigator.userAgent`), `--c-zoom` (from `window.electron.zoomFactor()` when that function exists, 7.4, else `1`), and `--c-boot-bg` / `--c-boot-fg` from `shell-colors.json`. |
-| `vite.config.ts` plugin | `conduitAppearanceBoot()` uses `transformIndexHtml` to replace the marker `<!-- conduit:appearance-boot -->` in `index.html`, `overlay.html`, `picker.html` and `gallery.html` with `<script>{boot-inline.js with JSON inlined}</script>`. It replaces the three hand-copied boot scripts (`index.html:7-17`, `overlay.html:7-26`, `picker.html:7-26`), which treat `ocean` as the default and set `data-os` only on Mac. [A] `transformIndexHtml` runs for every HTML entry in dev and build; the W1-TOKENS acceptance checks `dist/*.html`. |
-| `useAppearance.ts` | Replaces `src/hooks/useTheme.ts` (the file becomes a re-export until W4). It applies changes from `conduit:theme-change`, follows `prefers-color-scheme` when `theme === "system"`, writes `localStorage`, sends `set-native-theme` (`useTheme.ts:97`), and dispatches `conduit:resolved-theme-change` (`useTheme.ts:25-27`, used by terminals). After it has set the attributes on `<html>`, in the same task, it dispatches `conduit:appearance-applied` with `{scheme, mode, density, iconPack}`: `src/lib/window-chrome.ts` sends the title bar colors from it (3.2) and `sidebarStore` updates `chromeWidth` from it (3.3). It never sends `window_chrome_update` itself. On mount it calls `settings_get` once and adopts the settings file's values when they differ from `localStorage` (the settings file wins; they differ only after the storage was cleared). |
+| `boot-inline.js` | Pre-paint script, inlined into `index.html`, `overlay.html`, `picker.html` and `gallery.html` by the `conduitAppearanceBoot()` Vite plugin. Migrates `localStorage` (6.3), then sets the `dark` or `light` class, `data-scheme`, `data-os`, and `--c-boot-bg` / `--c-boot-fg` from `shell-colors.json`. **Removed:** `data-density`, `--c-zoom`, the `zoomFactor()` probe. |
+| `useAppearance.ts` | Applies `conduit:theme-change`, follows `prefers-color-scheme` for `system`, writes `localStorage`, sends `set-native-theme`, dispatches `conduit:resolved-theme-change` and `conduit:appearance-applied` `{scheme, mode, iconPack}` (no density). Reconciles with `settings_get` on mount. `src/hooks/useTheme.ts` stays a re-export until R4-CLEANUP. |
+| `dom.ts` | `applyAppearanceAttributes(root, {mode, scheme})`; `isDensity` and the `Density` type go. |
 | `migrate.ts` + `migration-table.json` | The renderer migration (6.3). |
-| `shell-colors.json` | `{scheme: {dark: {shell, fg}, light: {shell, fg}}}` for the boot script, the splash and the main-process palette (7.5). |
-| `resolveCssColor.ts` | 2.12. |
+| `shell-colors.json` | `{shell, fg}` per scheme and mode (2.3). |
+| `resolveCssColor.ts` | 2.11. |
 
-`src/lib/schemes.ts` keeps `COLOR_SCHEMES`, gains `modern` first, drops the six native entries and makes `DEFAULT_SCHEME = "modern"`. Each entry gets `preview: {dark: {shell, editor, sidebar, accent}, light: {…}}`, which the tokens test (2.1) checks against the resolved tokens. `src/lib/themes.ts` is deleted.
+`src/lib/schemes.ts` keeps `COLOR_SCHEMES` (Modern first) with preview colors.
 
-### 6.3 Migration (dual path, idempotent)
+### 6.3 Migration
 
-The same rules run in the main process on every settings read (`electron/services/appearance-migration.ts`, called from `readSettings()` at `settings.ts:157-201`) and in the renderer before first paint (`boot-inline.js` and `migrate.ts`).
+The same rules run in the main process on every settings read (`electron/services/appearance-migration.ts`, called from `readSettings()`) and in the renderer before first paint (`boot-inline.js`, `migrate.ts`). Every rule reads the **raw** stored values (in the main process: the parsed file before defaults are spread over it).
 
-**Every rule, the version check included, reads the raw stored values: in the main process the parsed file before defaults are spread over it.** `readSettings()` builds `{ ...defaultSettings, ...raw }` (`settings.ts:163`), and the new defaults include `appearance_version: 2` (6.1), so a check on the merged object would treat every legacy file as migrated and skip the whole migration. The main process calls `migrateAppearance(raw)` and applies its result to the merged settings: it sets the migrated keys and deletes `platform_theme`. The renderer reads `localStorage` directly.
+1. **Retired keys** `platform_theme`, `ui_density` and `title_bar_style` are always deleted (renderer: `conduit-platform-theme`, `conduit-density`).
+2. If `raw.appearance_version >= 2`: validate. The scheme goes through `retiredSchemes` first, because a released build that a user downgraded to keeps `appearance_version` and can store a retired scheme (it saves `{...defaultSettings, ...raw}` [V `270ae43` `electron/ipc/settings.ts:165,206`]); then an unknown scheme becomes `modern`. An unknown pack, including the retired `codicons`, becomes `lucide`.
+3. Otherwise (a file from a released build): `platform = raw.platform_theme ?? "default"`, `scheme = raw.color_scheme ?? "ocean"`; `icon_pack = valid(raw.icon_pack) ? raw.icon_pack : PACK_BY_PLATFORM[platform] ?? "lucide"`; `color_scheme = RETIRED[scheme] ?? (platform === "default" && scheme === "ocean" ? "modern" : scheme)`, then validated.
+4. In both branches an unknown `theme` becomes `system`.
+5. Set `appearance_version` to `max(2, the stored integer)`: a higher version written by a later build is kept, never written back as 2 (`keptVersion()` [V]). When anything changed and `settings.json` exists, the main process writes it back once.
 
-1. If `raw.appearance_version >= 2`: validate only. An unknown scheme becomes `modern`, an unknown pack `codicons`, an unknown density `comfortable`. An integer version above 2 (written by a later build) is kept, never written back as 2, in the main process, `boot-inline.js`, `migrate.ts` and the `useAppearance` storage mirror, so that build's own migration does not run again after a downgrade and re-upgrade. Stop.
-2. `platform = raw.platform_theme ?? "default"`, `scheme = raw.color_scheme ?? "ocean"`.
-3. `icon_pack = valid(raw.icon_pack) ? raw.icon_pack : PACK_BY_PLATFORM[platform] ?? "codicons"`.
-4. `color_scheme = RETIRED[scheme] ?? (platform === "default" && scheme === "ocean" ? "modern" : scheme)`, then validate.
-5. Delete `platform_theme`. Set `appearance_version = 2`. Fill `ui_density` and `title_bar_style` with defaults when missing.
+`migration-table.json` (and its main-process twin):
 
-| Before (platform, scheme) | After scheme | After pack | Rule |
+```json
+{
+  "version": 2,
+  "schemes": ["modern", "ocean", "ember", "forest", "amethyst", "rose", "midnight"],
+  "iconPacks": ["lucide", "phosphor", "hugeicons", "material", "fluent", "tabler"],
+  "themes": ["dark", "light", "system"],
+  "defaults": { "color_scheme": "modern", "icon_pack": "lucide", "theme": "system" },
+  "legacy": { "platform_theme": "default", "color_scheme": "ocean" },
+  "packByPlatform": { "macos": "phosphor", "windows": "fluent", "ubuntu": "tabler" },
+  "retiredKeys": ["platform_theme", "ui_density", "title_bar_style"],
+  "retiredSchemes": {
+    "macos-blue": "modern", "macos-graphite": "modern", "win-blue": "modern",
+    "win-sun-valley": "modern", "ubuntu-yaru": "ember", "ubuntu-gnome": "modern"
+  }
+}
+```
+
+| Stored before (platform, scheme, pack) | After scheme | After pack | Why |
 |---|---|---|---|
-| `default` or missing, `ocean` or missing | `modern` | `codicons` | untouched default (OD-5) |
-| `default`, `ember` / `forest` / `amethyst` / `rose` / `midnight` | unchanged | `codicons` | kept |
-| `macos`, `macos-blue` or `macos-graphite` | `modern` | `phosphor` | retired native scheme |
-| `windows`, `win-blue` or `win-sun-valley` | `modern` | `fluent` | retired native scheme |
-| `ubuntu`, `ubuntu-yaru` | `ember` | `tabler` | nearest universal scheme (warm orange) |
-| `ubuntu`, `ubuntu-gnome` | `modern` | `tabler` | retired native scheme |
-| `macos` / `windows` / `ubuntu`, a universal scheme (including `ocean`) | unchanged | per platform | "other choices keep their scheme" (OD-5) |
-| any platform, a native scheme of another platform | as `RETIRED` | per platform | stale value after a platform switch |
+| `default` or none, `ocean` or none | `modern` | `lucide` | untouched default gets the new look (OD-4, OD-7) |
+| `default`, a universal scheme other than Ocean | kept | `lucide` | everyone else defaults to Lucide |
+| `macos`, `macos-blue` or `macos-graphite` | `modern` | `phosphor` | the pack macOS-theme users saw |
+| `windows`, `win-blue` or `win-sun-valley` | `modern` | `fluent` | the pack Windows-theme users saw |
+| `ubuntu`, `ubuntu-yaru` | `ember` | `tabler` | nearest universal scheme; Tabler (Classic) is what the Ubuntu theme used |
+| `ubuntu`, `ubuntu-gnome` | `modern` | `tabler` | |
+| `macos` / `windows` / `ubuntu`, a universal scheme | kept | per platform | "other choices keep their scheme" |
+| version 2 (a wave-1 development profile), `icon_pack: "codicons"` | kept | `lucide` | Codicons retired (D-14) |
+| version 2 with `ui_density` or `title_bar_style` | kept | kept | keys deleted |
+| version 2 with `ubuntu-yaru` (a released build wrote it after a downgrade) | `ember` | kept | retired schemes map in both branches (rule 2) |
+| any version with `theme: "bogus"` | per the rows above | per the rows above | `theme` becomes `system` (rule 4) |
+| version 3 (written by a later build) | validated | validated | `appearance_version` stays 3 (rule 5) |
 
-- **Persistence.** When the main-process migration changes anything and `settings.json` exists, it writes the file back once (try/catch with a logged warning). The renderer's `localStorage` migration writes its keys and removes `conduit-platform-theme`.
-- **Idempotence.** `migrate(migrate(x))` equals `migrate(x)`, checked with `fast-check` (already a devDependency) in both test suites.
-- **Integration.** `electron/services/__tests__/appearance-migration.test.ts` writes legacy `settings.json` files to a temporary data dir (`macos` + `macos-blue`; `default` + `ocean`; a file with no appearance keys), calls `readSettings()` twice, and asserts the migrated values, exactly one write-back, and no write on the second read.
-- **Parity.** The same test reads `src/lib/appearance/migration-table.json` with `fs.readFileSync` (never an import, 2.5) and compares it with the main-process table. A behavior test, `scripts/__tests__/appearance-migration-parity.test.ts`, runs `boot-inline.js` in jsdom, `migrate.ts` and the main-process migration on the same `fast-check` inputs and asserts equal outputs; it lives in `scripts/__tests__/` because it imports from both trees (2.5).
-- **Downgrade.** An older build reading `color_scheme: "modern"` finds no CSS for it and shows its default look. The older build also treats a missing `platform_theme` as default. This is acceptable and noted in section 9.
+- **Idempotence**: `migrate(migrate(x))` equals `migrate(x)` (`fast-check`, both sides, with generators that include retired schemes in version-2 files, invalid themes and versions above 2).
+- **Integration**: `electron/services/__tests__/appearance-migration.test.ts` writes legacy and version-2 files to a temporary data dir, calls `readSettings()` twice, and asserts the values, the deleted keys, one write-back and no second write.
+- **Parity**: `scripts/__tests__/appearance-migration-parity.test.ts` runs `boot-inline.js` in jsdom, `migrate.ts` and the main-process migration on the same inputs and asserts equal results; `scripts/__tests__/icon-packs.test.ts` asserts `migration-table.json`'s `iconPacks` equals the ids of `ICON_PACKS` (read with `fs`).
+- **Downgrade**: an older released build ignores `icon_pack`, shows its default look for `modern`, and treats the missing `platform_theme` as default.
 
-### 6.4 Appearance tab
+### 6.4 Appearance tab (final)
 
-W1-TOKENS makes the minimal edit that keeps the build green: it removes the Platform Theme block (`AppearanceTab.tsx:46-122`) and the native-scheme block (`128-161`), and lists the 7 schemes. W3-SETTINGS builds the final tab from primitives, top to bottom:
+R1-FOUNDATION adds the Icon pack section to today's tab; R3-SETTINGS restyles the rest. The four section labels stay `<label>` elements (as today's three), taking the section label look (`text-label font-semibold text-ink-secondary`), so the inventory keeps their tag (8.6). Top to bottom, as today with the Platform Theme slot reused [BEFORE 20-02]:
 
 | Section (`data-cv-appearance=`) | Control | Details |
 |---|---|---|
-| `scheme`: "Color scheme" | `ChoiceGroup`, 4 columns, 7 `ChoiceCard`s, Modern first | Preview 48px tall: a `shell` background holding an 8px-radius `editor` rectangle and a `sidebar` strip, plus a 12px `accent` bar, from `COLOR_SCHEMES[i].preview[mode]`; label below. Replaces `SchemeCard` |
-| `mode`: "Mode" | `SegmentedControl`: Dark, Light, System | replaces "Brightness" (`AppearanceTab.tsx:185-209`) |
-| `icon-pack`: "Icon pack" | `ChoiceGroup`, 3 columns, 6 cards | 5.7 |
-| `density`: "Density" | `SegmentedControl`: Comfortable, Compact | description: "Compact removes the gaps and rounded corners between panels." |
-| `scale`: "UI scale" | the existing slider and Reset (`AppearanceTab.tsx:211-237`, `249-299`) | restyled only; zoom sync unchanged (`AppearanceTab.tsx:8-29`) |
-| `title-bar`: "Title bar" | `RadioGroup`: Custom (recommended), Native | note "Restart Conduit to apply."; `Button sm` "Restart now" (`invoke('app_relaunch')`, as `App.tsx:369`), enabled only when the choice differs from `window_chrome_get_state().style` |
+| `icon-pack`: "Icon pack" | `ChoiceGroup`, 3 columns, 6 cards | 5.8 |
+| `scheme`: "Color Scheme" | `ChoiceGroup`, 3 columns (as today), 7 `ChoiceCard`s, Modern first | Preview: a `shell` strip with an `editor` block and an `accent` bar from `COLOR_SCHEMES[i].preview[mode]`; the label below. Replaces `SchemeCard` |
+| `mode`: "Brightness" | `SegmentedControl`: Dark, Light, System | label and options unchanged; beside UI Scale as today |
+| `scale`: "UI Scale" | the slider, the percentage and Reset | behavior and zoom sync unchanged |
 
-Every control previews live through `conduit:theme-change`, except the title bar. **Save** persists all of them (`SettingsDialog.tsx:78-106`). **Cancel** reverts scheme, mode, pack, density and zoom (`SettingsDialog.tsx:108-124`). Choice cards carry `data-cv-choice="{id}"`.
+Every control previews live through `conduit:theme-change`; Save persists; Cancel reverts scheme, mode, pack and zoom (`SettingsDialog.tsx`).
 
 ---
 
 ## 7. Main process
 
-### 7.1 BrowserWindow options
+The native frame, zoom handling (`setZoomFactor` at `ready-to-show`, `set-zoom-factor`), the application menu, the tray, the toast overlay window and the picker window stay as they are (D-8, D-15). Two things change.
 
-A new `electron/services/window-chrome/options.ts` exports `titleBarOptions(settings, env, platform, osRelease)`, `zoomOptions(settings)` and `shellColor(settings, prefersDark)`. `createWindow()` (`main.ts:676-723`) spreads them into the constructor:
+### 7.1 Popup menu window (W2-MENUS salvage)
 
-| | macOS | Windows | Linux |
+`electron/ipc/menu.ts` and the new `electron/ipc/menu-svg.ts` come from `8ca0d23`, `98abd31` and `70fd889` (9.2). What they do:
+
+| Property | Today (`menu.ts` at `41d9657`) | Restyled | Source |
 |---|---|---|---|
-| `titleBarStyle` | `'hidden'` | `'hidden'` | `'hidden'` |
-| Window buttons | `trafficLightPosition: {x: 11, y: 10}` when Darwin major ≥ 25, else `{x: 10, y: 9}` [V VS Code formula, 3.2] | `titleBarOverlay: {color: shell, symbolColor: fg, height: 34}` [V `height − 1`] | same as Windows |
-| Menu bar | OS menu bar | none: a frameless window gets no menu bar, but the application menu's accelerators stay registered [V Electron `root_view.cc:52-56`] | same |
-| Sheets | `setSheetOffset(isTahoe ? 32 : 28)` [V VS Code] | n/a | n/a |
-| Zoom | `webPreferences.zoomFactor: clamp(settings.ui_scale, 0.75, 1.5)`, `webPreferences.zoomMode: 'isolated'` | same | same |
-| `backgroundColor` | `shellColor()` from `settings.color_scheme` + `theme` (with `nativeTheme.shouldUseDarkColors` for `system`), replacing `'#0f172a'` (`main.ts:711`) | same | same |
-| Native mode | none of the title bar options; the frame as today | same | same |
+| Width | 210 fixed | per panel, 220 to 320: the longest label's estimated width plus the row chrome; longer labels ellipsize | [ADAPT] the window is sized before its page renders; a fixed 220 cut `Sign in to start a free Pro trial` (`70fd889`) |
+| Row | 30 (`padding: 5px 12px`, 13/20) | 24: `height: 24px; margin: 0 4px; padding: 0 8px; border-radius: 6px; gap: 8px; font: 13px/24px` | [V] VS Code menu item 24, radius 6 |
+| Separator | 9 (`margin: 4px 8px`) | 11: a 1px line, `margin: 5px 0` | [V] |
+| Header | 24, 10px/600 uppercase | 24, 11px/600, no uppercase, `inkMuted` | [ADAPT] Modern UI drops uppercase |
+| Panel | radius 8, `padding: 4px 0`, 1px border, `0 4px 24px` shadow | radius 8, `padding: 4px 0`, 1px `overlayBorder`, `0 0 12px rgba(0,0,0,.14)`, inside a 12px transparent window margin | [V] `--vscode-shadow-lg` |
+| Font | `Inter, system-ui` | `-apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, Ubuntu, sans-serif` | OD-8 |
+| Colors | `panel`, `raised`, `ink`, `inkFaint`, `strokeDim` from `getComputedStyle` | `{overlay, overlayBorder, inkSecondary, inkMuted, selectionBg, selectionBorder, danger, dangerHover, divider}` resolved to `#rrggbb` by `resolveCssColor` (alpha over `--c-overlay`); the main process validates each with `/^#[0-9a-f]{6}$/i` and falls back to built-in Modern values. **(restyle)** The cherry-picked fallback `MODERN_MENU_COLORS` carries VS Code's blue (`selectionBg` `#243239` / `#E1ECF8`, `selectionBorder` `#3994BC` / `#0069CC` [V `98abd31`]); it takes Modern's sky accent (D-25): `selectionBg` `#1D3540` dark and `#E2F2FB` light (15% and 10% of `#0EA5E9` over the overlay [V computed]), `selectionBorder` `#0EA5E9` | 2.2.3 |
+| Selection | bg `raised` | `selectionBg` + 1px inset `selectionBorder` | [V] 2026 menu selection |
+| Danger | `#f87171` and a 12 to 15% tint | `danger` text on `dangerHover` | |
+| Icons | 25 inline Tabler paths | `iconSvg` per item from the active pack (5.7) after `sanitizeSvg()` | OD-4 |
+| Keyboard | Escape only | Up, Down, Home, End (skipping separators and headers), Enter, Space, Right (open a submenu), Left (close it), Escape | |
 
-**Zoom.** The `ready-to-show` handler no longer calls `setZoomFactor` (`main.ts:725-733`): the zoom is part of the window's creation options, so the first paint and the renderer's first `get-zoom-factor` already see it [V Electron 44.4.5 `electron_api_web_contents.cc:1044-1066`: with `zoomMode: 'isolated'` the factor is applied at the first navigation]. `'isolated'` keeps the zoom on the main window's own `WebContents`. In the default mode Chromium stores zoom per host, and in development `index.html`, `overlay.html` and `picker.html` all load from the same Vite host, so a 150% app zoom would also zoom the toast overlay and the picker (a 450px toast would become 675 DIP in a 458 DIP window) [V `web_contents_zoom_controller.cc:104-123`; `electron.d.ts` notes zoom is same-origin by default]. The overlay (`overlay-manager.ts`) and picker (`main.ts:276-294`) windows get `zoomMode: 'isolated'` too. Live changes keep `set-zoom-factor` (`main.ts:853-858`).
+- **Geometry**: the visible panel is flipped and clamped against the display work area at the click point (or anchored right, for `+`), then the window is created 12px larger on every side for the shadow; submenus open beside their row, flipping to the left when there is no room.
+- **Margin clicks dismiss**: a `mousedown` outside `.m` and `.sm` reports a dismiss, so a click in the transparent margin closes the menu.
+- **Injection fix**: labels are HTML-escaped; ids must match `^[A-Za-z0-9_:.-]{1,64}$` (others are dropped with a warning); the page reports a flattened item index, which the main process maps back to the id.
+- **`sanitizeSvg(svg)`** rebuilds icon markup from the elements `svg`, `g`, `path`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `rect` and the attributes `xmlns`, `viewBox`, `width`, `height`, `d`, `fill`, `fill-rule`, `clip-rule`, `stroke`, `stroke-width`, `stroke-linecap`, `stroke-linejoin`, `cx`, `cy`, `r`, `rx`, `ry`, `x`, `y`, `x1`, `y1`, `x2`, `y2`, `points`, `transform`, `opacity`, `fill-opacity`, `stroke-opacity`; values must match `^[A-Za-z0-9\s.,#%()+-]*$`; it rejects scripts, event handlers, links, styles, text, comments and markup over 8 KB, and drops other attributes. Every glyph of every pack passes it unchanged except for `aria-hidden` and `focusable` (`scripts/__tests__/menu-svg-packs.test.ts`).
 
-**`frame`.** VS Code also sets `frame: false` on Windows and Linux [V `main.js`: `c.titleBarStyle="hidden",V||(c.frame=!1)`]. Conduit does not need to: `titleBarStyle: 'hidden'` alone already makes the window frameless (`has_frame_ = frame && title_bar_style == kNormal` [V Electron `native_window.cc:104-105`]), so a double frame cannot happen, and the `titleBarOverlay` option docs pair it with `titleBarStyle` (`electron.d.ts:4040-4053`).
+The menu is still a separate child window, so it draws above native web views without freezing them. Positions come from `getContentBounds()` as today.
 
-**Linux display server (D-26).** Before `app` is ready, `main.ts` appends `--ozone-platform=x11` on Linux unless `process.env.CONDUIT_OZONE === "wayland"` or the command line already names an ozone platform. Because the ozone platform may be chosen before the main script runs [A], the dependable path is the launcher: W2-MAIN adds `executableArgs: ["--ozone-platform=x11"]` to the `linux` section of `electron-builder.yml`, which puts the flag on the `Exec` line of the AppImage and deb desktop entries [A: check the built `.desktop` file]. Under XWayland, Conduit keeps the X11 behavior every earlier release had, including absolute positions for the popup menus, the toast overlay and the picker.
+### 7.2 Window background color
 
-**Help menu escape hatch (D-8(2)).** On Windows and Linux in custom mode the Help menu gains `Use Native Title Bar`, after `What's New`. It writes `title_bar_style: "native"` with `writeSettings()` and runs `app.relaunch(); app.quit()`, as the `app_relaunch` handler does (`settings.ts:267-270`). It reaches users whose title bar does not work: the menu still opens with F10 or Alt (3.2), and the accelerators keep working.
+`electron/main.ts:709` sets `backgroundColor: '#0f172a'` for every scheme and mode. After R1-FOUNDATION:
 
-**Style selection.** `style = process.env.CONDUIT_TITLE_BAR === "native" || settings.title_bar_style === "native" ? "native" : "custom"`. The value is read once at creation, so a change needs a restart (6.4).
+- `electron/services/appearance-palette.ts` exports `SHELL_PALETTE` (the `shell` values of `shell-colors.json`, duplicated because Electron code never imports from `src/`: `electron/tsconfig.json` has `rootDir: "."`) and `windowBackground(settings, prefersDark)`, which picks the scheme (falling back to Modern) and the mode (`theme`, or `prefersDark` for `system`).
+- `createWindow()` uses `windowBackground(readSettings(), nativeTheme.shouldUseDarkColors)`.
+- The `settings_save` handler and `nativeTheme.on("updated")` call `mainWindow.setBackgroundColor(...)` with the new value.
+- `scripts/__tests__/appearance-palette-parity.test.ts` reads `src/lib/appearance/shell-colors.json` with `fs` and compares it with `SHELL_PALETTE`.
 
-Minimum size (1024×700), bounds restore and the tray behavior are unchanged (`main.ts:676-772`).
+### 7.3 What stays unchanged
 
-### 7.2 Title bar color sync
-
-IPC `window_chrome_update` (renderer → main, `invoke`), registered in the new `electron/ipc/window-chrome.ts`. Its only sender is `src/lib/window-chrome.ts` (3.2):
-
-```ts
-{ shell: string; fg: string; density: "comfortable" | "compact" }   // colors must match /^#[0-9a-f]{6}$/i
-```
-
-The main process ignores invalid payloads and unchanged values. Otherwise:
-
-- `win.setBackgroundColor(shell)`;
-- when `overlayActive` is true, `win.setTitleBarOverlay({color: shell, symbolColor: fg, height: 34})` inside `try`/`catch`;
-- `overlayManager.setBottomInset(...)` (7.6).
-
-`overlayActive` is recorded when the window is created: `style === "custom" && platform !== "darwin"`. `setTitleBarOverlay` exists on win32 and linux only (`electron.d.ts:3570-3579`) and throws when the window has no overlay (`"Titlebar overlay is not enabled"`) or a color does not parse [V Electron `native_window_views.cc:495-523`]. On the first throw the handler logs one warning, sets `overlayActive = false`, sends `window-chrome:state` with `overlayActive: false` (the renderer then shows the HTML caption buttons, 3.2) and still resolves. Today only `nativeTheme.themeSource` is synced (`main.ts:846-850`); that stays.
-
-### 7.3 Application menu popup
-
-- **`window_chrome_app_menu`** `{x, y}` in CSS px (finite, clamped to the content size). The main process runs `Menu.getApplicationMenu()?.popup({ window: win, x: Math.round(x * zf), y: Math.round(y * zf) })`, where `zf = webContents.getZoomFactor()`. `popup` coordinates are relative to the window's content area, in DIP [V Electron `electron_api_menu_views.cc:43-50` adds them to `GetContentBounds().origin()`]. On macOS it does nothing. The native menu keeps every item, the dynamic "Restart to Update" label (`main.ts:648-651`) and the accelerator hints, and the harness's `clickMenuItem` (`ui-forms.mjs:126-142`) keeps working because the application menu stays set (`main.ts:672-673`).
-- **Accelerators.** No fallback code. With the frame gone, Electron still registers every menu accelerator (Ctrl+O, Ctrl+S, F1 and the rest) with the window's focus manager and runs keys the page does not handle through it [V `root_view.cc:52-56`, `native_window_views.cc:2077-2078`], the same path as today's visible menu bar. 8.7 keeps a smoke check.
-- **F10 and Alt** open this popup from the renderer (3.2), because a frameless window has no menu bar to focus.
-
-### 7.4 Window state
-
-- `window_chrome_get_state` → `{platform, style, isTahoe, isFullScreen, isMaximized, overlayActive}`.
-- Event `window-chrome:state` → `{isFullScreen, isMaximized, overlayActive}` on `enter-full-screen`, `leave-full-screen`, `maximize` and `unmaximize`, and when `setTitleBarOverlay` fails (7.2).
-- `window_chrome_control` `{action: "minimize" | "maximize" | "unmaximize" | "close"}` for the fallback caption buttons. `close` calls `win.close()`, so today's hide-to-tray handler still runs (`main.ts:751-772`).
-- `ready-to-show` only shows the window; the zoom is already set (7.1).
-- **Preload.** `electron/preload.cts` gains `zoomFactor: () => webFrame.getZoomFactor()` (synchronous) on the `window.electron` bridge, and `src/types/ipc.d.ts` declares it. `boot-inline.js` uses it when present (6.2); `get-zoom-factor` stays as the fallback. The rest of the bridge is unchanged (`preload.cts:3-23`).
-- **Web session views.** On every `dom-ready`, `setupTabEventHandlers` inserts the user-origin `no-drag` stylesheet (D-27, 3.7).
-
-### 7.5 Background color and splash
-
-- `electron/services/window-chrome/palette.ts` holds the `{shell, fg}` table below. A test checks it against `src/lib/appearance/shell-colors.json`, and the tokens test (2.1) checks the JSON against the resolved `--c-shell` and `--c-titlebar-fg`.
-
-| Scheme | Dark shell / fg | Light shell / fg |
-|---|---|---|
-| modern | `#191A1B` / `#8C8C8C` | `#FAFAFD` / `#606060` |
-| ocean | `#1e293b` / `#8B98AA` | `#f8fafc` / `#677388` |
-| ember | `#1a1210` / `#888078` | `#fffbf5` / `#7D7367` |
-| forest | `#12231a` / `#7E8F87` | `#f2faf5` / `#60776B` |
-| amethyst | `#1a1430` / `#878296` | `#f8f5ff` / `#736E8B` |
-| rose | `#221418` / `#8E8087` | `#fef5f6` / `#856B74` |
-| midnight | `#0a1418` / `#748289` | `#f4fafc` / `#5F7681` |
-
-- **Splash** (`index.html:18-53`): `#splash { background: var(--c-boot-bg) }`, spinner border `var(--c-boot-fg)`. It replaces `#0f172a`, `#f8fafc` and the sky-blue spinner, so the window, splash and first frame share one color.
-
-### 7.6 Toast overlay and picker windows
-
-- **Toast overlay** (`electron/services/overlay/overlay-manager.ts`):
-  - `OVERLAY_WIDTH` 400 → **458** (a 450 toast plus 2 × 4 padding; D-24), height 500 unchanged (`overlay-manager.ts:33-35`). The window gets `webPreferences.zoomMode: 'isolated'` (7.1).
-  - `computeOverlayBounds()` (`133-138`) becomes `x = cb.x + cb.width − 458 − 4` and `y = cb.y + cb.height − 500 − bottomInset`. With the page's 4px padding, a toast's right edge sits 8px from the content edge, as in VS Code [V Modern `.notifications-toasts {right: calc(8px - 4px)}` plus the toast's `margin: 4px`].
-  - `setBottomInset(dip)` defaults to `round(28 × zf) + 4`; the renderer's `window_chrome_update` sets it from the density: `round(statusBarHeight × zf) + 8 − 4`, with `statusBarHeight` 28 in Comfortable and 26 in Compact (main-process constants, 2.5). A toast's bottom edge then sits 8px above the status bar, as in VS Code [V `bottom: calc(36px - 4px)` + 4px margin over a 28px status bar].
-  - `OverlayApp.tsx:92` changes `p-4 gap-2` to `p-1 gap-1` (W3-OVERLAY, 4.15).
-- **Picker window** stays 380×500 (`main.ts:255-256`), gets `webPreferences.zoomMode: 'isolated'` (7.1) and keeps its drag header (`CredentialPickerApp.tsx:114-117`); W3-PICKER restyles it.
-
-### 7.7 Popup menu window restyle (`electron/ipc/menu.ts`, W2-MENUS)
-
-| Property | Today | New | Source |
-|---|---|---|---|
-| Width | 210 fixed (`menu.ts:111`) | 220 fixed | [ADAPT] the child window is sized before render; VS Code's min 160 plus auto width is not possible |
-| Row | 30 (`padding:5px 12px`, 13px/20px, `menu.ts:292-294`) | 24: `height:24px; margin:0 4px; padding:0 8px; border-radius:6px; gap:8px; font:13px/24px` | [V] item 24, radius 6 |
-| Separator | 9 (`margin:4px 8px`) | 11: 1px line, `margin:5px 0` | [V] |
-| Header | 24, 10px/600 uppercase | 24, 11px/600, no uppercase, `--c-ink-muted` | [ADAPT] Modern UI drops uppercase |
-| Container | radius 8, `padding:4px 0`, 1px border, `box-shadow:0 4px 24px` | radius 8, `padding:4px 0`, 1px `overlayBorder`, `box-shadow:0 0 12px rgba(0,0,0,.14)`; the window gains a transparent margin `M = 12` on every side for the shadow (geometry below) | [V] `--vscode-shadow-lg` |
-| Font | `Inter, system-ui` (`menu.ts:291,297`) | `-apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, Ubuntu, sans-serif` | OD-6 |
-| Text | `ink` | `inkSecondary` for items, `inkMuted` for headers and icons | [V] 2026 `menu.foreground` `#bfbfbf` / `#202020` |
-| Selection | bg `raised` | bg `selectionBg` + 1px inset `selectionBorder` | [V] 2026 menu selection |
-| Danger | `#f87171` and a 12 to 15% tint | `danger` text, `dangerHover` (`--c-menu-danger-hover-bg`) behind the active danger item | 2.2.3 |
-| Icons | 25 inline Tabler paths (`menu.ts:23-49`) | `iconSvg` from the renderer after `sanitizeSvg()` | 5.6 |
-| Keyboard | Escape only (`menu.ts:302`) | Up, Down, Home, End (skipping separators and headers), Enter, Space, Right (open submenu), Left (close submenu), Escape | |
-
-- **Colors.** The payload `colors` becomes `{overlay, overlayBorder, inkSecondary, inkMuted, selectionBg, selectionBorder, danger, dangerHover, divider}`, resolved from `--c-overlay`, `--c-overlay-border`, `--c-ink-secondary`, `--c-ink-muted`, `--c-menu-selection-bg`, `--c-menu-selection-border`, `--c-danger`, `--c-menu-danger-hover-bg` and `--c-divider`. The renderer resolves every value to `#rrggbb` with `resolveCssColor` (alpha flattened over `--c-overlay`). The main process validates each value with the hex regex and falls back to the built-in Modern values.
-- **Geometry with the shadow margin.** The visible menu must stay at the click point. With `M = 12`, the main process computes the visible menu rect first (`x`, `y` from the click as today, `menuWidth`, `menuHeight` without any buffer), flips and clamps that rect against the display work area (if `x + menuWidth > right`, `x -= menuWidth`; if `y + menuHeight > bottom`, `y -= menuHeight`; in `anchorRight` mode, `x -= menuWidth`), and only then creates the window at `(x − M, y − M)` with size `(menuWidth + 2M, menuHeight + 2M)` (submenu layouts add `2M` to their width and height the same way). Today's 12px `buffer`, added to the height only (`menu.ts:118-131`), goes.
-- **Clicks in the margin dismiss.** A transparent window is not click-through, so a click in the margin lands in the popup and would neither blur it nor reach the app. The page adds `document.addEventListener('mousedown', e => { if (!e.target.closest('.m, .sm')) console.log('__MENU__:dismiss') }, true)`, and the main process resolves anything that is not a valid item index as `null` and closes the popup.
-- **Wayland.** Absolute window positions need X11 or XWayland; D-26 keeps Linux on XWayland this release.
-- **Injection fix.** Labels are HTML-escaped (`& < > " '`). Ids must match `^[A-Za-z0-9_:.-]{1,64}$`; items with other ids are dropped with a warning. The page reports a **flattened item index** (`__MENU__:<n>`) instead of the id, and the main process maps the index back to the id. That closes today's latent injection through labels and ids (`menu.ts:214-231,286-299`).
-- **`sanitizeSvg(svg)`** lives in the new `electron/ipc/menu-svg.ts`. It is an allowlist parser:
-  - elements: `svg`, `g`, `path`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `rect`;
-  - attributes: `xmlns`, `viewBox`, `width`, `height`, `d`, `fill`, `fill-rule`, `clip-rule`, `stroke`, `stroke-width`, `stroke-linecap`, `stroke-linejoin`, `cx`, `cy`, `r`, `rx`, `ry`, `x`, `y`, `x1`, `y1`, `x2`, `y2`, `points`, `transform`, `opacity`, `fill-opacity`, `stroke-opacity`;
-  - it drops any other attribute and returns `null` on any other element or on text content;
-  - size limit 8 KB per icon.
+`BrowserWindow` options other than `backgroundColor`; `ready-to-show`; the application menu (INVENTORY 1); `overlay-manager.ts` (400 × 500, 16px inset); the picker window (380 × 500); web session views (square, no drag-region stylesheet); `webview2-session.ts`; `electron-builder.yml`; `preload.cts`.
 
 ---
 
-## 8. Tests and harness
+## 8. Tests, harness and layout checks
 
 ### 8.1 Unit and component tests
 
-Every package adds or updates the tests below. The runner is vitest (`vitest.config.ts`, jsdom, setup in `src/test/setup.ts`). Main-process tests use `// @vitest-environment node`.
+The runner is vitest (`vitest.config.ts`, jsdom, `src/test/setup.ts`); main-process tests use `// @vitest-environment node`; tests that import from both `src/` and `electron/` live in `scripts/__tests__/`.
 
 | Package | Test files | What they check |
 |---|---|---|
-| W1-ICONS | `src/lib/icons/__tests__/{registry,store,serialize}.test.tsx`, `scripts/__tests__/icon-packs.test.ts` | every pack maps all 123 names and each renders one `<svg>`; `preloadAllIconPacks` loads the five lazy packs and `<Icon pack>` renders from the named pack; decorative by default, `role="img"` with `title`; fast pack switches end on the last request; `storage` and `conduit:theme-change` events switch packs; `iconToSvg` returns `<svg…` and resets on pack change; the generator's `--check` is clean; the body parser rejects `<script>`, `<use>`, `<foreignObject>`, `on*` and `href` |
-| W1-TOKENS | `src/styles/__tests__/tokens-cascade.test.ts`, `src/lib/appearance/__tests__/{migrate,boot-inline,resolveCssColor,useAppearance}.test.ts`, `electron/services/__tests__/appearance-migration.test.ts`, `scripts/__tests__/appearance-migration-parity.test.ts`, `src/lib/__tests__/terminalTheme.test.ts` | the 5 cascade assertions and every contrast gate in 2.11 with exact `color-mix()` evaluation; the selected-row re-scope redeclares both `--c-*` and `--color-*`; every 6.3 table row; the version check reads raw values (a legacy file still migrates although the defaults hold `appearance_version: 2`); temp-dir `readSettings()` integration: migrated values, one write-back, none on the second read; `fast-check` idempotence; JSON table parity (read with `fs`); behavior parity of `boot-inline.js`, `migrate.ts` and the main migration; the boot script sets class, attributes and `--c-zoom` and migrates `localStorage` in jsdom; `conduit:appearance-applied` fires after the attributes change; `rgb()`, `rgba()` and `color(srgb …)` parsing and alpha compositing; settings-file reconciliation; the terminal theme gets hex colors |
-| W1-FREEZE | `src/lib/native-freeze/__tests__/registry.test.ts`, `src/hooks/__tests__/useNativeViewVisibility.test.tsx`, `src/components/sync/__tests__/SyncDialogFrame.freeze.test.tsx` | counting, idempotent release, release on unmount, batched notifications, the legacy event bridge; frozen → `web_session_capture_and_hide`, thawed → `web_session_show`; mounting `SyncDialogFrame` alone (no Settings, no App overlay flag) makes `isFrozen()` true |
-| W1-PRIMITIVES | `src/components/ui/__tests__/*.test.tsx`, `scripts/__tests__/legacy-classes.test.ts` | roles and ARIA; keyboard (Escape reaches only the top layer, Tab is trapped, arrows in SegmentedControl, Tabs, NavList, Menu and ChoiceGroup); harness markup: `FormField` nesting, the `Checkbox` and `Radio` labels, `Dialog` with `data-dialog-content` + `h2` + footer as last child + `aria-label` only with `harnessLabel`; a `Dialog` with `onSubmit` where `[data-dialog-content] form button[type=submit]` matches a visible submit; `portal={false}` renders in place; `data-cv-layer`, `data-cv-error`; `Button loading` keeps a visible label; `Spinner text` renders visible text; `Menu` items are `button[role=menuitem]`; clickable `ListRow` is a `<button>` and its trailing actions hide with opacity only; focus offsets (-1px default, 2px on `Button`, checkbox and radio); a freeze is held while a `Dialog` is mounted; the legacy report finds the 4.16 patterns only in class strings |
-| W1-HARNESS | `scripts/__tests__/verify-selectors.test.ts`, `scripts/__tests__/check-owns.test.ts` | every selector pair in `selectors.mjs` resolves on old-markup and new-markup jsdom fixtures; mixed fixtures, where a hooked element sits next to a nearer or earlier element that carries the legacy class, resolve to the hooked element (scope-level `pickSelector`, 8.2); `openDialogs` ignores unlabeled dialogs; `check-owns.mjs` flags a path outside `owns` |
-| W2-MAIN | `electron/services/window-chrome/__tests__/{options,palette}.test.ts`, `electron/ipc/__tests__/window-chrome.test.ts`, `electron/services/web/__tests__/manager.chrome.test.ts`, `scripts/__tests__/window-chrome-parity.test.ts` | options per platform, OS release, env and style; traffic lights `{11,10}` / `{10,9}`; overlay height 34; `zoomFactor` clamped and `zoomMode: 'isolated'` for the main, overlay and picker windows; the Linux ozone switch and its `CONDUIT_OZONE` opt-out; palette equals `shell-colors.json` (read with `fs`); payload validation; `setTitleBarOverlay` only while `overlayActive`, and a mocked throw flips `overlayActive`, emits `window-chrome:state` and still resolves; popup coordinates × zoom; overlay bounds with width 458 and the bottom inset; `setBorderRadius` on every attached view (new sub-tab, switch, show) when the value differs, never for WebView2, and a radius-only change passes the unchanged-bounds check; the `no-drag` stylesheet is inserted on `dom-ready` with `cssOrigin: 'user'`; the toast inset constants equal `metrics.ts` |
-| W2-TITLEBAR | `src/components/shell/titlebar/__tests__/TitleBar.test.tsx`, `src/lib/__tests__/window-chrome.test.ts` | the minimal variant has `textContent === ""`; the pill has no `title`; macOS reserve 70, 0 in full screen; leading and trailing reserves from mocked rects at zoom 1 and 1.5, including a left-side layout (Linux) and a mirrored one (Windows RTL); clamping and the `0 / 138` fallback; the fallback caption buttons follow `overlayActive`, `visible` and full screen and re-evaluate on each event; layout controls swap `panelLeft`/`panelLeftOff` and keep `aria-pressed`; no store imports (props only); drag and no-drag classes; `--c-zoom` and `useZoomFactor` updates; one debounced `window_chrome_update` per `conduit:appearance-applied`, and a rejected invoke is ignored |
-| W2-ACTIVITYBAR | `src/components/shell/activitybar/__tests__/ActivityBar.test.tsx` | item titles (Appendix B, B16); pressed states from `sidebarStore`; roving focus; hover and active icon colors; Home calls `openHomeTab` |
-| W2-SIDEBAR | `SidebarPanel.test.tsx`, `sidebarStore.test.ts` (both updated), `src/components/entries/__tests__/EntryTree.roles.test.tsx`, `src/components/layout/__tests__/openHomeTab.test.ts` | docked vs floating markup; the scrim only over the workbench; `spareWidth` with `chromeWidth`; `chromeWidth` follows `conduit:appearance-applied` in the same task; `favoritesOnly` persisted; tree roles, `aria-level`, arrow keys, the empty twistie slot on leaves, indent guides on hover, the rename input; `openHomeTab` keeps today's behavior (moved verbatim) |
-| W2-TABS | `src/components/layout/__tests__/PaneTabBar.test.tsx`, `src/lib/layout/__tests__/contentArea.test.ts`, `src/components/layout/tabs/__tests__/webViewRadius.test.ts`, `src/components/sessions/__tests__/RdpView.resize.test.tsx` | tab roles; `data-state` only when not connected; close visibility; inactive-tab hover color; editor actions at 50% in an unfocused pane; drop marker; semantic menu icons; split separators stay 4px in flow; fallback size math; the radius decision (7, 0, square-left, square-right) for every density, engine and corner case, and the radius in the de-duplication key; one `rdp_resize` per layout change (debounce, last-requested check, single retry) |
-| W2-STATUSBAR | `src/components/shell/statusbar/__tests__/StatusBar.test.tsx` | visibility rules per store state; the review item keeps its `title` and `data-cv-review-button`; hover and pressed colors; the state dot is the 16px `circleFilled`; the zoom item follows `useZoomFactor`; no `role="status"`; no text breaks the rules in 8.4 |
-| W2-AI | `src/stores/__tests__/auxBarStore.test.ts` | persistence, clamping, the published `rightPanelWidth` (width + 4) |
-| W2-MENUS | `electron/ipc/__tests__/{menu,menu-svg}.test.ts`, `src/utils/__tests__/contextMenu.test.ts` | label escaping; id validation; index-to-id mapping; the window rect equals the visible menu rect grown by 12 on each side, and the flip and clamp use the visible rect; a margin click resolves to `null`; the SVG allowlist rejects `script`, `on*`, `href`, `style`, `foreignObject` and more than 8 KB; old keys map; colors are hex and include `inkSecondary` and `dangerHover` |
-| W2-WORKBENCH | `src/App.test.tsx` (fixed), `src/components/shell/__tests__/{Workbench,BannerStack,chromeText}.test.tsx`, `src/hooks/__tests__/useKeyboardShortcuts.test.ts` | the whole suite is green; density sets gaps, in-flow sashes and dividers; banners keep `role="status"` and `span.flex-1`, and their actions are link buttons with exact labels; chrome text rules (8.4) on a fully rendered workbench; Ctrl/Cmd+P, Ctrl/Cmd+Alt+B via `e.code`; F10 and a lone Alt open the application menu only on win32/linux custom and never inside `[data-session-keyboard]` |
-| W3-* | the tests already in each directory stay green (for example `src/components/sync/__tests__/*` query `[role=dialog]` and ARIA labels) | wherever a component moves to a primitive, its test asserts the Appendix B hook; busy texts stay visible (B35) |
-| W4-HARNESS | `scripts/__tests__/verify-harness.test.ts` (updated), `verify-selectors.test.ts` (fallbacks removed) | `all` skips opt-in suites; naming `appearance` runs it |
-| W4-CLEANUP | `src/components/__tests__/icon-sizes.test.ts`, `src/components/__tests__/overlay-freeze.test.tsx` | no icon size outside 12, 16, 20, 24, 32, 48 under `src/components/` (except custom entry icons, `EngineLogo` and the named 14px pill icon); each of the 24 overlays that `App.tsx:389` lists today mounts with minimal props and makes `isFrozen()` true with the legacy hold removed |
+| R1-FOUNDATION | `src/lib/icons/__tests__/{registry,store,serialize}.test.tsx`, `src/lib/icons/__tests__/svg-extent.ts`, `scripts/__tests__/icon-packs.test.ts`, `src/styles/__tests__/*`, `src/lib/appearance/__tests__/*`, `electron/services/__tests__/appearance-migration.test.ts`, `scripts/__tests__/appearance-migration-parity.test.ts`, `scripts/__tests__/appearance-palette-parity.test.ts`, `src/components/ui/__tests__/*` | Every pack maps all 116 names and renders one `<svg>` each; Hugeicons renders only allowlisted tags with `fill="none"` and `stroke="currentColor"`, filled names get `fill="currentColor"`; `circleFilled` draws the same 8px disc in all six packs (16, 20, 12, compact); Material glyphs trimmed by 1.35 and unclipped; Lucide is active before any load and no lazy load is needed for it; stale pack loads are dropped; `iconToSvg` resets on pack change; the codegen `--check` is clean and its license file lists exactly the six packs; the migration table's pack ids equal `ICON_PACKS`; the cascade assertions and contrast gates of 2.1 and 2.10 (with `favorite`); no removed token is defined; every row of the 6.3 table, raw-value reads, retired keys deleted, one write-back, idempotence, renderer and main parity; the palette parity; primitives' roles and markup, `IconButton` without `pressedLook` and with `tone="inherit"` (no text color class), `Callout onDismiss`, `Banner status={false}`, `align="center"` and its 26px row with `Button sm` actions (primary where asked), `Dialog width`, `closeOnEscape={false}` (Escape swallowed, `onClose` not called), `hideClose`, the type error for a missing `onClose` without both; `ListRow` `meta` visible without hover and a self-sized `leading` element; `<html data-cv-icon-pack>` follows the applied pack; the new 6.3 rows (a retired scheme in a version-2 file, an invalid theme, version 3) |
+| R1-HARNESS | `scripts/__tests__/restyle-inventory.test.ts`, `scripts/__tests__/verify-harness.test.ts`, `scripts/__tests__/verify-selectors.test.ts`, `scripts/__tests__/check-owns.test.ts` | The inventory comparator: identical lists pass; a removed, added, reordered or relabeled control fails; an added `aria-label`, `title` or `pressed` on a control that had none passes; CSS-uppercase text compares case-insensitively; menu headers ignore case and icons; a `label`'s text leaves out nested controls; `N seconds ago`, the sync state and the vault directory normalize on both sides; the `settings-appearance` delta passes both with and without the Icon pack section and fails on anything else; deltas apply only to their screen. A missing or changed reference file fails. A rule without its hooks reports `pending`, which `--strict` turns into a failure. The runner skips opt-in suites in `all` and starts Supabase only for a selected scenario that needs it. The review-version pair finds the line in both halves (B47). The plan's `wave` and `depends_on` match section 10 |
+| R1-MENUS | `electron/ipc/__tests__/menu.test.ts`, `electron/ipc/__tests__/menu-svg.test.ts`, `src/utils/__tests__/contextMenu.test.ts`, `scripts/__tests__/menu-svg-packs.test.ts` | Label escaping; id allowlist; index-to-id mapping; the visible rect flipped and clamped, the window grown by 12 on each side; margin clicks resolve to `null`; panel width from the longest label within 220 to 320; the SVG allowlist rejects `script`, `on*`, `href`, `style`, `foreignObject` and more than 8 KB; old keys map; colors are hex; every icon of every pack passes `sanitizeSvg` unchanged |
+| R2-TABS | `src/components/layout/__tests__/PaneTabBar.test.tsx`, `src/components/layout/__tests__/panes.test.tsx` | `data-active` on the active tab only; every tab renders its close button with no hiding class and `label="Close {title}"`; tabs carry `cv-tab` and the label `cv-tab-label` (the shrink rules of 3.4; the real widths are checked live by G10); a dot for every status with today's tooltips; the hamburger rule (absent while docked open, transparent spacer while floating open) with its hook and `aria-expanded`; `+` then `rightSlot` in the last `.cv-tabstrip-slot`; the drop marker adds no width; wheel scrolls horizontally; the activated tab scrolls into view; rename keys; the tab menu's semantic icons; split separators 4px in flow with `cv-split-sash`; `data-cv-session-area` on every pane; the drop overlay stays `z-40` |
+| R2-SIDEBAR | `src/components/layout/__tests__/SidebarPanel.test.tsx`, `src/components/layout/__tests__/Sidebar.test.tsx`, `src/components/entries/__tests__/EntryTree.test.tsx` | Docked and floating markup (today's assertions updated to the new classes); header order and every title and `aria-label` as INVENTORY 2a; a 60-character vault name truncates and leaves all six header buttons clickable; footer order and texts; the signed-in row 2 (the email with `title="Account Settings"`, Sign Out, then Confirm and Cancel), the `offline` badge, a team vault's tinted header with `VaultContextBar`, the trial card and strip, each in today's order with today's texts and titles; the review button's title and hook; the callouts' dismiss; the floating panel's `data-cv-accent-line`; tree rows 22px with the depth indent, `data-selected`, the leaf spacer, markers at 12px, the rename input, the flat group label without uppercase |
+| R2-AI | `src/components/ai/__tests__/ChatPanel.header.test.tsx` | Header order, titles and `data-cv-ai-header`; the engine dropdown items; the active engine's `●` kept as text |
+| R2-SHELL | `src/App.test.tsx` (fixed with a local `vi.stubGlobal`), `src/components/sync/__tests__/SyncBanners.test.tsx` (updated), `src/components/common/__tests__/StartupStatus.test.tsx` | The whole suite green; banners keep `role="status"`, `span.flex-1`, `data-cv-banner-text` and exact action labels, and their actions are buttons, the primary one filled; the offline banner has no `role="status"` and keeps `Reconnect`; the accent line uses `bg-accent`; the AI toggle is an `IconButton` with `aria-pressed`; StartupStatus texts, tones and dismiss |
+| R3-* | the tests already in each directory stay green, updated where markup changes; new tests where 3.12.1, 3.16 or 5.11 ask for them | Wherever a component moves onto a primitive, its test asserts the Appendix B hooks and the exact texts; every dialog's Escape, scrim click and close button per 3.12.1; hub and dashboard `meta` visible without hover; the pickers keep their grids and card; the custom icon twins equal the Tabler pack's mapping |
+| R4-HARNESS | `scripts/__tests__/verify-selectors.test.ts` (legacy halves gone), `scripts/__tests__/restyle-inventory.test.ts` | Hooks only; the restyle suite's allowed deltas trimmed to what the final UI needs |
+| R4-CLEANUP | `src/components/__tests__/icon-sizes.test.ts`, `src/components/__tests__/overlay-freeze.test.tsx`, `scripts/__tests__/legacy-classes.test.ts` | Icon sizes (5.5); each of the 24 overlays that `App.tsx` lists today, rendered alone, holds a freeze by itself (the legacy hold stays, D-28); the dead-file skip on temporary fixture files |
 
 ### 8.2 Harness hook contract
 
-The harness reads the UI through `page.evaluate` DOM queries (`scripts/verify/lib/ui.mjs:84-135`). The full list of dependencies is in Appendix B. The rollout has three steps, so no single migration package can break a run:
+The harness reads the UI through DOM queries (`scripts/verify/lib/ui.mjs`). Wave 1 turned every class-based selector into a pair (hook, legacy selector) resolved per scope by `pickSelector` (`scripts/verify/lib/selectors.mjs`): the hook wins wherever the scope has one. The restyle keeps that rollout:
 
-1. **Wave 1 (W1-HARNESS)** turns each class-based selector into a pair of the old selector and the new `data-cv-*` hook (`selectors.mjs`), resolved by a scope-level `pickSelector(scope, hook, legacy)`: if any element inside the scope carries the hook, only the hook is used; otherwise only the legacy selector. A comma union is never passed to `querySelector` or `closest()`: `querySelector` returns the first match in document order and `closest()` the nearest ancestor that matches either part, so after a restyle an unrelated element with the legacy class (a `rounded-md` Card, the first `<span>`, a `span.block` field label) could win over the hooked one (B5, B11, B18, B20, B21, B23, B24). Where the code today calls `el.closest(sel)`, it becomes `pickSelector` on the ancestor chain: the nearest ancestor with the hook if one exists in the scope, else `closest(legacy)`. The "Union (wave 1)" column of Appendix B lists the two alternatives this helper chooses between.
-2. **Waves 2 and 3** add the hooks on the markup, owned by the package that owns the file (Appendix B, "Hook added by").
-3. **Wave 4 (W4-HARNESS)** deletes the old alternatives.
+1. Wave 1 (done): the pairs.
+2. Waves 2 and 3: the package that owns a file adds its hooks (Appendix B, "Hook added by").
+3. Wave 4 (R4-HARNESS): the legacy halves are deleted.
 
 ### 8.3 Dialog detection
 
-`openDialogs()` (`flows.mjs:43-48`) and `dialogDetails()` (`sync-flows.mjs:16-22`) list every visible `[role=dialog]` by its `aria-label`. `waitForUnlockOutcome()` returns `{outcome: 'dialog'}` as soon as any listed dialog is visible (`flows.mjs:94-96`).
+Unchanged from wave 1: `openDialogs()` and `dialogDetails()` list `[role=dialog][aria-label]`; the `Dialog` primitive names ordinary dialogs with `aria-labelledby` and sets `aria-label` only through `harnessLabel`, which only the sync-style dialogs pass; `waitForUnlockOutcome()` reports `unlocked` once `sync_get_state().vault` names the vault.
 
-Today only the sync dialogs carry `role="dialog"` (`SyncDialogFrame.tsx:53-55`, `ConflictReviewPanel.tsx:89-91`). The `Dialog` primitive gives **every** dialog `role="dialog"`, which OD-10 needs. Without a harness change, the unlock dialog itself would count as an open "dialog" and every unlock would be misreported.
+### 8.4 Text rules
 
-Fix, in wave 1:
+1. No existing title, `aria-label`, placeholder or visible text changes (D-1). Removing CSS `uppercase` changes what `innerText` returns for these labels only: flat-mode tree group labels, the vault menu's section headers, popup menu headers, the hub's "Recent Vaults" and team headers, the entry dialog's group labels, the `IconPicker` category labels, the Home dashboard's type labels. The harness reads none of them [V: grep of `scripts/verify` for uppercase phrases finds none].
+2. Icon-only buttons that had no accessible name get `aria-label` (and a native `title`) with no visible text (D-20).
+3. No button's visible text may newly equal `Review`, `Use here instead`, `Lock Current Vault`, `New Vault`, `Not Now` or `Open Vault File`: the harness clicks those with `selector: 'button'` and takes the first match in document order.
+4. No new `role="dialog"` or `role="status"`. `role="status"` stays on the sync banners only; the offline banners keep none.
+5. The loading screen's whole text stays exactly `Loading...` (B27).
+6. In the review panel, each version's value, its `In use now` badge and its `Use this` button stay inside one `[data-cv-review-version]` line (B47): the sync and MCP flows match a value to its button through that line.
 
-- both functions query `[role=dialog][aria-label]`;
-- the `Dialog` primitive names ordinary dialogs with `aria-labelledby` and sets `aria-label` only when `harnessLabel` is passed, which only the sync-style shells do (4.8);
-- the scoped clicks at `sync-flows.mjs:72,88,98` narrow the same way (B10);
-- `waitForUnlockOutcome()` reports `{outcome: 'unlocked'}` only once `sync_get_state().vault` names the vault, not as soon as `vault_is_unlocked` is true: that turns true when the working copy opens, before the unlock cycle and the device lease finish (`flows.mjs:93-96`, tested in `scripts/__tests__/verify-sync-flows.test.ts`).
+### 8.5 Harness runs and owner gates
 
-### 8.4 Text rules for permanent chrome
-
-Permanent chrome means the title bar, activity bar, status bar, side bar part title and layout controls.
-
-1. No button's visible text may **equal** `Review`, `Use here instead`, `Lock Current Vault`, `New Vault`, `Not Now` or `Open Vault File`. The harness clicks those with `selector: 'button'` and takes the first match in DOM order, and chrome comes first (`flows.mjs:80,119,135,186`, `team-flows.mjs:47`, `sync-flows.mjs:88,98`, `suites/mcp.mjs:262`) (OD-9).
-2. No visible chrome text may **contain** a phrase the harness looks for in the page text:
-   - `Loading...`, `Please wait...`, `Opening...`, `Checking...`, `Comparing...`, `Looking for copies...`
-   - `Sync now`, `Nothing to review`, `Unlock Vault`, `Set a master password`
-   - `Select a vault to get started`, `Continue without signing in`
-
-   Sources: `flows.mjs:22-35,97`, `settings-flows.mjs` `syncNowFromSettings`, `sync-panels.mjs:27,97`, `suites/mcp.mjs:212`.
-3. The minimal title bar renders no text nodes (3.1).
-4. No `role="dialog"` or `role="status"` on chrome. `role="status"` exists only on banners (3.9), because `ui-forms.mjs:83-101` reads banners that way.
-5. The command center pill has no `title` attribute (3.2).
-
-`src/components/shell/__tests__/chromeText.test.tsx` (W2-WORKBENCH) renders the workbench with stores seeded to every status bar state and asserts rules 1 to 5.
-
-### 8.5 Harness runs
+`npm run verify` (all 41 scenarios, about 12 minutes, needs the local Supabase stack: `supabase start`, `docs/LOCAL_SUPABASE.md`) runs in the four integrator steps. The restyle suite is lighter and runs in every package that changes what it checks; wave-3 packages that change markup the live flows read also run the matching suites, so a broken flow shows up in the package that broke it, not after twelve merges.
 
 | When | Command | Notes |
 |---|---|---|
-| End of wave 1 | `npm run verify` (all 41 scenarios) | selector pairs against the unchanged UI; needs the local Supabase stack (`supabase start`, `docs/LOCAL_SUPABASE.md`) |
-| Wave 2, before W2-WORKBENCH | unit tests and gallery renders on the wave-2 integration branch (W2-MAIN also runs `node scripts/verify/run.mjs password lifecycle`, the suites that drive the application menu) | the new shell parts are not mounted until the integrator lands; manual checks move to W2-WORKBENCH (10) |
-| End of wave 2 (W2-WORKBENCH) | `npm run verify` (it includes `mcp`) on the integration branch, which then merges to the release branch | the layout changes the web viewport the MCP tools report (3.7) |
-| Each wave-3 package | `npm run verify` (all 41 scenarios, about 12 minutes) before it merges | a suite list per directory missed real dependencies: the Sync tab readers are used by `lifecycle`, `copies` and `password`, the vault menu by `resilience`, the Home dashboard by `mcp`, `backup` and `sync`, and `ConfirmDialog` by `lifecycle` and `password`. A package may run a subset while it iterates |
-| End of wave 4 | `npm run verify`, then `node scripts/verify/run.mjs appearance` | old selector alternatives removed; screenshot set (8.6) |
+| R1-HARNESS | `node scripts/verify/run.mjs restyle` (the local Supabase stack running, for `sidebar-signed-in`); `--only screens` with it stopped; `sync mcp` | proves the suite on the unchanged layout: inventories match, G1, G2, G4 and G9 pass, the other rules report `pending`; the review flows run on the new pair |
+| End of wave 1 (R1-MENUS) | `npm run verify`, then `node scripts/verify/run.mjs restyle`, then `--only packs` | the migration and settings changes touch every suite's settings file; **owner gate 1** |
+| Each wave-2 package | `node scripts/verify/run.mjs restyle --only <scenario>` (10.2) | inventories, the geometry rules its hooks allow (8.6), composites |
+| End of wave 2 (R2-SHELL) | `npm run verify`, then `node scripts/verify/run.mjs restyle --strict` | banners, the side bar footer (B13), the hamburger (B16) and the vault switcher (B17) are harness-bound; from here on no rule may be pending; **owner gate 2** |
+| Each wave-3 package | `node scripts/verify/run.mjs restyle --strict --only <scenario>`, plus the targeted suites: R3-SETTINGS and R3-VAULT `backup lifecycle password`; R3-SYNC `sync mcp copies lifecycle`; R3-MISC `lifecycle` | the Settings flows (`lib/settings-flows.mjs`), vault dialogs, the review panel (B11, B47), Other copies (B20), Recently deleted and its stacked confirm (B18, B19) |
+| End of wave 3 (R3-FOUNDATION closing) | `npm run verify`, then `node scripts/verify/run.mjs restyle --strict` | dialogs and settings are harness-bound (B1-B47) |
+| End of wave 4 (R4-CLEANUP) | `npm run verify`, then `node scripts/verify/run.mjs restyle --strict` | legacy selectors gone; **owner gate 3** |
 
-### 8.6 Screenshot matrix
+A failure found by an integrator goes back to the file's owner in that wave, or to the standing foundation package for shared files.
 
-The full product 7 schemes × 2 modes × 2 densities × 6 packs is 168 combinations per screen. That is not run. Colors, density and icons are independent (icons draw with `currentColor`), so the matrix covers each axis fully and the pairs that interact:
+**Owner gates** (10, rule 8). The owner sees the work before most of it is built, not only at the end:
 
-| Set | Source | Combinations | Shots |
+1. **Gate 1, closing R1-MENUS.** The `packs` sheets of 8.6 (dark and light): the side bar, both tab bars, the tree entry context menu, a toast, the credential picker window and Settings > Appearance with Lucide as the default, in each of the six packs, in the real app. Two questions go with it: (a) Modern's accent: Conduit's sky ramp as planned (D-25), or VS Code's blue; (b) tab close buttons: always visible as today (D-3), or VS Code's hover-only close. A different answer is written into the spec (10, rule 4) before wave 2 starts.
+2. **Gate 2, closing R2-SHELL.** The before and after composites of shots 04 to 10b, 18, 19, 21 and 44 to 49: the whole restyled chrome, signed-in states included. Every R3 package depends on R2-SHELL, so wave 3 waits for this approval.
+3. **Gate 3, closing R4-CLEANUP.** The dark and light composites of every reference shot.
+
+### 8.6 The restyle suite
+
+`scripts/verify/suites/restyle.mjs` (R1-HARNESS) is an opt-in suite (`optIn: true`, skipped by `all`). Its scenarios declare `needsSupabase` one by one: only `sidebar-signed-in` needs the local Supabase stack, and the runner starts the stack only when a selected scenario needs it. The suite launches one isolated device per scenario, 1280 × 800, with the reference data of 3.1 (vault "Acme Infrastructure" and its entries, the "Scratch" vault, a local test page for the web entry, `web-01` pointed at `127.0.0.1:1`), reaches each reference screen, and for each screen in dark and light runs the steps below.
+
+**8.6.1 The reference folder.** The 124 PNGs of 3.1 (37 MB [V `du -sh`]) exist only in the scratchpad, which is temporary. R1-HARNESS's first step copies `<scratchpad>/restyle/before/` (the PNGs, `INVENTORY.txt`, `INVENTORY-raw.json`) to `$HOME/.conduit-verify/restyle-before/`, which every worktree on the machine reaches, adds shots 44 to 49 there, and commits `scripts/verify/fixtures/restyle/before-manifest.json`: `{ "files": { "<name>": "<sha256>" } }` for every file of the folder. `--before <dir>` defaults to `CONDUIT_RESTYLE_BEFORE`, else that folder. A file the manifest lists that is missing, or whose hash differs, fails the suite: a composite never silently disappears.
+
+1. **Screenshot.** On macOS a real window capture (`screencapture -x -o -l <windowId>`, like the reference set), elsewhere `page.screenshot()`; crops use element rectangles (`[data-cv-sidebar-header]`, `[data-cv-sidebar-footer]`, the `[data-tabbar]` rows, the popup window) where the hooks exist, and today's regions otherwise. Written to `.verify/runs/<id>/restyle/after/<mode>-<nn>-<name>.png`, the reference names of 3.1.
+2. **Composite.** `sharp` writes `.verify/runs/<id>/restyle/compare/<mode>-<nn>-<name>.png`: before on the left, after on the right, scaled to the same height, labeled.
+3. **Inventory.** `scripts/verify/lib/inventory.mjs` records every visible control of the screen's region in document order as `{tag, text, title, aria, pressed, type, placeholder}` (the format of `INVENTORY-raw.json`; the extraction reproduces it on the unchanged layout). A `label`'s `text` is its own text without the text of form controls, buttons or options nested in it, because `FormField` and `Checkbox` nest their control inside the label (4.4, 4.6) while today's labels stand beside it. Popup menus are recorded as `{kind: item | header | separator | submenu, label, children}`, read from the menu window; the application menu from `Menu.getApplicationMenu()`. `compareInventory()` compares the result with `scripts/verify/fixtures/restyle/before-inventory.json` (the normalized `INVENTORY-raw.json` plus shots 44 to 49). Both sides are normalized first:
+   - full vault paths become `<vault-path>`; the run's vault directory, wherever it appears in a title or text (the hub rows read `Acme Infrastructure /tmp/cv-4f4fcc/vaults` [V]), becomes `<vault-dir>`; ports become `<port>`;
+   - `/\b\d+ (second|minute|hour|day)s? ago\b/` becomes `<ago>`, and the sync states `Up to date` and `N change(s) not yet synced` become `<sync-state>`: the footer's sync button reads `Up to date. Last synced 4 seconds ago` in one capture and `1 change not yet synced. Last synced 1 second ago` in another [V `INVENTORY-raw.json`];
+   - menus are structured.
+
+   The rules:
+   - same controls, same order, same `tag`, `text`, `title`, `aria`, `pressed`, `type`, `placeholder`;
+   - allowed: an `aria`, a `title` or a `pressed` added where the reference has none (D-20; the AI toggle gains `aria-pressed`, 3.4); text compared case-insensitively when the reference text is CSS uppercase; icons ignored in menus;
+   - allowed per screen, as data in `scripts/verify/fixtures/restyle/allowed-deltas.json`, each entry with its reason. At the start there is one entry, `settings-appearance` [V against `INVENTORY-raw.json` and the branch's `AppearanceTab.tsx`]:
+     - **removed**: `{tag: label, text: "Platform Theme"}` and its four buttons `Default Conduit Classic`, `macOS Tahoe Liquid Glass`, `— ☐ ✕ Windows 11 Fluent Design`, `Ubuntu GNOME / Libadwaita` (OD-7);
+     - **inserted where they stood**, present if and only if the tab renders `[data-cv-appearance="icon-pack"]`: `{tag: label, text: "Icon pack"}`, then six buttons whose texts start with `Lucide`, `Phosphor`, `Hugeicons`, `Material Symbols`, `Fluent` and `Tabler (Classic)`, in that order (OD-4). Before R1-FOUNDATION merges, the tab has no such section and the entry passes without it; afterwards it must be there;
+     - **inserted before `Ocean`**: `{tag: button, text: "Modern"}` (OD-7).
+     Nothing else differs on that screen: the three remaining section labels stay `<label>` elements (6.4).
+4. **Geometry rules.** Each rule needs hooks that a later package adds. On a screen where a rule's hooks are missing, the rule reports `pending` in `inventory-diff.txt` instead of failing; `--strict` turns every pending rule into a failure. R2-SHELL's integration and every later run use `--strict`. Height rules check only the elements that already carry their hook.
+
+| Rule | Checks | Needs | Hook added by |
 |---|---|---|---|
-| G1 tokens | `/gallery.html` (dev server) | 7 schemes × 2 modes × 2 densities, Codicons | 28 |
-| G2 packs | gallery icon strip | 6 packs × 2 modes, Modern, Comfortable | 12 |
-| A1 core screens | opt-in `appearance` suite: S1 vault hub, S2 workbench (side bar floating open, 2 panes, tabs in connected, connecting and disconnected states, AI open), S3 Settings > Appearance, S4 Recently deleted with the stacked confirm, S5 tab context menu (popup window page), S6 toast (overlay window page) | Modern × 2 modes × 2 densities, Codicons | 24 |
-| A2 schemes | S2 | 6 universal schemes × 2 modes, Comfortable, Codicons | 12 |
-| A3 packs in context | S2 and S5 | 5 non-default packs, Modern dark, Comfortable | 10 |
-| A4 zoom | S2 | `ui_scale` 0.75, 1.0, 1.5, Modern dark, Comfortable | 3 |
+| G1 | Content bounds are smaller than window bounds (native frame, L-1) | none | today |
+| G2 | None of the clone selectors of L-20 exists; the list lives only in `scripts/verify/lib/clone-selectors.mjs` | none | today |
+| G3 | The `[data-cv-accent-line]` outside `[data-sidebar-panel]` is 2px tall, full width, the first row of the main layout, colored `--c-accent`; inside a floating `[data-sidebar-panel]`, its own line is 2px tall at the panel's top | `data-cv-accent-line` (each part on its own) | R2-SHELL (`App.tsx`), R2-SIDEBAR (floating panel) |
+| G4 | The docked side bar starts at x = 0 with its stored width (250 by default); the floating one is fixed at x = 0 from y = 0 | `data-sidebar-panel`, `data-docked` | today |
+| G5 | Every `[data-tabbar]` that contains `[data-cv-new-tab]` is 33px tall at the top of its pane; `[data-cv-sidebar-toggle]`, when present, sits in its first `.cv-tabstrip-slot` at its left edge; `[data-cv-new-tab]` and, in the focused pane only, `[data-cv-ai-toggle]` sit in its last `.cv-tabstrip-slot` at its right edge | `data-cv-new-tab`; `data-cv-ai-toggle` for the toggle part | R2-TABS; R2-SHELL |
+| G6 | (a) Each of `[data-cv-sidebar-header]`, the top-row tab bars (G5's tab bars whose top is the main row's top) and `[data-cv-ai-header]` that exists is 33px tall. (b) Once all three exist, with the side bar docked, they share one bottom edge (D-5) | the three hooks, each for its own part of (a); all three for (b) | R2-SIDEBAR, R2-TABS, R2-AI |
+| G7 | The side bar's children appear in the order of L-6, with `[data-cv-sidebar-footer]` at its bottom | `data-cv-sidebar-header`, `data-cv-sidebar-footer` | R2-SIDEBAR |
+| G8 | While the AI panel is open, `[data-cv-ai-divider]` (4px) and `[data-cv-ai-panel]` (400px by default) are the last two element children of the row that holds the pane area (L-4) | both hooks | R2-SHELL |
+| G9 | While any dialog is open over a web session, `window.__conduitFreeze()` lists a holder and the web view is hidden (the 32b bug stays fixed) | `window.__conduitFreeze` | wave 1 |
+| G10 | On every screen with tabs, each `[data-cv-tab]` lies inside its `[data-tabbar]` and each tab's `.cv-tab-close` lies inside its tab (shot 18 is the narrow case: three tabs in a pane of about 312px). In the `tabs` scenario, twelve tabs opened in the left pane of shot 18's layout are each at least 78px wide, the row scrolls, and the tab activated last lies inside the strip | `data-cv-tab` | R2-TABS |
 
-Output: `.verify/runs/<id>/appearance/<set>-<screen>-<scheme>-<mode>-<density>-<pack>.png`. No pixel diffing this release; the owner reviews the set. Review on a machine **without Inter installed**, because the owner's Mac has it and most users will see the OS font (2.4) [V critic].
+Rules each package can meet before `--strict`:
 
-### 8.7 What only Windows or Linux can test
+| Package | Rules |
+|---|---|
+| R1-HARNESS, R1-MENUS | inventories, G1, G2, G4, G9 |
+| R2-TABS | + G5 (the AI toggle part pending), G6 (a) for its tab bars, G10 |
+| R2-SIDEBAR | + G3 for the floating panel's line, G6 (a) for the header, G7 |
+| R2-AI | + G6 (a) for `[data-cv-ai-header]` |
+| R2-SHELL onward | every rule, `--strict` |
 
-Nobody can run these on the owner's Mac. The PR test plan carries one checkbox per line. A debug flag, `localStorage["conduit:debug-caption-fallback"] = "1"`, forces the HTML caption buttons for testing (W2-TITLEBAR).
+5. **Scenarios.**
 
-1. The window controls overlay shows, has height 34, and its color and glyph color follow every scheme and mode change (`setTitleBarOverlay`).
-2. The leading and trailing reserves match the caption buttons at OS scaling 100%, 125% and 150% and at `ui_scale` 0.75 and 1.5 (`geometrychange`). Linux with `gtk-decoration-layout` set to `close,minimize,maximize:` (buttons on the left): the menu button is not covered. Windows with a right-to-left display language: the mirrored buttons get the leading reserve.
-3. Drag moves the window. Double-click maximizes. Windows 11 snap layouts appear on the maximize button. Resizing from the top edge works, with and without the HTML caption fallback, and dragging 5px below the edge moves the window.
-4. The menu button opens the native application menu under itself, keyboard navigation works in it, and its items fire. F10 and a lone Alt open it at the menu button, and neither does so while a terminal or remote session has focus.
-5. Ctrl+O, Ctrl+S and F1 still fire (a smoke check: the frameless window keeps the menu's accelerators, 7.3), and Alt shows no native menu bar.
-6. The HTML caption fallback (forced with the debug flag): minimize, maximize and restore, close (hides to tray). It also appears by itself when `setTitleBarOverlay` fails, and scheme or mode changes then raise no errors (7.2).
-7. Native mode with `CONDUIT_TITLE_BAR=native`, with the setting, and through Help > `Use Native Title Bar`.
-8. Linux: GNOME and KDE, Wayland and X11 sessions. In a Wayland session the app runs under XWayland (D-26) [A: the `.desktop` `Exec` line carries `--ozone-platform=x11`], and the context menus, the Account menu, the toast overlay and the picker open where they should. Also check resize edges, Electron 43+'s default rounded corners for frameless windows, and whether the overlay is visible at all. `CONDUIT_OZONE=wayland` still starts the app.
-9. Windows, maximized, restored and snapped, at 100%, 125% and 150% scaling: a WebView2 session lines up with its pane, the right-click menu opens at the cursor, and the toast sits above the status bar (all three are placed from `getContentBounds()`, 3.7).
-10. WebView2 sessions: the card corner is square wherever a WebView2 touches it, no artifacts, and a freeze under dialogs.
-11. Chromium web views: rounded bottom corners when a view spans the card's bottom edge, a square card corner when a view touches only one bottom corner, and clicks in the corner cut-outs (they still reach the page [V typings note]). A page whose CSS sets `-webkit-app-region: drag` does not move the window (D-27; also checked on macOS in W2-WORKBENCH).
-12. Fonts: Segoe UI or system-ui at 13px; Consolas (Windows) or Ubuntu Mono (Linux) for code.
-13. The toast overlay sits 8px above the status bar at 125% and 150% OS scaling.
-14. The popup menu's transparent shadow margin (needs a compositor on Linux); a click in the margin closes the menu.
-15. The picker window behaves as before.
+| Scenario (`--only`) | Reference shots | Inventory screens |
+|---|---|---|
+| `screens` | 00, 01, 02, 03, 41, 42 | `auth-screen`, `vault-hub-empty`, `vault-hub-with-recent`, `vault-hub-with-recent-2`, `unlock-dialog`, `main-empty-vault-welcome`, `sidebar-empty-vault-just-created` |
+| `sidebar` | 04, 06, 07, 08, 09, 21, 38, 39 | `main-sidebar-local-mode`, `vault-switcher-menu-open`, `sidebar-search-active`, `sidebar-favorites-only` |
+| `sidebar-signed-in` (`needsSupabase: true`) | 44 to 49 | `sidebar-signed-in`, `sidebar-sign-out-confirm`, `sidebar-cached-offline`, `sidebar-team-vault`, `sidebar-trial-card`, `sidebar-trial-strip`: a Free user who can start a trial and the same user in a Pro trial (`createTestUser`, `setTier` in `lib/supabase.mjs` [V exports]), a team with one team vault (`createTeam`, `createTeamVault`, `openTeamVaultInUi` in `lib/team.mjs` and `lib/team-flows.mjs` [V exports]), and cached mode by cutting the network the way the resilience suite does (`lib/net-proxy.mjs`) [A: that this reaches cached auth; if not, R1-HARNESS finds the way the app enters it] |
+| `tabs` | 05, 06, 07, 10, 10b, 40, 43 | `main-tabbars-split-ai-open`, `web-session-toolbar`, `home-dashboard-full-window`, `document-view-runbook`; plus the twelve-tab check of G10 |
+| `ai` | 18, 19 | `ai-panel`, `ai-panel-engine-menu-open` |
+| `menus` | 11 to 17 | `plus-popup`, `ctx-tab`, `ctx-tab-ssh-entry`, `ctx-tree-entry-ssh`, `ctx-tree-entry-web`, `ctx-tree-entry-credential`, `ctx-tree-folder`, `ctx-submenus`, `native-app-menu` |
+| `settings` | 20-01 to 20-14 | the 14 `settings-*` screens |
+| `dialogs` | 22 to 35 | `new-entry-dialog`, `new-entry-ssh-form`, the six `edit-entry-rdp-*`, `new-folder-dialog`, `quick-connect-dialog`, `confirm-delete-dialog`, the three `sync-panel-*` |
+| `toasts` | 36, 37 | none (screenshots; the four toasts come from View > Trigger Test Toast, or from the toast API) |
+| `packs` | none (sheets for owner gate 1) | none; for each of the six packs in dark and light it picks the pack in Settings > Appearance (live preview, then Save), captures the Appearance tab with its six cards, the side bar, both tab bars, the tree entry context menu window, a test toast and the credential picker window (opened the way its global shortcut opens it [A]), and asserts that `<html data-cv-icon-pack>` equals the pack id in the main, overlay and picker windows and that the menu's Edit icon markup differs from pack to pack; it writes one six-column sheet per mode under `.verify/runs/<id>/restyle/packs/`, then restarts the device and checks that the saved pack still applies |
 
-## 9. Risks and guardrails
+Output also includes `inventory.json` and `inventory-diff.txt` per scenario. Pixels are not diffed: styling changes sizes by design; the inventory and geometry rules decide pass or fail, and the owner reviews the composites at the gates.
+
+### 8.7 What only Windows or Linux can check
+
+1. Fonts: Segoe UI (Windows) or the system UI font (Linux) at 13px; Consolas or Ubuntu Mono for code.
+2. Scrollbars: 8px styled thumbs; the tab strips show no scrollbar and scroll with the wheel.
+3. Popup menus: the 12px transparent margin draws a shadow (a compositor is needed on Linux), a click in it closes the menu, and menus open at the pointer when maximized and snapped at 100, 125 and 150% OS scaling.
+4. Hugeicons, Fluent and Material glyphs render crisply at 16px in the side bar, tabs and menus.
+5. The window background follows scheme and mode while resizing (no navy flash).
+
+---
+
+## 9. Removals, salvage and risks
+
+### 9.1 Base-branch code to remove or simplify
+
+All in R1-FOUNDATION unless marked. Nothing of the clone's shell exists on this branch to remove [V: `src/components/shell/`, `src/lib/window-chrome.ts`, `electron/ipc/window-chrome.ts`, `electron/services/window-chrome/`, `src/stores/auxBarStore.ts`, `src/lib/layout/` are absent; `electron/` sets no `titleBarStyle`, `titleBarOverlay`, `trafficLightPosition` or `zoomMode`].
+
+| Area | Path | Action |
+|---|---|---|
+| Codicons | `src/lib/icons/packs/codicons.tsx`, `src/lib/icons/generated/codicons.ts`, `scripts/icons/licenses/codicon.txt` | delete |
+| Codicons | `scripts/icons/mapping.mjs`, `scripts/icons/generate-icon-packs.mjs` | drop the `codicon` columns, package, output file and license source (5.3) |
+| Codicons | `package.json`, `package-lock.json` | remove `@iconify-json/codicon`; add `@hugeicons/core-free-icons` `4.3.5` (exact) to devDependencies |
+| Codicons | `public/licenses/third-party-icons.txt` | regenerate: six packs, no Codicons, no CC BY text |
+| Codicons | `src/lib/icons/types.ts`, `pack-cache.ts`, `store.ts`, `loader.ts`, `licenses.ts`, `index.ts`, the icon tests, `src/components/ui/gallery/IconsSection.tsx`, `galleryState.ts`, `src/components/ui/__tests__/{choices,gallery}.test.tsx` | Codicons out, Lucide default, Hugeicons in; the "Codicons compact glyphs" gallery demo becomes a state dot demo |
+| Retired icon names | `types.ts`, `index.ts`, every pack, `mapping.mjs`, `src/components/ui/__tests__/Button.test.tsx`, `src/components/ui/gallery/ButtonsSection.tsx`, `IconsSection.tsx` | remove `panelLeft`, `panelLeftOff`, `panelRight`, `panelRightOff`, `collapseAll`, `account`, `explorer` and their named exports |
+| Deprecated icon shims | `IconTheme`, `THEME_ICON_DEFAULTS`, `PACK_BY_ICON_THEME`, `isIconTheme`, `setTheme`, `useIconThemeStore`, `loadIconPack(theme)` | delete (no callers [V grep]) |
+| Density | `src/styles/density.css`, `src/styles/metrics.ts`, `src/styles/__tests__/metrics.test.ts` | delete |
+| Density | `src/index.css` (`@import "./styles/density.css"`, `@custom-variant compact`, `--radius-card`, `--spacing-activitybar`, `--spacing-titlebar`, `--spacing-statusbar`), `src/lib/appearance/{boot-inline.js,dom.ts,migrate.ts,useAppearance.ts,migration-table.json}`, `electron/ipc/settings.ts`, `electron/services/appearance-migration.ts`, `SettingsDialog.tsx`, `SettingsHelpers.tsx`, `OverlayApp.tsx`, the gallery's density switch and `NavigationSection.tsx` demo, and their tests | remove `ui_density`, `data-density`, `conduit-density`, `Density`, `isDensity` |
+| Cards and sashes | `src/styles/components/cards.css` | delete |
+| Cards and sashes | `src/styles/components/sash.css` | rewrite: split sashes, the AI divider and the side bar handle line of 3.5 to 3.7; the grip, the compact rules and the card sashes go |
+| Tabs | `src/styles/components/tabs.css` | rewrite to 3.4 (`data-active`, no editor actions, no card assumptions) |
+| Clone tokens | `src/styles/tokens.css`, `src/styles/schemes.css`, `src/styles/__tests__/{tokenContract,tokens-cascade,cssTokens}.ts` | remove `--c-activity-active-bg`, `--c-activity-hover-bg`, `--c-activity-fg`, `--c-activity-fg-hover`, `--c-activity-fg-active`, `--c-titlebar-fg`, `--c-statusbar-fg`, `--c-statusbar-hover`, `--c-statusbar-hover-fg`, `--c-statusbar-active`, `--c-cc-bg`, `--c-cc-fg`, `--c-cc-border`, `--c-cc-hover-bg`, `--c-cc-hover-border`, `--c-sash-grip`, `--c-titlebar-h`, `--c-traffic-reserve`, `--c-wco-reserve-start`, `--c-wco-reserve-end`, `--c-cc-h`, `--c-cc-w`, `--c-cc-max-w`, `--c-statusbar-h`, `--c-activity-item`, `--c-activity-pill`, `--c-zoom`, and the density tokens `--c-gap`, `--c-outer`, `--c-card-radius`, `--c-card-border-w`, `--c-activitybar-lane`, `--c-activitybar-w`, `--c-activity-gap`, `--c-statusbar-gutter`; move `--c-tabstrip-h`, `--c-tab-h`, `--c-tab-gutter-top`, `--c-list-inset` to `:root`; add `--c-tab-min-w` and `--c-favorite`; Modern's accent ramp and accent-derived values to the sky ramp (2.2.2, D-25) |
+| Title bar style | `electron/ipc/settings.ts`, `electron/services/appearance-migration.ts`, `SettingsDialog.tsx`, `SettingsHelpers.tsx`, the migration table and tests | remove `title_bar_style` (deleted from stored files by the migration) |
+| Counter-zoom | `src/lib/appearance/boot-inline.js` and its test | stop setting `--c-zoom` and probing `window.electron.zoomFactor` |
+| Glyph-swap buttons | `src/components/ui/IconButton.tsx` and its test | remove `pressedLook` |
+| Editor card probe | `src/components/ui/Popover.tsx` | `[data-cv-editor-card]` becomes `[data-cv-session-area]` (D-21) |
+| Gallery | `src/components/ui/gallery/WorkbenchPreview.tsx`; `GalleryApp.tsx` (`--c-gap` and `--c-outer` padding, the workbench section) | delete; plain padding |
+| Shell colors | `src/lib/appearance/shell-colors.json` | `fg` becomes `--c-ink-faint` (Modern light `#6B6B6B`) |
+| Plan | `scripts/redesign/work-packages.json` | replaced by this plan in the commit that lands this spec (section 10) |
+| Clone and VS Code wording in code | `src/styles/base.css:48`, `src/styles/tokens.css:100`, `src/styles/schemes.css:4`, `src/styles/components/tabs.css:1`, `src/components/ui/Badge.tsx:36`, `src/components/ui/Banner.tsx:28`, `src/components/ui/Popover.tsx:26`, `src/components/ui/gallery/FieldsSection.tsx:11,68`, `src/lib/appearance/useAppearance.ts:3`, `src/lib/terminalTheme.ts:33`, the tests in `src/components/ui/__tests__/` that name a title bar, an editor card or a workbench | comments, demo texts and test names describe today's layout: no title bar, activity bar, status bar, command center, workbench, editor card, `BannerStack` or VS Code name (R1-FOUNDATION; the grep of its acceptance proves it) |
+| Clone wording in the harness | `scripts/verify/README.md:508-527` ("Text on permanent chrome": the title bar, activity bar, status bar, command center, `chromeText` test), `scripts/__tests__/verify-selectors.test.ts:209-226` (the `SHELL_CLOSED` and `SHELL_OPEN` fixtures in the clone's layout) | rewritten for today's layout; the forbidden clone selectors live only in `scripts/verify/lib/clone-selectors.mjs` (R1-HARNESS; its grep proves it) |
+
+Kept although wave 1 added it for the clone: `--c-tab-*` tokens (the pane tab bars use them), `--c-indent-guide` (tree guides), `--c-part-title-h` and `--c-section-h` (Tabs, the team context bar), `--c-shell` (the splash and the window background), `--c-scrim-sidebar`, the z-index tokens, `conduit:appearance-applied` (without density), `resolveCssColor`.
+
+### 9.2 Salvage from the abandoned wave 2
+
+| Commit (branch) | What | Port |
+|---|---|---|
+| `8ca0d23` (`redesign/w2-menus`) | `electron/ipc/menu-svg.ts` allowlist sanitizer and its test | cherry-pick as is (R1-MENUS) |
+| `98abd31` (`redesign/w2-menus`) | Popup menu restyle and hardening: `electron/ipc/menu.ts`, `src/utils/contextMenu.ts` and their tests | cherry-pick; change comments naming `W4-CLEANUP` to `R4-CLEANUP` and the fallback `MODERN_MENU_COLORS` to the sky accent (7.1) (R1-MENUS) |
+| `70fd889` (`advenimus/visual-redesign`) | Panel width from the longest label, 220 to 320 | cherry-pick the `electron/` hunks only; drop its `docs/VISUAL_REDESIGN.md` hunk (R1-MENUS) |
+| `7f179be` (`redesign/w2-foundation-2`) | Every pack icon through the sanitizer | re-create as `scripts/__tests__/menu-svg-packs.test.ts` (the original lived in `scripts/icons/__tests__/`, which R1-FOUNDATION owns), iterating the six packs and 116 names, resetting with `setIconPack(DEFAULT_ICON_PACK)` instead of `"codicons"` (R1-MENUS) |
+| `588e2ad` (`redesign/w2-foundation-1`) | Shared 8px state dot: `packs/state-dot.ts`, the five packs' `circleFilled`, `__tests__/svg-extent.ts`, registry tests | cherry-pick, then compare with the disc's geometry instead of Codicons (5.4) and give Hugeicons the dot (R1-FOUNDATION) |
+| `47a782a` (`advenimus/visual-redesign`) | Material glyph trim (`glyph.ts` `trim`, `MATERIAL_TRIM = 1.35`) | cherry-pick the `src/` hunks after `588e2ad`; the test's reference dot becomes Lucide's (R1-FOUNDATION) |
+| `ee3bc39` (`redesign/w2-foundation-2`) | `Callout onDismiss` and `dismissLabel` | cherry-pick (R1-FOUNDATION); the side bar callouts use it (R2-SIDEBAR) |
+| `ca9659c` (`advenimus/visual-redesign`) | Banner divider drawn inside the row so it stays 26px | apply the `src/components/ui/Banner.tsx` and `display.test.tsx` hunks only (R1-FOUNDATION) |
+
+All six code cherry-picks apply cleanly, in the order `588e2ad`, `47a782a`, `8ca0d23`, `98abd31`, `7f179be`, `70fd889`, to `41d9657` with the spec hunks excluded, and so do `ee3bc39` and the two `ca9659c` hunks [V: `git apply --cached --check` against a throwaway index].
+
+Lessons folded in without a cherry-pick: the tab strip's hidden scrollbar (`8f53108`, 3.4), the vault switcher's focus room (`4780b8c`, 3.6), the drop overlay above xterm's scrollbar (`6528862`: keep `z-40`, 2.6).
+
+Considered and not salvaged: `006661f` (skip terminal fits while the terminal is hidden). It is a behavior fix, not style. Today's panes already hide inactive sessions with `display: none` (`PaneContent.tsx:144-156`) and the AI panel hides the same way (`App.tsx:1105-1114`), so the bug it fixes may exist on this branch; 1.3 records it as out of scope, to be checked and fixed as its own change after the release. Everything else on the clone branches is shell work and stays there.
+
+### 9.3 Risks and guardrails
 
 | # | Risk | Likelihood / impact | Guardrail | Owner |
 |---|---|---|---|---|
-| R1 | Harness breakage: class selectors, the dialog-role change, and text that chrome adds | high / high | selector pairs resolved by `pickSelector` first (8.2); dialog detection narrowed (8.3); chrome text rules with a test (8.4); full `npm run verify` at each wave end | W1-HARNESS, W2-WORKBENCH, W4-HARNESS |
-| R2 | New DOM surfaces render under live native web views | high / high | freeze registry with a legacy bridge (4.9); every `Dialog` and `Popover` self-registers; context menus stay native windows (D-20); manual check of each surface with a web session open | W1-FREEZE, W1-PRIMITIVES |
-| R3 | The custom title bar on Windows and Linux is untested locally | medium / high | reactive HTML caption fallback, `setTitleBarOverlay` guarded by `overlayActive` with try/catch, leading and trailing reserves from the overlay rect with clamps, native mode by setting, env and Help menu item, F10/Alt menu access, the 8.7 checklist; behavior claims about Electron are read from the 44.4.5 source | W2-MAIN, W2-TITLEBAR |
-| R4 | Zoom desync between the HTML bar and native controls | medium / medium | the title bar is counter-zoomed at a constant 35 DIP; overlay height constant 34; reserves computed in DIP; the zoom is set at window creation with `zoomMode: 'isolated'`, so there is no startup race and no dev-only zoom leak into the overlay and picker (7.1) | W2-TITLEBAR, W2-MAIN |
-| R5 | RDP resolution churn from chrome changes | medium / medium | no animated resizing of session cards; `chromeWidth` updates in the same task as the density; `notifyLayoutChanged` coalesced per frame; `RdpView` debounces and compares against the last requested size (3.7) | W2-TABS, W2-SIDEBAR |
-| R6 | Contrast regressions in any scheme or mode | medium / medium | contrast gates in the tokens test (2.11) fail CI | W1-TOKENS |
-| R7 | Density shock: 14 → 13px text, 36 → 26px controls, 28 → 22px rows | high / medium | Comfortable default, `ui_scale` kept, What's New explains the change, owner screenshot review (8.6) | W4-DOCS |
-| R8 | Icon flash or races when switching packs | low / low | Codicons are static; a request counter drops stale loads; the Appearance tab preloads all packs | W1-ICONS |
-| R9 | Package size | low / medium | icon libraries are devDependencies (D-2); `npm ls --omit=dev` check | W1-ICONS |
-| R10 | Licensing | low / medium | Licenses view plus the generated license file (5.8); only MIT, ISC, Apache-2.0 and CC-BY-4.0 packs | W1-ICONS, W3-MISC |
-| R11 | Popup menu HTML injection (latent today, `menu.ts:214-231`) | low / high | escaping, id allowlist, index-based selection, SVG allowlist (7.7) | W2-MENUS |
-| R12 | Users miss their platform theme or get a new default color | medium / low | the OD-5 migration table; the icon style carries over; a What's New line; older builds fall back to their default look on downgrade | W1-TOKENS, W4-DOCS |
-| R13 | Parallel packages collide | medium / high | disjoint ownership per wave (section 10); the wave-2 integrator runs last; contracts written in this spec | all |
-| R14 | Owner review bias from a locally installed Inter | high / low | review on a machine without Inter (8.6) | owner |
-| R15 | Traffic-light position wrong on some macOS versions | low / medium | VS Code's formula keyed on the Darwin version; check on macOS 15 and 26 or later [A] | W2-MAIN |
-| R16 | `setBorderRadius` also rounds the web page's top corners, and a square native view on a rounded card corner would paint over it | certain / low | accepted for the top corners; radius only when a view spans both bottom corners; any square native view (one-corner Chromium, WebView2) makes that card corner square; the radius is applied to every sub-tab view (3.7) | W2-TABS, W2-MAIN |
-| R17 | A large release gets larger (PR #13 already carries Electron 44, sync, the pin and unlimited MCP) | high / medium | wave boundaries keep the app shippable: wave 1 alone restyles through tokens, wave 2 reaches the release branch only as one integration merge, and each wave ends with a full verify run | owner |
-| R18 | Newly defined theme colors revive dead classes (for example `text-accent` at `AboutDialog.tsx:61` starts working) | low / low | the legacy report lists them; the wave-3 owner decides | W1-PRIMITIVES, W3-* |
-| R19 | The global focus ring doubles on elements that also use `focus:ring-*` | medium / low | the legacy report flags `focus:ring`; wave-3 packages remove it when they move to primitives | W3-* |
-| R20 | Stale contributor doc: `.claude/commands/notification.md` still describes a `w-sm` toast container in `App.tsx` (lines 7, 114) | certain / low | not edited by any package (it is Claude Code configuration); flagged for the owner | owner |
-| R21 | A remote web page moves the window through CSS drag regions once the frame is gone | medium / medium | user-origin `app-region: no-drag` stylesheet on every web-session `dom-ready` (D-27, 3.7); a macOS manual check with a page that sets `-webkit-app-region: drag` | W2-MAIN |
-| R22 | Wayland ignores absolute window positions, which menus, toasts and the picker rely on | high on Wayland / medium | Linux runs under XWayland this release (D-26), with a `CONDUIT_OZONE=wayland` opt-out; 8.7 item 8 | W2-MAIN |
-| R23 | A class-based harness selector picks an unrelated element after a restyle | medium / high | scope-level `pickSelector` instead of comma unions (8.2), mixed-fixture tests, and the full `npm run verify` before every wave-3 merge (8.5) | W1-HARNESS, W3-* |
+| R1 | The restyle drifts into layout or behavior changes again | medium / high | D-1, D-26 to D-28; the restyle suite's inventory and geometry rules (8.6) in every wave-2 and wave-3 package; owner gates 1 and 2 before wave 3 starts, gate 3 at the end (8.5) | all, the owner |
+| R2 | Harness breakage from markup changes | medium / high | hooks before class changes (Appendix B), `pickSelector` pairs, the text rules (8.4), `npm run verify` at each integrator step | R1-HARNESS, integrators |
+| R3 | A DOM surface renders under a live native web view | medium / high | every `Dialog` and `Popover` holds a freeze; `data-cv-session-area` probe (D-21); G9 | R1-FOUNDATION, R2-TABS |
+| R4 | Connected tabs look detached where a surface under the strip is not `--c-editor` | medium / low | D-19 and 3.10; composites of 05 to 07 and 43 | R2-TABS, R3-SESSIONS |
+| R5 | Icon flash or races on pack switches | low / low | Lucide is static; the request counter; the picker preloads all packs | R1-FOUNDATION |
+| R6 | Package size: Hugeicons is 80 MB unpacked | low / medium | devDependency (D-11); subpath imports; `npm ls --omit=dev` check | R1-FOUNDATION |
+| R7 | Licensing | low / medium | only MIT, ISC and Apache-2.0 packs ship; full texts in the generated file, shipped inside the app (5.9) | R1-FOUNDATION |
+| R8 | Popup menu injection (latent today) | low / high | escaping, id allowlist, index selection, SVG allowlist (7.1) | R1-MENUS |
+| R9 | Contrast regressions | medium / medium | the gates of 2.10 fail CI | R1-FOUNDATION |
+| R10 | Parallel packages collide | medium / high | disjoint ownership per wave, checked by `check-owns.mjs`; standing foundation packages for shared files | all |
+| R11 | Users miss their platform theme or the old icons | medium / low | the 6.3 table keeps their pack; Tabler (Classic) is one click away; a What's New line | R1-FOUNDATION, R4-DOCS |
+| R12 | Density shock: 14 to 13px text, 36 to 26px controls, 28 to 22px rows | high / medium | `ui_scale` kept; What's New explains it; owner review of the composites | R4-DOCS, owner |
+| R13 | Review bias from a locally installed Inter | high / low | review on a machine without Inter | owner |
+| R14 | Stale contributor doc: `.claude/commands/notification.md` describes an old toast container | certain / low | not edited by any package (Claude Code configuration); flagged for the owner | owner |
+| R15 | A dialog starts or stops closing on Escape or an outside click, or gains a close button (the recovery passphrase dismissed before it is saved) | medium / high | the 3.12.1 table, `closeOnEscape`, `hideClose`, a test per dialog | R3 packages |
+| R16 | The default look still reads as VS Code | medium / high | Conduit's sky accent (D-25); the owner confirms the look at gates 1 and 2 | R1-FOUNDATION, the owner |
+| R17 | The reference screenshots are lost with the scratchpad | medium / high | R1-HARNESS copies them to `$HOME/.conduit-verify/restyle-before/` first and commits their hashes; a missing file fails the suite (8.6.1) | R1-HARNESS |
+| R18 | A pack works in the main window but not in the toast or picker window | low / medium | `<html data-cv-icon-pack>` in every window and the `packs` scenario (8.6) | R1-FOUNDATION, R1-HARNESS |
 
 ---
 
 ## 10. Work packages
 
-There are 30 packages in 4 waves. The same list is in machine-readable form at `scratchpad/redesign/work-packages.json` (session scratchpad); W1-HARNESS copies it to `scripts/redesign/work-packages.json` for `check-owns.mjs`.
+There are 24 packages in 4 waves. The same list is in machine-readable form at `<scratchpad>/restyle/work-packages.json`. **This spec lands in one commit together with `scripts/redesign/work-packages.json`, a byte copy of that file.** `scripts/redesign/check-owns.mjs` reads the JSON and `scripts/__tests__/check-owns.test.ts` compares it with the Owns lines below, so committing both at once keeps the branch green and no package waits for a plan step. If the scratchpad copy is gone, rebuild the JSON from this section: every field (id, title, wave, `depends_on`, owns, deliverables, acceptance) is here, and the baseline checks of rule 6 end every acceptance list.
 
 **Rules for every package:**
 
-1. **Ownership.** Edit only the paths in `owns`. Within a wave, no two packages own the same file, and each shared file (`App.tsx`, `package.json`, `DragContext.tsx`, `ConfirmDialog.tsx`, …) has exactly one owner per wave (`scripts/redesign/check-owns.mjs` checks both). In waves 2 and 3 the shared foundations belong to a standing package (W2-FOUNDATION, W3-FOUNDATION; W3-FOUNDATION owns everything outside the wave-3 directories). A package that needs a change in a path it does not own files it with that path's owner, which lands it as its own small commit with tests, so no fix waits a whole wave.
-2. **Order.** A package starts when everything in `depends_on` is merged. Within a wave, `depends_on` can name same-wave packages: W1-TOKENS runs after W1-ICONS, W1-PRIMITIVES after W1-TOKENS and W1-FREEZE, W2-ACTIVITYBAR after W2-SIDEBAR, W2-STATUSBAR after W2-TITLEBAR, W2-WORKBENCH (the integrator) last in wave 2, and W3-SYNC after W3-MISC. The two foundation packages open with their wave and close when its last other package merges.
-3. **Wave 2 integration branch.** Wave-2 packages merge into one integration branch (for example `redesign/wave-2`), never straight into the release branch, because the states in between are not shippable: W2-MAIN makes the window frameless before any title bar is mounted, and W2-SIDEBAR removes the side bar footer before the activity bar and status bar exist. Developers on that branch can run with `CONDUIT_TITLE_BAR=native`. Wave-2 packages accept on unit tests and gallery renders (W2-MAIN also on two harness suites); every manual check runs in W2-WORKBENCH, which merges the branch into the release branch after a full `npm run verify`.
-4. **Contracts.** Cross-package contracts are the ones written in this spec: module paths, props, IPC channels, events, store fields and hooks. A package builds against the contract, not against another package's internals.
-5. **Baseline checks.** Every acceptance list ends with the baseline checks: vitest (with the 3 known `src/App.test.tsx` failures allowed until W2-WORKBENCH fixes them), both `tsc` runs, an ESLint error count no higher than on the wave base, `npm run build`, and `check-owns.mjs`. Until W1-HARNESS lands `lint-count.mjs` and `check-owns.mjs`, count errors with `npx eslint src --quiet --format json -o /tmp/lint.json` and `node -e "console.log(require('/tmp/lint.json').reduce((n, f) => n + f.errorCount, 0))"`, and compare the two git listings with `owns` by hand. Commands are written to run in zsh: globs are quoted, or passed to `git grep` as pathspecs.
-6. **Git.** No package commits to `main`, rewrites history, or uses a bare `git stash`.
+1. **Ownership.** Edit only the paths in Owns. Within a wave no two packages own the same file (`check-owns.mjs` checks both rules). Shared files belong to one package per wave: R1-FOUNDATION in wave 1, the standing packages R2-FOUNDATION and R3-FOUNDATION in waves 2 and 3, R4-CLEANUP in wave 4. A package that needs a change in a path it does not own asks that path's owner, who lands it as its own small commit with tests. A merged package may land follow-up commits inside its Owns until its wave closes.
+2. **Order.** A package starts when every package in its `depends_on` has closed: merged, with every acceptance line met, including integration checks and owner gates. Standing packages open with their wave and close after their wave's integration: R2-FOUNDATION once R2-SHELL's checks and owner gate 2 pass, R3-FOUNDATION with its own closing step.
+3. **Branches.** Each package branches from the tip of `advenimus/visual-restyle` and merges back into it. Every package leaves the app shippable (the layout never changes), so no integration branch is needed. No package commits to `main`, rewrites history or uses a bare `git stash`.
+4. **Contracts.** Cross-package contracts are the ones in this spec: file paths, props, hooks, tokens, classes, events and IPC. A package builds against the contract, not against another package's internals. A contract change is written into this spec before it lands, in a standalone commit on `advenimus/visual-restyle` made by the wave's integrator (R1-MENUS, R2-SHELL, R3-FOUNDATION) or the owner, outside any package, so no package's diff holds the spec; R4-DOCS owns the spec in wave 4. A spec commit that changes this section updates `scripts/redesign/work-packages.json` in the same commit.
+5. **Layout identity.** Every wave-2 and wave-3 package runs the restyle suite for its screens (8.6) and fixes every inventory or geometry failure before it merges. A failure is never fixed by editing the reference inventory. An intended difference goes into `scripts/verify/fixtures/restyle/allowed-deltas.json` through that file's owner in the wave (R1-HARNESS, R2-FOUNDATION, R3-FOUNDATION, R4-HARNESS), signed off by the wave's integrator, with the reason in the entry and the same delta recorded in 8.6 by a spec commit.
+6. **Baseline checks.** Every acceptance list ends with: `npx vitest run` (the 3 known `src/App.test.tsx` failures are allowed until R2-SHELL; after it, no failures), both `tsc` runs, an ESLint error count no higher than at the fork point (`node scripts/redesign/lint-count.mjs`, 0 at `41d9657`), `npm run build`, and `node scripts/redesign/check-owns.mjs <ID> --base advenimus/visual-restyle`. A vitest run scoped to a directory passes `--passWithNoTests`, because several component directories have no tests yet (vitest exits 1 on "No test files found"). Commands are written for zsh: globs are quoted or passed to `git grep` as pathspecs.
+7. **Live suites.** The full `npm run verify` runs in the integrator steps only: R1-MENUS, R2-SHELL, R3-FOUNDATION's closing step and R4-CLEANUP. Wave-3 packages that change markup the harness reads run the targeted live suites named in their acceptance (8.5).
+8. **Owner gates.** Three owner gates close R1-MENUS, R2-SHELL and R4-CLEANUP (8.5). A gate is an acceptance line: the owner approves the named images, and the approval, or the change the owner asks for, is recorded in that package's pull request. Everything that depends on the package waits for the gate.
 
 ### 10.1 Wave 1: foundation
 
-| Id | Title | Depends on |
-|---|---|---|
-| W1-ICONS | Icon registry, six packs and the icon codegen | none |
-| W1-TOKENS | Design tokens, schemes, density, appearance runtime and migration | W1-ICONS |
-| W1-FREEZE | Ref-counted freeze registry for native web views | none |
-| W1-PRIMITIVES | UI primitives, layer stack, gallery and legacy report | W1-TOKENS, W1-ICONS, W1-FREEZE |
-| W1-HARNESS | Harness selector pairs, dialog detection and the ownership check | none |
-
-#### W1-ICONS: Icon registry, six packs and the icon codegen
-
-**Owns:** `src/lib/icons/**`, `scripts/icons/**`, `scripts/__tests__/icon-packs.test.ts`, `public/licenses/**`, `package.json`, `package-lock.json`
-
-**Deliverables:**
-
-- Registry per spec 5.1: types.ts (123 names), store.ts, loader.ts with bootIconPack(), preloadAllIconPacks() and getPackMapping(id), create-themed-icon.ts, Icon.tsx (with the pack prop), serialize.ts (iconToSvg), licenses.ts, index.ts with the 12 new named exports
-- Packs: codicons.tsx + generated/codicons.ts (static), material.tsx + generated/material.ts, lucide.ts, tabler.ts (from default.ts), phosphor.ts (from macos.ts, playerStopFilled fixed), fluent.ts (from windows.ts); the 12 new names in every pack (spec 5.3, Appendix A), including the shown/hidden pairs panelLeft/panelLeftOff and panelRight/panelRightOff; ubuntu.ts deleted
-- scripts/icons/generate-icon-packs.mjs + mapping.mjs with --check mode; npm script icons:generate; generated public/licenses/third-party-icons.txt
-- package.json: devDependencies @iconify-json/codicon@1.2.73, @iconify-json/material-symbols-light@1.2.94, lucide-react@1.48.0 (exact); @tabler/icons-react, @phosphor-icons/react, @fluentui/react-icons moved to devDependencies with unchanged ranges
-- Deprecated shims so current callers compile: IconTheme, THEME_ICON_DEFAULTS, loadIconPack(theme) mapping default/ubuntu to tabler, macos to phosphor, windows to fluent, useIconThemeStore alias
-
-**Acceptance:**
-
-- npx vitest run src/lib/icons scripts/__tests__/icon-packs.test.ts passes (spec 8.1 row W1-ICONS)
-- npm ls --omit=dev --parseable | grep -E "lucide|tabler|phosphor|fluentui|iconify" prints nothing
-- node scripts/icons/generate-icon-packs.mjs --check exits 0
-- After npm run build: for p in lucide tabler phosphor fluent material; do ls dist/assets | grep -qE "^$p-.*\.js$" || echo "missing $p"; done prints nothing, and ls dist/assets | grep -c codicons prints 0 (Codicons ship in the entry chunk)
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W1-ICONS --base &lt;wave base> exits 0 (before W1-HARNESS lands: git diff --name-only $(git merge-base HEAD &lt;wave base>)...HEAD and git status --porcelain list only paths in owns)
-
-#### W1-TOKENS: Design tokens, schemes, density, appearance runtime and migration
-
-**Owns:** `src/index.css`, `src/styles/**`, `src/themes/**`, `tailwind.config.js`, `src/lib/themes.ts`, `src/lib/schemes.ts`, `src/lib/appearance/**`, `src/hooks/useTheme.ts`, `src/lib/terminalTheme.ts`, `src/lib/__tests__/terminalTheme.test.ts`, `index.html`, `overlay.html`, `picker.html`, `vite.config.ts`, `src/main.tsx`, `src/overlay.tsx`, `src/picker.tsx`, `src/components/overlay/OverlayApp.tsx`, `src/test/setup.ts`, `electron/ipc/settings.ts`, `electron/services/appearance-migration.ts`, `electron/services/__tests__/appearance-migration.test.ts`, `src/components/settings/SettingsDialog.tsx`, `src/components/settings/SettingsHelpers.tsx`, `src/components/settings/tabs/AppearanceTab.tsx`, `src/components/entries/entryIcons.ts`, `scripts/__tests__/appearance-migration-parity.test.ts`
-
-**Deliverables:**
-
-- src/styles/{tokens,schemes,density,base}.css and components/{cards,tabs,sash}.css with every token in spec 2.2-2.9 as revised: Modern exact values, the 6 universal schemes with the 2.3 overrides (Forest dark muted and faint, Ocean light tab-fg), 10% tone tints, and the tab, status bar, activity, code, grip, indent and underline tokens; the selected-row re-scope of both --c-* and --color-* (2.11); the focus rules (2.7); 8px scrollbars (2.8)
-- src/index.css rewritten to the 2.1 skeleton and the 2.10 @theme block; platform CSS, native-schemes.css, tailwind.config.js and src/lib/themes.ts deleted
-- src/styles/metrics.ts mirror of layout tokens; resolveCssColor (2.12)
-- Appearance runtime (6.2): boot-inline.js (sets --c-zoom from window.electron.zoomFactor() when present), the conduitAppearanceBoot Vite plugin and markers in the three HTML shells, useAppearance (useTheme.ts re-exports it; dispatches conduit:appearance-applied and never sends window_chrome_update), migrate.ts, migration-table.json, shell-colors.json, COLOR_SCHEMES with Modern first and preview colors
-- Settings keys and defaults (6.1) in electron/ipc/settings.ts; main-process migration (6.3) that reads the raw file before defaults, with write-back; SettingsDialog, SettingsHelpers and AppearanceTab minimal edits (6.4 first paragraph)
-- terminalTheme uses resolveCssColor('--c-editor'); entryIcons.ts uses text-entry-* classes; OverlayApp theme sync reads the new keys; entry files call bootIconPack(); splash uses --c-boot-bg/--c-boot-fg
-- src/test/setup.ts stubs window.matchMedia and ResizeObserver when missing
-
-**Acceptance:**
-
-- npx vitest run src/styles src/lib/appearance src/lib/__tests__/terminalTheme.test.ts electron/services/__tests__/appearance-migration.test.ts scripts/__tests__/appearance-migration-parity.test.ts passes, including every contrast gate in 2.11 for 7 schemes x 2 modes (exact color-mix), the raw-value version check and the temp-dir readSettings() integration test
-- git grep -nE "data-platform|conduit-platform-theme|platform_theme" -- src electron index.html overlay.html picker.html finds only the migration code and its tests
-- grep -l conduit-appearance-version dist/index.html dist/overlay.html dist/picker.html lists all three files (the inlined boot script)
-- npm run dev:electron on a fresh profile shows Modern dark, and Settings > Appearance previews each of the 7 schemes live
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W1-TOKENS --base &lt;wave base> exits 0 (before W1-HARNESS lands: git diff --name-only $(git merge-base HEAD &lt;wave base>)...HEAD and git status --porcelain list only paths in owns)
-
-#### W1-FREEZE: Ref-counted freeze registry for native web views
-
-**Owns:** `src/lib/native-freeze/**`, `src/hooks/useNativeViewVisibility.ts`, `src/hooks/__tests__/useNativeViewVisibility.test.tsx`, `src/App.tsx`, `src/components/sync/SyncDialogFrame.tsx`, `src/components/sync/ConflictReviewPanel.tsx`, `src/components/common/ConfirmDialog.tsx`, `src/components/layout/DragContext.tsx`, `src/components/sync/__tests__/SyncDialogFrame.freeze.test.tsx`
-
-**Deliverables:**
-
-- src/lib/native-freeze/index.ts with the API in spec 4.9, the legacy event bridge and window.__conduitFreeze in dev
-- useNativeViewVisibility computes shouldBeNative from useIsFrozen() (replaces useNativeViewVisibility.ts:46-82)
-- App.tsx: the two dispatch effects (389-395, 410-415) become useFreeze(anyOverlayOpen, 'legacy') and useFreeze(sidebarOverlayOpen, 'sidebar')
-- SyncDialogFrame, ConflictReviewPanel and ConfirmDialog hold a 'dialog' freeze while mounted (closes the sync-dialog gap)
-- DragContext holds a 'drag' freeze between startDrag and endDrag and keeps web_session_hide_all and conduit:drag-change
-
-**Acceptance:**
-
-- npx vitest run src/lib/native-freeze src/hooks/__tests__/useNativeViewVisibility.test.tsx src/components/sync/__tests__/SyncDialogFrame.freeze.test.tsx passes (mounting SyncDialogFrame alone makes isFrozen() true)
-- Manual: with a web session open and Settings closed, a sync dialog opened from the review banner or the take-over prompt appears above the page (today the native view covers it, because sync dialogs are not in the App.tsx flag list); the floating side bar and tab drags still freeze
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W1-FREEZE --base &lt;wave base> exits 0 (before W1-HARNESS lands: git diff --name-only $(git merge-base HEAD &lt;wave base>)...HEAD and git status --porcelain list only paths in owns)
-
-#### W1-PRIMITIVES: UI primitives, layer stack, gallery and legacy report
-
-**Owns:** `src/components/ui/**`, `gallery.html`, `src/gallery.tsx`, `src/components/sync/useEscapeLayer.ts`, `scripts/redesign/legacy-classes.mjs`, `scripts/__tests__/legacy-classes.test.ts`
-
-**Deliverables:**
-
-- Every primitive in spec section 4 (4.2-4.15) as one file each, barrel index.ts and cx.ts, including: Dialog with onSubmit (one form around header, body and footer), the portal prop and no animation; Button loadingLabel and data-cv-text-button; Spinner text; Menu items as button[role=menuitem]; ListRow as a button when clickable, with opacity-only reveal; Radio as label > input; the Switch off state on the checkbox tokens; Tabs panel and underline variants; IconButton radius 4; the count badge metrics
-- layers.ts (useLayer, useEscapeLayer); src/components/sync/useEscapeLayer.ts becomes a re-export
-- gallery.html + src/gallery.tsx with scheme, mode, density and pack switches (dev server only), including every focusable primitive focused inside a Card and inside a tab strip (except the strip exemptions in 2.7)
-- scripts/redesign/legacy-classes.mjs: reports the 4.16 legacy patterns (uppercase and tracking, text-base, text-xl and bg-well on code blocks included) found inside class strings only, per path, with the Appendix B allowlist and the 10.5 dead files excluded
-
-**Acceptance:**
-
-- npx vitest run src/components/ui scripts/__tests__/legacy-classes.test.ts passes (spec 8.1 row W1-PRIMITIVES)
-- The gallery renders in all 7 schemes x 2 modes x 2 densities with no console errors, and every focus ring is fully visible inside the Card and the tab strip
-- node scripts/redesign/legacy-classes.mjs src/components/ui reports 0 findings
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W1-PRIMITIVES --base &lt;wave base> exits 0 (before W1-HARNESS lands: git diff --name-only $(git merge-base HEAD &lt;wave base>)...HEAD and git status --porcelain list only paths in owns)
-
-#### W1-HARNESS: Harness selector pairs, dialog detection and the ownership check
-
-**Owns:** `scripts/verify/lib/selectors.mjs`, `scripts/verify/lib/flows.mjs`, `scripts/verify/lib/team-flows.mjs`, `scripts/verify/lib/settings-flows.mjs`, `scripts/verify/lib/backup-flows.mjs`, `scripts/verify/lib/sync-flows.mjs`, `scripts/verify/lib/sync-panels.mjs`, `scripts/verify/lib/sync-dialogs.mjs`, `scripts/verify/lib/password-flows.mjs`, `scripts/verify/lib/ui-forms.mjs`, `scripts/verify/suites/mcp.mjs`, `scripts/verify/README.md`, `scripts/__tests__/verify-selectors.test.ts`, `scripts/redesign/check-owns.mjs`, `scripts/redesign/lint-count.mjs`, `scripts/redesign/work-packages.json`, `scripts/__tests__/check-owns.test.ts`, `scripts/__tests__/verify-sync-flows.test.ts`
-
-**Deliverables:**
-
-- selectors.mjs with every selector pair in Appendix B (Union column, B35 to B46 included) resolved by a scope-level pickSelector(scope, hook, legacy); no comma union is passed to querySelector or closest (spec 8.2)
-- openDialogs and dialogDetails query [role=dialog][aria-label]; scoped [role=dialog] clicks narrowed (spec 8.3)
-- scripts/redesign/work-packages.json (a copy of the section 10 package list) and check-owns.mjs &lt;ID> --base &lt;ref>, which fails when git diff --name-only $(git merge-base HEAD &lt;ref>)...HEAD or git status --porcelain lists a path outside that package's owns; lint-count.mjs, which prints the ESLint error count for src through the ESLint Node API (ESLint 10 ships no line-per-error formatter)
-- README section on stable data-cv hooks, the busy-text rule (B35) and the chrome text rules (8.4)
-
-**Acceptance:**
-
-- npx vitest run scripts/__tests__ passes (selector tests with mixed fixtures, check-owns tests and the existing harness tests)
-- npm run verify passes all 41 scenarios against the unchanged UI (local Supabase running)
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W1-HARNESS --base &lt;wave base> exits 0
-
-### 10.2 Wave 2: shell (one integration branch)
+Wave 1 turns the base branch into the restyle foundation. R1-FOUNDATION and R1-HARNESS start from the spec commit and run in parallel; R1-MENUS runs last, integrates the wave and holds owner gate 1 (8.5).
 
 | Id | Title | Depends on |
 |---|---|---|
-| W2-FOUNDATION | Shared foundations during wave 2 (standing package) | W1-ICONS, W1-TOKENS, W1-FREEZE, W1-PRIMITIVES, W1-HARNESS |
-| W2-MAIN | Main process: frameless window, zoom, overlay colors, menu popup, web view corners and drag regions, toast overlay | W1-TOKENS |
-| W2-TITLEBAR | Title bar, window frame and window-chrome client | W1-PRIMITIVES |
-| W2-SIDEBAR | Primary side bar on the PR #12 model | W1-PRIMITIVES, W1-FREEZE |
-| W2-ACTIVITYBAR | Activity bar | W1-PRIMITIVES, W2-SIDEBAR |
-| W2-TABS | Editor card, connected tabs, splits and web view corners | W1-PRIMITIVES, W1-FREEZE |
-| W2-STATUSBAR | Status bar | W1-PRIMITIVES, W2-TITLEBAR |
-| W2-AI | AI secondary side bar | W1-PRIMITIVES |
-| W2-MENUS | Native popup menu restyle and hardening | W1-ICONS, W1-TOKENS |
-| W2-WORKBENCH | Workbench integration, banners, shortcuts and screen gates | W2-MAIN, W2-TITLEBAR, W2-ACTIVITYBAR, W2-SIDEBAR, W2-TABS, W2-STATUSBAR, W2-AI, W2-MENUS, W1-HARNESS |
+| R1-FOUNDATION | Restyle foundation: icon packs, tokens, appearance runtime and primitives | none |
+| R1-HARNESS | Layout reference, the restyle suite and runner options | none |
+| R1-MENUS | Popup menu restyle and hardening (W2-MENUS salvage), the wave-1 integration and owner gate 1 | R1-FOUNDATION, R1-HARNESS |
 
-#### W2-FOUNDATION: Shared foundations during wave 2 (standing package)
+#### R1-FOUNDATION: Restyle foundation: icon packs, tokens, appearance runtime and primitives
 
-**Owns:** `src/components/ui/**`, `gallery.html`, `src/gallery.tsx`, `src/components/sync/useEscapeLayer.ts`, `src/index.css`, `src/styles/tokens.css`, `src/styles/schemes.css`, `src/styles/density.css`, `src/styles/base.css`, `src/styles/metrics.ts`, `src/styles/__tests__/**`, `src/lib/icons/**`, `src/lib/appearance/**`, `src/lib/schemes.ts`, `src/lib/terminalTheme.ts`, `src/lib/__tests__/terminalTheme.test.ts`, `src/lib/native-freeze/**`, `src/hooks/useNativeViewVisibility.ts`, `src/hooks/__tests__/useNativeViewVisibility.test.tsx`, `src/hooks/useTheme.ts`, `src/main.tsx`, `src/overlay.tsx`, `src/picker.tsx`, `index.html`, `overlay.html`, `picker.html`, `vite.config.ts`, `electron/ipc/settings.ts`, `electron/services/appearance-migration.ts`, `electron/services/__tests__/appearance-migration.test.ts`, `scripts/verify/**`, `scripts/redesign/**`, `scripts/icons/**`, `scripts/__tests__/verify-selectors.test.ts`, `scripts/__tests__/verify-harness.test.ts`, `scripts/__tests__/verify-sync-files.test.ts`, `scripts/__tests__/verify-sync-flows.test.ts`, `scripts/__tests__/icon-packs.test.ts`, `scripts/__tests__/legacy-classes.test.ts`, `scripts/__tests__/check-owns.test.ts`, `scripts/__tests__/appearance-migration-parity.test.ts`, `public/licenses/**`, `package.json`, `package-lock.json`
+**Owns:** `src/lib/icons/**`, `scripts/icons/**`, `scripts/__tests__/icon-packs.test.ts`, `public/licenses/**`, `package.json`, `package-lock.json`, `src/index.css`, `src/styles/**`, `src/lib/appearance/**`, `src/lib/schemes.ts`, `src/lib/terminalTheme.ts`, `src/components/ui/**`, `gallery.html`, `src/gallery.tsx`, `src/components/overlay/OverlayApp.tsx`, `src/components/settings/SettingsDialog.tsx`, `src/components/settings/SettingsHelpers.tsx`, `src/components/settings/tabs/AppearanceTab.tsx`, `electron/main.ts`, `electron/ipc/settings.ts`, `electron/services/appearance-migration.ts`, `electron/services/appearance-palette.ts`, `electron/services/__tests__/appearance-migration.test.ts`, `scripts/__tests__/appearance-migration-parity.test.ts`, `scripts/__tests__/appearance-palette-parity.test.ts`
 
 **Deliverables:**
 
-- Opens when wave 2 starts and closes when W2-WORKBENCH merges. It is the only package that edits the shared foundations in wave 2: primitives, tokens and styles (except tabs.css, cards.css and sash.css), icons, the appearance runtime, the freeze registry, the harness, the redesign scripts and the package manifests
-- Takes change requests from the other wave-2 packages one at a time and lands each as its own small commit with tests, against the contracts in this spec; a request that would change a contract is written into the spec first
-- Keeps the gallery, the token gates and the harness selector tests green after every change
+- Icons (5.1, 5.2, 5.6, Appendix A): Codicons removed (pack, generated data, codegen columns, vendored license, `@iconify-json/codicon`); Lucide static and `DEFAULT_ICON_PACK`; `packs/hugeicons-wrap.ts` and `packs/hugeicons.ts` with `@hugeicons/core-free-icons` `4.3.5` (exact devDependency, one subpath import per glyph); the seven retired names and their named exports removed (116 names); `ICON_PACKS` in picker order with the 5.8 descriptions; the deprecated theme shims deleted; the icon store mirrors the applied pack to `<html data-cv-icon-pack>` in every window
+- Salvage (9.2): cherry-pick `588e2ad` (shared state dot) and then `47a782a` (Material trim), with their tests compared against the disc geometry and Lucide instead of Codicons and Hugeicons given the dot; cherry-pick `ee3bc39` (`Callout onDismiss`); apply the `src/components/ui/Banner.tsx` and `display.test.tsx` hunks of `ca9659c`
+- Codegen and licenses (5.3, 5.9): `mapping.mjs` for Material only (115 rows); the generator reads `LICENSE`, `LICENSE.md` or `LICENSE.txt`; `public/licenses/third-party-icons.txt` regenerated for the six packs (it ships as `dist/licenses/third-party-icons.txt`); `licenses.ts` with the 5.9 notices; no About view
+- Tokens (2.1 to 2.10, 9.1): the clone tokens removed; Modern on Conduit's sky accent ramp (2.2.2, D-25) with the accent-derived Modern values of 2.2.3 and 2.2.4; `--c-tabstrip-h`, `--c-tab-h`, `--c-tab-gutter-top`, `--c-tab-min-w`, `--c-list-inset` on `:root`; `--c-favorite` and its gate; `density.css`, `components/cards.css`, `metrics.ts` and `metrics.test.ts` deleted; `index.css` and the `@theme` block updated; `components/tabs.css` rewritten to 3.4 (tabs shrink to fit down to the 78px floor; close buttons always visible) and `components/sash.css` to 3.5 to 3.7; the token tests updated
+- Appearance runtime and migration (6.1 to 6.3): no density and no `--c-zoom` in `boot-inline.js`, `dom.ts`, `migrate.ts`, `useAppearance.ts`; the 6.3 rules and table in both processes (retired schemes mapped in version-2 files too, `theme` validated in both branches, `appearance_version` kept at `max(2, stored)`), retired keys deleted, `lucide` as the default; `shell-colors.json` `fg` from `--c-ink-faint`; `electron/ipc/settings.ts`, `SettingsHelpers.tsx`, `SettingsDialog.tsx` and `OverlayApp.tsx` without `ui_density` and `title_bar_style`
+- Window background (7.2): `electron/services/appearance-palette.ts`, `createWindow()` using `windowBackground()`, updates after `settings_save` and on `nativeTheme` `updated`, the palette parity test
+- Primitives (4.1, 4.3, 4.8, 4.9, 4.13, 4.14): `IconButton` without `pressedLook` and with `tone="inherit"`; `Dialog` `width`, `closeOnEscape` and the optional `onClose` of a dialog that cannot be closed; `Banner` `status`, `align` and `Button size="sm"` actions with `primary`; `ListRow` `meta` (always visible) and self-sized `leading` elements; `Popover freeze="auto"` probing `[data-cv-session-area]`; the gallery without the density switch and the workbench preview, with all six packs in its switch and its focus strip on the new `tabs.css`
+- Settings > Appearance (5.8, 6.4): the Icon pack section in the Platform Theme slot, labeled by a `<label>` like its siblings, six `ChoiceCard`s with previews from `<Icon pack>` after `preloadAllIconPacks()`, live preview through `conduit:theme-change`, Save and Cancel
+- Clone and VS Code wording (9.1): comments, gallery demo texts and test names in the owned files describe today's layout, with no title bar, activity bar, status bar, command center, workbench, editor card or VS Code name; `src/lib/terminalTheme.ts` included
 
 **Acceptance:**
 
-- npx vitest run src/components/ui src/styles src/lib/icons src/lib/appearance src/lib/native-freeze scripts/__tests__ passes after each change
-- node scripts/verify/run.mjs smoke passes after each harness change
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-FOUNDATION --base &lt;wave base> exits 0
+- `npx vitest run src/lib/icons src/styles src/lib/appearance src/components/ui scripts/__tests__/icon-packs.test.ts scripts/__tests__/appearance-migration-parity.test.ts scripts/__tests__/appearance-palette-parity.test.ts electron/services/__tests__/appearance-migration.test.ts` passes (8.1, row R1-FOUNDATION)
+- `node scripts/icons/generate-icon-packs.mjs --check` exits 0
+- `git grep -il codicon -- . ':(exclude)docs/**' ':(exclude)**/*.md' ':(exclude)scripts/redesign/work-packages.json' ':(exclude)**/__tests__/**'` prints nothing (tests may still name `codicons`, to prove a stored value becomes `lucide`)
+- `npm ls --omit=dev --parseable | grep -E "lucide|tabler|phosphor|fluentui|iconify|hugeicons"` prints nothing, and `npm ls @hugeicons/core-free-icons` shows `4.3.5`
+- `git grep -nE "data-density|--c-zoom|pressedLook|data-cv-editor-card|density\.css|cards\.css|styles/metrics" -- src electron scripts ':(exclude)**/__tests__/**' ':(exclude)scripts/verify/**' ':(exclude)scripts/redesign/work-packages.json'` prints nothing (tests and the harness's forbidden-selector list may name these strings), and `git grep -lE "ui_density|title_bar_style|conduit-density" -- src electron ':(exclude)**/__tests__/**'` lists only `electron/services/appearance-migration.ts`, `src/lib/appearance/migration-table.json`, `src/lib/appearance/migrate.ts` and `src/lib/appearance/boot-inline.js` (the retired-key handling of 6.3)
+- `git grep -nE "[Tt]itle ?bar|[Aa]ctivity ?bar|[Ss]tatusbar|[Cc]ommand center|command-center|[Ee]ditor card|editor-card|[Ww]orkbench|BannerStack|monaco-|VS ?Code|vscode" -- src ':(exclude)**/__tests__/**'` prints nothing
+- `git grep -niE "3994bc|3a94bc|0069cc|0d6fcf|297aa0|2b7da3|48a0c7|53a5ca|005bb5|0063c1|307e9f|1e3a47|e6f2fa|ebf4f8|d7eaf2|b0d4e4|1c4a5e|143442|0b1e26|ebf3fb|d6e7f7|a8ccee|004485|003466|00203d" -- src ':(exclude)**/__tests__/**'` prints nothing: Modern's old VS Code accent values are gone from `tokens.css`, `schemes.css` and the scheme preview in `src/lib/schemes.ts` (D-25)
+- After `npm run build`, `dist/licenses/third-party-icons.txt` names the six packs and no Codicons. `npx vite build --manifest --emptyOutDir --outDir "$TMPDIR/conduit-manifest"` writes `.vite/manifest.json`, in which `src/lib/icons/packs/phosphor.ts`, `hugeicons.ts`, `fluent.ts`, `tabler.ts` and `material.tsx` each have `isDynamicEntry: true` and `src/lib/icons/packs/lucide.ts` has no entry; `git grep -n 'import("./packs/lucide")' -- src` finds nothing (Lucide is a static import of the main, overlay and picker entries)
+- Manual, `npm run dev:electron` on a fresh profile: Modern dark with Lucide icons and the sky accent line; Settings > Appearance shows the Icon pack section first with six cards and previews; picking Hugeicons switches the side bar, the tabs, the dialogs, a test toast and the credential picker window live; Save survives a restart; Cancel reverts. A profile whose `settings.json` holds `{"platform_theme":"macos","color_scheme":"macos-blue"}` starts in Modern with Phosphor; one holding `{"appearance_version":2,"icon_pack":"codicons","ui_density":"compact","title_bar_style":"native"}` starts with Lucide and loses both retired keys
+- `npm run dev`, then `/gallery.html?pack=<id>` for each of the six packs: every icon and the state dot render, no console errors
+- `npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R1-FOUNDATION --base advenimus/visual-restyle` exits 0
 
-#### W2-MAIN: Main process: frameless window, zoom, overlay colors, menu popup, web view corners and drag regions, toast overlay
+#### R1-HARNESS: Layout reference, the restyle suite and runner options
 
-**Owns:** `electron/main.ts`, `electron/preload.cts`, `electron/ipc/index.ts`, `electron/ipc/window-chrome.ts`, `electron/ipc/__tests__/window-chrome.test.ts`, `electron/ipc/web.ts`, `electron/services/web/manager.ts`, `electron/services/web/__tests__/manager.chrome.test.ts`, `electron/services/overlay/overlay-manager.ts`, `electron/services/window-chrome/**`, `electron-builder.yml`, `src/types/ipc.d.ts`, `scripts/__tests__/window-chrome-parity.test.ts`
+**Owns:** `scripts/verify/**`, `scripts/__tests__/verify-harness.test.ts`, `scripts/__tests__/verify-selectors.test.ts`, `scripts/__tests__/restyle-inventory.test.ts`, `scripts/__tests__/check-owns.test.ts`
 
 **Deliverables:**
 
-- window-chrome/options.ts (titleBarOptions, zoomOptions, shellColor) and palette.ts per spec 7.1-7.5
-- ipc/window-chrome.ts: window_chrome_update (setTitleBarOverlay only while overlayActive, in try/catch, flipping overlayActive and emitting window-chrome:state on the first throw), window_chrome_app_menu, window_chrome_get_state, window_chrome_control and the window-chrome:state event with overlayActive; registered in ipc/index.ts
-- main.ts: new window options with webPreferences zoomFactor and zoomMode 'isolated' (no setZoomFactor at ready-to-show), zoomMode 'isolated' on the picker window, setSheetOffset on macOS, the Linux --ozone-platform=x11 switch with the CONDUIT_OZONE=wayland opt-out, and the Help menu item Use Native Title Bar on Windows/Linux custom (7.1)
-- preload.cts: synchronous zoomFactor() on the window.electron bridge; src/types/ipc.d.ts declares it (7.4)
-- electron-builder.yml: linux.executableArgs ["--ozone-platform=x11"] (D-26)
-- web_session_update_position accepts radius; the web manager applies setBorderRadius(round(radius x zoom)) to every attached view (new sub-tab, switch, close, show, bounds) when the value differs, never for WebView2 (spec 3.7); the user-origin no-drag stylesheet on every web-session dom-ready (D-27); the stale getContentBounds comment at manager.ts:93-95 rewritten
-- Overlay manager: width 458, right margin 4, zoomMode 'isolated', setBottomInset (spec 7.6)
+- First, the reference set made lasting (8.6.1): `<scratchpad>/restyle/before/` copied to `$HOME/.conduit-verify/restyle-before/`; `scripts/verify/fixtures/restyle/before-manifest.json` listing every file of that folder with its SHA-256; `--before` defaults to `CONDUIT_RESTYLE_BEFORE`, else that folder; a listed file that is missing or changed fails the suite
+- Shots and inventories 44 to 49 (3.1: the signed-in footer, its sign-out confirm, cached mode, a team vault, the trial card, the trial strip) recorded on the base branch with scheme Ocean and the Tabler pack, added to the folder, the manifest and the inventory fixture
+- `scripts/verify/fixtures/restyle/before-inventory.json`: `INVENTORY-raw.json` plus the screens of shots 44 to 49, normalized (8.6 step 3); `scripts/verify/fixtures/restyle/allowed-deltas.json` with the `settings-appearance` entry written out as data (8.6 step 3)
+- `scripts/verify/lib/inventory.mjs`: `captureInventory(device, screen)`, `captureMenu(device)`, `captureAppMenu(device)`, `normalizeInventory()`, `compareInventory(before, after, deltas)`, with the extraction, normalization and comparison rules of 8.6 step 3; the extraction reproduces `INVENTORY-raw.json` on the unchanged layout
+- `scripts/verify/suites/restyle.mjs` (`optIn: true`, `needsSupabase` per scenario): the ten scenarios of 8.6 with screenshots, `sharp` composites, inventories, `inventory-diff.txt`, the geometry rules G1 to G10 with their hook lists, `pending` results and `--strict`, and the `packs` sheets; the reference data of 3.1 created through the harness, with `web-01` pointed at `127.0.0.1:1` and a local test page for the web entry; the forbidden clone selectors kept only in `scripts/verify/lib/clone-selectors.mjs`
+- `scripts/verify/run.mjs`: `all` skips `optIn` suites; the Supabase phase starts only when a selected scenario needs it; `--strict` reaches the suites; `--help` lists the opt-in suites and `--strict`
+- The review-version hook, harness half (B47): `reviewVersion: pair('[data-cv-review-version]', '.items-start.gap-3')` in `selectors.mjs`; `clickVersionInPage` (`lib/sync-flows.mjs`) and `pickVersionNotInUseInPage` (`suites/mcp.mjs`) find the version line with `cv.pickClosest(button, panel, cv.S.reviewVersion)` instead of `button.parentElement`; the MCP suite looks for its panel as `[role=dialog][aria-label="Review changes"]`; `verify-selectors.test.ts` covers both halves
+- `scripts/verify/README.md`: the restyle suite, the lasting reference folder and its manifest, allowed deltas, pending rules and `--strict`, the owner gates; its "Text on permanent chrome" section rewritten for today's layout (the side bar header and footer, the pane tab bars) without the title bar, activity bar, status bar, command center and `chromeText` test; the `SHELL_CLOSED` and `SHELL_OPEN` fixtures of `verify-selectors.test.ts` rewritten from the clone's layout to today's layout with hooks
+- `scripts/__tests__/check-owns.test.ts` also compares each package's `wave`, title and `depends_on` with the JSON, reading them from the `| Id | Title | Depends on |` table under each `### 10.N Wave N` heading (rows of other tables that start with a package id, such as the test table of 8.1, are not read)
 
 **Acceptance:**
 
-- npx vitest run electron/services/window-chrome electron/ipc/__tests__/window-chrome.test.ts electron/services/web/__tests__/manager.chrome.test.ts scripts/__tests__/window-chrome-parity.test.ts passes
-- node scripts/verify/run.mjs password lifecycle passes on the wave-2 integration branch (these suites drive the application menu)
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-MAIN --base &lt;wave base> exits 0
+- `npx vitest run scripts/__tests__` passes (8.1, row R1-HARNESS), including the tests that a missing or changed reference file fails the suite
+- `node scripts/verify/run.mjs restyle` passes on the layout as it stands (the local Supabase stack running, for `sidebar-signed-in`): every inventory matches, G1, G2, G4 and G9 pass and the other rules report `pending`; a composite is written for every reference shot of 8.6
+- `node scripts/verify/run.mjs restyle --only screens` passes with the local Supabase stack stopped
+- `node scripts/verify/run.mjs sync mcp` passes (the review flows on `reviewVersion`)
+- `node scripts/verify/run.mjs --help` lists `restyle` as opt-in and `--strict`, and `node scripts/verify/run.mjs smoke` still runs only `smoke`
+- `git grep -nE "[Tt]itle ?bar|[Aa]ctivity ?bar|[Ss]tatusbar|[Cc]ommand center|command-center|[Ee]ditor card|editor-card|[Ww]orkbench|BannerStack|monaco-|VS ?Code|vscode" -- scripts ':(exclude)scripts/verify/lib/clone-selectors.mjs' ':(exclude)scripts/redesign/work-packages.json'` prints nothing
+- `npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R1-HARNESS --base advenimus/visual-restyle` exits 0
 
-#### W2-TITLEBAR: Title bar, window frame and window-chrome client
+#### R1-MENUS: Popup menu restyle and hardening (W2-MENUS salvage), the wave-1 integration and owner gate 1
 
-**Owns:** `src/components/shell/WindowFrame.tsx`, `src/components/shell/titlebar/**`, `src/lib/window-chrome.ts`, `src/lib/__tests__/window-chrome.test.ts`
+**Owns:** `electron/ipc/menu.ts`, `electron/ipc/menu-svg.ts`, `electron/ipc/__tests__/menu.test.ts`, `electron/ipc/__tests__/menu-svg.test.ts`, `src/utils/contextMenu.ts`, `src/utils/__tests__/contextMenu.test.ts`, `scripts/__tests__/menu-svg-packs.test.ts`
 
 **Deliverables:**
 
-- WindowFrame (spec 3.1) and TitleBar full and minimal variants (spec 3.2): leading and trailing reserves, the pill (14px icon at .8 opacity), layout controls that swap panelLeft/panelLeftOff and panelRight/panelRightOff and take sidebarOpen, onToggleSidebar, aiOpen and onToggleAi as props (no store imports), the menu button, the reactive caption fallback with VS Code colors, native mode
-- src/lib/window-chrome.ts: --c-zoom and useZoomFactor(), both WCO reserves with the 0..300 clamp and the 0/138 fallback, openAppMenu(), the single debounced window_chrome_update sender driven by conduit:appearance-applied (a rejected invoke is ignored), the state store with overlayActive, the debug flag conduit:debug-caption-fallback
+- Cherry-pick `8ca0d23`, `98abd31` and the `electron/` hunks of `70fd889` (7.1, 9.2); comments that name `W4-CLEANUP` name `R4-CLEANUP`; the fallback `MODERN_MENU_COLORS` moved from VS Code's blue to Modern's sky accent (7.1, D-25)
+- `scripts/__tests__/menu-svg-packs.test.ts`, re-created from `7f179be`: the six packs and 116 names through `iconToSvg` and `sanitizeSvg`, reset with `setIconPack(DEFAULT_ICON_PACK)`
+- Call sites unchanged: today's menu keys keep working through `LEGACY_MENU_ICON_KEYS` (5.7)
+- Wave-1 integration and owner gate 1: after this package merges, the checks below run on the wave-1 tip and failures go back to the owning wave-1 package; the package closes when the owner has approved the pack sheets (8.5)
 
 **Acceptance:**
 
-- npx vitest run src/components/shell/titlebar src/lib/__tests__/window-chrome.test.ts passes
-- node scripts/redesign/legacy-classes.mjs src/components/shell/WindowFrame.tsx src/components/shell/titlebar reports 0 findings
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-TITLEBAR --base &lt;wave base> exits 0
+- `npx vitest run electron/ipc/__tests__/menu.test.ts electron/ipc/__tests__/menu-svg.test.ts src/utils/__tests__/contextMenu.test.ts scripts/__tests__/menu-svg-packs.test.ts` passes (8.1, row R1-MENUS)
+- `git grep -niE "3994bc|0069cc|243239|e1ecf8" -- electron ':(exclude)**/__tests__/**'` prints nothing (the menu fallbacks use the sky accent, 7.1)
+- `node scripts/verify/run.mjs restyle --only menus` passes: items, order, submenus and the application menu equal the reference, and the composites of shots 11 to 17 show the menus where they were
+- Manual (macOS): the tab, tree entry and tree folder menus, the Open With and Auto-type submenus and the `+` popup draw with Lucide icons, 24px rows and an 8px-radius panel with a shadow; Up, Down, Enter and Escape work; a click in the shadow margin closes the menu; switching the pack to Hugeicons changes the menu icons on the next open
+- Wave-1 integration on the wave-1 tip: `npm run verify` passes all 41 scenarios, and `node scripts/verify/run.mjs restyle` passes (rules without their hooks report `pending`)
+- Owner gate 1: `node scripts/verify/run.mjs restyle --only packs` writes the six-pack sheets (dark and light) under `.verify/runs/<id>/restyle/packs/`; the owner approves them and answers the two gate questions of 8.5 (Modern's accent, hover-only tab close); the answers are recorded in this package's pull request
+- `npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R1-MENUS --base advenimus/visual-restyle` exits 0
 
-#### W2-SIDEBAR: Primary side bar on the PR #12 model
+### 10.2 Wave 2: the chrome, restyled in place
 
-**Owns:** `src/components/layout/Sidebar.tsx`, `src/components/layout/SidebarPanel.tsx`, `src/components/layout/SidebarWindowControls.tsx`, `src/components/layout/VaultContextBar.tsx`, `src/components/layout/TeamInvitationBanner.tsx`, `src/components/layout/__tests__/SidebarPanel.test.tsx`, `src/stores/sidebarStore.ts`, `src/stores/__tests__/sidebarStore.test.ts`, `src/components/entries/EntryTree.tsx`, `src/components/entries/__tests__/EntryTree.roles.test.tsx`, `src/components/vault/VaultSwitcherMenu.tsx`, `src/components/layout/openHomeTab.ts`, `src/components/layout/__tests__/openHomeTab.test.ts`
-
-**Deliverables:**
-
-- Side bar per spec 3.5: part title row, search, 22px tree rows with roles and keyboard, the empty twistie slot on leaves, indent guides and the rename input, docked in the left card, floating card with a workbench-only scrim, footer removed
-- handleHome moved verbatim from Sidebar.tsx:165-206 to src/components/layout/openHomeTab.ts (export openHomeTab) in the same change that removes the footer
-- sidebarStore: chromeWidth in spareWidth, updated from conduit:appearance-applied in the same task (setChromeWidth kept for tests), favoritesOnly + setFavoritesOnly (persisted via ui_state favorites-filter)
-- VaultSwitcherMenu on the Popover and Menu primitives (keeps data-context-menu; items are buttons); hooks data-cv-vault-switcher and data-sidebar-panel (Appendix B, B16 and B17)
-
-**Acceptance:**
-
-- npx vitest run src/components/layout/__tests__/SidebarPanel.test.tsx src/components/layout/__tests__/openHomeTab.test.ts src/stores/__tests__/sidebarStore.test.ts src/components/entries/__tests__/EntryTree.roles.test.tsx passes
-- node scripts/redesign/legacy-classes.mjs src/components/layout/Sidebar.tsx src/components/layout/SidebarPanel.tsx src/components/layout/SidebarWindowControls.tsx src/components/layout/VaultContextBar.tsx src/components/layout/TeamInvitationBanner.tsx src/components/layout/openHomeTab.ts reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- Manual checks happen in W2-WORKBENCH, once the shell is mounted
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-SIDEBAR --base &lt;wave base> exits 0
-
-#### W2-ACTIVITYBAR: Activity bar
-
-**Owns:** `src/components/shell/activitybar/**`
-
-**Deliverables:**
-
-- ActivityBar per spec 3.4 with Vault, Favorites, Home, Quick Connect, Account and Settings; hover and active icon colors
-- actions.ts with the Account popup menu; Home calls openHomeTab() from src/components/layout/openHomeTab.ts
-
-**Acceptance:**
-
-- npx vitest run src/components/shell/activitybar passes
-- node scripts/redesign/legacy-classes.mjs src/components/shell/activitybar reports 0 findings
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-ACTIVITYBAR --base &lt;wave base> exits 0
-
-#### W2-TABS: Editor card, connected tabs, splits and web view corners
-
-**Owns:** `src/components/layout/PaneTabBar.tsx`, `src/components/layout/Pane.tsx`, `src/components/layout/PaneContent.tsx`, `src/components/layout/LayoutRenderer.tsx`, `src/components/layout/SplitContainer.tsx`, `src/components/layout/DropZoneOverlay.tsx`, `src/components/layout/DragContext.tsx`, `src/components/layout/tabs/**`, `src/components/layout/__tests__/PaneTabBar.test.tsx`, `src/components/shell/EditorCard.tsx`, `src/lib/layout/**`, `src/stores/entryStore.ts`, `src/components/connections/QuickConnect.tsx`, `src/components/sessions/WebView.tsx`, `src/components/sessions/RdpView.tsx`, `src/components/sessions/__tests__/RdpView.resize.test.tsx`, `src/styles/components/tabs.css`
-
-**Deliverables:**
-
-- Connected tabs per spec 3.6 in src/styles/components/tabs.css, with roles, keyboard, state dot, inactive-tab hover color, drop marker, sticky + with its 4px margins, split button and editor actions dimmed to 50% in unfocused panes
-- Transitional props so the app keeps working until W2-WORKBENCH: legacySidebarToggle (default true) keeps today's hamburger, and rightSlot stays optional; W4-CLEANUP removes both
-- EditorCard with data-cv-editor-card and data-square-bottom-left / data-square-bottom-right (spec 3.7); split separators kept 4px in the layout flow with a centered 1px line; drop zones restyled
-- WebView.tsx sends radius per the 3.7 rules and includes it in the de-duplication key; getContentAreaFallback() replaces the innerWidth - 250 / innerHeight - 40 guesses
-- RdpView's layout-changed handler: last-requested check, 150ms trailing debounce and one 500ms retry (spec 3.7)
-
-**Acceptance:**
-
-- npx vitest run src/components/layout src/lib/layout src/components/layout/tabs src/components/sessions/__tests__/RdpView.resize.test.tsx passes
-- node scripts/redesign/legacy-classes.mjs src/components/layout/PaneTabBar.tsx src/components/layout/Pane.tsx src/components/layout/PaneContent.tsx src/components/layout/LayoutRenderer.tsx src/components/layout/SplitContainer.tsx src/components/layout/DropZoneOverlay.tsx src/components/layout/DragContext.tsx src/components/layout/tabs src/components/shell/EditorCard.tsx reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- Manual checks happen in W2-WORKBENCH, once the shell is mounted
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-TABS --base &lt;wave base> exits 0
-
-#### W2-STATUSBAR: Status bar
-
-**Owns:** `src/components/shell/statusbar/**`, `src/components/sync/PersonalSyncIndicator.tsx`, `src/components/vault/CloudSyncIndicator.tsx`, `src/components/vault/TeamSyncIndicator.tsx`, `src/components/common/StartupStatus.tsx`
-
-**Deliverables:**
-
-- StatusBar per spec 3.10 with every item in its table: hover text, pressed background and tabular numerals; state dots as the 16px circleFilled; the zoom item reads useZoomFactor() from src/lib/window-chrome.ts; the indicators render as status bar items (default exports kept)
-- Review item keeps title "Review changes from your other devices" and adds data-cv-review-button (B13)
-
-**Acceptance:**
-
-- npx vitest run src/components/shell/statusbar passes
-- node scripts/redesign/legacy-classes.mjs src/components/shell/statusbar reports 0 findings
-- The harness run (openConflictReview through the status bar) happens at W2-WORKBENCH, once the status bar is mounted
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-STATUSBAR --base &lt;wave base> exits 0
-
-#### W2-AI: AI secondary side bar
-
-**Owns:** `src/components/shell/auxbar/**`, `src/stores/auxBarStore.ts`, `src/stores/__tests__/auxBarStore.test.ts`, `src/components/ai/ChatPanel.tsx`
-
-**Deliverables:**
-
-- auxBarStore and the AI card per spec 3.8 (persisted open state and width, sash, rightPanelWidth = width + 4)
-- ChatPanel header (ChatPanel.tsx:222-295) restyled as the 32px part title with a close button
-
-**Acceptance:**
-
-- npx vitest run src/stores/__tests__/auxBarStore.test.ts passes
-- node scripts/redesign/legacy-classes.mjs src/components/shell/auxbar reports 0 findings
-- Manual checks happen in W2-WORKBENCH, once the shell is mounted
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-AI --base &lt;wave base> exits 0
-
-#### W2-MENUS: Native popup menu restyle and hardening
-
-**Owns:** `src/utils/contextMenu.ts`, `src/utils/__tests__/contextMenu.test.ts`, `electron/ipc/menu.ts`, `electron/ipc/menu-svg.ts`, `electron/ipc/__tests__/menu.test.ts`, `electron/ipc/__tests__/menu-svg.test.ts`
-
-**Deliverables:**
-
-- menu.ts per spec 7.7: sizes, font, colors (inkSecondary and dangerHover included), selection, keyboard, escaping, id allowlist, index-based selection, the 12px shadow margin with the flip and clamp done on the visible rect, margin clicks that dismiss, sanitizeSvg in menu-svg.ts
-- contextMenu.ts: semantic icons with the old-key map (5.6), iconSvg per item, resolved hex colors
-
-**Acceptance:**
-
-- npx vitest run electron/ipc/__tests__/menu.test.ts electron/ipc/__tests__/menu-svg.test.ts src/utils/__tests__/contextMenu.test.ts passes
-- Manual checks happen in W2-WORKBENCH, once the shell is mounted
-- npx vitest run passes, except the 3 known src/App.test.tsx failures (fixed by W2-WORKBENCH)
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-MENUS --base &lt;wave base> exits 0
-
-#### W2-WORKBENCH: Workbench integration, banners, shortcuts and screen gates
-
-**Owns:** `src/App.tsx`, `src/App.test.tsx`, `src/test/setup.ts`, `src/components/shell/Workbench.tsx`, `src/components/shell/BannerStack.tsx`, `src/components/shell/index.ts`, `src/components/shell/__tests__/**`, `src/hooks/useKeyboardShortcuts.ts`, `src/hooks/__tests__/useKeyboardShortcuts.test.ts`, `src/components/sync/SyncBanner.tsx`, `src/components/sync/SyncBanners.tsx`, `src/components/auth/AuthScreen.tsx`, `src/components/onboarding/OnboardingWizard.tsx`, `src/styles/components/cards.css`, `src/styles/components/sash.css`
-
-**Deliverables:**
-
-- App.tsx gates inside WindowFrame (spec 3.1); Workbench with cards, gaps, in-flow sashes with grips and cursors, and density dividers (3.3, cards.css and sash.css); accent bar, offline banner, robot toggle, AI divider and StartupStatus strip removed; AI state from auxBarStore; TitleBar wired to sidebarStore and auxBarStore through its props; SplitContainer gets legacySidebarToggle={false} and no rightSlot
-- BannerStack and the VS Code style SyncBanner (3.9): neutral info and lock tones, a warning tint, link-button actions with exact labels, data-cv-banner-text; hub offline banner moved into BannerStack
-- useKeyboardShortcuts: Ctrl/Cmd+P, Ctrl/Cmd+Alt+B matched on e.code, and F10 or a lone Alt opening the application menu on win32/linux custom, never inside [data-session-keyboard] (3.2)
-- src/App.test.tsx fixed; chromeText.test.tsx for the rules in 8.4
-- Merges the wave-2 integration branch into the release branch once its acceptance passes
-
-**Acceptance:**
-
-- npm run verify passes all 41 scenarios (mcp included) on the wave-2 integration branch
-- Manual on macOS (the wave-2 packages' checks, run here once the shell is mounted): traffic lights at {11,10} on macOS 26 or later and centered in the 35px bar; the window drags; CONDUIT_TITLE_BAR=native restores the native frame; the pill focuses side bar search; both layout controls toggle and swap glyphs; the bar stays 35 DIP at ui_scale 0.75 and 1.5; Vault toggles the side bar with today's titles; Favorites opens it filtered; Home opens the Home tab as before; pin/unpin and dock/undock by window width, with web sessions live beside the docked side bar; tab states, reorder, cross-pane drop; a split line between two web sessions can be grabbed across its full 4px in Comfortable and Compact; web view bottom corners rounded in Comfortable, square in Compact, and square card corners beside a one-corner view; the AI control and Ctrl/Cmd+Alt+B toggle the AI side bar, and width and state survive a restart; tab, tree, new-tab, vault and Account menus render with the active pack, work with the keyboard, and close on a click in their shadow margin
-- Manual on macOS: a local page whose body sets -webkit-app-region: drag, opened as a web session, does not move the window and its buttons still click (D-27)
-- An RDP session against a real host logs one rdp_resize per density switch, AI toggle and banner change
-- Screens S1 to S3 of spec 8.6 captured by hand from npm run dev:electron in Modern dark and light for the owner (the automated set comes with W4-HARNESS)
-- node scripts/redesign/legacy-classes.mjs src/App.tsx src/components/shell/Workbench.tsx src/components/shell/BannerStack.tsx src/components/shell/index.ts reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W2-WORKBENCH --base &lt;wave base> exits 0
-
-### 10.3 Wave 3: surface migrations by directory
+Wave 2 restyles the always-visible chrome. R2-FOUNDATION opens with the wave and owns the shared files; R2-TABS, R2-SIDEBAR and R2-AI run in parallel; R2-SHELL runs last, integrates the wave and holds owner gate 2. Every wave-2 package leaves the app shippable, so they merge straight into `advenimus/visual-restyle`.
 
 | Id | Title | Depends on |
 |---|---|---|
-| W3-SETTINGS | Settings dialog, Appearance tab and settings tabs | W2-WORKBENCH |
-| W3-ENTRIES | Entry dialogs and forms | W2-WORKBENCH |
-| W3-VAULT | Vault hub and vault dialogs | W2-WORKBENCH |
-| W3-SYNC | Sync dialogs and panels | W2-WORKBENCH, W3-MISC |
-| W3-DASHBOARD | Dashboards | W2-WORKBENCH |
-| W3-AI | AI chat body and AI dialogs | W2-WORKBENCH |
-| W3-AUTH-ONBOARDING | Sign-in and onboarding screens | W2-WORKBENCH |
-| W3-MISC | Tools, import, about, what's new, upgrade, feedback, connections, common | W2-WORKBENCH |
-| W3-SESSIONS | Session views and markdown | W2-WORKBENCH |
-| W3-PICKER | Credential picker window | W2-WORKBENCH |
-| W3-OVERLAY | Toast overlay visuals | W2-WORKBENCH, W2-MAIN |
-| W3-FOUNDATION | Shared foundations and everything outside the wave-3 directories (standing package) | W2-WORKBENCH |
+| R2-FOUNDATION | Shared foundations during wave 2 (standing package) | R1-MENUS |
+| R2-TABS | Pane tab bars, splits, drop zones and the surfaces under the strip | R1-MENUS |
+| R2-SIDEBAR | Side bar restyled in place | R1-MENUS |
+| R2-AI | AI panel header | R1-MENUS |
+| R2-SHELL | Accent line, AI divider and toggle, banners, StartupStatus, the wave-2 integration and owner gate 2 | R2-TABS, R2-SIDEBAR, R2-AI |
 
-#### W3-SETTINGS: Settings dialog, Appearance tab and settings tabs
+#### R2-FOUNDATION: Shared foundations during wave 2 (standing package)
+
+**Owns:** `src/components/ui/**`, `gallery.html`, `src/gallery.tsx`, `src/index.css`, `src/styles/tokens.css`, `src/styles/schemes.css`, `src/styles/base.css`, `src/styles/__tests__/**`, `src/lib/**`, `src/stores/**`, `src/hooks/**`, `src/utils/**`, `src/types/**`, `src/main.tsx`, `src/overlay.tsx`, `src/picker.tsx`, `index.html`, `overlay.html`, `picker.html`, `vite.config.ts`, `vitest.config.ts`, `electron/**`, `scripts/**`, `public/**`, `package.json`, `package-lock.json`, `electron-builder.yml`
+
+**Deliverables:**
+
+- Opens when wave 2 starts and closes when R2-SHELL's wave-2 integration checks and owner gate 2 have passed. It is the only wave-2 package that edits the shared foundations: primitives, the gallery, tokens and base styles, icons, the appearance runtime, the freeze registry, stores, hooks, utilities (the popup menu helper), the main process, the harness, the scripts and the manifests
+- Takes change requests from the other wave-2 packages one at a time and lands each as its own small commit with tests, against the contracts in this spec. A request that changes a contract is first written into the spec by a standalone spec commit (10, rule 4); a change to `allowed-deltas.json` lands here, signed off by the integrator (rule 5)
+- Keeps the gallery, the token gates, the inventory comparator and the harness selector tests green after every change
+
+**Acceptance:**
+
+- `npx vitest run src/components/ui src/styles src/lib scripts/__tests__` passes after each change
+- `node scripts/verify/run.mjs restyle` passes after each change to `scripts/verify`
+- `npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R2-FOUNDATION --base advenimus/visual-restyle` exits 0
+
+#### R2-TABS: Pane tab bars, splits, drop zones and the surfaces under the strip
+
+**Owns:** `src/components/layout/PaneTabBar.tsx`, `src/components/layout/Pane.tsx`, `src/components/layout/PaneContent.tsx`, `src/components/layout/LayoutRenderer.tsx`, `src/components/layout/DropZoneOverlay.tsx`, `src/components/layout/__tests__/PaneTabBar.test.tsx`, `src/components/layout/__tests__/panes.test.tsx`, `src/styles/components/tabs.css`, `src/styles/components/sash.css`, `src/components/sessions/web/WebBrowserToolbar.tsx`, `src/components/sessions/web/WebSubTabBar.tsx`, `src/components/sessions/web/WebAutofillBar.tsx`, `src/components/sessions/DocumentView.tsx`, `src/components/sessions/CommandView.tsx`
+
+**Deliverables:**
+
+- `PaneTabBar` per 3.4: the strip; the hamburger slot (the `menu` glyph, `data-cv-sidebar-toggle`, `aria-expanded`, today's titles and rule); connected tabs with `data-cv-tab` and `data-active` that shrink to fit as today, the label giving way first, down to the 78px floor; 16px icons; state dots from the shared dot; the `IconButton sm tone="inherit"` close, visible on every tab (D-3); the rename input; the drop marker without layout shift; `+` as `IconButton md` with `data-cv-new-tab`, followed by the right slot, in the strip's last `.cv-tabstrip-slot`; the wheel mapping and scroll-into-view for a strip whose tabs are all at the floor; the tab menu's semantic icons
+- Splits, drop zones and panes per 3.5: `cv-split-sash` separators, the drop zone look at `z-40`, `data-cv-session-area` on every pane, the empty pane and the empty-vault welcome on primitives, spinners on `Spinner`
+- Surfaces under the strip per 3.10: the web browser toolbar, the sub-tab bar, the autofill bar, the document headers and the command header on `--c-editor` with primitives
+- `tabs.css` and `sash.css` tuned only where the implementation needs it; every change is written back into 3.4 or 3.5 by a standalone spec commit (10, rule 4)
+
+**Acceptance:**
+
+- `npx vitest run src/components/layout/__tests__/PaneTabBar.test.tsx src/components/layout/__tests__/panes.test.tsx` passes (8.1, row R2-TABS)
+- `node scripts/redesign/legacy-classes.mjs src/components/layout/PaneTabBar.tsx src/components/layout/Pane.tsx src/components/layout/PaneContent.tsx src/components/layout/LayoutRenderer.tsx src/components/layout/DropZoneOverlay.tsx src/components/sessions/web src/components/sessions/DocumentView.tsx src/components/sessions/CommandView.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --only tabs --only ai` passes: the inventories of both scenarios; G1, G2, G4, G5 (its AI toggle part `pending` until R2-SHELL), G6 (a) for the tab bars, G9 and G10; the composites of shots 05, 06, 07, 10, 10b, 18, 40 and 43 show every tab bar control where it was
+- Manual (macOS, dark and light): drag a tab to reorder and to the other pane, drop zones, rename, the tab menu, hover and close an inactive tab, twelve tabs in a narrow pane (they shrink to the floor, then the wheel scrolls and the active tab stays in view), a web session whose toolbar continues the active tab, split separator hover and drag
+- `npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R2-TABS --base advenimus/visual-restyle` exits 0
+
+#### R2-SIDEBAR: Side bar restyled in place
+
+**Owns:** `src/components/layout/Sidebar.tsx`, `src/components/layout/SidebarPanel.tsx`, `src/components/layout/SidebarWindowControls.tsx`, `src/components/layout/VaultContextBar.tsx`, `src/components/layout/TeamInvitationBanner.tsx`, `src/components/layout/__tests__/SidebarPanel.test.tsx`, `src/components/layout/__tests__/Sidebar.test.tsx`, `src/components/entries/EntryTree.tsx`, `src/components/entries/__tests__/EntryTree.test.tsx`, `src/components/vault/VaultSwitcherMenu.tsx`, `src/components/sync/PersonalSyncIndicator.tsx`, `src/components/sync/ConflictDot.tsx`, `src/components/vault/CloudSyncIndicator.tsx`, `src/components/vault/TeamSyncIndicator.tsx`
+
+**Deliverables:**
+
+- The panel, resize handle, header row, vault switcher (a 13px `text-ink` name), vault switcher menu, team context bar, onboarding card, invitation banner, search, tree rows with indent guides, trial cards and footer per 3.6, every control in place with today's titles and labels; the floating side bar's accent line with `data-cv-accent-line` (3.3)
+- Hooks `data-cv-sidebar-header`, `data-cv-sidebar-search`, `data-cv-sidebar-footer`, `data-cv-vault-switcher` (B17) and `data-cv-review-button` (B13); `data-sidebar-panel` and `data-docked` kept
+- The long-name overlap of INVENTORY section 11 fixed by the flex rules of 3.6
+- Unit tests for the states of shots 44 to 49: the signed-in footer row 2 (the email with `title="Account Settings"`, Sign Out, then Confirm and Cancel), the `offline` badge, a team vault's tinted header with `VaultContextBar`, the trial card and the trial strip, each asserting today's order, texts and titles
+
+**Acceptance:**
+
+- `npx vitest run src/components/layout/__tests__/SidebarPanel.test.tsx src/components/layout/__tests__/Sidebar.test.tsx src/components/entries/__tests__/EntryTree.test.tsx` passes (8.1, row R2-SIDEBAR)
+- `node scripts/redesign/legacy-classes.mjs src/components/layout/Sidebar.tsx src/components/layout/SidebarPanel.tsx src/components/layout/SidebarWindowControls.tsx src/components/layout/VaultContextBar.tsx src/components/layout/TeamInvitationBanner.tsx src/components/entries/EntryTree.tsx src/components/vault/VaultSwitcherMenu.tsx src/components/sync/PersonalSyncIndicator.tsx src/components/sync/ConflictDot.tsx src/components/vault/CloudSyncIndicator.tsx src/components/vault/TeamSyncIndicator.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --only sidebar --only sidebar-signed-in` passes (the local Supabase stack running): the inventories of both scenarios; G1, G2, G3 for the floating side bar's line, G4, G6 (a) for the header and G7; the composites of shots 04, 06, 07, 08, 09, 21, 38, 39 and 44 to 49 show every control where it was
+- Manual: hide, float, pin and unpin; docking by window width; resizing (the 4px accent line after 300ms); at 250px, `Acme Infrastructure` shows at least 12 characters before the ellipsis (macOS) and every header button stays clickable; the favorites filter; clearing the search; tree selection, drag into a folder and rename; the footer sync button opening Settings > Sync
+- `npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R2-SIDEBAR --base advenimus/visual-restyle` exits 0
+
+#### R2-AI: AI panel header
+
+**Owns:** `src/components/ai/ChatPanel.tsx`, `src/components/ai/__tests__/ChatPanel.header.test.tsx`
+
+**Deliverables:**
+
+- The `ChatPanel` root on `bg-sidebar` and the header per 3.7 with `data-cv-ai-header`: the 33px row, the engine picker, the engine dropdown with the active engine's `●` kept, the model chip and the new conversation button, in today's order with today's titles and behavior
+- The body below the header stays as it is until R3-AI
+
+**Acceptance:**
+
+- `npx vitest run src/components/ai/__tests__/ChatPanel.header.test.tsx` passes (8.1, row R2-AI)
+- No legacy finding above the body: `m=$(grep -n "{/\* Messages \*/}" src/components/ai/ChatPanel.tsx | cut -d: -f1); node scripts/redesign/legacy-classes.mjs --json src/components/ai/ChatPanel.tsx | node -e "const r=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(r.findings.filter((f)=>f.line<$m).length)"` prints 0 (the root and the header; the body's findings belong to R3-AI)
+- `node scripts/verify/run.mjs restyle --only ai` passes: the inventories `ai-panel` and `ai-panel-engine-menu-open` (the `●` included); G6 (a): `[data-cv-ai-header]` is 33px tall; G6 (b) and G8 report `pending` until R2-SHELL; the composites of shots 18 and 19 show the header controls where they were
+- `npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R2-AI --base advenimus/visual-restyle` exits 0
+
+#### R2-SHELL: Accent line, AI divider and toggle, banners, StartupStatus, the wave-2 integration and owner gate 2
+
+**Owns:** `src/App.tsx`, `src/App.test.tsx`, `src/components/sync/SyncBanner.tsx`, `src/components/sync/SyncBanners.tsx`, `src/components/sync/__tests__/SyncBanners.test.tsx`, `src/components/common/StartupStatus.tsx`, `src/components/common/__tests__/StartupStatus.test.tsx`
+
+**Deliverables:**
+
+- `App.tsx`: roots on `bg-editor`, the accent line with `data-cv-accent-line` (3.3), both offline banners on `Banner status={false} align="center"` with their `Reconnect` button (3.8), the loading and auto-connect screens on `Spinner` (3.11), the AI toggle as `IconButton` with `pressed` and `data-cv-ai-toggle` (3.4), the AI divider and panel classes and hooks (3.7)
+- `SyncBanner` on the `Banner` primitive (3.8): its actions stay buttons (`Button size="sm"`, `primary` where the action is primary); `SyncBanners`, `PromptBanner` and `SideFilesPausedBanner` inherit it unchanged
+- `StartupStatus` per 3.9
+- `src/App.test.tsx` fixed without touching `src/test/setup.ts`: `window.electron` stubbed inside the test with `vi.stubGlobal` (undone in `afterEach`), and the three assertions rewritten to what `App` renders under that stub (the loading screen whose whole text is `Loading...`, then the screen the stubbed startup calls lead to, by its exact texts)
+- Wave-2 integration and owner gate 2: after this package merges, the checks below run on the wave-2 tip and failures go back to the owning wave-2 package or R2-FOUNDATION; the package closes when the owner has approved the composites (8.5)
+
+**Acceptance:**
+
+- `node scripts/redesign/legacy-classes.mjs src/App.tsx src/components/sync/SyncBanner.tsx src/components/sync/SyncBanners.tsx src/components/common/StartupStatus.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- Manual: the offline banner (cached auth) centered with its `Reconnect` button, a sync banner (for example the review banner that the `sync` suite raises) with `Review` as a primary button, `StartupStatus` during a FreeRDP build (or its component test), the AI divider hover and drag, the accent line in all seven schemes
+- Wave-2 integration on the wave-2 tip: `node scripts/verify/run.mjs restyle --strict` passes every scenario (no rule pending), and `npm run verify` passes all 41 scenarios
+- Owner gate 2: the owner approves the dark and light composites of shots 04 to 10b, 18, 19, 21 and 44 to 49 under `.verify/runs/<id>/restyle/compare/`; the approval is recorded in this package's pull request
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R2-SHELL --base advenimus/visual-restyle` exits 0
+
+### 10.3 Wave 3: every other surface, by directory
+
+Wave 3 restyles dialogs, screens, session views, the picker and toasts, one directory per package, and starts after owner gate 2 has closed R2-SHELL. R3-FOUNDATION opens with the wave, owns everything outside the wave-3 directories, lands the primitive fixes the other packages ask for, and closes last with the wave-3 integration. R3-SYNC runs after R3-MISC (the stacked confirm, 4.8). Every dialog keeps its close behavior (3.12.1).
+
+| Id | Title | Depends on |
+|---|---|---|
+| R3-FOUNDATION | Shared foundations during wave 3 and the wave-3 integration (standing package) | R2-SHELL |
+| R3-SETTINGS | Settings dialog, its tabs and the final Appearance tab | R2-SHELL |
+| R3-ENTRIES | Entry and folder dialogs, entry tabs, pickers and custom icons | R2-SHELL |
+| R3-VAULT | Vault hub and vault lifecycle dialogs | R2-SHELL |
+| R3-TEAM | Team vault, device and credential dialogs | R2-SHELL |
+| R3-SYNC | Sync dialogs and panels | R2-SHELL, R3-MISC |
+| R3-DASHBOARD | Home, entry and folder dashboards | R2-SHELL |
+| R3-AI | AI panel body and AI dialogs | R2-SHELL |
+| R3-AUTH-ONBOARDING | Sign-in and onboarding screens | R2-SHELL |
+| R3-MISC | Confirm, about, what's new, tools, import, upgrade, feedback and connections | R2-SHELL |
+| R3-SESSIONS | Session views and markdown | R2-SHELL |
+| R3-PICKER | Credential picker window | R2-SHELL |
+| R3-OVERLAY | Toasts and the update notification | R2-SHELL |
+
+#### R3-FOUNDATION: Shared foundations during wave 3 and the wave-3 integration (standing package)
+
+**Owns:** `src/App.tsx`, `src/App.test.tsx`, `src/main.tsx`, `src/overlay.tsx`, `src/picker.tsx`, `src/gallery.tsx`, `src/index.css`, `src/styles/**`, `src/lib/**`, `src/stores/**`, `src/hooks/**`, `src/utils/**`, `src/types/**`, `src/test/**`, `src/components/ui/**`, `src/components/layout/**`, `index.html`, `overlay.html`, `picker.html`, `gallery.html`, `vite.config.ts`, `vitest.config.ts`, `electron/**`, `scripts/**`, `public/**`, `package.json`, `package-lock.json`, `electron-builder.yml`
+
+**Deliverables:**
+
+- Opens when wave 3 starts and closes when its closing step passes. It owns every file that no wave-3 directory package owns: primitives, styles, icons, the appearance runtime, the freeze registry, stores, hooks, shared libraries, the layout components, `App.tsx`, the main process, the harness, the scripts and the manifests
+- Takes change requests from the wave-3 packages one at a time and lands each as its own small commit with tests, against the contracts in this spec; a change to `allowed-deltas.json` lands here, signed off by the integrator (10, rule 5)
+- Closing step (wave-3 integration), after every other wave-3 package has merged: runs the checks below on the wave-3 tip, sends each failure to the owning package, and closes only when all pass
+
+**Acceptance:**
+
+- `node scripts/verify/run.mjs restyle --strict` passes after each change to `scripts/verify`, `src/components/layout` or `src/components/ui`
+- Closing, on the wave-3 tip: `npm run verify` passes all 41 scenarios, and `node scripts/verify/run.mjs restyle --strict` passes every scenario
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-FOUNDATION --base advenimus/visual-restyle` exits 0
+
+#### R3-SETTINGS: Settings dialog, its tabs and the final Appearance tab
 
 **Owns:** `src/components/settings/**`
 
 **Deliverables:**
 
-- SettingsDialog on Dialog size xl with NavList (keeps w-52) and hooks B1 to B4, B7, B22 to B24 and B36, B37, B39 to B41 (the sync plan line, the Multi-device sync h3, the Backup toggles as &lt;label> + direct-child Switch, the backup files list, the cloud backup badge)
-- Appearance tab per spec 6.4 (schemes, mode, icon packs with &lt;Icon pack> previews after preloadAllIconPacks(), density, UI scale, title bar)
-- Every tab on SettingsRow, FormField, Select, Checkbox and Switch; legacy map 4.16 applied; busy texts kept (B35)
+- `SettingsDialog` on `Dialog` with today's width and close behavior (3.12.1: Escape and the close button cancel); the nav as `NavList`, keeping `w-52` and adding `data-cv-settings-nav`; footer Cancel then Save; hooks B1 to B4, B7, B22 to B24, B36, B37 and B39 to B41 (3.12, Appendix B)
+- Every tab on `SettingsRow`, `FormField`, `Select`, `Checkbox`, `Switch`, `SegmentedControl` and `Slider`; section labels keep their element (`<label>` or `<h3>`) and take the section label look; the 4.16 map applied; every label, option, placeholder and busy text unchanged, the AI tab's engine `●` included
+- The Appearance tab's final form (6.4): its four section labels stay `<label>` elements, the scheme cards on `ChoiceCard`, Brightness on `SegmentedControl`, UI Scale on `Slider`; the Icon pack section from R1-FOUNDATION kept
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/settings reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- Manual: Appearance previews live and Cancel reverts scheme, mode, pack, density and zoom
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-SETTINGS --base &lt;wave base> exits 0
+- `npx vitest run --passWithNoTests src/components/settings` passes, including the close-behavior test of 3.12.1
+- `node scripts/redesign/legacy-classes.mjs src/components/settings` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only settings` passes (the 14 `settings-*` inventories, with only the `settings-appearance` delta); the composites of every `20-*` shot show the controls where they were
+- `node scripts/verify/run.mjs backup lifecycle password` passes (targeted live suites, 8.5; the Settings flows of `lib/settings-flows.mjs`)
+- Manual: every tab in dark and light; Appearance previews live, and Cancel reverts scheme, mode, pack and zoom
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-SETTINGS --base advenimus/visual-restyle` exits 0
 
-#### W3-ENTRIES: Entry dialogs and forms
+#### R3-ENTRIES: Entry and folder dialogs, entry tabs, pickers and custom icons
 
 **Owns:** `src/components/entries/**`
 
 **Deliverables:**
 
-- EntryDialog and EntryDialogSidebar on Dialog (onSubmit where the dialog has a form) and NavList; entry tabs on FormField, Select and Checkbox; FolderDialog on Dialog
-- ColorPicker and IconPicker on Popover; Field.tsx, DefaultableSelect and DefaultableCheckbox rebuilt on primitives
-- iconRegistry.ts untouched (D-19); EntryTree.tsx only for leftovers of 4.16
+- `EntryDialog` and `EntryDialogSidebar` on `Dialog` (with `onSubmit` where there is a form, today's width per step, and the close behavior of 3.12.1: no Escape, the close button kept) and `NavList`; group labels without uppercase; the type chips on neutral tiles in their entry colors; every entry tab on `FormField`, `Select` and `Checkbox`; `FolderDialog` on `Dialog` (3.12)
+- `ColorPicker` and `IconPicker` restyled in place (3.16): position logic, size, header, search, Default button and grids kept, the overlay look taken; `Field`, `DefaultableSelect` and `DefaultableCheckbox` rebuilt on primitives
+- Custom entry icons (5.11): the 30 curated names with a semantic twin render through the active pack in the tree, the tabs, the dashboards and the `IconPicker` grid; stored names unchanged; the other 35 stay Tabler; `EntryTree.tsx` gets only 4.16 leftovers
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/entries reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-ENTRIES --base &lt;wave base> exits 0
+- `npx vitest run --passWithNoTests src/components/entries` passes, including the twin table test (5.11) and the close-behavior tests of 3.12.1
+- `node scripts/redesign/legacy-classes.mjs src/components/entries` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only dialogs` passes for `new-entry-dialog`, `new-entry-ssh-form`, the six `edit-entry-rdp-*` screens and `new-folder-dialog`; the composites of shots 22 to 30 show the controls where they were
+- Manual: with Hugeicons active, an entry whose custom icon is `IconServer` shows the Hugeicons server glyph and one whose icon is `IconBrandDocker` shows the Tabler glyph
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-ENTRIES --base advenimus/visual-restyle` exits 0
 
-#### W3-VAULT: Vault hub and vault dialogs
+#### R3-VAULT: Vault hub and vault lifecycle dialogs
 
-**Owns:** `src/components/vault/**`
+**Owns:** `src/components/vault/VaultHub.tsx`, `src/components/vault/UnlockDialog.tsx`, `src/components/vault/ChangePasswordDialog.tsx`, `src/components/vault/RenameVaultDialog.tsx`, `src/components/vault/CloudRestoreDialog.tsx`, `src/components/vault/BackupManagerDialog.tsx`, `src/components/vault/BackupHistoryPanel.tsx`, `src/components/vault/BiometricSetupPrompt.tsx`, `src/components/vault/RecoveryPassphraseDialog.tsx`, `src/components/vault/ProVaultLockDialog.tsx`, `src/components/vault/ExportDialog.tsx`, `src/components/vault/VaultImportDialog.tsx`, `src/components/vault/VaultSwitcherMenu.tsx`, `src/components/vault/CloudSyncIndicator.tsx`, `src/components/vault/__tests__/ChangePasswordDialog.test.tsx`, `src/components/vault/__tests__/UnlockDialog.strict.test.tsx`, `src/components/vault/__tests__/VaultHub.test.tsx`
 
 **Deliverables:**
 
-- Every vault dialog on Dialog, with onSubmit for form dialogs (UnlockDialog keeps its placeholders, its Please wait... label and data-cv-error, B8, B30, B35); BackupManagerDialog gets data-cv-backup-manager and keeps its Master password placeholder and Restore, Confirm and Close buttons (B25, B42)
-- VaultHub landing page on ListRow; recent vault rows are buttons whose title is the path (B26, B44)
-- VaultSwitcherMenu leftovers (menu items stay buttons, B43); CredentialManager, CredentialForm, AuditLogViewer, VaultSettingsDialog, DeviceSetupDialog and the rest migrated; dead files skipped
+- The vault hub per 3.11: recent rows as clickable `ListRow`s with the 28px icon tile as `leading`, `PendingBadge` and the fingerprint in `meta` (always visible) and only the chevron in `trailing`; rows stay `button[title="{path}"]` (B26, B44)
+- Every vault lifecycle dialog on `Dialog` with the close behavior of 3.12.1, and `onSubmit` for forms: `UnlockDialog` keeps its placeholders, `Please wait...` and `data-cv-error` (B8, B30, B35); `BackupManagerDialog` gets `data-cv-backup-manager` and keeps `Master password`, Restore, Confirm and Close (B25, B42); `RecoveryPassphraseDialog` cannot be dismissed (no close button, no Escape)
+- `VaultSwitcherMenu` and `CloudSyncIndicator`: only 4.16 leftovers (R2-SIDEBAR restyled them); the dead files of 10.5 are skipped
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/vault reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-VAULT --base &lt;wave base> exits 0
+- `npx vitest run --passWithNoTests src/components/vault` passes, including the hub rows' `meta` visible without hover and the close-behavior tests of 3.12.1
+- `node scripts/redesign/legacy-classes.mjs src/components/vault/VaultHub.tsx src/components/vault/UnlockDialog.tsx src/components/vault/ChangePasswordDialog.tsx src/components/vault/RenameVaultDialog.tsx src/components/vault/CloudRestoreDialog.tsx src/components/vault/BackupManagerDialog.tsx src/components/vault/BackupHistoryPanel.tsx src/components/vault/BiometricSetupPrompt.tsx src/components/vault/RecoveryPassphraseDialog.tsx src/components/vault/ProVaultLockDialog.tsx src/components/vault/ExportDialog.tsx src/components/vault/VaultImportDialog.tsx src/components/vault/VaultSwitcherMenu.tsx src/components/vault/CloudSyncIndicator.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only screens` passes for `vault-hub-empty`, `vault-hub-with-recent` and `unlock-dialog`; the composites of shots 01, 02, 41 and 42 show the controls where they were
+- `node scripts/verify/run.mjs backup lifecycle password` passes (targeted live suites, 8.5; unlock, password and backup dialogs)
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-VAULT --base advenimus/visual-restyle` exits 0
 
-#### W3-SYNC: Sync dialogs and panels
+#### R3-TEAM: Team vault, device and credential dialogs
+
+**Owns:** `src/components/vault/VaultSettingsDialog.tsx`, `src/components/vault/CreateTeamVaultDialog.tsx`, `src/components/vault/TeamVaultUnlock.tsx`, `src/components/vault/DeviceSetupDialog.tsx`, `src/components/vault/DeviceAuthApprovalDialog.tsx`, `src/components/vault/AuditLogViewer.tsx`, `src/components/vault/CredentialManager.tsx`, `src/components/vault/CredentialForm.tsx`, `src/components/vault/CredentialPicker.tsx`, `src/components/vault/PasswordHistoryDialog.tsx`, `src/components/vault/TeamSyncIndicator.tsx`, `src/components/vault/__tests__/TeamDialogs.test.tsx`
+
+**Deliverables:**
+
+- `VaultSettingsDialog` (on `Dialog` with a `NavList`), `CreateTeamVaultDialog`, `TeamVaultUnlock`, `DeviceSetupDialog`, `DeviceAuthApprovalDialog`, `AuditLogViewer`, `CredentialManager`, `CredentialForm`, `CredentialPicker` and `PasswordHistoryDialog` on primitives with the close behavior of 3.12.1, keeping every text, field and order; `TeamSyncIndicator` gets only 4.16 leftovers
+- `src/components/vault/__tests__/TeamDialogs.test.tsx` renders each owned dialog with minimal props and asserts its title, fields, footer order and close behavior (3.12.1)
+
+**Acceptance:**
+
+- `npx vitest run --passWithNoTests src/components/vault` passes
+- `node scripts/redesign/legacy-classes.mjs src/components/vault/VaultSettingsDialog.tsx src/components/vault/CreateTeamVaultDialog.tsx src/components/vault/TeamVaultUnlock.tsx src/components/vault/DeviceSetupDialog.tsx src/components/vault/DeviceAuthApprovalDialog.tsx src/components/vault/AuditLogViewer.tsx src/components/vault/CredentialManager.tsx src/components/vault/CredentialForm.tsx src/components/vault/CredentialPicker.tsx src/components/vault/PasswordHistoryDialog.tsx src/components/vault/TeamSyncIndicator.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-TEAM --base advenimus/visual-restyle` exits 0
+
+#### R3-SYNC: Sync dialogs and panels
 
 **Owns:** `src/components/sync/**`
 
 **Deliverables:**
 
-- SyncDialogFrame rebuilt on Dialog (harnessLabel = title, layer sync); DialogButton and smallButton on Button with loadingLabel where a busy text shows (Opening..., Checking..., B35); InlineError on Callout; PasswordInput on the primitive
-- ConflictReviewPanel (harnessLabel "Review changes") with hooks B11; RecentlyDeletedPanel passes layer="stacked" to ConfirmDialog and drops its div.relative.z-[70] wrapper in the same change, hooks B18, B19; OtherCopiesPanel B20; MassChangeNotice B21; SyncDevicesList B5; SyncNoticeList B6 and B38; IdleLockSetting keeps its aria-label (B28); Loading..., Looking for copies... and Comparing... stay visible (Spinner text, B35)
-- Files restyled in wave 2 (PersonalSyncIndicator, SyncBanner, SyncBanners) get only 4.16 leftovers; useEscapeLayer.ts stays a re-export until W4-CLEANUP
+- `SyncDialogFrame` rebuilt on `Dialog` (`harnessLabel` = title, layer `sync`, `hideClose`, Escape runs `onEscape` only where a dialog passes one, 3.12.1); `DialogButton` and `smallButton` on `Button` with `loadingLabel` where a busy text shows (`Opening...`, `Checking...`, B35); `InlineError` on `Callout`; `PasswordInput` on the primitive
+- `ConflictReviewPanel` (`harnessLabel` `Review changes`, its close button labeled `Close`, B12) with the B11 hooks and `data-cv-review-version` on each version line, which holds the value, the `In use now` badge and `Use this` (B47); `RecentlyDeletedPanel` passes `layer="stacked"` and `closeOnEscape` to `ConfirmDialog` and drops its `z-[70]` wrapper (B18, B19); `OtherCopiesPanel` B20; `MassChangeNotice` B21; `SyncDevicesList` B5; `SyncNoticeList` B6 and B38; `IdleLockSetting` keeps its `aria-label` (B28); `Loading...`, `Looking for copies...` and `Comparing...` stay visible text (B35)
+- Files restyled in wave 2 (`SyncBanner`, `SyncBanners`, `PersonalSyncIndicator`, `ConflictDot`) get only 4.16 leftovers; `useEscapeLayer.ts` stays a re-export
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/sync reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-SYNC --base &lt;wave base> exits 0
+- `npx vitest run --passWithNoTests src/components/sync` passes, including the close-behavior tests of 3.12.1
+- `node scripts/redesign/legacy-classes.mjs src/components/sync` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only dialogs` passes for the three `sync-panel-*` screens; the composites of shots 33 to 35 show the controls where they were
+- `node scripts/verify/run.mjs sync mcp copies lifecycle` passes (targeted live suites, 8.5; review, other copies and Recently deleted)
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-SYNC --base advenimus/visual-restyle` exits 0
 
-#### W3-DASHBOARD: Dashboards
+#### R3-DASHBOARD: Home, entry and folder dashboards
 
 **Owns:** `src/components/dashboard/**`
 
 **Deliverables:**
 
-- DashboardOverview, EntryDashboard and the other dashboard views on Card, ListRow, Button, IconButton and SectionHeader; the local IconButton (EntryDashboard.tsx:20-37) replaced
+- `DashboardOverview`, `EntryDashboard` and `FolderDashboard` on `bg-editor` with `Card`, `ListRow`, `Button`, `IconButton`, `Kbd` and `SectionHeader`; entry rows as clickable `ListRow`s with the time or the type label in `meta` (always visible; the type label without CSS uppercase, 8.4); the local icon button of `EntryDashboard` replaced; texts and order unchanged
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/dashboard reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-DASHBOARD --base &lt;wave base> exits 0
+- `npx vitest run --passWithNoTests src/components/dashboard` passes
+- `node scripts/redesign/legacy-classes.mjs src/components/dashboard` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only tabs` passes for `home-dashboard-full-window`; the composite of shot 40 shows the dashboard blocks where they were
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-DASHBOARD --base advenimus/visual-restyle` exits 0
 
-#### W3-AI: AI chat body and AI dialogs
+#### R3-AI: AI panel body and AI dialogs
 
 **Owns:** `src/components/ai/**`
 
 **Deliverables:**
 
-- ChatPanel body, EngineSelector, ModelPicker (Popover and Menu), McpSetupDialog and EnginePicker on primitives; compact icons for chips (5.4)
+- The `ChatPanel` body, `EnginePicker`, `McpSetupDialog` (3.12.1: Escape, an outside click and its close button close it; `layer="sync"`) and the message blocks on primitives; `ModelPicker` restyled in place as an in-flow card (3.16); the header of R2-AI kept; `EngineLogo` unchanged
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/ai reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-AI --base &lt;wave base> exits 0
+- `npx vitest run --passWithNoTests src/components/ai` passes
+- `node scripts/redesign/legacy-classes.mjs src/components/ai` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only ai` passes; the composites of shots 18 and 19 show the panel as before
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-AI --base advenimus/visual-restyle` exits 0
 
-#### W3-AUTH-ONBOARDING: Sign-in and onboarding screens
+#### R3-AUTH-ONBOARDING: Sign-in and onboarding screens
 
 **Owns:** `src/components/auth/**`, `src/components/onboarding/**`
 
 **Deliverables:**
 
-- AuthScreen and OnboardingWizard on primitives with Button size lg CTAs and text-display titles; the auth text "Continue without signing in" unchanged
+- `AuthScreen` and `OnboardingWizard` on primitives (3.11): `Button size="lg"` for the main actions, `text-display` titles, `Callout` for the trial note; texts, including `Continue without signing in`, and layout unchanged
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/auth src/components/onboarding reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-AUTH-ONBOARDING --base &lt;wave base> exits 0
+- `node scripts/redesign/legacy-classes.mjs src/components/auth src/components/onboarding` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only screens` passes for `auth-screen`; the composite of shot 00 shows the controls where they were
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-AUTH-ONBOARDING --base advenimus/visual-restyle` exits 0
 
-#### W3-MISC: Tools, import, about, what's new, upgrade, feedback, connections, common
+#### R3-MISC: Confirm, about, what's new, tools, import, upgrade, feedback and connections
 
 **Owns:** `src/components/tools/**`, `src/components/import/**`, `src/components/about/**`, `src/components/whats-new/**`, `src/components/upgrade/**`, `src/components/feedback/**`, `src/components/connections/**`, `src/components/common/**`
 
 **Deliverables:**
 
-- ConfirmDialog rebuilt on Dialog with a compatible API plus cancelLabel and layer (4.8); without a layer it renders in place (portal={false}) so today's z-[70] wrapper keeps working until W3-SYNC passes layer="stacked"
-- AboutDialog with the Licenses view (5.8); WhatsNewDialog, QuickConnect, PasswordGeneratorDialog, SshKeyGeneratorDialog, ImportDialog and FeedbackDialog on Dialog
-- common/StartupStatus.tsx (restyled in wave 2) gets only 4.16 leftovers; dead files skipped
+- `ConfirmDialog` on `Dialog` with a compatible API plus `cancelLabel`, `layer` and `closeOnEscape` (off by default, as today; no close button); without a `layer` it renders in place (`portal={false}`) until R3-SYNC passes `layer="stacked"` (4.8)
+- `AboutDialog` (no licenses view, 5.9), `WhatsNewDialog`, `QuickConnect` (`SegmentedControl` for the types), `PasswordGeneratorDialog`, `SshKeyGeneratorDialog`, `ImportDialog` and `FeedbackDialog` on `Dialog` with today's widths and close behavior (3.12.1); `UpgradeBanner` on `Callout`
+- `StartupStatus` (restyled in wave 2) gets only 4.16 leftovers; the dead files of 10.5 are skipped
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/tools src/components/import src/components/about src/components/whats-new src/components/upgrade src/components/feedback src/components/connections src/components/common reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-MISC --base &lt;wave base> exits 0
+- `npx vitest run --passWithNoTests src/components/common src/components/connections src/components/tools src/components/import src/components/about src/components/whats-new src/components/upgrade src/components/feedback` passes, including the close-behavior tests of 3.12.1
+- `node scripts/redesign/legacy-classes.mjs src/components/tools src/components/import src/components/about src/components/whats-new src/components/upgrade src/components/feedback src/components/connections src/components/common` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only dialogs` passes for `quick-connect-dialog` and `confirm-delete-dialog`, including G9 with a web session focused; the composites of shots 31 and 32 show the controls where they were
+- `node scripts/verify/run.mjs lifecycle` passes (targeted live suites, 8.5; the stacked confirm of Recently deleted)
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-MISC --base advenimus/visual-restyle` exits 0
 
-#### W3-SESSIONS: Session views and markdown
+#### R3-SESSIONS: Session views and markdown
 
 **Owns:** `src/components/sessions/**`, `src/components/markdown/**`
 
 **Deliverables:**
 
-- Web toolbar and WebSubTabBar, RDP, VNC, terminal and command views (toolbars, error and empty states), DocumentView and MarkdownEditor (Tabs primitive) on primitives; terminal fonts and ANSI colors unchanged (non-goal)
+- RDP, VNC, terminal and web view containers, `ConnectionError` and every error, loading and empty state on `bg-editor` with primitives; `MarkdownEditor` on `Tabs variant="panel"`; code blocks on `bg-code`; the bars restyled in wave 2 get only 4.16 leftovers; terminal fonts and the ANSI palette unchanged
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/sessions src/components/markdown reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-SESSIONS --base &lt;wave base> exits 0
+- `npx vitest run --passWithNoTests src/components/sessions src/components/markdown` passes
+- `node scripts/redesign/legacy-classes.mjs src/components/sessions src/components/markdown` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only tabs` passes for `web-session-toolbar` and `document-view-runbook`; the composites of shots 07 and 43 show the views as before
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-SESSIONS --base advenimus/visual-restyle` exits 0
 
-#### W3-PICKER: Credential picker window
+#### R3-PICKER: Credential picker window
 
 **Owns:** `src/components/picker/**`
 
 **Deliverables:**
 
-- CredentialPickerApp and its lists on primitives; inline SVGs replaced by semantic icons; drag header kept (CredentialPickerApp.tsx:114-117); window size unchanged
+- `CredentialPickerApp` and its lists on primitives (3.15); inline SVGs replaced by semantic icons; the drag header, window size and flows unchanged
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/picker reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- Manual: Cmd/Ctrl+Shift+Space opens the picker in Modern dark and light with the active icon pack
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-PICKER --base &lt;wave base> exits 0
+- `node scripts/redesign/legacy-classes.mjs src/components/picker` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --only packs` passes its picker-window checks (the window follows each of the six packs, dark and light)
+- Manual: Cmd/Ctrl+Shift+Space opens the picker in dark and light with the active icon pack, at today's size, with a working drag header
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-PICKER --base advenimus/visual-restyle` exits 0
 
-#### W3-OVERLAY: Toast overlay visuals
+#### R3-OVERLAY: Toasts and the update notification
 
 **Owns:** `src/components/overlay/**`
 
 **Deliverables:**
 
-- OverlayToast and OverlayUpdateNotification per spec 4.15 (300ms slide-in); OverlayApp container p-1 gap-1; data-toast kept
+- `OverlayToast` and `OverlayUpdateNotification` on `ToastCard` (3.14); `OverlayApp`'s container geometry unchanged; `data-toast` kept
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src/components/overlay reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npm run verify passes all 41 scenarios before the package merges (a subset is fine while iterating; spec 8.5)
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-OVERLAY --base &lt;wave base> exits 0
+- `node scripts/redesign/legacy-classes.mjs src/components/overlay` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `node scripts/verify/run.mjs restyle --strict --only toasts` passes; the composites of shots 36 and 37 show four toasts at today's position and stacking
+- `node scripts/verify/run.mjs restyle --only packs` passes its toast checks (the toast window follows each of the six packs, dark and light)
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R3-OVERLAY --base advenimus/visual-restyle` exits 0
 
-#### W3-FOUNDATION: Shared foundations and everything outside the wave-3 directories (standing package)
+### 10.4 Wave 4: harness, docs and cleanup
 
-**Owns:** `src/App.tsx`, `src/App.test.tsx`, `src/main.tsx`, `src/overlay.tsx`, `src/picker.tsx`, `src/gallery.tsx`, `src/index.css`, `src/styles/**`, `src/lib/**`, `src/stores/**`, `src/hooks/**`, `src/utils/**`, `src/types/**`, `src/test/**`, `src/components/ui/**`, `src/components/layout/**`, `src/components/shell/**`, `index.html`, `overlay.html`, `picker.html`, `gallery.html`, `vite.config.ts`, `vitest.config.ts`, `electron/**`, `scripts/**`, `public/**`, `package.json`, `package-lock.json`, `electron-builder.yml`
-
-**Deliverables:**
-
-- Opens when wave 3 starts and closes when the last other wave-3 package merges. It owns every file no wave-3 directory package owns: the primitives, styles, icons, appearance runtime, freeze registry, stores, hooks, shared libraries, the shell and layout components, App.tsx, the main process, the harness, the scripts and the manifests
-- Takes change requests from the wave-3 packages one at a time and lands each as its own small commit with tests, against the contracts in this spec; a request that would change a contract is written into the spec first
-- Keeps the gallery, the token gates and the harness selector tests green after every change
-
-**Acceptance:**
-
-- npx vitest run passes with no failures after each change
-- npm run verify passes after each change to scripts/verify or to the main process
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W3-FOUNDATION --base &lt;wave base> exits 0
-
-### 10.4 Wave 4: harness, docs, What's New and cleanup
+Wave 4 starts when R3-FOUNDATION has closed wave 3. R4-HARNESS and R4-DOCS run in parallel; R4-CLEANUP runs last, performs the final integration and holds owner gate 3.
 
 | Id | Title | Depends on |
 |---|---|---|
-| W4-HARNESS | Final harness selectors and the appearance suite | W3-SETTINGS, W3-ENTRIES, W3-VAULT, W3-SYNC, W3-DASHBOARD, W3-AI, W3-AUTH-ONBOARDING, W3-MISC, W3-SESSIONS, W3-PICKER, W3-OVERLAY, W3-FOUNDATION |
-| W4-DOCS | FEATURES.md, What's New and spec status | W3-SETTINGS, W3-ENTRIES, W3-VAULT, W3-SYNC, W3-DASHBOARD, W3-AI, W3-AUTH-ONBOARDING, W3-MISC, W3-SESSIONS, W3-PICKER, W3-OVERLAY, W3-FOUNDATION |
-| W4-CLEANUP | Dead files, compatibility shims and final checks | W3-SETTINGS, W3-ENTRIES, W3-VAULT, W3-SYNC, W3-DASHBOARD, W3-AI, W3-AUTH-ONBOARDING, W3-MISC, W3-SESSIONS, W3-PICKER, W3-OVERLAY, W3-FOUNDATION |
+| R4-HARNESS | Final harness selectors and restyle suite | R3-FOUNDATION, R3-SETTINGS, R3-ENTRIES, R3-VAULT, R3-TEAM, R3-SYNC, R3-DASHBOARD, R3-AI, R3-AUTH-ONBOARDING, R3-MISC, R3-SESSIONS, R3-PICKER, R3-OVERLAY |
+| R4-DOCS | FEATURES.md, What's New and spec status | R3-FOUNDATION, R3-SETTINGS, R3-ENTRIES, R3-VAULT, R3-TEAM, R3-SYNC, R3-DASHBOARD, R3-AI, R3-AUTH-ONBOARDING, R3-MISC, R3-SESSIONS, R3-PICKER, R3-OVERLAY |
+| R4-CLEANUP | Dead files, shims, the final integration and owner gate 3 | R4-HARNESS, R4-DOCS |
 
-#### W4-HARNESS: Final harness selectors and the appearance suite
+#### R4-HARNESS: Final harness selectors and restyle suite
 
-**Owns:** `scripts/verify/**`, `scripts/__tests__/verify-harness.test.ts`, `scripts/__tests__/verify-selectors.test.ts`
+**Owns:** `scripts/verify/**`, `scripts/__tests__/verify-harness.test.ts`, `scripts/__tests__/verify-selectors.test.ts`, `scripts/__tests__/restyle-inventory.test.ts`
 
 **Deliverables:**
 
-- Old selector alternatives removed (Appendix B, W4 column)
-- suites/appearance.mjs (opt-in) producing the spec 8.6 screenshot sets; run.mjs optIn support so all skips it
+- The legacy halves of every selector pair removed (Appendix B, "Final" column); `pickSelector` kept only where a hook is probed through a sibling
+- The restyle suite's `allowed-deltas.json` reduced to what the final UI needs; the README updated
 
 **Acceptance:**
 
-- npx vitest run scripts/__tests__ passes
-- npm run verify passes all scenarios
-- node scripts/verify/run.mjs appearance writes the 8.6 screenshot sets
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W4-HARNESS --base &lt;wave base> exits 0
+- `npx vitest run scripts/__tests__` passes (8.1, row R4-HARNESS)
+- `node scripts/verify/run.mjs restyle --strict` passes every scenario
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R4-HARNESS --base advenimus/visual-restyle` exits 0
 
-#### W4-DOCS: FEATURES.md, What's New and spec status
+#### R4-DOCS: FEATURES.md, What's New and spec status
 
 **Owns:** `docs/FEATURES.md`, `release-notes/manifest.json`, `docs/VISUAL_REDESIGN.md`
 
 **Deliverables:**
 
-- FEATURES.md sections Window, Appearance, Splash Screen, Sidebar, Tab Bar, Split-View Pane Layout, Keyboard Shortcuts, Dialogs, Notifications & Indicators, Context Menus, Menus and the sync indicator lines rewritten for the new UI; the dropped side bar item count, the Help > Use Native Title Bar item, F10/Alt menu access and Linux running under XWayland recorded
-- release-notes/manifest.json: the Appendix C highlights in the pending release entry
-- Spec status line updated to shipped
+- `docs/FEATURES.md`: the Appearance section (Modern default with the sky accent, the six icon packs with Lucide as default and Hugeicons new, custom entry icons following the pack where a twin exists (5.11), platform themes retired), and the look lines of the Sidebar, Tab Bar, Dialogs, Context Menus and Notifications sections; no layout feature is described as changed
+- `release-notes/manifest.json`: the Appendix C highlights in the pending release entry (created with the release version and date if missing)
+- This spec: status line set to shipped, and any contract change the integrators recorded folded into its sections
 
 **Acceptance:**
 
-- node -e "JSON.parse(require('fs').readFileSync('release-notes/manifest.json','utf8'))" exits 0
-- grep -n "Platform themes" docs/FEATURES.md mentions them only as retired
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W4-DOCS --base &lt;wave base> exits 0
+- `node -e "JSON.parse(require('fs').readFileSync('release-notes/manifest.json','utf8'))"` exits 0
+- `grep -n "Codicons" docs/FEATURES.md release-notes/manifest.json` prints nothing, and `grep -n "Platform themes" docs/FEATURES.md` mentions them only as retired
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R4-DOCS --base advenimus/visual-restyle` exits 0
 
-#### W4-CLEANUP: Dead files, compatibility shims and final checks
+#### R4-CLEANUP: Dead files, shims, the final integration and owner gate 3
 
-**Owns:** `src/**`, `scripts/redesign/**`
+**Owns:** `src/**`, `scripts/redesign/**`, `scripts/__tests__/legacy-classes.test.ts`
 
 **Deliverables:**
 
-- The 9 dead files in spec 10.5 deleted
-- useFreeze(anyOverlayOpen, "legacy") and the App.tsx overlay flag list removed once every dialog self-registers; the legacy event bridge in native-freeze and the conduit:overlay-change, conduit:sidebar-overlay-change and conduit:drag-change events removed
-- Shims removed: IconTheme, THEME_ICON_DEFAULTS, loadIconPack(theme), useIconThemeStore alias, src/hooks/useTheme.ts re-export, src/components/sync/useEscapeLayer.ts, old popup menu icon keys, the legacySidebarToggle and rightSlot props with the old hamburger code; ConfirmDialog portals by default
-- src/components/__tests__/icon-sizes.test.ts (spec 5.2 size policy, with the 14px pill exception) and src/components/__tests__/overlay-freeze.test.tsx (each of the 24 overlays listed at App.tsx:389 today holds a freeze by itself)
+- The nine dead files of 10.5 deleted; `DEAD_FILES` in `scripts/redesign/legacy-classes.mjs` emptied (or removed with its skip), and `scripts/__tests__/legacy-classes.test.ts` checks the dead-file skip on temporary fixture files instead of repo files, without the length assertion
+- Shims removed: the `src/hooks/useTheme.ts` re-export (`App.tsx` imports `useAppearance`), `src/components/sync/useEscapeLayer.ts`, `LEGACY_MENU_ICON_KEYS` after every call site passes semantic names; `ConfirmDialog` portals by default
+- `src/components/__tests__/overlay-freeze.test.tsx`: each of the 24 overlays that `App.tsx` lists renders alone and holds a freeze by itself. `App.tsx`'s `legacy` freeze and the legacy event bridge stay in this release (4.9, D-28)
+- `src/components/__tests__/icon-sizes.test.ts` (5.5); the legacy-class allowlist trimmed to entries still needed
+- Final integration and owner gate 3: the checks below on the release tip
 
 **Acceptance:**
 
-- node scripts/redesign/legacy-classes.mjs src reports 0 findings outside the Appendix B allowlist (dead files excluded)
-- npx vitest run src/components/__tests__/icon-sizes.test.ts src/components/__tests__/overlay-freeze.test.tsx passes
-- git grep -n "useFreeze(anyOverlayOpen" -- src and git grep -nE "conduit:(overlay|sidebar-overlay|drag)-change" -- src both find nothing
-- npm run verify passes all scenarios
-- npx vitest run passes with no failures
-- npx tsc --noEmit and npx tsc -p electron/tsconfig.json --noEmit report no errors
-- node scripts/redesign/lint-count.mjs prints no more ESLint errors than it printed on the wave base (record the base count first)
-- npm run build passes
-- node scripts/redesign/check-owns.mjs W4-CLEANUP --base &lt;wave base> exits 0
+- `node scripts/redesign/legacy-classes.mjs src` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
+- `npx vitest run src/components/__tests__/icon-sizes.test.ts src/components/__tests__/overlay-freeze.test.tsx scripts/__tests__/legacy-classes.test.ts` passes
+- Final integration: `npm run verify` passes all scenarios; `node scripts/verify/run.mjs restyle --strict` passes every scenario; the 8.7 checks are listed in the PR test plan
+- Owner gate 3: the owner approves the dark and light composites of every reference shot; the approval is recorded in this package's pull request
+- `npx vitest run` passes with no failures
+- `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
+- `node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)
+- `npm run build` passes
+- `node scripts/redesign/check-owns.mjs R4-CLEANUP --base advenimus/visual-restyle` exits 0
 
 ### 10.5 Dead files
 
-These nine files have zero imports [V: grep of `src` and `electron` for each module path]. Wave-3 packages skip them, and the legacy report excludes them. W4-CLEANUP deletes them.
+These nine files have no importers [V: grep of `src` and `electron` for each module, 2026-09-28]. Packages skip them, the legacy report excludes them (`DEAD_FILES` in `scripts/redesign/legacy-classes.mjs`), and R4-CLEANUP deletes them. `scripts/__tests__/legacy-classes.test.ts` reads two of them from the repo and asserts nine entries (`legacy-classes.test.ts:180-185` [V]), so R4-CLEANUP owns that test and moves it to temporary fixture files in the same change.
 
 - `src/components/vault/TeamVaultMembersDialog.tsx`
 - `src/components/connections/ConnectionTree.tsx`
@@ -2520,172 +2256,46 @@ These nine files have zero imports [V: grep of `src` and `electron` for each mod
 
 | File | Wave 1 | Wave 2 | Wave 3 | Wave 4 |
 |---|---|---|---|---|
-| `src/App.tsx` | W1-FREEZE | W2-WORKBENCH | W3-FOUNDATION | W4-CLEANUP |
-| `src/test/setup.ts` | W1-TOKENS | W2-WORKBENCH | W3-FOUNDATION | W4-CLEANUP |
-| `src/components/layout/DragContext.tsx` | W1-FREEZE | W2-TABS | W3-FOUNDATION | W4-CLEANUP |
-| `src/components/common/ConfirmDialog.tsx` | W1-FREEZE | none | W3-MISC | W4-CLEANUP |
-| `src/components/sync/SyncDialogFrame.tsx`, `ConflictReviewPanel.tsx` | W1-FREEZE | none | W3-SYNC | W4-CLEANUP |
-| `src/components/sync/useEscapeLayer.ts` | W1-PRIMITIVES | W2-FOUNDATION | W3-SYNC | W4-CLEANUP |
-| `src/components/settings/{SettingsDialog,SettingsHelpers}.tsx`, `tabs/AppearanceTab.tsx` | W1-TOKENS | none | W3-SETTINGS | W4-CLEANUP |
-| `src/components/entries/entryIcons.ts` | W1-TOKENS | none | W3-ENTRIES | W4-CLEANUP |
-| `src/components/entries/EntryTree.tsx` | none | W2-SIDEBAR | W3-ENTRIES | W4-CLEANUP |
-| `src/components/vault/VaultSwitcherMenu.tsx` | none | W2-SIDEBAR | W3-VAULT | W4-CLEANUP |
-| `src/components/sessions/WebView.tsx`, `RdpView.tsx` | none | W2-TABS | W3-SESSIONS | W4-CLEANUP |
-| `src/components/connections/QuickConnect.tsx` | none | W2-TABS | W3-MISC | W4-CLEANUP |
-| `src/components/ai/ChatPanel.tsx` | none | W2-AI (header) | W3-AI (body) | W4-CLEANUP |
-| `src/components/overlay/OverlayApp.tsx` | W1-TOKENS | none | W3-OVERLAY | W4-CLEANUP |
-| `src/components/ui/**` | W1-PRIMITIVES | W2-FOUNDATION | W3-FOUNDATION | W4-CLEANUP |
-| `src/lib/icons/**` | W1-ICONS | W2-FOUNDATION | W3-FOUNDATION | W4-CLEANUP |
-| `src/lib/appearance/**`, `src/index.css` | W1-TOKENS | W2-FOUNDATION | W3-FOUNDATION | W4-CLEANUP |
-| `src/lib/native-freeze/**` | W1-FREEZE | W2-FOUNDATION | W3-FOUNDATION | W4-CLEANUP |
-| `src/styles/components/tabs.css` | W1-TOKENS | W2-TABS | W3-FOUNDATION | W4-CLEANUP |
-| `src/styles/components/{cards,sash}.css` | W1-TOKENS | W2-WORKBENCH | W3-FOUNDATION | W4-CLEANUP |
-| the rest of `src/styles/**` | W1-TOKENS | W2-FOUNDATION | W3-FOUNDATION | W4-CLEANUP |
-| `src/utils/contextMenu.ts`, `electron/ipc/menu.ts`, `electron/ipc/menu-svg.ts` | none | W2-MENUS | W3-FOUNDATION | W4-CLEANUP (`contextMenu.ts` only) |
-| `electron/preload.cts`, `electron-builder.yml`, `src/types/ipc.d.ts` | none | W2-MAIN | W3-FOUNDATION | W4-CLEANUP (`ipc.d.ts` only) |
-| `scripts/verify/**` | W1-HARNESS | W2-FOUNDATION | W3-FOUNDATION | W4-HARNESS |
-| `scripts/redesign/**` | W1-PRIMITIVES (`legacy-classes.mjs`), W1-HARNESS (`check-owns.mjs`, `work-packages.json`) | W2-FOUNDATION | W3-FOUNDATION | W4-CLEANUP |
-| `package.json`, `package-lock.json` | W1-ICONS | W2-FOUNDATION | W3-FOUNDATION | none |
+| `src/App.tsx`, `src/App.test.tsx` | none | R2-SHELL | R3-FOUNDATION | R4-CLEANUP |
+| `src/test/setup.ts` | none | none (R2-SHELL stubs `window.electron` inside `App.test.tsx`) | R3-FOUNDATION | R4-CLEANUP |
+| `src/components/ui/**` | R1-FOUNDATION | R2-FOUNDATION | R3-FOUNDATION | R4-CLEANUP |
+| `src/lib/icons/**`, `src/lib/appearance/**`, `src/lib/terminalTheme.ts`, `src/index.css` | R1-FOUNDATION | R2-FOUNDATION | R3-FOUNDATION | R4-CLEANUP |
+| `src/components/entries/iconRegistry.ts`, `entryIcons.ts`, `IconPicker.tsx`, `ColorPicker.tsx` | none | none | R3-ENTRIES | R4-CLEANUP |
+| `src/styles/components/tabs.css`, `sash.css` | R1-FOUNDATION | R2-TABS | R3-FOUNDATION | R4-CLEANUP |
+| the rest of `src/styles/**` | R1-FOUNDATION | R2-FOUNDATION | R3-FOUNDATION | R4-CLEANUP |
+| `src/components/layout/PaneTabBar.tsx`, `Pane.tsx`, `PaneContent.tsx`, `LayoutRenderer.tsx`, `DropZoneOverlay.tsx` | none | R2-TABS | R3-FOUNDATION | R4-CLEANUP |
+| `src/components/layout/Sidebar.tsx`, `SidebarPanel.tsx`, `SidebarWindowControls.tsx`, `VaultContextBar.tsx`, `TeamInvitationBanner.tsx` | none | R2-SIDEBAR | R3-FOUNDATION | R4-CLEANUP |
+| `src/components/entries/EntryTree.tsx` | none | R2-SIDEBAR | R3-ENTRIES | R4-CLEANUP |
+| `src/components/vault/VaultSwitcherMenu.tsx`, `CloudSyncIndicator.tsx` | none | R2-SIDEBAR | R3-VAULT | R4-CLEANUP |
+| `src/components/vault/TeamSyncIndicator.tsx` | none | R2-SIDEBAR | R3-TEAM | R4-CLEANUP |
+| `src/components/sync/PersonalSyncIndicator.tsx`, `ConflictDot.tsx` | none | R2-SIDEBAR | R3-SYNC | R4-CLEANUP |
+| `src/components/sync/SyncBanner.tsx`, `SyncBanners.tsx` | none | R2-SHELL | R3-SYNC | R4-CLEANUP |
+| `src/components/common/StartupStatus.tsx` | none | R2-SHELL | R3-MISC | R4-CLEANUP |
+| `src/components/ai/ChatPanel.tsx` | none | R2-AI (header) | R3-AI (body) | R4-CLEANUP |
+| `src/components/sessions/web/*`, `DocumentView.tsx`, `CommandView.tsx` | none | R2-TABS | R3-SESSIONS | R4-CLEANUP |
+| `src/components/settings/SettingsDialog.tsx`, `SettingsHelpers.tsx`, `tabs/AppearanceTab.tsx` | R1-FOUNDATION | none | R3-SETTINGS | R4-CLEANUP |
+| `src/components/overlay/OverlayApp.tsx` | R1-FOUNDATION | none | R3-OVERLAY | R4-CLEANUP |
+| `src/utils/contextMenu.ts` | R1-MENUS | R2-FOUNDATION | R3-FOUNDATION | R4-CLEANUP |
+| `electron/ipc/menu.ts`, `menu-svg.ts` | R1-MENUS | R2-FOUNDATION | R3-FOUNDATION | none |
+| `electron/main.ts`, `electron/ipc/settings.ts`, `electron/services/appearance-*.ts` | R1-FOUNDATION | R2-FOUNDATION | R3-FOUNDATION | none |
+| `scripts/verify/**` (with `fixtures/restyle/allowed-deltas.json`) | R1-HARNESS | R2-FOUNDATION | R3-FOUNDATION | R4-HARNESS |
+| `scripts/__tests__/check-owns.test.ts` | R1-HARNESS | R2-FOUNDATION | R3-FOUNDATION | none |
+| `scripts/__tests__/legacy-classes.test.ts` | none | R2-FOUNDATION | R3-FOUNDATION | R4-CLEANUP |
+| `scripts/redesign/**` | none (`work-packages.json` lands with this spec) | R2-FOUNDATION | R3-FOUNDATION | R4-CLEANUP |
+| `package.json`, `package-lock.json` | R1-FOUNDATION | R2-FOUNDATION | R3-FOUNDATION | none |
+| `docs/VISUAL_REDESIGN.md` | standalone spec commits (rule 4) | standalone spec commits | standalone spec commits | R4-DOCS |
 
 ---
 
 ## Appendix A. Icon mappings
 
-### A.1 Codicons (default pack)
+The 116 semantic names (5.1) in each of the six packs. "exact" is a glyph with the same meaning; "substitute" the closest stand-in; "fill" the outline glyph rendered with `fill="currentColor"` (or the pack's filled glyph); "shared dot" the 8px state dot of 5.4, identical in every pack. Picker order (5.8) is Lucide, Phosphor, Hugeicons, Material Symbols, Fluent, Tabler (Classic); the tables are grouped by source.
 
-Source `@iconify-json/codicon@1.2.73` [V: every name resolved in `icons.json`]. "Lucide fallback" means the set has no fitting glyph, so the Codicons pack renders that Lucide icon (from `lucide-react@1.48.0`). "substitute" is the closest stand-in. Compact twins are 12×12.
+### A.1 Lucide (default, bundled)
 
-| # | Semantic | Codicon | Status | viewBox | 12px twin |
-|---|---|---|---|---|---|
-| 1 | `close` | `close` | exact | 16×16 | `close-compact` |
-| 2 | `plus` | `add` | exact | 16×16 | `add-compact` |
-| 3 | `check` | `check` | exact | 16×16 | `check-compact` |
-| 4 | `search` | `search` | exact | 16×16 | `search-compact` |
-| 5 | `trash` | `trash` | exact | 16×16 |  |
-| 6 | `pencil` | `edit` | exact | 16×16 | `edit-compact` |
-| 7 | `copy` | `copy` | exact | 16×16 |  |
-| 8 | `refresh` | `refresh` | exact | 16×16 | `refresh-compact` |
-| 9 | `send` | `send` | exact | 16×16 |  |
-| 10 | `download` | `download` | exact | 16×16 |  |
-| 11 | `upload` | `cloud-upload` | substitute | 16×16 | `cloud-upload-compact` |
-| 12 | `externalLink` | `link-external` | exact | 16×16 |  |
-| 13 | `login` | `sign-in` | exact | 16×16 |  |
-| 14 | `logout` | `sign-out` | exact | 16×16 |  |
-| 15 | `restore` | `discard` | exact | 16×16 |  |
-| 16 | `settings` | `settings-gear` | exact | 24×24 |  |
-| 17 | `eye` | `eye` | exact | 16×16 |  |
-| 18 | `eyeOff` | `eye-closed` | exact | 16×16 |  |
-| 19 | `home` | `home` | exact | 16×16 |  |
-| 20 | `arrowLeft` | `arrow-left` | exact | 16×16 |  |
-| 21 | `arrowRight` | `arrow-right` | exact | 16×16 |  |
-| 22 | `arrowUp` | `arrow-up` | exact | 16×16 | `arrow-up-compact` |
-| 23 | `arrowsExchange` | `arrow-swap` | exact | 16×16 |  |
-| 24 | `chevronDown` | `chevron-down` | exact | 16×16 | `chevron-down-compact` |
-| 25 | `chevronLeft` | `chevron-left` | exact | 16×16 | `chevron-left-compact` |
-| 26 | `chevronRight` | `chevron-right` | exact | 16×16 | `chevron-right-compact` |
-| 27 | `alertCircle` | `error` | exact | 16×16 | `error-compact` |
-| 28 | `alertTriangle` | `warning` | exact | 16×16 | `warning-compact` |
-| 29 | `infoCircle` | `info` | exact | 16×16 |  |
-| 30 | `circleCheck` | `pass` | exact | 16×16 | `pass-compact` |
-| 31 | `circleX` | `error` | substitute | 16×16 | `error-compact` |
-| 32 | `ban` | `circle-slash` | exact | 16×16 | `circle-slash-compact` |
-| 33 | `loader` | `loading` | exact | 16×16 | `loading-compact` |
-| 34 | `wifiOff` | `debug-disconnect` | substitute | 16×16 | `debug-disconnect-compact` |
-| 35 | `lock` | `lock` | exact | 16×16 |  |
-| 36 | `lockOpen` | `unlock` | exact | 16×16 |  |
-| 37 | `key` | `key` | exact | 16×16 |  |
-| 38 | `shield` | `shield` | exact | 16×16 | `shield-compact` |
-| 39 | `shieldCheck` | `workspace-trusted` | exact | 16×16 |  |
-| 40 | `shieldLock` | `shield` | substitute | 16×16 | `shield-compact` |
-| 41 | `fingerprint` | Lucide `FingerprintPattern` | Lucide fallback |  |  |
-| 42 | `file` | `file` | exact | 16×16 |  |
-| 43 | `fileCode` | `file-code` | exact | 16×16 |  |
-| 44 | `fileImport` | `go-to-file` | substitute | 16×16 |  |
-| 45 | `filePlus` | `new-file` | exact | 16×16 |  |
-| 46 | `fileText` | `file-text` | exact | 16×16 |  |
-| 47 | `fileX` | Lucide `FileX` | Lucide fallback |  |  |
-| 48 | `folder` | `folder` | exact | 16×16 | `folder-compact` |
-| 49 | `folderOpen` | `folder-opened` | exact | 16×16 | `folder-opened-compact` |
-| 50 | `folderPlus` | `new-folder` | exact | 16×16 |  |
-| 51 | `user` | `person` | exact | 16×16 |  |
-| 52 | `users` | `organization` | exact | 16×16 |  |
-| 53 | `crown` | Lucide `Crown` | Lucide fallback |  |  |
-| 54 | `terminal` | `terminal` | exact | 24×24 | `terminal-compact` |
-| 55 | `terminalAlt` | `terminal` | substitute | 24×24 | `terminal-compact` |
-| 56 | `desktop` | `vm` | exact | 16×16 | `vm-compact` |
-| 57 | `globe` | `globe` | exact | 16×16 |  |
-| 58 | `globeWww` | `browser` | substitute | 16×16 |  |
-| 59 | `server` | `server` | exact | 16×16 |  |
-| 60 | `serverAlt` | `server-environment` | exact | 16×16 |  |
-| 61 | `devices` | `multiple-windows` | substitute | 16×16 |  |
-| 62 | `network` | `type-hierarchy` | substitute | 16×16 |  |
-| 63 | `plug` | `plug` | exact | 16×16 |  |
-| 64 | `plugDisconnected` | `debug-disconnect` | substitute | 16×16 | `debug-disconnect-compact` |
-| 65 | `star` | `star-empty` | exact | 16×16 |  |
-| 66 | `starFilled` | `star-full` | exact | 16×16 |  |
-| 67 | `pin` | `pin` | exact | 16×16 |  |
-| 68 | `pinFilled` | `pinned` | exact | 16×16 |  |
-| 69 | `database` | `database` | exact | 16×16 |  |
-| 70 | `history` | `history` | exact | 16×16 |  |
-| 71 | `calendar` | `calendar` | exact | 16×16 |  |
-| 72 | `clock` | `clockface` | exact | 16×16 |  |
-| 73 | `tag` | `tag` | exact | 16×16 |  |
-| 74 | `notes` | `note` | exact | 16×16 |  |
-| 75 | `mail` | `mail` | exact | 16×16 |  |
-| 76 | `message` | `comment` | exact | 16×16 | `comment-compact` |
-| 77 | `messageChatbot` | `comment-discussion-sparkle` | exact | 16×16 |  |
-| 78 | `cloud` | `cloud` | exact | 16×16 | `cloud-compact` |
-| 79 | `cloudOff` | Lucide `CloudOff` | Lucide fallback |  |  |
-| 80 | `cloudDownload` | `cloud-download` | exact | 16×16 | `cloud-download-compact` |
-| 81 | `robot` | `robot` | exact | 16×16 |  |
-| 82 | `sparkles` | `sparkle` | exact | 16×16 | `sparkle-compact` |
-| 83 | `tool` | `tools` | exact | 16×16 |  |
-| 84 | `stack` | `layers` | exact | 16×16 |  |
-| 85 | `bolt` | Lucide `Zap` | Lucide fallback |  |  |
-| 86 | `rocket` | `rocket` | exact | 16×16 | `rocket-compact` |
-| 87 | `playerPlay` | `play` | exact | 16×16 |  |
-| 88 | `playerStop` | `debug-stop` | exact | 16×16 |  |
-| 89 | `playerStopFilled` | `stop-circle` | substitute | 16×16 |  |
-| 90 | `playerSkipForward` | `debug-step-over` | substitute | 16×16 |  |
-| 91 | `keyboard` | `record-keys` | exact | 16×16 | `record-keys-compact` |
-| 92 | `qrcode` | Lucide `QrCode` | Lucide fallback |  |  |
-| 93 | `target` | `target` | exact | 16×16 |  |
-| 94 | `palette` | `symbol-color` | exact | 16×16 | `symbol-color-compact` |
-| 95 | `icons` | `extensions` | substitute | 16×16 |  |
-| 96 | `photo` | `file-media` | exact | 16×16 | `file-media-compact` |
-| 97 | `deviceMobile` | `device-mobile` | exact | 16×16 |  |
-| 98 | `hammer` | `tools` | substitute | 16×16 |  |
-| 99 | `bug` | `bug` | exact | 16×16 |  |
-| 100 | `floppy` | `save` | exact | 16×16 |  |
-| 101 | `bold` | `bold` | exact | 16×16 |  |
-| 102 | `italic` | `italic` | exact | 16×16 |  |
-| 103 | `strikethrough` | `strikethrough` | exact | 16×16 |  |
-| 104 | `heading1` | Lucide `Heading1` | Lucide fallback |  |  |
-| 105 | `heading2` | Lucide `Heading2` | Lucide fallback |  |  |
-| 106 | `link` | `link` | exact | 16×16 |  |
-| 107 | `code` | `code` | exact | 16×16 |  |
-| 108 | `list` | `list-unordered` | exact | 16×16 |  |
-| 109 | `listNumbers` | `list-ordered` | exact | 16×16 |  |
-| 110 | `table` | `table` | exact | 16×16 |  |
-| 111 | `quote` | `quote` | exact | 16×16 |  |
-| 112 | `menu` | `menu` | exact | 16×16 |  |
-| 113 | `panelLeft` | `layout-sidebar-left` | exact | 16×16 |  |
-| 114 | `panelRight` | `layout-sidebar-right` | exact | 16×16 |  |
-| 115 | `splitHorizontal` | `split-horizontal` | exact | 16×16 |  |
-| 116 | `splitVertical` | `split-vertical` | exact | 16×16 |  |
-| 117 | `ellipsis` | `ellipsis` | exact | 16×16 |  |
-| 118 | `collapseAll` | `collapse-all` | exact | 16×16 | `collapse-all-compact` |
-| 119 | `account` | `account` | exact | 16×16 |  |
-| 120 | `explorer` | `files` | exact | 24×24 |  |
-| 121 | `circleFilled` | `circle-filled` | exact | 16×16 | `circle-filled-compact` |
-| 122 | `panelLeftOff` | `layout-sidebar-left-off` | exact | 16×16 |  |
-| 123 | `panelRightOff` | `layout-sidebar-right-off` | exact | 16×16 |  |
+Source `lucide-react@1.48.0` (ISC) [V: every export below is imported by `src/lib/icons/packs/lucide.ts` on `41d9657`, which type-checks]. Rendered with `strokeWidth={1.5}` through `wrapLucide`. "fill" renders the outline glyph with `fill="currentColor"`. "shared dot" is the 8px state dot of 5.4.
 
-### A.2 Lucide
-
-Source `lucide-react@1.48.0` [V: all 123 exports present]. Rendered with `strokeWidth={1.5}`.
-
-| # | Semantic | lucide-react export | Status |
+| # | Semantic | `lucide-react` export | Status |
 |---|---|---|---|
 | 1 | `close` | `X` | exact |
 | 2 | `plus` | `Plus` | exact |
@@ -2752,9 +2362,9 @@ Source `lucide-react@1.48.0` [V: all 123 exports present]. Rendered with `stroke
 | 63 | `plug` | `Plug` | exact |
 | 64 | `plugDisconnected` | `Unplug` | exact |
 | 65 | `star` | `Star` | exact |
-| 66 | `starFilled` | `Star` | exact, render with `fill="currentColor"` |
+| 66 | `starFilled` | `Star` | fill |
 | 67 | `pin` | `Pin` | exact |
-| 68 | `pinFilled` | `Pin` | exact, render with `fill="currentColor"` |
+| 68 | `pinFilled` | `Pin` | fill |
 | 69 | `database` | `Database` | exact |
 | 70 | `history` | `History` | exact |
 | 71 | `calendar` | `Calendar` | exact |
@@ -2775,7 +2385,7 @@ Source `lucide-react@1.48.0` [V: all 123 exports present]. Rendered with `stroke
 | 86 | `rocket` | `Rocket` | exact |
 | 87 | `playerPlay` | `Play` | exact |
 | 88 | `playerStop` | `Square` | exact |
-| 89 | `playerStopFilled` | `Square` | exact, render with `fill="currentColor"` |
+| 89 | `playerStopFilled` | `Square` | fill |
 | 90 | `playerSkipForward` | `SkipForward` | exact |
 | 91 | `keyboard` | `Keyboard` | exact |
 | 92 | `qrcode` | `QrCode` | exact |
@@ -2799,21 +2409,137 @@ Source `lucide-react@1.48.0` [V: all 123 exports present]. Rendered with `stroke
 | 110 | `table` | `Table` | exact |
 | 111 | `quote` | `Quote` | exact |
 | 112 | `menu` | `Menu` | exact |
-| 113 | `panelLeft` | `PanelLeft` | exact |
-| 114 | `panelRight` | `PanelRight` | exact |
-| 115 | `splitHorizontal` | `Columns2` | exact |
-| 116 | `splitVertical` | `Rows2` | exact |
-| 117 | `ellipsis` | `Ellipsis` | exact |
-| 118 | `collapseAll` | `ChevronsDownUp` | exact |
-| 119 | `account` | `CircleUser` | exact |
-| 120 | `explorer` | `Files` | exact |
-| 121 | `circleFilled` | `Circle` | exact, render with `fill="currentColor"` |
-| 122 | `panelLeftOff` | `PanelLeftDashed` | substitute (Lucide has no outlined-pane variant) |
-| 123 | `panelRightOff` | `PanelRightDashed` | substitute |
+| 113 | `splitHorizontal` | `Columns2` | exact |
+| 114 | `splitVertical` | `Rows2` | exact |
+| 115 | `ellipsis` | `Ellipsis` | exact |
+| 116 | `circleFilled` | shared dot | shared dot (was `Circle` filled) |
+
+### A.2 Hugeicons (new)
+
+Source `@hugeicons/core-free-icons@4.3.5` (MIT, free "Stroke Rounded" set, 24px grid). Each glyph is imported from its own subpath (`@hugeicons/core-free-icons/<Export>`) and rendered by `wrapHugeicon` (5.2). [V: all 115 exports exist in the 4.3.5 tarball, none is marked `@deprecated`, and every element and attribute they use (`path`, `circle`, `ellipse`; `d`, `stroke`, `stroke-linecap`, `stroke-linejoin`, `stroke-width`, `cx`, `cy`, `r`, `rx`, `ry`, `transform`, `fill-rule`, `clip-rule`) is on the popup menu sanitizer allowlist (7.1).]
+
+| # | Semantic | `@hugeicons/core-free-icons` export | Status |
+|---|---|---|---|
+| 1 | `close` | `Cancel01Icon` | exact |
+| 2 | `plus` | `Add01Icon` | exact |
+| 3 | `check` | `Tick02Icon` | exact |
+| 4 | `search` | `Search01Icon` | exact |
+| 5 | `trash` | `Delete02Icon` | exact |
+| 6 | `pencil` | `PencilEdit02Icon` | exact |
+| 7 | `copy` | `Copy01Icon` | exact |
+| 8 | `refresh` | `Refresh01Icon` | exact |
+| 9 | `send` | `SentIcon` | exact |
+| 10 | `download` | `Download04Icon` | exact |
+| 11 | `upload` | `Upload04Icon` | exact |
+| 12 | `externalLink` | `LinkSquare02Icon` | exact |
+| 13 | `login` | `Login03Icon` | exact |
+| 14 | `logout` | `Logout03Icon` | exact |
+| 15 | `restore` | `RotateLeft01Icon` | exact |
+| 16 | `settings` | `Settings02Icon` | exact |
+| 17 | `eye` | `ViewIcon` | exact |
+| 18 | `eyeOff` | `ViewOffSlashIcon` | exact |
+| 19 | `home` | `Home01Icon` | exact |
+| 20 | `arrowLeft` | `ArrowLeft02Icon` | exact |
+| 21 | `arrowRight` | `ArrowRight02Icon` | exact |
+| 22 | `arrowUp` | `ArrowUp02Icon` | exact |
+| 23 | `arrowsExchange` | `ArrowDataTransferHorizontalIcon` | exact |
+| 24 | `chevronDown` | `ArrowDown01Icon` | exact |
+| 25 | `chevronLeft` | `ArrowLeft01Icon` | exact |
+| 26 | `chevronRight` | `ArrowRight01Icon` | exact |
+| 27 | `alertCircle` | `AlertCircleIcon` | exact |
+| 28 | `alertTriangle` | `Alert02Icon` | exact |
+| 29 | `infoCircle` | `InformationCircleIcon` | exact |
+| 30 | `circleCheck` | `CheckmarkCircle02Icon` | exact |
+| 31 | `circleX` | `CancelCircleIcon` | exact |
+| 32 | `ban` | `UnavailableIcon` | exact |
+| 33 | `loader` | `Loading03Icon` | exact |
+| 34 | `wifiOff` | `WifiOff01Icon` | exact |
+| 35 | `lock` | `SquareLock02Icon` | exact |
+| 36 | `lockOpen` | `SquareUnlock02Icon` | exact |
+| 37 | `key` | `Key01Icon` | exact |
+| 38 | `shield` | `Shield01Icon` | exact |
+| 39 | `shieldCheck` | `SecurityCheckIcon` | exact |
+| 40 | `shieldLock` | `SecurityLockIcon` | exact |
+| 41 | `fingerprint` | `FingerPrintIcon` | exact |
+| 42 | `file` | `File01Icon` | exact |
+| 43 | `fileCode` | `FileScriptIcon` | exact |
+| 44 | `fileImport` | `FileImportIcon` | exact |
+| 45 | `filePlus` | `FileAddIcon` | exact |
+| 46 | `fileText` | `FileTextIcon` | exact |
+| 47 | `fileX` | `FileRemoveIcon` | exact |
+| 48 | `folder` | `Folder01Icon` | exact |
+| 49 | `folderOpen` | `FolderOpenIcon` | exact |
+| 50 | `folderPlus` | `FolderAddIcon` | exact |
+| 51 | `user` | `UserIcon` | exact |
+| 52 | `users` | `UserMultipleIcon` | exact |
+| 53 | `crown` | `CrownIcon` | exact |
+| 54 | `terminal` | `CommandLineIcon` | exact |
+| 55 | `terminalAlt` | `TerminalIcon` | exact |
+| 56 | `desktop` | `ComputerIcon` | exact |
+| 57 | `globe` | `GlobalIcon` | exact |
+| 58 | `globeWww` | `InternetIcon` | substitute |
+| 59 | `server` | `ServerStack01Icon` | exact |
+| 60 | `serverAlt` | `ServerStack02Icon` | exact |
+| 61 | `devices` | `ComputerPhoneSyncIcon` | substitute |
+| 62 | `network` | `NetworkIcon` | exact |
+| 63 | `plug` | `Plug01Icon` | exact |
+| 64 | `plugDisconnected` | `UnplugIcon` | exact |
+| 65 | `star` | `StarIcon` | exact |
+| 66 | `starFilled` | `StarIcon` | fill |
+| 67 | `pin` | `PinIcon` | exact |
+| 68 | `pinFilled` | `PinIcon` | fill |
+| 69 | `database` | `Database01Icon` | exact |
+| 70 | `history` | `HistoryIcon` | exact |
+| 71 | `calendar` | `Calendar03Icon` | exact |
+| 72 | `clock` | `Clock01Icon` | exact |
+| 73 | `tag` | `Tag01Icon` | exact |
+| 74 | `notes` | `Note01Icon` | exact |
+| 75 | `mail` | `Mail01Icon` | exact |
+| 76 | `message` | `Message01Icon` | exact |
+| 77 | `messageChatbot` | `AiChat02Icon` | exact |
+| 78 | `cloud` | `CloudIcon` | exact |
+| 79 | `cloudOff` | `CloudOffIcon` | exact |
+| 80 | `cloudDownload` | `CloudDownloadIcon` | exact |
+| 81 | `robot` | `RoboticIcon` | exact |
+| 82 | `sparkles` | `SparklesIcon` | exact |
+| 83 | `tool` | `Wrench01Icon` | exact |
+| 84 | `stack` | `Layers01Icon` | exact |
+| 85 | `bolt` | `FlashIcon` | exact |
+| 86 | `rocket` | `Rocket01Icon` | exact |
+| 87 | `playerPlay` | `PlayIcon` | exact |
+| 88 | `playerStop` | `StopIcon` | exact |
+| 89 | `playerStopFilled` | `StopIcon` | fill |
+| 90 | `playerSkipForward` | `NextIcon` | exact |
+| 91 | `keyboard` | `KeyboardIcon` | exact |
+| 92 | `qrcode` | `QrCodeIcon` | exact |
+| 93 | `target` | `Target02Icon` | exact |
+| 94 | `palette` | `PaintBoardIcon` | exact |
+| 95 | `icons` | `ShapesIcon` | exact |
+| 96 | `photo` | `Image01Icon` | exact |
+| 97 | `deviceMobile` | `SmartPhone01Icon` | exact |
+| 98 | `hammer` | `HammerIcon` | exact |
+| 99 | `bug` | `Bug01Icon` | exact |
+| 100 | `floppy` | `FloppyDiskIcon` | exact |
+| 101 | `bold` | `TextBoldIcon` | exact |
+| 102 | `italic` | `TextItalicIcon` | exact |
+| 103 | `strikethrough` | `TextStrikethroughIcon` | exact |
+| 104 | `heading1` | `Heading01Icon` | exact |
+| 105 | `heading2` | `Heading02Icon` | exact |
+| 106 | `link` | `Link01Icon` | exact |
+| 107 | `code` | `SourceCodeIcon` | exact |
+| 108 | `list` | `LeftToRightListBulletIcon` | exact |
+| 109 | `listNumbers` | `LeftToRightListNumberIcon` | exact |
+| 110 | `table` | `Table01Icon` | exact |
+| 111 | `quote` | `QuoteDownIcon` | exact |
+| 112 | `menu` | `Menu01Icon` | exact |
+| 113 | `splitHorizontal` | `Layout2ColumnIcon` | exact |
+| 114 | `splitVertical` | `Layout2RowIcon` | exact |
+| 115 | `ellipsis` | `MoreHorizontalIcon` | exact |
+| 116 | `circleFilled` | shared dot | shared dot |
 
 ### A.3 Material Symbols (Light)
 
-Source `@iconify-json/material-symbols-light@1.2.94` [V: every name resolved]. Outline rounded glyphs; "fill" rows use the filled rounded glyph.
+Source `@iconify-json/material-symbols-light@1.2.94` (Apache-2.0), through the codegen (5.3). Outline rounded glyphs; "fill" rows use the filled rounded glyph. The adapter trims 1.35 viewBox units per side (5.4, salvage of `47a782a`).
 
 | # | Semantic | Iconify name | Kind |
 |---|---|---|---|
@@ -2929,339 +2655,269 @@ Source `@iconify-json/material-symbols-light@1.2.94` [V: every name resolved]. O
 | 110 | `table` | `table-outline-rounded` | exact |
 | 111 | `quote` | `format-quote-outline-rounded` | exact |
 | 112 | `menu` | `menu-outline-rounded` | exact |
-| 113 | `panelLeft` | `left-panel-close-outline-rounded` | exact (shown state; Material names glyphs by action) |
-| 114 | `panelRight` | `right-panel-close-outline-rounded` | exact (shown state) |
-| 115 | `splitHorizontal` | `splitscreen-right-outline-rounded` | exact |
-| 116 | `splitVertical` | `splitscreen-bottom-outline-rounded` | exact |
-| 117 | `ellipsis` | `more-horiz-outline-rounded` | exact |
-| 118 | `collapseAll` | `unfold-less-outline-rounded` | exact |
-| 119 | `account` | `account-circle-outline-rounded` | exact |
-| 120 | `explorer` | `files-outline-rounded` | exact |
-| 121 | `circleFilled` | `circle-rounded` | fill |
-| 122 | `panelLeftOff` | `left-panel-open-outline-rounded` | exact (hidden state) |
-| 123 | `panelRightOff` | `right-panel-open-outline-rounded` | exact (hidden state) |
+| 113 | `splitHorizontal` | `splitscreen-right-outline-rounded` | exact |
+| 114 | `splitVertical` | `splitscreen-bottom-outline-rounded` | exact |
+| 115 | `ellipsis` | `more-horiz-outline-rounded` | exact |
+| 116 | `circleFilled` | shared dot (no codegen row) | shared dot |
 
-### A.4 Tabler, Phosphor and Fluent
+### A.4 Phosphor, Fluent and Tabler (Classic)
 
-Today's mappings from `packs/default.ts`, `packs/macos.ts` and `packs/windows.ts` [V read], unchanged except the new names (5.3) and one Phosphor fix. Phosphor entries marked "(fill)" use `weight="fill"`.
+Today's mappings from `packs/phosphor.ts`, `packs/fluent.ts` and `packs/tabler.ts` on `41d9657` [V read], minus the seven retired names, with `circleFilled` moved to the shared dot. Phosphor entries marked "(fill)" use `weight="fill"`.
 
-| # | Semantic | Tabler (`@tabler/icons-react`) | Phosphor (`@phosphor-icons/react`) | Fluent (`@fluentui/react-icons`) |
+| # | Semantic | Phosphor (`@phosphor-icons/react`) | Fluent (`@fluentui/react-icons`) | Tabler (`@tabler/icons-react`) |
 |---|---|---|---|---|
-| 1 | `close` | `IconX` | `X` | `DismissRegular` |
-| 2 | `plus` | `IconPlus` | `Plus` | `AddRegular` |
-| 3 | `check` | `IconCheck` | `Check` | `CheckmarkRegular` |
-| 4 | `search` | `IconSearch` | `MagnifyingGlass` | `SearchRegular` |
-| 5 | `trash` | `IconTrash` | `Trash` | `DeleteRegular` |
-| 6 | `pencil` | `IconPencil` | `PencilSimple` | `EditRegular` |
-| 7 | `copy` | `IconCopy` | `Copy` | `CopyRegular` |
-| 8 | `refresh` | `IconRefresh` | `ArrowsClockwise` | `ArrowSyncRegular` |
-| 9 | `send` | `IconSend` | `PaperPlaneRight` | `SendRegular` |
-| 10 | `download` | `IconDownload` | `DownloadSimple` | `ArrowDownloadRegular` |
-| 11 | `upload` | `IconUpload` | `UploadSimple` | `ArrowUploadRegular` |
-| 12 | `externalLink` | `IconExternalLink` | `ArrowSquareOut` | `OpenRegular` |
-| 13 | `login` | `IconLogin` | `SignIn` | `PersonArrowRightRegular` |
-| 14 | `logout` | `IconLogout` | `SignOut` | `PersonArrowLeftRegular` |
-| 15 | `restore` | `IconRestore` | `ClockCounterClockwise` | `HistoryRegular` |
-| 16 | `settings` | `IconSettings` | `Gear` | `SettingsRegular` |
-| 17 | `eye` | `IconEye` | `Eye` | `EyeRegular` |
-| 18 | `eyeOff` | `IconEyeOff` | `EyeSlash` | `EyeOffRegular` |
-| 19 | `home` | `IconHome` | `House` | `HomeRegular` |
-| 20 | `arrowLeft` | `IconArrowLeft` | `ArrowLeft` | `ArrowLeftRegular` |
-| 21 | `arrowRight` | `IconArrowRight` | `ArrowRight` | `ArrowRightRegular` |
-| 22 | `arrowUp` | `IconArrowUp` | `ArrowUp` | `ArrowUpRegular` |
-| 23 | `arrowsExchange` | `IconArrowsExchange` | `ArrowsLeftRight` | `ArrowSwapRegular` |
-| 24 | `chevronDown` | `IconChevronDown` | `CaretDown` | `ChevronDownRegular` |
-| 25 | `chevronLeft` | `IconChevronLeft` | `CaretLeft` | `ChevronLeftRegular` |
-| 26 | `chevronRight` | `IconChevronRight` | `CaretRight` | `ChevronRightRegular` |
-| 27 | `alertCircle` | `IconAlertCircle` | `WarningCircle` | `ErrorCircleRegular` |
-| 28 | `alertTriangle` | `IconAlertTriangle` | `Warning` | `WarningRegular` |
-| 29 | `infoCircle` | `IconInfoCircle` | `Info` | `InfoRegular` |
-| 30 | `circleCheck` | `IconCircleCheck` | `CheckCircle` | `CheckmarkCircleRegular` |
-| 31 | `circleX` | `IconCircleX` | `XCircle` | `DismissCircleRegular` |
-| 32 | `ban` | `IconBan` | `Prohibit` | `ProhibitedRegular` |
-| 33 | `loader` | `IconLoader2` | `SpinnerGap` | `SpinnerIosRegular` |
-| 34 | `wifiOff` | `IconWifiOff` | `WifiSlash` | `WifiOffRegular` |
-| 35 | `lock` | `IconLock` | `Lock` | `LockClosedRegular` |
-| 36 | `lockOpen` | `IconLockOpen` | `LockOpen` | `LockOpenRegular` |
-| 37 | `key` | `IconKey` | `Key` | `KeyRegular` |
-| 38 | `shield` | `IconShield` | `Shield` | `ShieldRegular` |
-| 39 | `shieldCheck` | `IconShieldCheck` | `ShieldCheck` | `ShieldCheckmarkRegular` |
-| 40 | `shieldLock` | `IconShieldLock` | `ShieldWarning` | `ShieldLockRegular` |
-| 41 | `fingerprint` | `IconFingerprint` | `Fingerprint` | `FingerprintRegular` |
-| 42 | `file` | `IconFile` | `File` | `DocumentRegular` |
-| 43 | `fileCode` | `IconFileCode` | `FileCode` | `DocumentCode16Regular` |
-| 44 | `fileImport` | `IconFileImport` | `FileArrowDown` | `DocumentArrowDownRegular` |
-| 45 | `filePlus` | `IconFilePlus` | `FilePlus` | `DocumentAddRegular` |
-| 46 | `fileText` | `IconFileText` | `FileText` | `DocumentTextRegular` |
-| 47 | `fileX` | `IconFileX` | `FileX` | `DocumentDismissRegular` |
-| 48 | `folder` | `IconFolder` | `Folder` | `FolderRegular` |
-| 49 | `folderOpen` | `IconFolderOpen` | `FolderOpen` | `FolderOpenRegular` |
-| 50 | `folderPlus` | `IconFolderPlus` | `FolderPlus` | `FolderAddRegular` |
-| 51 | `user` | `IconUser` | `User` | `PersonRegular` |
-| 52 | `users` | `IconUsers` | `Users` | `PeopleRegular` |
-| 53 | `crown` | `IconCrown` | `Crown` | `CrownIcon` |
-| 54 | `terminal` | `IconTerminal2` | `TerminalWindow` | `WindowConsoleRegular` |
-| 55 | `terminalAlt` | `IconTerminal` | `Terminal` | `WindowConsoleRegular` |
-| 56 | `desktop` | `IconDeviceDesktop` | `Desktop` | `DesktopRegular` |
-| 57 | `globe` | `IconWorld` | `Globe` | `GlobeRegular` |
-| 58 | `globeWww` | `IconWorldWww` | `GlobeSimple` | `GlobeRegular` |
-| 59 | `server` | `IconServer` | `HardDrive` | `ServerRegular` |
-| 60 | `serverAlt` | `IconServer2` | `HardDrives` | `ServerRegular` |
-| 61 | `devices` | `IconDevices` | `DeviceMobile` | `PhoneDesktopRegular` |
-| 62 | `network` | `IconNetwork` | `TreeStructure` | `BranchRegular` |
-| 63 | `plug` | `IconPlug` | `Plug` | `PlugConnectedRegular` |
-| 64 | `plugDisconnected` | `IconPlugConnectedX` | `PlugsConnected` | `PlugDisconnectedRegular` |
-| 65 | `star` | `IconStar` | `Star` | `StarRegular` |
-| 66 | `starFilled` | `IconStarFilled` | `Star (fill)` | `StarFilled` |
-| 67 | `pin` | `IconPin` | `PushPin` | `PinRegular` |
-| 68 | `pinFilled` | `IconPinFilled` | `PushPin (fill)` | `PinFilled` |
-| 69 | `database` | `IconDatabase` | `Database` | `DatabaseRegular` |
-| 70 | `history` | `IconHistory` | `ClockClockwise` | `HistoryRegular` |
-| 71 | `calendar` | `IconCalendar` | `Calendar` | `CalendarRegular` |
-| 72 | `clock` | `IconClock` | `Clock` | `ClockRegular` |
-| 73 | `tag` | `IconTag` | `Tag` | `TagRegular` |
-| 74 | `notes` | `IconNotes` | `Notepad` | `NoteRegular` |
-| 75 | `mail` | `IconMail` | `Envelope` | `MailRegular` |
-| 76 | `message` | `IconMessage` | `ChatCircle` | `ChatRegular` |
-| 77 | `messageChatbot` | `IconMessageChatbot` | `ChatCircleDots` | `ChatMultipleRegular` |
-| 78 | `cloud` | `IconCloud` | `Cloud` | `CloudRegular` |
-| 79 | `cloudOff` | `IconCloudOff` | `CloudSlash` | `CloudOffRegular` |
-| 80 | `cloudDownload` | `IconCloudDownload` | `CloudArrowDown` | `CloudArrowDownRegular` |
-| 81 | `robot` | `IconRobot` | `Robot` | `BotRegular` |
-| 82 | `sparkles` | `IconSparkles` | `Sparkle` | `SparkleRegular` |
-| 83 | `tool` | `IconTool` | `Wrench` | `WrenchRegular` |
-| 84 | `stack` | `IconStack2` | `Stack` | `StackRegular` |
-| 85 | `bolt` | `IconBolt` | `Lightning` | `FlashRegular` |
-| 86 | `rocket` | `IconRocket` | `Rocket` | `RocketRegular` |
-| 87 | `playerPlay` | `IconPlayerPlay` | `Play` | `PlayRegular` |
-| 88 | `playerStop` | `IconPlayerStop` | `Stop` | `StopRegular` |
-| 89 | `playerStopFilled` | `IconPlayerStopFilled` | `Stop` (fill), fixed; today regular | `StopFilled` |
-| 90 | `playerSkipForward` | `IconPlayerSkipForward` | `SkipForward` | `NextRegular` |
-| 91 | `keyboard` | `IconKeyboard` | `Keyboard` | `KeyboardRegular` |
-| 92 | `qrcode` | `IconQrcode` | `QrCode` | `QrCodeRegular` |
-| 93 | `target` | `IconTarget` | `Crosshair` | `TargetRegular` |
-| 94 | `palette` | `IconPalette` | `Palette` | `ColorRegular` |
-| 95 | `icons` | `IconIcons` | `GridFour` | `GridRegular` |
-| 96 | `photo` | `IconPhoto` | `Image` | `ImageRegular` |
-| 97 | `deviceMobile` | `IconDeviceMobile` | `DeviceMobile` | `PhoneRegular` |
-| 98 | `hammer` | `IconHammer` | `Hammer` | `WrenchScrewdriverRegular` |
-| 99 | `bug` | `IconBug` | `Bug` | `BugRegular` |
-| 100 | `floppy` | `IconDeviceFloppy` | `FloppyDisk` | `SaveRegular` |
-| 101 | `bold` | `IconBold` | `TextB` | `TextBoldRegular` |
-| 102 | `italic` | `IconItalic` | `TextItalic` | `TextItalicRegular` |
-| 103 | `strikethrough` | `IconStrikethrough` | `TextStrikethrough` | `TextStrikethroughRegular` |
-| 104 | `heading1` | `IconH1` | `TextHOne` | `TextHeader1Regular` |
-| 105 | `heading2` | `IconH2` | `TextHTwo` | `TextHeader2Regular` |
-| 106 | `link` | `IconLink` | `Link` | `LinkRegular` |
-| 107 | `code` | `IconCode` | `Code` | `CodeRegular` |
-| 108 | `list` | `IconList` | `ListBullets` | `TextBulletListRegular` |
-| 109 | `listNumbers` | `IconListNumbers` | `ListNumbers` | `TextNumberListLtrRegular` |
-| 110 | `table` | `IconTable` | `Table` | `TableRegular` |
-| 111 | `quote` | `IconQuote` | `Quotes` | `TextQuoteRegular` |
-| 112 | `menu` | `IconMenu2` | `List` | `NavigationRegular` |
-| 113 | `panelLeft` | `IconLayoutSidebar` | `SidebarSimple (fill)` | `PanelLeftFilled` |
-| 114 | `panelRight` | `IconLayoutSidebarRight` | `SidebarSimple (fill, mirrored)` | `PanelRightFilled` |
-| 115 | `splitHorizontal` | `IconLayoutColumns` | `SquareSplitHorizontal` | `SplitVerticalRegular` |
-| 116 | `splitVertical` | `IconLayoutRows` | `SquareSplitVertical` | `SplitHorizontalRegular` |
-| 117 | `ellipsis` | `IconDots` | `DotsThree` | `MoreHorizontalRegular` |
-| 118 | `collapseAll` | `IconFold` | `ArrowsInLineVertical` | `ArrowMinimizeVerticalRegular` |
-| 119 | `account` | `IconUserCircle` | `UserCircle` | `PersonCircleRegular` |
-| 120 | `explorer` | `IconFiles` | `Files` | `DocumentMultipleRegular` |
-| 121 | `circleFilled` | `IconCircleFilled` | `Circle (fill)` | `CircleFilled` |
-| 122 | `panelLeftOff` | `IconLayoutSidebarInactive` | `SidebarSimple` | `PanelLeftRegular` |
-| 123 | `panelRightOff` | `IconLayoutSidebarRightInactive` | `SidebarSimple (mirrored)` | `PanelRightRegular` |
+| 1 | `close` | `X` | `DismissRegular` | `IconX` |
+| 2 | `plus` | `Plus` | `AddRegular` | `IconPlus` |
+| 3 | `check` | `Check` | `CheckmarkRegular` | `IconCheck` |
+| 4 | `search` | `MagnifyingGlass` | `SearchRegular` | `IconSearch` |
+| 5 | `trash` | `Trash` | `DeleteRegular` | `IconTrash` |
+| 6 | `pencil` | `PencilSimple` | `EditRegular` | `IconPencil` |
+| 7 | `copy` | `Copy` | `CopyRegular` | `IconCopy` |
+| 8 | `refresh` | `ArrowsClockwise` | `ArrowSyncRegular` | `IconRefresh` |
+| 9 | `send` | `PaperPlaneRight` | `SendRegular` | `IconSend` |
+| 10 | `download` | `DownloadSimple` | `ArrowDownloadRegular` | `IconDownload` |
+| 11 | `upload` | `UploadSimple` | `ArrowUploadRegular` | `IconUpload` |
+| 12 | `externalLink` | `ArrowSquareOut` | `OpenRegular` | `IconExternalLink` |
+| 13 | `login` | `SignIn` | `PersonArrowRightRegular` | `IconLogin` |
+| 14 | `logout` | `SignOut` | `PersonArrowLeftRegular` | `IconLogout` |
+| 15 | `restore` | `ClockCounterClockwise` | `HistoryRegular` | `IconRestore` |
+| 16 | `settings` | `Gear` | `SettingsRegular` | `IconSettings` |
+| 17 | `eye` | `Eye` | `EyeRegular` | `IconEye` |
+| 18 | `eyeOff` | `EyeSlash` | `EyeOffRegular` | `IconEyeOff` |
+| 19 | `home` | `House` | `HomeRegular` | `IconHome` |
+| 20 | `arrowLeft` | `ArrowLeft` | `ArrowLeftRegular` | `IconArrowLeft` |
+| 21 | `arrowRight` | `ArrowRight` | `ArrowRightRegular` | `IconArrowRight` |
+| 22 | `arrowUp` | `ArrowUp` | `ArrowUpRegular` | `IconArrowUp` |
+| 23 | `arrowsExchange` | `ArrowsLeftRight` | `ArrowSwapRegular` | `IconArrowsExchange` |
+| 24 | `chevronDown` | `CaretDown` | `ChevronDownRegular` | `IconChevronDown` |
+| 25 | `chevronLeft` | `CaretLeft` | `ChevronLeftRegular` | `IconChevronLeft` |
+| 26 | `chevronRight` | `CaretRight` | `ChevronRightRegular` | `IconChevronRight` |
+| 27 | `alertCircle` | `WarningCircle` | `ErrorCircleRegular` | `IconAlertCircle` |
+| 28 | `alertTriangle` | `Warning` | `WarningRegular` | `IconAlertTriangle` |
+| 29 | `infoCircle` | `Info` | `InfoRegular` | `IconInfoCircle` |
+| 30 | `circleCheck` | `CheckCircle` | `CheckmarkCircleRegular` | `IconCircleCheck` |
+| 31 | `circleX` | `XCircle` | `DismissCircleRegular` | `IconCircleX` |
+| 32 | `ban` | `Prohibit` | `ProhibitedRegular` | `IconBan` |
+| 33 | `loader` | `SpinnerGap` | `SpinnerIosRegular` | `IconLoader2` |
+| 34 | `wifiOff` | `WifiSlash` | `WifiOffRegular` | `IconWifiOff` |
+| 35 | `lock` | `Lock` | `LockClosedRegular` | `IconLock` |
+| 36 | `lockOpen` | `LockOpen` | `LockOpenRegular` | `IconLockOpen` |
+| 37 | `key` | `Key` | `KeyRegular` | `IconKey` |
+| 38 | `shield` | `Shield` | `ShieldRegular` | `IconShield` |
+| 39 | `shieldCheck` | `ShieldCheck` | `ShieldCheckmarkRegular` | `IconShieldCheck` |
+| 40 | `shieldLock` | `ShieldWarning` | `ShieldLockRegular` | `IconShieldLock` |
+| 41 | `fingerprint` | `Fingerprint` | `FingerprintRegular` | `IconFingerprint` |
+| 42 | `file` | `File` | `DocumentRegular` | `IconFile` |
+| 43 | `fileCode` | `FileCode` | `DocumentCode16Regular` | `IconFileCode` |
+| 44 | `fileImport` | `FileArrowDown` | `DocumentArrowDownRegular` | `IconFileImport` |
+| 45 | `filePlus` | `FilePlus` | `DocumentAddRegular` | `IconFilePlus` |
+| 46 | `fileText` | `FileText` | `DocumentTextRegular` | `IconFileText` |
+| 47 | `fileX` | `FileX` | `DocumentDismissRegular` | `IconFileX` |
+| 48 | `folder` | `Folder` | `FolderRegular` | `IconFolder` |
+| 49 | `folderOpen` | `FolderOpen` | `FolderOpenRegular` | `IconFolderOpen` |
+| 50 | `folderPlus` | `FolderPlus` | `FolderAddRegular` | `IconFolderPlus` |
+| 51 | `user` | `User` | `PersonRegular` | `IconUser` |
+| 52 | `users` | `Users` | `PeopleRegular` | `IconUsers` |
+| 53 | `crown` | `Crown` | `CrownIcon` | `IconCrown` |
+| 54 | `terminal` | `TerminalWindow` | `WindowConsoleRegular` | `IconTerminal2` |
+| 55 | `terminalAlt` | `Terminal` | `WindowConsoleRegular` | `IconTerminal` |
+| 56 | `desktop` | `Desktop` | `DesktopRegular` | `IconDeviceDesktop` |
+| 57 | `globe` | `Globe` | `GlobeRegular` | `IconWorld` |
+| 58 | `globeWww` | `GlobeSimple` | `GlobeRegular` | `IconWorldWww` |
+| 59 | `server` | `HardDrive` | `ServerRegular` | `IconServer` |
+| 60 | `serverAlt` | `HardDrives` | `ServerRegular` | `IconServer2` |
+| 61 | `devices` | `DeviceMobile` | `PhoneDesktopRegular` | `IconDevices` |
+| 62 | `network` | `TreeStructure` | `BranchRegular` | `IconNetwork` |
+| 63 | `plug` | `Plug` | `PlugConnectedRegular` | `IconPlug` |
+| 64 | `plugDisconnected` | `PlugsConnected` | `PlugDisconnectedRegular` | `IconPlugConnectedX` |
+| 65 | `star` | `Star` | `StarRegular` | `IconStar` |
+| 66 | `starFilled` | `Star` (fill) | `StarFilled` | `IconStarFilled` |
+| 67 | `pin` | `PushPin` | `PinRegular` | `IconPin` |
+| 68 | `pinFilled` | `PushPin` (fill) | `PinFilled` | `IconPinFilled` |
+| 69 | `database` | `Database` | `DatabaseRegular` | `IconDatabase` |
+| 70 | `history` | `ClockClockwise` | `HistoryRegular` | `IconHistory` |
+| 71 | `calendar` | `Calendar` | `CalendarRegular` | `IconCalendar` |
+| 72 | `clock` | `Clock` | `ClockRegular` | `IconClock` |
+| 73 | `tag` | `Tag` | `TagRegular` | `IconTag` |
+| 74 | `notes` | `Notepad` | `NoteRegular` | `IconNotes` |
+| 75 | `mail` | `Envelope` | `MailRegular` | `IconMail` |
+| 76 | `message` | `ChatCircle` | `ChatRegular` | `IconMessage` |
+| 77 | `messageChatbot` | `ChatCircleDots` | `ChatMultipleRegular` | `IconMessageChatbot` |
+| 78 | `cloud` | `Cloud` | `CloudRegular` | `IconCloud` |
+| 79 | `cloudOff` | `CloudSlash` | `CloudOffRegular` | `IconCloudOff` |
+| 80 | `cloudDownload` | `CloudArrowDown` | `CloudArrowDownRegular` | `IconCloudDownload` |
+| 81 | `robot` | `Robot` | `BotRegular` | `IconRobot` |
+| 82 | `sparkles` | `Sparkle` | `SparkleRegular` | `IconSparkles` |
+| 83 | `tool` | `Wrench` | `WrenchRegular` | `IconTool` |
+| 84 | `stack` | `Stack` | `StackRegular` | `IconStack2` |
+| 85 | `bolt` | `Lightning` | `FlashRegular` | `IconBolt` |
+| 86 | `rocket` | `Rocket` | `RocketRegular` | `IconRocket` |
+| 87 | `playerPlay` | `Play` | `PlayRegular` | `IconPlayerPlay` |
+| 88 | `playerStop` | `Stop` | `StopRegular` | `IconPlayerStop` |
+| 89 | `playerStopFilled` | `Stop` (fill) | `StopFilled` | `IconPlayerStopFilled` |
+| 90 | `playerSkipForward` | `SkipForward` | `NextRegular` | `IconPlayerSkipForward` |
+| 91 | `keyboard` | `Keyboard` | `KeyboardRegular` | `IconKeyboard` |
+| 92 | `qrcode` | `QrCode` | `QrCodeRegular` | `IconQrcode` |
+| 93 | `target` | `Crosshair` | `TargetRegular` | `IconTarget` |
+| 94 | `palette` | `Palette` | `ColorRegular` | `IconPalette` |
+| 95 | `icons` | `GridFour` | `GridRegular` | `IconIcons` |
+| 96 | `photo` | `Image` | `ImageRegular` | `IconPhoto` |
+| 97 | `deviceMobile` | `DeviceMobile` | `PhoneRegular` | `IconDeviceMobile` |
+| 98 | `hammer` | `Hammer` | `WrenchScrewdriverRegular` | `IconHammer` |
+| 99 | `bug` | `Bug` | `BugRegular` | `IconBug` |
+| 100 | `floppy` | `FloppyDisk` | `SaveRegular` | `IconDeviceFloppy` |
+| 101 | `bold` | `TextB` | `TextBoldRegular` | `IconBold` |
+| 102 | `italic` | `TextItalic` | `TextItalicRegular` | `IconItalic` |
+| 103 | `strikethrough` | `TextStrikethrough` | `TextStrikethroughRegular` | `IconStrikethrough` |
+| 104 | `heading1` | `TextHOne` | `TextHeader1Regular` | `IconH1` |
+| 105 | `heading2` | `TextHTwo` | `TextHeader2Regular` | `IconH2` |
+| 106 | `link` | `Link` | `LinkRegular` | `IconLink` |
+| 107 | `code` | `Code` | `CodeRegular` | `IconCode` |
+| 108 | `list` | `ListBullets` | `TextBulletListRegular` | `IconList` |
+| 109 | `listNumbers` | `ListNumbers` | `TextNumberListLtrRegular` | `IconListNumbers` |
+| 110 | `table` | `Table` | `TableRegular` | `IconTable` |
+| 111 | `quote` | `Quotes` | `TextQuoteRegular` | `IconQuote` |
+| 112 | `menu` | `List` | `NavigationRegular` | `IconMenu2` |
+| 113 | `splitHorizontal` | `SquareSplitHorizontal` | `SplitVerticalRegular` | `IconLayoutColumns` |
+| 114 | `splitVertical` | `SquareSplitVertical` | `SplitHorizontalRegular` | `IconLayoutRows` |
+| 115 | `ellipsis` | `DotsThree` | `MoreHorizontalRegular` | `IconDots` |
+| 116 | `circleFilled` | shared dot | shared dot | shared dot |
 
 ---
 
 ## Appendix B. Harness hook contract
 
-"Union (wave 1)" lists the two alternatives W1-HARNESS's scope-level `pickSelector` chooses between: the hook if any element in the scope carries it, else the legacy selector (8.2). The pair is never handed to `querySelector` or `closest()` as one comma list. "Final" is what W4-HARNESS keeps. "Hook added by" is the package that owns the markup when the hook lands. `ROOT` is `[data-cv-settings]`. Harness paths are under `scripts/verify/`.
+"Union (wave 1)" lists the two alternatives `pickSelector` chooses between (the hook if any element in the scope carries it, else the legacy selector); they are never joined into one comma list. "Final" is what R4-HARNESS keeps. "Hook added by" is the package that owns the markup when the hook lands. `ROOT` is `[data-cv-settings]`. Harness paths are under `scripts/verify/`.
 
 | # | Harness use | Today | Markup today | Hook added by | Union (wave 1) | Final (wave 4) |
 |---|---|---|---|---|---|---|
-| B1 | Settings root (`lib/settings-flows.mjs:16-21`, used by `backup-flows.mjs`) | finds `[data-dialog-content]` whose `h2` is `Settings` and sets `data-cv-settings` | `SettingsDialog.tsx:189-192` | `data-cv-settings` on the panel (W3-SETTINGS) | mark function returns early when `[data-cv-settings]` exists | `[data-cv-settings]` |
-| B2 | Settings nav (`settings-flows.mjs:48`, `backup-flows.mjs:29`) | `ROOT .w-52 button` | `SettingsNav.tsx:71` | `data-cv-settings-nav` (W3-SETTINGS; the `w-52` class stays until wave 4) | `ROOT .w-52 button, ROOT [data-cv-settings-nav] button` | `ROOT [data-cv-settings-nav] button` |
-| B3 | Save and Cancel (`settings-flows.mjs:52`) | `ROOT > div:last-child button` | `SettingsDialog.tsx:217-232` | `data-cv-dialog-footer` (W1-PRIMITIVES `Dialog`, used by W3-SETTINGS) | `ROOT > div:last-child button, ROOT [data-cv-dialog-footer] button` | `ROOT [data-cv-dialog-footer] button` |
-| B4 | Sync tab status (`settings-flows.mjs:73-75`) | `.bg-well.border`, `p.font-medium`, `p.text-xs` | `SyncTab.tsx:48-50` | `data-cv-sync-status`, `-label`, `-detail` (W3-SETTINGS) | `pickSelector` hook, else legacy | hooks |
-| B5 | Devices (`settings-flows.mjs:77-79`) | `.divide-y > div`, `p.text-sm`, `p.text-xs` | `SyncDevicesList.tsx:35-46` | `data-cv-device-row`, `data-cv-device-name`, `data-cv-device-line` (W3-SYNC) | `.divide-y > div, [data-cv-device-row]` and the same for name and line | hooks |
-| B6 | Sync notices (`settings-flows.mjs:81-84,119`) | `.bg-amber-500\/10` | `SyncNoticeList.tsx:30` | `data-cv-sync-notice` (W3-SYNC) | `.bg-amber-500\/10, [data-cv-sync-notice]` | hook |
-| B7 | Paused note (`settings-flows.mjs:85`) | `p.text-amber-400` | `SyncTab.tsx:91` | `data-cv-sync-paused` (W3-SETTINGS) | `p.text-amber-400, [data-cv-sync-paused]` | hook |
-| B8 | Inline errors (`flows.mjs:97`, `password-flows.mjs:10`, `settings-flows.mjs:144-145`, `sync-dialogs.mjs:55`) | `[data-dialog-content] .text-red-400`, `p.text-red-400` | `UnlockDialog`, `ChangePasswordDialog`, `InlineError` (`PasswordFields.tsx:40-47`) | `data-cv-error` on the error `<p>` (W1-PRIMITIVES `Callout`/`FormField`; applied by W3-VAULT and W3-SYNC) | `… p.text-red-400, [data-dialog-content] [data-cv-error]` | `[data-dialog-content] [data-cv-error]` |
-| B9 | Sync dialogs (`flows.mjs:43-48`, `sync-flows.mjs:16-22`) | `[role=dialog]` | `SyncDialogFrame.tsx:53-55`, `ConflictReviewPanel.tsx:89-91` | `Dialog harnessLabel` (W1-PRIMITIVES) | `[role=dialog][aria-label]` (8.3) | same |
-| B10 | Scoped sync clicks (`sync-flows.mjs:72,88,98`) | `[role=dialog] button` | sync dialogs | none | `[role=dialog][aria-label] button` | same |
-| B11 | Review rows (`sync-flows.mjs:134-138`, `suites/mcp.mjs:227-231`) | `button.closest('.rounded-md')`, `row.querySelector('span')`, `.font-mono` | `ConflictFieldRow.tsx:62-67,156-158`, `ConflictItemView.tsx:70` | `data-cv-review-field`, `data-cv-review-field-label`, `data-cv-review-value` (W3-SYNC) | `.rounded-md, [data-cv-review-field]`; label `[data-cv-review-field-label], span`; value `[data-cv-review-value], .font-mono` | hooks |
-| B12 | Close review (`sync-flows.mjs:171`) | `… button[aria-label="Close"]` | `ConflictReviewPanel.tsx:103` | the `Dialog` close keeps `aria-label="Close"` | unchanged | unchanged |
-| B13 | Open review (`flows.mjs:180-181`) | `button[title="Review changes from your other devices"]` | `PersonalSyncIndicator.tsx:55-61` → status bar | `title` kept + `data-cv-review-button` (W2-STATUSBAR) | `button[title="Review changes from your other devices"], [data-cv-review-button]` | hook |
-| B14 | Review banner (`flows.mjs:183-186`) | page text `/need(s)? review/`, then `button` exactly `Review` | `SyncBanner` | none; the banner keeps its text and its `Review` button | unchanged | unchanged |
-| B15 | Banners (`ui-forms.mjs:83-85,97-101`) | `[role=status]`, `span.flex-1`, `button` | `SyncBanner.tsx:30-45` | `role="status"` + `span.flex-1` kept, `data-cv-banner-text` added (W2-WORKBENCH) | `span.flex-1, [data-cv-banner-text]` | `[data-cv-banner-text]` |
-| B16 | Open the side bar (`team-flows.mjs:39-40`) | `button[title="Open sidebar (Ctrl+B)"]`, then wait for `button[title="Close sidebar (Ctrl+B)"]` | `PaneTabBar.tsx:350`, `SidebarWindowControls.tsx:30` | activity bar Vault item `data-cv-sidebar-toggle` + `aria-expanded` (W2-ACTIVITYBAR, same titles kept); panel `data-sidebar-panel` exists (`SidebarPanel.tsx:41`) | click `[data-cv-sidebar-toggle][aria-expanded="false"]` or the old title; wait for `[data-sidebar-panel]` or the old close title | hooks |
-| B17 | Vault menu (`team-flows.mjs:46`) | `clickText(vaultName, {selector: 'button[title]'})` | `Sidebar.tsx:311-323` | `data-cv-vault-switcher` (W2-SIDEBAR) | `pickSelector('[data-cv-vault-switcher]', 'button[title]')` | `[data-cv-vault-switcher]` |
-| B18 | Recently deleted rows (`sync-panels.mjs:28-30`) | `.max-h-80 label`, `p.text-sm`, `p.text-xs` | `RecentlyDeletedPanel.tsx:17-21,124` | `data-cv-deleted-list`, `data-cv-row-title`, `data-cv-row-detail` (W3-SYNC) | `.max-h-80 label, [data-cv-deleted-list] label`; title and detail unions | hooks |
-| B19 | Stacked confirm (`sync-panels.mjs:78,82`) | `[data-dialog-content] h2` text; `.z-\[70\] [data-dialog-content] button` | `RecentlyDeletedPanel.tsx:130-131` + `ConfirmDialog` | `data-cv-layer="stacked"` (W1-PRIMITIVES; applied by W3-SYNC) | `.z-\[70\] [data-dialog-content] button, [data-cv-layer="stacked"] [data-dialog-content] button` | hook |
-| B20 | Other copies (`sync-panels.mjs:98-101,134`) | `.border-b` rows, `p.text-sm` (+ `title`), `p.text-xs`, `.closest('.flex.items-start')` | `OtherCopiesPanel.tsx:48-52` | `data-cv-copy-row`, `data-cv-row-title` (keeps `title` = path), `data-cv-row-detail` (W3-SYNC) | unions of each | hooks |
-| B21 | Mass change (`sync-panels.mjs:191-193`) | `label span.text-ink` | `MassChangeNotice.tsx:119,129` | `data-cv-row-title` (W3-SYNC) | `span.text-ink, [data-cv-row-title]` | hook |
-| B22 | Backup toggles (`backup-flows.mjs:13-19,113`) | label → `.closest('.justify-between')` → `:scope > button` | `BackupTab.tsx:68,251` | `data-cv-toggle-row` on the row; the toggle is the `Switch`, with the markup rules in B39 (W3-SETTINGS) | `.justify-between, [data-cv-toggle-row]` | hook |
-| B23 | Backup files (`backup-flows.mjs:76-78`) | `.border-b` rows, `span.block`, `span.text-\[10px\]` | `BackupTab.tsx:189-196` | `data-cv-backup-row`, `data-cv-backup-name`, `data-cv-backup-meta` (W3-SETTINGS) | unions of each | hooks |
-| B24 | Cloud backup (`backup-flows.mjs:110-116`) | `label` → `.closest('.space-y-3')`, badge `span` | `BackupTab.tsx:250-260` | `data-cv-cloud-backup-section` (W3-SETTINGS) | `.space-y-3, [data-cv-cloud-backup-section]` | hook |
-| B25 | Backup Manager (`backup-flows.mjs:180-184`) | `[data-dialog-content]` with `h2` `Backup Manager` → sets `data-cv-backup-manager` | `BackupManagerDialog` | `data-cv-backup-manager` on the panel (W3-VAULT) | mark function returns early when the hook exists | hook |
-| B26 | Recent vaults (`suites/lifecycle.mjs:184-186`) | `button[title$=".conduit"]`, `button[title="{path}"]` | `VaultHub` recent rows | `title` = path kept (W3-VAULT) | unchanged | unchanged |
-| B27 | Screen detection (`flows.mjs:30-35`) | body text `Loading...`, hub text, auth text | `App.tsx:962-971`, `VaultHub`, `AuthScreen` | the minimal title bar adds no text (W2-TITLEBAR) | unchanged | unchanged |
-| B28 | Idle lock (`settings-flows.mjs:11`, `suites/lifecycle.mjs:276`) | `select[aria-label="Lock the vault when idle"]` | `IdleLockSetting.tsx:47` | `Select` keeps `aria-label` (W3-SYNC) | unchanged | unchanged |
-| B29 | Labeled fields and checkboxes (`ui-forms.mjs:28-38,61-69`) | `label` + first `span` + inner control; `label` + `input[type=checkbox]` | `PasswordFields.tsx:16-37`, checkbox rows | `FormField` and `Checkbox` structure (W1-PRIMITIVES) | unchanged | unchanged |
-| B30 | Password and name inputs (`flows.mjs:24-25`, `lifecycle-flows.mjs:10-11`, `settings-flows.mjs:136-138`, `password-flows.mjs:9`, `backup-flows.mjs:200`) | `input[placeholder=…]` for exactly: `Enter master password`, `Confirm master password`, `Enter new vault name`, `Enter current password`, `Enter new password`, `Confirm new password`, `Master password` | `UnlockDialog`, `ChangePasswordDialog`, the rename dialog, `BackupManagerDialog` | placeholders kept verbatim (W3-VAULT, W3-SETTINGS) | unchanged | unchanged |
-| B31 | Form submit (`flows.mjs:26`, `lifecycle-flows.mjs:12`, `sync-flows.mjs:13`, `settings-flows.mjs:140`, `suites/backup.mjs:211`) | `[data-dialog-content] form button[type=submit]` | dialogs with forms (`UnlockDialog.tsx:245-387` wraps header, body and footer in one form) | `Dialog onSubmit` renders one `<form data-cv-dialog-form>` around header, body and footer, so the footer's `type="submit"` button is inside it (W1-PRIMITIVES; every form dialog in W3 uses it) | unchanged | unchanged |
-| B32 | App menu (`ui-forms.mjs:126-142`) | `Menu.getApplicationMenu()` labels | `main.ts:400-674` | the application menu and its labels stay (W2-MAIN) | unchanged | unchanged |
-| B33 | Toasts (`ui-forms.mjs` `overlayPage`, `clickToastAction`) | overlay window URL contains `overlay.html`; `overlay:action-clicked` | `overlay-manager.ts:110-114` | unchanged (W2-MAIN) | unchanged | unchanged |
-| B34 | Unscoped exact labels | `button` with text `Review`, `Use here instead`, `Lock Current Vault`, `New Vault`, `Not Now`, `Open Vault File` | dialogs and the hub | chrome text rules (8.4) | unchanged | unchanged |
-| B35 | Busy texts as readiness signals (`sync-flows.mjs:63-64`, `flows.mjs:97`, `sync-dialogs.mjs:95`, `sync-panels.mjs:27,97,159,188`) | page or dialog text contains `Opening...`, `Please wait...`, `Checking...`, `Loading...`, `Looking for copies...`, `Comparing...` | `TakeoverDialog.tsx:49`, `UnlockDialog.tsx:381`, `EpochPromptDialog.tsx:81`, `RecentlyDeletedPanel.tsx:118`, `OtherCopiesPanel.tsx:103`, `CandidateMergeDialog.tsx:118`, `MassChangeNotice.tsx:108` | the texts stay verbatim as visible text inside the dialog: `Button loading loadingLabel="…"` and `Spinner text="…"` (W1-PRIMITIVES; kept by W3-SYNC and W3-VAULT) | unchanged | unchanged |
-| B36 | Sync plan line (`settings-flows.mjs:76`; asserted at `suites/lifecycle.mjs:336,350`) | the first `<p>` whose text starts with `Your plan:` | `SyncTab.tsx` | `data-cv-sync-plan` on that `<p>`, text kept (W3-SETTINGS) | `[data-cv-sync-plan]` else `p` starting with `Your plan:` | hook |
-| B37 | Sync tab ready (`settings-flows.mjs:72,94`) | an `h3` with text `Multi-device sync` | `SyncTab.tsx` | `SectionHeader` keeps the `h3` and the exact text (W3-SETTINGS) | unchanged | unchanged |
-| B38 | Sync notice text (`settings-flows.mjs:81-84`) | the notice's first `p` | `SyncNoticeList.tsx:30` | `data-cv-sync-notice-text` on the text element (W3-SYNC) | `[data-cv-sync-notice-text]` else `p` | hook |
-| B39 | Backup toggle markup (`backup-flows.mjs:13-19,110-116`) | a `<label>` whose text is exactly `Local Backup` or `Cloud Backup`, in a row that holds the toggle as a direct child (`:scope > button`) | `BackupTab.tsx:68,251` | the title stays a `<label>` with its exact text and the `Switch` stays a direct child of the row, with `data-cv-toggle="local\|cloud"` (the SettingsRow exception in 4.13) (W3-SETTINGS) | toggle: `[data-cv-toggle]` else `:scope > button` | hook |
-| B40 | Backup files list (`backup-flows.mjs:76-77`) | `<label>` `Backup Files (N)` → `parentElement` holds the rows | `BackupTab.tsx:189-196` | `data-cv-backup-files` on the list container; the label keeps its text (W3-SETTINGS) | `[data-cv-backup-files]` else the label's `parentElement` | hook |
-| B41 | Cloud backup badge (`backup-flows.mjs:115`) | the first `span` of the `Cloud Backup` label's `parentElement` | `BackupTab.tsx:250-260` | `data-cv-cloud-backup-badge` on the badge (W3-SETTINGS) | `[data-cv-cloud-backup-badge]` else that `span` | hook |
-| B42 | Backup Manager controls (`backup-flows.mjs:198-205`) | text buttons `Restore`, `Confirm`, `Close` (exact) and `input[placeholder="Master password"]` inside `[data-cv-backup-manager]` | `BackupManagerDialog` | labels and placeholder kept (W3-VAULT) | unchanged | unchanged |
-| B43 | Vault menu items (`team-flows.mjs:47`) | `button` with the exact text `Lock Current Vault` | `VaultSwitcherMenu.tsx` | DOM `Menu` items are `<button type="button" role="menuitem">` (W1-PRIMITIVES; W2-SIDEBAR, W3-VAULT) | unchanged | unchanged |
-| B44 | Recent vault rows (`suites/lifecycle.mjs:184-186`) | `button[title$=".conduit"]`, `button[title="{path}"]` | `VaultHub` recent rows | clickable `ListRow` renders a `<button>`; the `title` stays the path (W1-PRIMITIVES, W3-VAULT; extends B26) | unchanged | unchanged |
-| B45 | Visibility filter (`ui.mjs:85-88`) | clicks skip elements with `visibility: hidden` or no client rects | every clickable | hover-revealed actions hide with `opacity: 0` only (W1-PRIMITIVES `ListRow`, all W3) | unchanged | unchanged |
-| B46 | Radios (`sync-dialogs.mjs:98-106`) | `label` with the exact option text containing `input[type=radio]` | sync dialogs | `Radio` renders `label > input[type=radio]` + text (W1-PRIMITIVES, W3-SYNC) | unchanged | unchanged |
+| B1 | Settings root (`lib/settings-flows.mjs`) | finds `[data-dialog-content]` whose `h2` is `Settings` and marks it | `SettingsDialog.tsx` | `data-cv-settings` on the panel (R3-SETTINGS) | the mark function returns early when `[data-cv-settings]` exists | `[data-cv-settings]` |
+| B2 | Settings nav | `ROOT .w-52 button` | `SettingsNav.tsx` | `data-cv-settings-nav` (R3-SETTINGS; `w-52` stays until wave 4) | `ROOT .w-52 button`, `ROOT [data-cv-settings-nav] button` | `ROOT [data-cv-settings-nav] button` |
+| B3 | Save and Cancel | `ROOT > div:last-child button` | `SettingsDialog.tsx` | `data-cv-dialog-footer` (the `Dialog` primitive, used by R3-SETTINGS) | `ROOT > div:last-child button`, `ROOT [data-cv-dialog-footer] button` | `ROOT [data-cv-dialog-footer] button` |
+| B4 | Sync tab status | `.bg-well.border`, `p.font-medium`, `p.text-xs` | `SyncTab.tsx` | `data-cv-sync-status`, `data-cv-sync-status-label`, `data-cv-sync-status-detail` (R3-SETTINGS) | hook, else legacy | hooks |
+| B5 | Devices | `.divide-y > div`, `p.text-sm`, `p.text-xs` | `SyncDevicesList.tsx` | `data-cv-device-row`, `data-cv-device-name`, `data-cv-device-line` (R3-SYNC) | hook, else legacy | hooks |
+| B6 | Sync notices | `.bg-amber-500\/10` | `SyncNoticeList.tsx` | `data-cv-sync-notice` (R3-SYNC) | hook, else legacy | hook |
+| B7 | Paused note | `p.text-amber-400` | `SyncTab.tsx` | `data-cv-sync-paused` (R3-SETTINGS) | hook, else legacy | hook |
+| B8 | Inline errors | `[data-dialog-content] .text-red-400`, `p.text-red-400` | `UnlockDialog`, `ChangePasswordDialog`, `InlineError` | `data-cv-error` (primitives; applied by R3-VAULT and R3-SYNC) | hook, else legacy | `[data-dialog-content] [data-cv-error]` |
+| B9 | Sync dialogs | `[role=dialog]` | `SyncDialogFrame`, `ConflictReviewPanel` | `Dialog harnessLabel` (R3-SYNC) | `[role=dialog][aria-label]` (8.3) | same |
+| B10 | Scoped sync clicks | `[role=dialog] button` | sync dialogs | none | `[role=dialog][aria-label] button` | same |
+| B11 | Review rows | `button.closest('.rounded-md')`, `span`, `.font-mono` | `ConflictFieldRow.tsx`, `ConflictItemView.tsx` | `data-cv-review-field`, `data-cv-review-field-label`, `data-cv-review-value` (R3-SYNC) | hook, else legacy | hooks |
+| B12 | Close review | `button[aria-label="Close"]` | `ConflictReviewPanel.tsx` | the `Dialog` close keeps `aria-label="Close"` | unchanged | unchanged |
+| B13 | Open review | `button[title="Review changes from your other devices"]` | `PersonalSyncIndicator.tsx` (side bar footer) | `title` kept + `data-cv-review-button` (R2-SIDEBAR) | hook, else legacy | hook |
+| B14 | Review banner | page text `/need(s)? review/`, then the button `Review` | `SyncBanner` | none; text and `Review` kept (R2-SHELL) | unchanged | unchanged |
+| B15 | Banners | `[role=status]`, `span.flex-1`, `button` | `SyncBanner.tsx` | `role="status"` and `span.flex-1` kept, `data-cv-banner-text` added (R2-SHELL through `Banner`) | hook, else `span.flex-1` | `[data-cv-banner-text]` |
+| B16 | Open the side bar | `button[title="Open sidebar (Ctrl+B)"]`, then wait for `button[title="Close sidebar (Ctrl+B)"]` | the pane tab bar hamburger, `SidebarWindowControls.tsx` | `data-cv-sidebar-toggle` + `aria-expanded` on the hamburger, titles kept (R2-TABS); `data-sidebar-panel` exists | `[data-cv-sidebar-toggle][aria-expanded="false"]` else the old title; wait for `[data-sidebar-panel]` else the old close title | hooks |
+| B17 | Vault menu | `clickText(vaultName, {selector: 'button[title]'})` | `Sidebar.tsx` vault switcher | `data-cv-vault-switcher` (R2-SIDEBAR) | hook, else `button[title]` | `[data-cv-vault-switcher]` |
+| B18 | Recently deleted rows | `.max-h-80 label`, `p.text-sm`, `p.text-xs` | `RecentlyDeletedPanel.tsx` | `data-cv-deleted-list`, `data-cv-row-title`, `data-cv-row-detail` (R3-SYNC) | hook, else legacy | hooks |
+| B19 | Stacked confirm | `.z-\[70\] [data-dialog-content] button` | `RecentlyDeletedPanel.tsx` + `ConfirmDialog` | `data-cv-layer="stacked"` (primitive; applied by R3-SYNC) | hook, else legacy | hook |
+| B20 | Other copies | `.border-b` rows, `p.text-sm` (+ `title`), `p.text-xs`, `.flex.items-start` | `OtherCopiesPanel.tsx` | `data-cv-copy-row`, `data-cv-row-title`, `data-cv-row-detail` (R3-SYNC) | hook, else legacy | hooks |
+| B21 | Mass change | `label span.text-ink` | `MassChangeNotice.tsx` | `data-cv-row-title` (R3-SYNC) | hook, else legacy | hook |
+| B22 | Backup toggles | label → `.closest('.justify-between')` → `:scope > button` | `BackupTab.tsx` | `data-cv-toggle-row` (R3-SETTINGS) | hook, else legacy | hook |
+| B23 | Backup files | `.border-b` rows, `span.block`, `span.text-\[10px\]` | `BackupTab.tsx` | `data-cv-backup-row`, `data-cv-backup-name`, `data-cv-backup-meta` (R3-SETTINGS) | hook, else legacy | hooks |
+| B24 | Cloud backup | `label` → `.closest('.space-y-3')` | `BackupTab.tsx` | `data-cv-cloud-backup-section` (R3-SETTINGS) | hook, else legacy | hook |
+| B25 | Backup Manager | `[data-dialog-content]` with `h2` `Backup Manager` | `BackupManagerDialog` | `data-cv-backup-manager` (R3-VAULT) | the mark function returns early when the hook exists | hook |
+| B26 | Recent vaults | `button[title$=".conduit"]`, `button[title="{path}"]` | `VaultHub` rows | `title` = path kept (R3-VAULT) | unchanged | unchanged |
+| B27 | Screen detection | body text `Loading...`, hub text, auth text | `App.tsx`, `VaultHub`, `AuthScreen` | texts kept (R2-SHELL, R3-VAULT, R3-AUTH-ONBOARDING) | unchanged | unchanged |
+| B28 | Idle lock | `select[aria-label="Lock the vault when idle"]` | `IdleLockSetting.tsx` | `Select` keeps the `aria-label` (R3-SYNC) | unchanged | unchanged |
+| B29 | Labeled fields, checkboxes | `label` + first `span` + inner control; `label` + checkbox | fields and checkbox rows | `FormField` and `Checkbox` structure (primitives) | unchanged | unchanged |
+| B30 | Password and name inputs | `input[placeholder=…]`: `Enter master password`, `Confirm master password`, `Enter new vault name`, `Enter current password`, `Enter new password`, `Confirm new password`, `Master password` | vault dialogs | placeholders kept (R3-VAULT, R3-SETTINGS) | unchanged | unchanged |
+| B31 | Form submit | `[data-dialog-content] form button[type=submit]` | form dialogs | `Dialog onSubmit` wraps header, body and footer (R3 packages) | unchanged | unchanged |
+| B32 | App menu | `Menu.getApplicationMenu()` labels | `main.ts` | unchanged | unchanged | unchanged |
+| B33 | Toasts | the overlay window page; `overlay:action-clicked` | `overlay-manager.ts` | unchanged | unchanged | unchanged |
+| B34 | Unscoped exact labels | `button` with text `Review`, `Use here instead`, `Lock Current Vault`, `New Vault`, `Not Now`, `Open Vault File` | dialogs, banners, the hub, the vault menu | the text rules (8.4) | unchanged | unchanged |
+| B35 | Busy texts | `Opening...`, `Please wait...`, `Checking...`, `Loading...`, `Looking for copies...`, `Comparing...` | sync and vault dialogs | visible text through `Button loadingLabel` and `Spinner text` (R3-SYNC, R3-VAULT) | unchanged | unchanged |
+| B36 | Sync plan line | the first `<p>` starting `Your plan:` | `SyncTab.tsx` | `data-cv-sync-plan` (R3-SETTINGS) | hook, else legacy | hook |
+| B37 | Sync tab ready | an `h3` `Multi-device sync` | `SyncTab.tsx` | `SectionHeader` keeps the `h3` (R3-SETTINGS) | unchanged | unchanged |
+| B38 | Sync notice text | the notice's first `p` | `SyncNoticeList.tsx` | `data-cv-sync-notice-text` (R3-SYNC) | hook, else `p` | hook |
+| B39 | Backup toggle markup | `<label>` `Local Backup` / `Cloud Backup` with the toggle as a direct child | `BackupTab.tsx` | the label stays, the `Switch` stays a direct child, `data-cv-toggle` (R3-SETTINGS) | hook, else `:scope > button` | hook |
+| B40 | Backup files list | the `Backup Files (N)` label's parent | `BackupTab.tsx` | `data-cv-backup-files` (R3-SETTINGS) | hook, else the parent | hook |
+| B41 | Cloud backup badge | the first `span` of the label's parent | `BackupTab.tsx` | `data-cv-cloud-backup-badge` (R3-SETTINGS) | hook, else that `span` | hook |
+| B42 | Backup Manager controls | `Restore`, `Confirm`, `Close`, `input[placeholder="Master password"]` | `BackupManagerDialog` | kept (R3-VAULT) | unchanged | unchanged |
+| B43 | Vault menu items | `button` with the text `Lock Current Vault` | `VaultSwitcherMenu.tsx` | rows stay `<button>` (R2-SIDEBAR, R3-VAULT) | unchanged | unchanged |
+| B44 | Recent vault rows | `button[title="{path}"]` | `VaultHub` | clickable `ListRow` is a `<button>` with the path as `title` (R3-VAULT) | unchanged | unchanged |
+| B45 | Visibility filter | clicks skip `visibility: hidden` and boxless elements | every clickable | hover-revealed parts (a `ListRow`'s `trailing`) hide with `opacity: 0` only; the tab close is always visible (D-3) | unchanged | unchanged |
+| B46 | Radios | `label` with the exact option text containing a radio | sync dialogs | `Radio` renders `label > input[type=radio]` + text (R3-SYNC) | unchanged | unchanged |
+| B47 | Review version line (`lib/sync-flows.mjs` `clickVersionInPage`, `suites/mcp.mjs` `pickVersionNotInUseInPage`) | `button.parentElement` of `Use this`, whose text must hold the value, or not hold `In use now` [V `sync-flows.mjs:139`, `mcp.mjs:227-231`] | `ConflictFieldRow.tsx:85-106` | `data-cv-review-version` on each version line (R3-SYNC); the harness half, `reviewVersion: pair('[data-cv-review-version]', '.items-start.gap-3')` read with `pickClosest` from the button, lands first (R1-HARNESS); the MCP suite scopes its panel to `[role=dialog][aria-label="Review changes"]` | hook, else the legacy line | hook |
 
-Kept attributes that other code already relies on: `data-dialog-content`, `data-tabbar`, `data-sidebar-panel`, `data-docked`, `data-content-area`, `data-context-menu`, `data-popover`, `data-toast`, `data-bare`, `data-session-keyboard`.
+Attributes other code relies on, kept: `data-dialog-content`, `data-tabbar`, `data-sidebar-panel`, `data-docked`, `data-content-area`, `data-context-menu`, `data-popover`, `data-toast`, `data-bare`, `data-session-keyboard`.
 
-New hooks, all harness-safe (none uses `role=dialog` or `role=status`):
-
-- window and title bar: `data-cv-window`, `data-cv-titlebar`, `data-cv-command-center`, `data-cv-layout`, `data-cv-app-menu`, `data-cv-caption`;
-- activity bar and side bar: `data-cv-activitybar`, `data-cv-activity`, `data-cv-sidebar-toggle`, `data-cv-vault-switcher`;
-- cards: `data-cv-card="left"` and `data-cv-card="aux"` (the `--c-sidebar` cards, 3.3);
-- editor: `data-cv-editor-card`, `data-square-bottom-left`, `data-square-bottom-right`, `data-cv-tab`, `data-cv-new-tab`;
-- status bar and banners: `data-cv-statusbar`, `data-cv-status`, `data-cv-review-button`, `data-cv-banner-text`;
-- primitives: `data-cv-dialog-footer`, `data-cv-dialog-form`, `data-cv-layer`, `data-cv-error`, `data-cv-text-button`;
-- the B-table hooks above (B35 to B46 included: `data-cv-sync-plan`, `data-cv-sync-notice-text`, `data-cv-toggle`, `data-cv-backup-files`, `data-cv-cloud-backup-badge`);
-- Appearance: `data-cv-appearance`, `data-cv-choice`.
+New restyle hooks (none uses `role=dialog` or `role=status`): `data-cv-accent-line`; `data-cv-tab`, `data-active`, `data-cv-new-tab`, `data-cv-ai-toggle`, `data-cv-sidebar-toggle`; `data-cv-session-area`; `data-cv-sidebar-header`, `data-cv-sidebar-search`, `data-cv-sidebar-footer`, `data-cv-vault-switcher`, `data-cv-review-button`; `data-cv-ai-header`, `data-cv-ai-divider`, `data-cv-ai-panel`; `data-cv-review-version` (B47); `data-cv-icon-pack` on `<html>` (5.6); `data-cv-startup-status`; `data-cv-banner-text`; the primitives' `data-cv-dialog-footer`, `data-cv-dialog-form`, `data-cv-layer`, `data-cv-error`, `data-cv-text-button`, `data-cv-choice`; `data-cv-appearance`; the B-table hooks. Hooks of the clone that must not appear: `data-cv-window`, `data-cv-titlebar`, `data-cv-command-center`, `data-cv-layout`, `data-cv-app-menu`, `data-cv-caption`, `data-cv-activitybar`, `data-cv-activity`, `data-cv-card`, `data-cv-editor-card`, `data-cv-statusbar`, `data-cv-status`.
 
 ---
 
 ## Appendix C. What's New entry
 
-W4-DOCS adds these highlights to the pending release's entry in `release-notes/manifest.json`, the file the app fetches from `main` (`useReleaseNotes.ts:4-11`). If the pending release has no entry yet, W4-DOCS creates one with the release version and date. The text avoids em dashes (repo style for new text).
+R4-DOCS adds these highlights to the pending release's entry in `release-notes/manifest.json`, the file the app fetches from `main` (`useReleaseNotes.ts`). User-facing text names no other product.
 
 ```json
 {
-  "title": "A New Look",
-  "summary": "Conduit gets a VS Code style workspace with a new Modern color scheme, a choice of icon packs, and a compact layout.",
+  "title": "A Fresh Look",
+  "summary": "Conduit gets a cleaner, more compact look and a choice of icon packs. Everything is still where you left it.",
   "highlights": [
-    { "text": "**A cleaner workspace**: a custom title bar, an activity bar, floating panels and a status bar, modeled on VS Code's 2026 design.", "category": "feature" },
-    { "text": "**Modern color scheme**: new default dark and light colors from VS Code 2026. Ocean, Ember, Forest, Amethyst, Rose and Midnight are still available.", "category": "feature" },
-    { "text": "**Pick your icons**: choose Codicons, Lucide, Tabler, Phosphor, Fluent or Material Symbols in Settings > Appearance.", "category": "feature" },
-    { "text": "**Compact density**: remove the gaps and rounded corners between panels to give sessions more room.", "category": "feature" },
-    { "text": "**VS Code style tabs**: the active tab joins its session, and a tab shows a dot only while its connection is not ready.", "category": "improvement" },
-    { "text": "**Always-visible status bar**: sync state, changes to review, offline mode, trial days and the FreeRDP build now live in one bar.", "category": "improvement" },
+    { "text": "**Refreshed tabs and controls**: the active tab joins its session, and buttons, fields, lists, menus and dialogs share one compact style.", "category": "improvement" },
+    { "text": "**Modern color scheme**: a new neutral gray default in dark and light. Ocean, Ember, Forest, Amethyst, Rose and Midnight are still available.", "category": "feature" },
+    { "text": "**Pick your icons**: choose Lucide (the new default), Phosphor, Hugeicons, Material Symbols, Fluent or the classic Tabler icons in Settings > Appearance.", "category": "feature" },
     { "text": "**Easier to read and use from the keyboard**: stronger text contrast in every color scheme and a visible focus ring on every control.", "category": "improvement" },
-    { "text": "**Platform themes retired**: the macOS, Windows and Ubuntu themes give way to the new layout. Your icon style carries over as an icon pack.", "category": "improvement" }
+    { "text": "**Platform themes retired**: the macOS, Windows and Ubuntu themes give way to the new look. Your icon style carries over as an icon pack.", "category": "improvement" }
   ],
   "hasMedia": false
 }
 ```
 
-A demo GIF (`release-notes/v<version>/demo.gif`, with `hasMedia: true`) is optional and left to the owner.
+---
+
+## History
+
+- 2026-09-27: the redesign spec (a VS Code layout clone) was written and reviewed three times.
+- 2026-09-28: its wave 1 landed on this branch (`41d9657`): tokens, schemes, primitives, the icon registry with Codicons as default, the freeze registry, harness hooks, the migration. Two reviews raised 19 issues, all fixed; their results are part of sections 2, 4 and 6 (among them: the checked `ChoiceCard`'s outside focus ring, the muted text re-scope on selected rows and checked cards, AA on wells and menus, `--c-focus` overrides in five schemes, `resolveCssColor` throwing for undeclared tokens, a newer `appearance_version` never written back as 2, Tab trapped in a modal through open popovers, popover freezes held until unmount, a hidden title for custom-layout dialogs).
+- 2026-09-28: wave 2 of the clone was built on `redesign/w2-*` and `advenimus/visual-redesign`. The owner rejected it the same day; the quote is at the top of this document.
+- 2026-09-28: this spec replaced it with the restyle. Salvaged: 9.2.
+- 2026-09-28: an owner-intent review (16 issues) and a plan review (16 issues) of this spec; every issue was verified against the code and fixed (Review log).
 
 ---
 
-## Review log (2026-09-28)
+## Review log
 
-Three adversarial reviews (fidelity against VS Code 1.139, native behavior against Electron 44.4.5, and the work plan) raised 54 issues. Each was checked against the installed VS Code 1.139 files, the Electron 44.4.5 sources, the repo and the harness before it was applied. 53 were accepted (four with changes) and 1 was rejected; two accepted issues had one sub-point rejected. "Where" names the sections that changed.
+Restyle review, 2026-09-28. Each finding was checked against the code on `41d9657` before it changed the spec. "Adapted" means fixed differently from the reviewer's suggestion, for the reason given.
 
-### Fidelity
+**Owner intent**
 
-| # | Sev. | Issue | Resolution | Where |
-|---|---|---|---|---|
-| F1 | high | Editor tab and activity bar text used legacy keys that Modern UI ignores | Accepted. Active tab `#EDEDED` in Modern dark; `--c-tab-fg-unfocused` and its rule deleted (Modern UI keeps the unfocused active tab identical); new `--c-tab-fg-hover` and hover rule; active activity icon `#EDEDED`, new `--c-activity-fg-hover` | 2.2.3, 3.4, 3.6 |
-| F2 | high | Contrast gates skipped the tab strip, tone tints and selected rows | Accepted with changes. New gates 2 to 4 and 6; Ocean light `--c-tab-fg: #5C6C82`; the selected-row re-scope redeclares the `--color-*` theme variables too, because Tailwind resolves them on `:root` [V test-compile]; tone tints 12% → 10% (danger measured 4.48 on its Ocean dark tint); light success darkened to `#4B6A0A` instead of adding a separate strong token. Also found: with exact `color-mix()`, Forest dark faint and muted measured 4.49, so both moved one step | 2.2.4, 2.3, 2.11, D-16 |
-| F3 | medium | Status bar hover kept dim text; no pressed state | Accepted. `--c-statusbar-hover-fg`, `--c-statusbar-active`, `tabular-nums`, gated | 2.2.3, 3.10 |
-| F4 | medium | Drop and info colors were registry defaults | Accepted. 2026 theme values | 2.2.3, 2.2.4 |
-| F5 | medium | Dialog titles 14px; message detail color | Accepted. 13px/600 with VS Code margins; message boxes use `ink-muted` | 2.4, 4.8 |
-| F6 | medium | Some Modern text colors came from Dark/Light Modern | Accepted. Modern light `ink-secondary` `#202020`; dark `ink-muted` `#9D9D9D` tagged [ADAPT]; menus use `ink-secondary` | 2.2.1, 2.11, 4.10, 7.7 |
-| F7 | medium | Focus rings drawn outside and clipped | Accepted. Inset by default; 2px outside only for text buttons, checkboxes and radios | 2.7, 4.2, 4.3, 4.6 |
-| F8 | medium | Top-edge resizer strip missing on Windows/Linux | Rejected. Electron 44.4.5 tests the resize border before any drag region (`native_window.cc:747-766`, `win_frame_view.cc:79-133`), and VS Code adds `.resizer` only in its own HTML caption mode. An 8.7 check was added instead | 3.2, 8.7 item 3 |
-| F9 | medium | Scrollbars 10px | Accepted. 8px, as Modern UI | 2.8 |
-| F10 | medium | Legacy map missed uppercase headers, `text-base`, `text-xl` | Accepted. New rows; the legacy script reads class strings only (`passwordGenerator.ts` has an `uppercase` option) | 4.16, W1-PRIMITIVES |
-| F11 | low | Token gaps (menu danger hover, code blocks, new states) | Accepted. `--c-code-bg`, `--c-menu-danger-hover-bg`, `--c-sash-grip`, `--c-indent-guide` and the F1/F3 tokens | 2.2.3, 4.16, 7.7 |
-| F12 | low | Sash grip dots and per-OS cursors missing | Accepted | 3.3 |
-| F13 | low | Tree indent guides, leaf twistie slot, rename style | Accepted | 3.5 |
-| F14 | low | Banners were an untagged deviation | Accepted with changes. Info and lock tones use VS Code's neutral banner and underlined link actions; the warn tint and text wrapping are tagged [ADAPT] | 3.9 |
-| F15 | low | Layout controls should swap glyphs, not show a pressed fill | Accepted. `panelLeftOff` and `panelRightOff` in all six packs (123 names); Lucide's hidden state uses the dashed glyphs, Material's glyphs are named by action | 3.2, 5.1, 5.3, App. A |
-| F16 | low | Editor actions not dimmed in unfocused panes | Accepted | 3.6 |
-| F17 | low | Linux mono stack | Accepted. VS Code's stack, generic `monospace` unquoted | 2.4 |
-| F18 | low | Light warning color | Accepted: `#895503`. The optional `--c-warning-icon` was rejected: VS Code's light `#B69500` is 2.77:1 on `#FAFAFD`, below the 3:1 non-text gate | D-16, 2.2.4 |
-| F19 | low | 14px pill icon and 8px dot break the size policy | Accepted. Named 14px exception, pill icon at `.8`, dots are the 16px `circleFilled` | 3.2, 3.10, 5.2 |
-| F20 | low | Several numeric values | (a) `shadow-md` kept, (b) count badge metrics, (d) `+` margins, (e) toast placement and slide, (f) caption hover colors, (g) panel tab colors: accepted. (c) rejected: Modern UI sets action labels to `cornerRadius.small` (4px), so the tab close radius was right; the same check showed `IconButton` md/lg at 6 was wrong, now 4 | 2.5, 2.6, 3.2, 3.6, 4.3, 4.7, 4.12, 4.15, 7.6, D-24 |
-| F21 | low | Untagged deviations | Accepted. D-20 tagged; dialogs no longer animate; Compact tab height tagged | D-20, D-25, 2.6, 2.9, 4.8 |
-| F22 | low | "Controls rely on fill plus border" was false; Switch off track invisible | Accepted. Known limits rewritten; Switch off state on the checkbox tokens and gated | 2.11, 4.6 |
+| # | Finding | Resolution |
+|---|---|---|
+| O1 | One `Dialog` primitive would change how dialogs close (Escape everywhere, a close button everywhere, no outside click) | Fixed: D-26, `closeOnEscape` and the optional `onClose` (4.8), the per-dialog table 3.12.1 with each R3 package's props and tests. Correction while verifying: `BiometricSetupPrompt` does close on Escape today (through `UnlockDialog`'s key handler) |
+| O2 | Fixed-width tabs would scroll out of view in narrow panes | Fixed: tabs shrink to fit down to a 78px floor (D-2, 3.4, `--c-tab-min-w`), G10. Adapted: the twelve-tab check runs live in the `tabs` scenario, because jsdom has no layout |
+| O3 | The owner would see nothing before the last package | Fixed: owner gates 1 to 3 (8.5, rule 8), recorded as acceptance lines of R1-MENUS, R2-SHELL and R4-CLEANUP; every R3 package waits for gate 2 |
+| O4 | Inactive tabs would hide their close buttons | Fixed: close buttons always visible (D-3); VS Code's hover-only close is a gate-1 question, not adopted |
+| O5 | The signed-in footer, cached mode, team vault and trial states were never checked | Fixed: shots and inventories 44 to 49, the `sidebar-signed-in` scenario (Supabase), R2-SIDEBAR unit tests |
+| O6 | `ListRow` would hide always-visible hub badges and dashboard labels behind hover | Fixed: `meta` slot and self-sized `leading` (4.14), hub and dashboard rows (3.11), L-23 |
+| O7 | Icon, color and model pickers would change shape or float | Fixed: restyled in place (3.16), removed from the `Menu` users (4.10) |
+| O8 | Nothing proved all six packs work in every window | Fixed: `<html data-cv-icon-pack>` (5.6), the `packs` scenario with sheets and a restart check, R3-OVERLAY and R3-PICKER acceptance |
+| O9 | Banner actions would become plain links | Fixed: `Button sm` actions, primary kept, offline banners centered (D-27, 3.8, 4.13) |
+| O10 | The engine `●` and the AI toggle's `aria-pressed` would fail the inventory | Fixed: `●` kept as text (3.7); an added `pressed` is allowed like an added `aria` (8.6) |
+| O11 | The vault switcher would shrink to 12px secondary text | Fixed: 13px `text-ink`, with a 12-character check at 250px (3.6) |
+| O12 | The About licenses view is a new control | Fixed: dropped; the shipped license file meets the terms (5.9, 1.3) |
+| O13 | Clone and VS Code wording stays in code, tests and the harness README | Fixed: 9.1 rows, one clone-selector module, greps in R1-FOUNDATION and R1-HARNESS acceptance |
+| O14 | VS Code's exact accent on VS Code's grays reads as VS Code | Fixed: Modern takes Conduit's sky ramp with every gate re-computed (D-25, 2.2.2); the owner confirms at gate 1 |
+| O15 | Custom entry icons stay Tabler next to Lucide | Fixed: 30 twins follow the pack, 35 stay Tabler, stored names unchanged (D-29, 5.11, R3-ENTRIES) |
+| O16 | Removing the legacy freeze changes behavior in a look-only release | Fixed: the legacy hold stays; the overlay-freeze test is kept; removal is a follow-up (D-28, 4.9, 1.3) |
 
-### Native
+**Plan**
 
-| # | Sev. | Issue | Resolution | Where |
-|---|---|---|---|---|
-| N1 | high | Remote pages can drag the frameless window | Accepted. User-origin `no-drag` stylesheet on every web-session `dom-ready`; macOS manual check | D-27, 3.7, 7.4, R21, W2-MAIN, W2-WORKBENCH |
-| N2 | high | Linux left-side caption buttons, Windows RTL | Accepted with changes. Leading and trailing reserves from the overlay rect on both OSes (the rect mirrors by itself), clamped with a 0/138 fallback, rather than a fixed Windows 138 plus an RTL switch | 2.5, 3.2, 8.7 item 2 |
-| N3 | medium | Split and Compact sash hit areas overlap native views | Accepted. Every sash is 4px in the layout flow; Compact `chromeWidth` is 44 when docked | 2.9, 3.3, 3.6, 3.8 |
-| N4 | medium | `setTitleBarOverlay` throws without an overlay | Accepted. `overlayActive` guard, try/catch, state event to the fallback | 3.2, 7.2, 7.4 |
-| N5 | medium | Zoom startup race; dev zoom leaks into overlay and picker | Accepted. `zoomFactor` + `zoomMode: 'isolated'` at creation for all three windows; synchronous `zoomFactor()` on the preload bridge | 3.2, 6.2, 7.1, 7.4, 7.6 |
-| N6 | medium | Popup shadow margin shifted the menu and ate clicks | Accepted. Visible-rect flip and clamp, margin clicks dismiss | 7.7, W2-MENUS |
-| N7 | medium | Radius lost on radius-only changes, sub-tabs, one-corner panes | Accepted. Radius in the renderer key, applied per view on every attach, per-corner card squaring | D-17, 3.7 |
-| N8 | medium | Wayland ignores window positions | Accepted (option A). Linux runs under XWayland with a `CONDUIT_OZONE=wayland` opt-out; the desktop-entry flag is the dependable path, the in-process switch is [A] | D-26, 7.1, 7.7, 8.7 item 8, R22 |
-| N9 | medium | RDP resize churn | Accepted. `RdpView` debounce and last-requested check (W2-TABS owns it in wave 2); `chromeWidth` set in the same task as the density | 3.3, 3.7, R5 |
-| N10 | medium | Caption fallback decided once after one second | Accepted. Reactive decision, rendered inside the reserve; Help menu escape hatch | D-8, 3.2, 7.1 |
-| N11 | low | Hidden-menu accelerators already work | Accepted. Renderer accelerator fallback, `menu-commands.ts`, `window_chrome_menu_command` and `setMenuBarVisibility(false)` dropped; popup coordinates now [V] | D-8, 7.1, 7.3 |
-| N12 | low | No keyboard path to the app menu | Accepted. F10 and a lone Alt, outside session keyboards | 3.2, W2-WORKBENCH |
-| N13 | low | Maximized/snapped positioning untested | Accepted. 8.7 item 9; stale `manager.ts` comment rewritten | 3.7, 8.7 |
-| N14 | low | Space budget "Today" column counted the OS title bar | Accepted with changes. Per-OS columns; recomputed, Comfortable still loses height on macOS (634 → 594, −6.3%) and slightly on Windows (−2.8%), so the reviewer's "roughly neutral on macOS" does not hold | 3.3 |
-
-### Plan
-
-| # | Sev. | Issue | Resolution | Where |
-|---|---|---|---|---|
-| P1 | high | Shared foundations had no owner in waves 2 and 3 | Accepted. W2-FOUNDATION and W3-FOUNDATION (W3 owns everything outside the wave-3 directories); `preloadAllIconPacks`, `getPackMapping` and `<Icon pack>` added to W1-ICONS; `tabs.css` to W2-TABS, `cards.css`/`sash.css` to W2-WORKBENCH | 5.1, 10, 10.6 |
-| P2 | high | Dialog footer outside the form | Accepted. `Dialog onSubmit` wraps header, body and footer in one form | 4.1, 4.8, B31 |
-| P3 | high | Hidden cross-package dependencies in wave 2 | Accepted. TitleBar takes props; W2-STATUSBAR depends on W2-TITLEBAR (`useZoomFactor`); W2-SIDEBAR moves `handleHome` to `layout/openHomeTab.ts` | 3.2, 3.4, 3.10, 10.2 |
-| P4 | high | ConfirmDialog could render under the sync panel | Accepted. W3-SYNC depends on W3-MISC; `ConfirmDialog` renders in place without a layer (`portal` prop) until W4-CLEANUP | 4.8, 10.3, 10.4 |
-| P5 | high | Wave-3 suite lists missed dependencies | Accepted. Full `npm run verify` before every wave-3 merge | 8.5, 10.3 |
-| P6 | high | Comma unions do not prefer the hook | Accepted. Scope-level `pickSelector`, mixed-fixture tests | 8.2, App. B, R23 |
-| P7 | medium | Busy texts could disappear | Accepted. B35, `loadingLabel`, `Spinner text` | 4.2, 4.12, B35 |
-| P8 | medium | Harness DOM dependencies missing from Appendix B | Accepted. B30 lists every placeholder; B36 to B46; SettingsRow toggle exception | 4.1, 4.10, 4.13, 4.14, App. B |
-| P9 | medium | Broken intermediate states in wave 2 | Accepted. One integration branch; manual checks in W2-WORKBENCH | 8.5, 10 rule 3 |
-| P10 | medium | Migration gate read the merged settings | Accepted. Raw reads, temp-dir integration test, behavior parity test | 6.3, 8.1 |
-| P11 | medium | Two senders and two names for the color sync | Accepted. `window-chrome.ts` is the only sender, driven by `conduit:appearance-applied` | 2.12, 3.2, 6.2, 7.2 |
-| P12 | medium | Freeze checks proved nothing | Accepted. W4-CLEANUP removes the legacy hold with a 24-overlay test; W1-FREEZE check and unit test use a sync dialog without Settings | 8.1, 10.1, 10.4 |
-| P13 | medium | No legacy-class check in wave 2 | Accepted. Each wave-2 package checks its files that have no wave-3 owner | 10.2 |
-| P14 | low | W2-MAIN's smoke run never used the app menu | Accepted. `password lifecycle` | 8.5, 10.2 |
-| P15 | low | Acceptance commands not runnable in zsh or not decisive | Accepted. `git grep` pathspecs (the unquoted `--include` was reproduced failing in zsh), `check-owns.mjs`, a chunk loop, an eslint count, S1 to S3 by hand; the misleading "not edited" notes corrected | 10 |
-| P16 | low | No underline Tabs variant (OD-7) | Accepted. `Tabs variant="underline"` with `--c-tab-underline`; no screen uses it at launch | 2.2.3, 4.7 |
-| P17 | low | Menus icon-less at the wave-2 boundary | Accepted. W3-MENUS moved to wave 2 as W2-MENUS | 5.6, 7.7, 10.2 |
-| P18 | low | Electron code importing `src/` breaks its tsconfig | Accepted. Electron never imports from `src/`; cross-tree tests live in `scripts/__tests__` or read JSON with `fs` | 2.5, 6.3, 8.1 |
-
-## Wave 1 review (2026-09-28)
-
-Two adversarial reviews (conformance and bugs) of the merged wave 1 raised 19 issues and 2 notes. The integrator checked each against the code, the tests, Electron 44 and the token resolver before fixing it. All 19 were accepted; three had a suggested fix replaced by another one (noted below). Each fix is its own commit tagged "(wave 1 review)".
-
-| # | Sev. | Issue | Resolution | Where |
-|---|---|---|---|---|
-| R1 | high | The checked ChoiceCard showed no keyboard focus: the inset ring lay on its accent border | `[data-cv-choice]` takes the 2px outside ring; `ChoiceGroup` keeps 3px padding | 2.7, 4.13 |
-| R2 | medium | Muted description on the checked ChoiceCard failed AA | The checked card sets `data-selected`; new `selected-inactive` gates | 2.11, 4.13 |
-| R3 | medium | Menu typeahead and roving swallowed keys typed in a field inside a menu | Keys from editable targets pass through; Escape still closes the popover (documented) | 4.10 |
-| R4 | medium | Muted and faint text failed AA on `well`; danger failed on the active menu item in Ocean dark | Six light faint values and Ocean light muted moved; DOM danger items use `--c-menu-danger-hover-bg`, now 10%; new gates. The alternative of restyling SegmentedControl labels only was not taken, because cards and inputs have the same pair | 2.2.3, 2.3, 2.11, 4.10 |
-| R5 | low | Focus ring below 3:1 on selected items of roving controls | `--c-focus` overrides in five schemes; new gates | 2.3, 2.11 |
-| R6 | low | `resolveCssColor` never threw in Chromium for an undeclared token | Sentinel parent color; verified in Electron 44 | 2.12 |
-| R7 | low | A newer `appearance_version` was written back as 2 | Kept in all four writers; parity test covers version 3 | 6.3 |
-| R8 | low | Tab could leave a modal dialog through an open popover | Tab cycles the topmost trapping layer plus the layers above it. Closing the popover on Tab was not taken: non-menu popovers need Tab inside them | 4.8 |
-| R9 | low | The tab trap counted hidden elements and every radio | `checkVisibility` filter; one stop per radio group | 4.8 |
-| R10 | low | A popover's freeze ended before its exit animation | Held until the panel unmounts | 4.9 |
-| R11 | low | Custom-layout dialog without a header had no name; FormField put description and error inside the label | Hidden fallback `h2` (the suggested `aria-label` fallback was not taken: the harness reads `[role=dialog][aria-label]` as a sync dialog); FormField describes the control with `aria-describedby` and `aria-invalid` | 4.4, 4.8 |
-| R12 | low | FormField and Spinner did not forward ref and `data-*` | Both forward to one root | 4.4, 4.12 |
-| R13 | low | Selected-row re-scope matched selected tabs | Row roles only, plus `[data-selected]` | 2.11 |
-| R14 | low | Side bar scrollbar never reached the thumb token | The fade runs from 1 | 2.8 |
-| R15 | low | Gallery strips left out some focusable primitives | Spec exempts text Buttons md/lg, Textarea, Tabs and ChoiceCard from the strips | 2.7, 4.1, 10.1 |
-| R16 | low | Button sm loader size contradicted the spec | Loader at the icon size | 4.2 |
-| R17 | low | Codicons label | Plain pack name | 5.2 |
-| R18 | low | `data-cv-card` hook not in the spec | Named in 3.3 and Appendix B | 3.3, App. B |
-| R19 | low | `verify-sync-flows.test.ts` outside W1-HARNESS owns | Added to owns; unlock wait documented | 8.3, 10.1 |
+| # | Finding | Resolution |
+|---|---|---|
+| P1 | Geometry rules needed hooks that later packages add | Fixed: hook lists per rule, `pending` and `--strict`, a per-package rule table (8.6); G3, G6 and G8 scoped as suggested; the `+` and the AI toggle share the last `.cv-tabstrip-slot` |
+| P2 | R4-CLEANUP could not pass `legacy-classes.test.ts` after deleting the dead files | Fixed: R4-CLEANUP owns the test and moves it to temporary fixtures (10.5) |
+| P3 | R1-FOUNDATION's grep matched its own required tests | Fixed: tests and the harness's forbidden list excluded |
+| P4 | Two live flows used `button.parentElement` in the review panel | Fixed: B47 `data-cv-review-version`, the harness half in R1-HARNESS, 8.4 rule 6 |
+| P5 | The comparator would fail on the AI toggle and on timing text | Fixed: `pressed` allowed when added; `<ago>`, `<sync-state>` and `<vault-dir>` normalization (8.6) |
+| P6 | The only allowed delta matched no real state of the Appearance tab | Fixed: the delta written as data, with the Icon pack section present if and only if its hook is; section labels stay `<label>` (6.4). Found while verifying: a `label`'s inventory text now leaves out nested controls, because `FormField` nests its control |
+| P7 | No package owned the spec or the deltas file where the rules sent edits | Fixed: standalone spec commits outside packages; deltas through the file's owner with the integrator's sign-off (rules 4, 5); the spec lands with the JSON, R1-PLAN dropped (24 packages) |
+| P8 | The reference PNGs lived only in the temporary scratchpad | Fixed: a lasting copy and a hash manifest; a missing file fails (8.6.1) |
+| P9 | The `App.test.tsx` fix was underspecified | Fixed: a local `vi.stubGlobal` and rewritten assertions; `src/test/setup.ts` left alone and dropped from R2-SHELL's Owns |
+| P10 | Harness-bound wave-3 packages ran no live suite | Fixed: targeted suites for R3-SETTINGS, R3-VAULT, R3-SYNC and R3-MISC (8.5) |
+| P11 | R2-FOUNDATION closed before the checks that report to it; R4-DOCS could land after the final check | Fixed: rule 2; R4-CLEANUP depends on R4-DOCS |
+| P12 | The migration text contradicted itself and missed cases | Fixed: 6.3 rules 2, 4 and 5, three new table rows, wider property tests |
+| P13 | Nothing checked the plan's `wave` and `depends_on` | Fixed: R1-HARNESS extends `check-owns.test.ts` |
+| P14 | The chunk-name check did not prove Lucide is static | Fixed: a build manifest check (R1-FOUNDATION acceptance) |
+| P15 | Some acceptance commands could not run as written | Fixed: `--passWithNoTests` (rule 6); an exact R2-AI command, tried in zsh |
+| P16 | The floating side bar's accent line and the `006661f` check had no owner | Fixed: R2-SIDEBAR owns the line; `006661f` is out of scope as its own change (1.3) |
