@@ -13,7 +13,7 @@ import {
   VAULT_PASSWORD,
 } from './restyle-data.mjs';
 import { createVault, enterLocalMode, waitForScreen } from './flows.mjs';
-import { listWindows } from './window-capture.mjs';
+import { devOrigin, listWindows, windowRole } from './window-capture.mjs';
 import { mainEval, sleep, waitFor, withTimeout } from './ui.mjs';
 
 const MENU_PAINT_MS = 500;
@@ -178,7 +178,7 @@ function announceMainFocus(device) {
 
 async function toastsDrawn(device) {
   await announceMainFocus(device);
-  const page = device.app.windows().find((p) => /\/overlay\.html/.test(p.url()));
+  const page = childPage(device, 'overlay');
   const text = page ? await withTimeout(page.evaluate(() => document.body?.innerText ?? ''), 5_000, 'overlay text') : '';
   return text.includes('No password available') && (await listWindows(device)).some((w) => w.role === 'overlay');
 }
@@ -247,14 +247,19 @@ export function closePicker(device) {
   }, undefined, { label: 'close picker' });
 }
 
-/** `<html data-cv-icon-pack>` of the main window and of the overlay and picker windows when open. */
+/** The app's own page of `role` ('overlay' or 'picker'), or null; web session pages never count. */
+function childPage(device, role) {
+  const origin = devOrigin(device);
+  return device.app.windows().find((p) => windowRole(p.url(), origin) === role) ?? null;
+}
+
+/** `<html data-cv-icon-pack>` of the main window (device.page) and of the overlay and picker windows when open. */
 export async function iconPackAttributes(device) {
-  const out = {};
-  for (const page of device.app.windows()) {
-    const url = page.url();
-    const role = /\/overlay\.html/.test(url) ? 'overlay' : /\/picker\.html/.test(url) ? 'picker' : /^https?:\/\/[^/]+\/?(\?|#|$)/.test(url) ? 'main' : null;
-    if (!role) continue;
-    out[role] = await withTimeout(page.evaluate(() => document.documentElement.getAttribute('data-cv-icon-pack')), 5_000, `${device.name}: icon pack of ${role}`).catch(() => null);
+  const read = (page, role) => withTimeout(page.evaluate(() => document.documentElement.getAttribute('data-cv-icon-pack')), 5_000, `${device.name}: icon pack of ${role}`).catch(() => null);
+  const out = { main: await read(device.page, 'main') };
+  for (const role of ['overlay', 'picker']) {
+    const page = childPage(device, role);
+    if (page) out[role] = await read(page, role);
   }
   return out;
 }

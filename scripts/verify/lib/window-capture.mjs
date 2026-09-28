@@ -19,27 +19,36 @@ async function sharp() {
   return sharpModule;
 }
 
+/** The origin of the dev server that serves the app's own pages (the main, overlay and picker windows). */
+export const devOrigin = (device) => new URL(device.page.url()).origin;
+
+/**
+ * The role of a window or page by its URL: 'menu' (popup menus), 'overlay' (toasts), 'picker', 'main'
+ * or 'other'. Only pages served from `origin` are the app's own, so a web session's page at the root of
+ * another origin is never taken for the main window.
+ */
+export function windowRole(url, origin) {
+  if (url.startsWith('data:text/html')) return 'menu';
+  if (url !== origin && !url.startsWith(`${origin}/`)) return 'other';
+  const rest = url.slice(origin.length);
+  if (/^\/overlay\.html(\?|#|$)/.test(rest)) return 'overlay';
+  if (/^\/picker\.html(\?|#|$)/.test(rest)) return 'picker';
+  return /\.html(\?|#|$)/.test(rest) ? 'other' : 'main';
+}
+
 /**
  * Every visible window of the device, main first: {id, cg, role, url, bounds, content}. `role` is
  * 'main', 'menu' (popup menus), 'overlay' (toasts), 'picker' or 'other'.
  */
-export function listWindows(device) {
-  return mainEval(device, ({ BrowserWindow }) => {
-    const roleOf = (url) => {
-      if (url.startsWith('data:text/html')) return 'menu';
-      if (/\/overlay\.html/.test(url)) return 'overlay';
-      if (/\/picker\.html/.test(url)) return 'picker';
-      return /^https?:\/\/[^/]+\/?(\?|#|$)/.test(url) ? 'main' : 'other';
-    };
-    return BrowserWindow.getAllWindows()
-      .filter((w) => !w.isDestroyed() && w.isVisible())
-      .map((w) => {
-        const url = w.webContents.getURL();
-        const source = w.getMediaSourceId();
-        return { id: w.id, cg: Number(source.split(':')[1]), role: roleOf(url), url, bounds: w.getBounds(), content: w.getContentBounds() };
-      })
-      .sort((a, b) => (a.role === 'main' ? -1 : b.role === 'main' ? 1 : 0));
-  }, undefined, { label: 'list windows' });
+export async function listWindows(device) {
+  const origin = devOrigin(device);
+  const windows = await mainEval(device, ({ BrowserWindow }) => BrowserWindow.getAllWindows()
+    .filter((w) => !w.isDestroyed() && w.isVisible())
+    .map((w) => ({ id: w.id, cg: Number(w.getMediaSourceId().split(':')[1]), url: w.webContents.getURL(), bounds: w.getBounds(), content: w.getContentBounds() })),
+  undefined, { label: 'list windows' });
+  return windows
+    .map((w) => ({ ...w, role: windowRole(w.url, origin) }))
+    .sort((a, b) => (a.role === 'main' ? -1 : b.role === 'main' ? 1 : 0));
 }
 
 // The window server sometimes refuses a window for a moment right after another window appears.

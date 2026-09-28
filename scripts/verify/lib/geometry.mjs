@@ -4,13 +4,13 @@
 
 import { CLONE_SELECTORS } from './clone-selectors.mjs';
 import { mainEval, withTimeout } from './ui.mjs';
+import { listWindows } from './window-capture.mjs';
 
 export const RULES = Object.freeze(['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10']);
 export const STRIP_HEIGHT = 33;
 export const TAB_MIN_WIDTH = 78;
 const AI_PANEL_DEFAULT = 400;
 const FREEZE_SETTLE_MS = 3_000;
-const MAIN_URL = /^https?:\/\/[^/]+\/?(\?|#|$)/;
 
 // ---------- in-page rules: each ships as source next to ruleHelpers, so none may use module scope ----------
 
@@ -229,14 +229,15 @@ export function twelveTabsInPage({ minWidth }) {
 // ---------- main-process facts ----------
 
 /** G1 and the web view half of G9, from the main process: {bounds, content, webViews}. */
-export function windowFacts(device) {
-  return mainEval(device, ({ BrowserWindow }, pattern) => {
-    const main = new RegExp(pattern);
-    const win = BrowserWindow.getAllWindows().find((w) => main.test(w.webContents.getURL()));
+export async function windowFacts(device) {
+  const main = (await listWindows(device)).find((w) => w.role === 'main');
+  if (!main) return null;
+  return mainEval(device, ({ BrowserWindow }, id) => {
+    const win = BrowserWindow.fromId(id);
     if (!win) return null;
     const views = typeof globalThis.__cvAttachedWebViews === 'function' ? globalThis.__cvAttachedWebViews() : null;
     return { bounds: win.getBounds(), content: win.getContentBounds(), webViews: views ? views.filter((v) => v.id !== win.webContents.id).length : null };
-  }, MAIN_URL.source, { label: 'window facts' });
+  }, main.id, { label: 'window facts' });
 }
 
 /** In-page G9 facts: an open dialog and the freeze holders. */

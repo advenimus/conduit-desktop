@@ -38,7 +38,12 @@ const screens = (await import('../verify/lib/restyle-screens.mjs' as string)) as
   MENU_SCREENS: string[];
   SCENARIOS: Record<string, { shots: string[]; screens: string[] }>;
 };
-const flows = (await import('../verify/lib/restyle-flows.mjs' as string)) as { lookSettings(mode: string, env: Record<string, string | undefined>): Record<string, unknown> };
+type FakePage = { url(): string; evaluate(fn: unknown): Promise<unknown> };
+const flows = (await import('../verify/lib/restyle-flows.mjs' as string)) as {
+  lookSettings(mode: string, env: Record<string, string | undefined>): Record<string, unknown>;
+  iconPackAttributes(device: { name: string; page: FakePage; app: { windows(): FakePage[] } }): Promise<Record<string, string | null>>;
+};
+const capture = (await import('../verify/lib/window-capture.mjs' as string)) as { windowRole(url: string, origin: string): string };
 
 const controls = (screen: string, items: Control[], probes?: Record<string, boolean>): Inventory => ({ screen, kind: 'controls', items, ...(probes ? { probes } : {}) });
 const menu = (screen: string, items: MenuEntry[]): Inventory => ({ screen, kind: 'menu', items });
@@ -520,5 +525,29 @@ describe('the reference look', () => {
   it('pins Ocean, Tabler and the migration version only when recording', () => {
     expect(flows.lookSettings('dark', {})).toEqual({ theme: 'dark' });
     expect(flows.lookSettings('light', { CONDUIT_RESTYLE_REFERENCE_LOOK: '1' })).toEqual({ theme: 'light', color_scheme: 'ocean', icon_pack: 'tabler', appearance_version: 2 });
+  });
+});
+
+describe('app windows and web sessions', () => {
+  const DEV = 'http://localhost:54798';
+  const page = (url: string, pack: string | null): FakePage => ({ url: () => url, evaluate: async () => pack });
+
+  it('takes only pages of the dev server for the app windows', () => {
+    expect(capture.windowRole(`${DEV}/`, DEV)).toBe('main');
+    expect(capture.windowRole(`${DEV}/?view=main#x`, DEV)).toBe('main');
+    expect(capture.windowRole(`${DEV}/overlay.html`, DEV)).toBe('overlay');
+    expect(capture.windowRole(`${DEV}/picker.html`, DEV)).toBe('picker');
+    expect(capture.windowRole(`${DEV}/gallery.html`, DEV)).toBe('other');
+    expect(capture.windowRole('data:text/html;charset=utf-8,<menu>', DEV)).toBe('menu');
+    expect(capture.windowRole('http://127.0.0.1:54803/', DEV)).toBe('other');
+    expect(capture.windowRole('http://localhost:547980/', DEV)).toBe('other');
+  });
+
+  it('reads the main window from device.page, never from a web session page at the root of its own origin', async () => {
+    const main = page(`${DEV}/`, 'lucide');
+    const device = { name: 'd', page: main, app: { windows: () => [main, page('http://127.0.0.1:54803/', null), page(`${DEV}/overlay.html`, 'lucide')] } };
+    expect(await flows.iconPackAttributes(device)).toEqual({ main: 'lucide', overlay: 'lucide' });
+    const picker = { ...device, app: { windows: () => [page('http://127.0.0.1:54803/', null), main, page(`${DEV}/picker.html`, 'hugeicons')] } };
+    expect(await flows.iconPackAttributes(picker)).toEqual({ main: 'lucide', picker: 'hugeicons' });
   });
 });
