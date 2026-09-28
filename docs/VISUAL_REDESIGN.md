@@ -1213,7 +1213,7 @@ export function useLayer(opts: { ref: RefObject<HTMLElement>; onEscape?: () => v
 export function useEscapeLayer(onEscape: (() => void) | undefined): void;   // same contract as today
 ```
 
-One capturing `keydown` listener serves the whole stack. Escape goes to the top layer only and is swallowed with `stopImmediatePropagation` (today's semantics, `useEscapeLayer.ts:3-19`). Tab and Shift+Tab cycle inside the top layer when it traps focus. `src/components/sync/useEscapeLayer.ts` becomes a one-line re-export in wave 1 and is deleted in wave 4.
+One capturing `keydown` listener serves the whole stack. Escape goes to the top layer only and is swallowed with `stopImmediatePropagation` (today's semantics, `useEscapeLayer.ts:3-19`). Tab and Shift+Tab cycle inside the topmost layer that traps focus, together with every popover opened above it, so Tab from a popover inside a modal dialog never reaches the app behind it. The cycle skips hidden elements (`display: none`, `visibility: hidden`; `opacity: 0` stays reachable, B45) and stops once per radio group, on the checked radio or else the first, as the browser does. `src/components/sync/useEscapeLayer.ts` becomes a one-line re-export in wave 1 and is deleted in wave 4.
 
 ### 4.9 Freeze registry (native web views)
 
