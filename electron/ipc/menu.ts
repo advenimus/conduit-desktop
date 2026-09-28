@@ -1,317 +1,557 @@
 /**
- * IPC handler for showing styled popup context menus.
+ * IPC handler for showing styled popup context menus (spec 7.1).
  *
  * Uses a child BrowserWindow (separate OS window) to render the menu.
- * This renders above everything — including native WebContentsViews —
+ * This renders above everything, including native WebContentsViews,
  * while allowing full CSS styling to match the app theme.
  */
 
 import { ipcMain, BrowserWindow, screen } from 'electron';
 import { AppState } from '../services/state.js';
+import { sanitizeSvg } from './menu-svg.js';
 
-interface PopupMenuItem {
-  id: string;
-  label: string;
-  type?: 'separator' | 'header';
-  variant?: 'danger';
-  icon?: string; // key into SVG icon map
-  children?: PopupMenuItem[]; // submenu items
+export const MENU_METRICS = {
+  /** Panels are as wide as their longest label needs, within these bounds; longer labels ellipsize. */
+  minWidth: 220,
+  maxWidth: 320,
+  row: 24,
+  separator: 11,
+  header: 24,
+  padding: 4,
+  border: 1,
+  /** Transparent space around the visible menu that its shadow draws into. */
+  shadowMargin: 12,
+  submenuOverlap: 2,
+} as const;
+
+const PANEL_CHROME = 2 * MENU_METRICS.border + 2 * MENU_METRICS.padding;
+// Around an item label: the 1px borders, the row's 4px margins and 8px padding; 16 + 8 for an icon or chevron slot.
+const ITEM_CHROME = 2 * MENU_METRICS.border + 8 + 16;
+const SLOT = 16 + 8;
+const HEADER_CHROME = 2 * MENU_METRICS.border + 24;
+const MENU_ID = /^[A-Za-z0-9_:.-]{1,64}$/;
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+const ITEM_INDEX = /^(0|[1-9]\d{0,5})$/;
+const MAX_MENU_ITEMS = 500;
+const MESSAGE_PREFIX = '__MENU__:';
+const FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, Ubuntu, sans-serif';
+
+export interface MenuColors {
+  overlay: string;
+  overlayBorder: string;
+  inkSecondary: string;
+  inkMuted: string;
+  selectionBg: string;
+  selectionBorder: string;
+  danger: string;
+  dangerHover: string;
+  divider: string;
 }
 
-// Inline SVG icons (Tabler Icons, 24x24 viewBox, stroke-based)
-// Each value is just the inner <path>/<circle>/etc elements.
-const iconPaths: Record<string, string> = {
-  play: '<polygon points="5 3 19 12 5 21 5 3" fill="currentColor" stroke="none"/>',
-  edit: '<path d="M7 7h-1a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-1"/><path d="M20.385 6.585a2.1 2.1 0 0 0-2.97-2.97l-8.415 8.385v3h3l8.385-8.415z"/>',
-  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8v-2a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
-  'copy-host': '<path d="M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><path d="M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0"/><line x1="3" y1="6" x2="3" y2="19"/><line x1="12" y1="6" x2="12" y2="19"/><line x1="21" y1="6" x2="21" y2="19"/>',
-  user: '<circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>',
-  key: '<path d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1-4.069 0l-3.602-3.602a4 4 0 0 1-1.843.357 4 4 0 1 1 3.357-1.843z"/><path d="M14.5 7.5l4 4"/>',
-  star: '<path d="M12 17.75l-6.172 3.245l1.179-6.873l-5-4.867l6.9-1l3.086-6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z"/>',
-  'star-off': '<path d="M12 17.75l-6.172 3.245l1.179-6.873l-5-4.867l6.9-1l3.086-6.253l3.086 6.253l6.9 1l-5 4.867l1.179 6.873z"/><line x1="3" y1="3" x2="21" y2="21"/>',
-  rename: '<path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7v-2a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/>',
-  trash: '<line x1="4" y1="7" x2="20" y2="7"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12"/><path d="M9 7v-3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
-  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
-  'folder-plus': '<path d="M12 19h-7a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2h4l3 3h7a2 2 0 0 1 2 2v3"/><line x1="16" y1="19" x2="22" y2="19"/><line x1="19" y1="16" x2="19" y2="22"/>',
-  folder: '<path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-14a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2"/>',
-  close: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
-  reconnect: '<path d="M20 11a8.1 8.1 0 0 0-15.5-2m-.5-4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>',
-  home: '<path d="M5 12l-2 0l9-9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/><path d="M9 21v-6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6"/>',
-  terminal: '<path d="M5 7l5 5l-5 5"/><line x1="12" y1="19" x2="19" y2="19"/>',
-  shield: '<path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1-8.5 15a12 12 0 0 1-8.5-15a12 12 0 0 0 8.5-3"/>',
-  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="16" r="1"/><path d="M8 11v-4a4 4 0 0 1 8 0v4"/>',
-  'external-link': '<path d="M11 7h-5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-5"/><line x1="10" y1="14" x2="20" y2="4"/><polyline points="15 4 20 4 20 9"/>',
-  'dots': '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
-  'chevron-right': '<polyline points="9 6 15 12 9 18"/>',
-  'keyboard': '<path d="M2 6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-16a2 2 0 0 1-2-2z"/><line x1="6" y1="10" x2="6" y2="10.01"/><line x1="10" y1="10" x2="10" y2="10.01"/><line x1="14" y1="10" x2="14" y2="10.01"/><line x1="18" y1="10" x2="18" y2="10.01"/><line x1="6" y1="14" x2="6" y2="14.01"/><line x1="18" y1="14" x2="18" y2="14.01"/><line x1="10" y1="14" x2="14" y2="14"/>',
-  'connect': '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
-  'clock': '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>',
-};
-
-function svgIcon(name: string, color: string): string {
-  const paths = iconPaths[name];
-  if (!paths) return '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">${paths}</svg>`;
-}
-
-// Theme color definitions matching src/index.css
-const themes = {
-  light: {
-    panel: '#ffffff',
-    raised: '#e2e8f0',
-    ink: '#0f172a',
-    inkFaint: '#94a3b8',
-    strokeDim: '#e2e8f0',
-    danger: '#f87171',
-    dangerHover: 'rgba(248,113,113,0.12)',
-    shadow: 'rgba(0,0,0,0.12)',
-  },
+/** Modern scheme values, alpha flattened over the overlay, for colors the renderer did not send as #rrggbb. */
+export const MODERN_MENU_COLORS: Readonly<Record<'dark' | 'light', Readonly<MenuColors>>> = {
   dark: {
-    panel: '#1e293b',
-    raised: '#334155',
-    ink: '#f1f5f9',
-    inkFaint: '#64748b',
-    strokeDim: '#475569',
-    danger: '#f87171',
-    dangerHover: 'rgba(248,113,113,0.15)',
-    shadow: 'rgba(0,0,0,0.45)',
+    overlay: '#202122',
+    overlayBorder: '#2a2b2c',
+    inkSecondary: '#bfbfbf',
+    inkMuted: '#9d9d9d',
+    selectionBg: '#1d3540',
+    selectionBorder: '#0ea5e9',
+    danger: '#f48771',
+    dangerHover: '#352b2a',
+    divider: '#2a2b2c',
+  },
+  light: {
+    overlay: '#fafafd',
+    overlayBorder: '#e4e5e6',
+    inkSecondary: '#202020',
+    inkMuted: '#606060',
+    selectionBg: '#e2f2fb',
+    selectionBorder: '#0ea5e9',
+    danger: '#ad0707',
+    dangerHover: '#f2e2e4',
+    divider: '#f0f1f2',
   },
 };
+
+export type MenuRow =
+  | { readonly kind: 'separator' }
+  | { readonly kind: 'header'; readonly label: string }
+  | { readonly kind: 'item'; readonly label: string; readonly danger: boolean; readonly iconSvg: string | null; readonly index: number }
+  | { readonly kind: 'submenu'; readonly label: string; readonly danger: boolean; readonly iconSvg: string | null; readonly submenu: number };
+
+export interface MenuModel {
+  readonly rows: readonly MenuRow[];
+  readonly submenus: ReadonlyArray<readonly MenuRow[]>;
+  /** The id of each selectable item, by the flattened index the page reports. */
+  readonly ids: readonly string[];
+}
+
+export interface Rect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface MenuLayout {
+  /** The popup window: the visible panels grown by the shadow margin. */
+  readonly window: Rect;
+  readonly main: Rect;
+  readonly submenus: readonly Rect[];
+}
+
+const HTML_ESCAPES: Readonly<Record<string, string>> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+export function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+// ── Payload ──
+
+export function menuColors(colors: unknown, theme: unknown): MenuColors {
+  const fallback = MODERN_MENU_COLORS[theme === 'light' ? 'light' : 'dark'];
+  const given = isRecord(colors) ? colors : {};
+  const pick = (key: keyof MenuColors): string => {
+    const value = given[key];
+    return typeof value === 'string' && HEX_COLOR.test(value) ? value : fallback[key];
+  };
+  return {
+    overlay: pick('overlay'),
+    overlayBorder: pick('overlayBorder'),
+    inkSecondary: pick('inkSecondary'),
+    inkMuted: pick('inkMuted'),
+    selectionBg: pick('selectionBg'),
+    selectionBorder: pick('selectionBorder'),
+    danger: pick('danger'),
+    dangerHover: pick('dangerHover'),
+    divider: pick('divider'),
+  };
+}
+
+function describeItem(item: unknown): string {
+  const id = isRecord(item) ? item.id : item;
+  return JSON.stringify(id)?.slice(0, 80) ?? String(id);
+}
+
+type PayloadItem =
+  | { readonly kind: 'separator' }
+  | { readonly kind: 'header'; readonly label: string }
+  | { readonly kind: 'action'; readonly id: string; readonly label: string; readonly danger: boolean; readonly iconSvg: string | null; readonly children: readonly unknown[] };
+
+/** One validated payload item, or null (with a warning) when it must be dropped. */
+function readItem(item: unknown): PayloadItem | null {
+  if (!isRecord(item) || typeof item.id !== 'string' || !MENU_ID.test(item.id)) {
+    console.warn(`[menu] Dropped a popup menu item with an invalid id: ${describeItem(item)}`);
+    return null;
+  }
+  if (typeof item.label !== 'string') {
+    console.warn(`[menu] Dropped popup menu item "${item.id}": its label is not a string`);
+    return null;
+  }
+  if (item.type === 'separator') return { kind: 'separator' };
+  if (item.type === 'header') return { kind: 'header', label: item.label };
+  return {
+    kind: 'action',
+    id: item.id,
+    label: item.label,
+    danger: item.variant === 'danger',
+    iconSvg: sanitizeSvg(item.iconSvg),
+    children: Array.isArray(item.children) ? item.children.slice(0, MAX_MENU_ITEMS) : [],
+  };
+}
+
+/**
+ * Validates the payload items into rows. Selectable items are numbered depth first; the page reports that
+ * number, so no id ever reaches the page. Submenus nest one level, as the page renders them.
+ */
+export function buildMenuModel(items: unknown): MenuModel {
+  const ids: string[] = [];
+  const submenus: MenuRow[][] = [];
+  const list = Array.isArray(items) ? items : [];
+  if (list.length > MAX_MENU_ITEMS) console.warn(`[menu] Showing the first ${MAX_MENU_ITEMS} of ${list.length} popup menu items`);
+
+  const toRow = (item: unknown, nested: boolean): MenuRow | null => {
+    const read = readItem(item);
+    if (!read || read.kind !== 'action') return read;
+    const { id, label, danger, iconSvg, children } = read;
+    const childRows = nested ? [] : children.map((child) => toRow(child, true)).filter((row): row is MenuRow => row !== null);
+    if (childRows.length > 0) {
+      submenus.push(childRows);
+      return { kind: 'submenu', label, danger, iconSvg, submenu: submenus.length - 1 };
+    }
+    ids.push(id);
+    return { kind: 'item', label, danger, iconSvg, index: ids.length - 1 };
+  };
+
+  const rows = list.slice(0, MAX_MENU_ITEMS).map((item) => toRow(item, false)).filter((row): row is MenuRow => row !== null);
+  return { rows, submenus, ids };
+}
+
+/** The item id for a page message, null for a dismissal or anything invalid, undefined for other page logs. */
+export function selectionFor(message: string, ids: readonly string[]): string | null | undefined {
+  if (!message.startsWith(MESSAGE_PREFIX)) return undefined;
+  const value = message.slice(MESSAGE_PREFIX.length);
+  if (!ITEM_INDEX.test(value)) return null;
+  return ids[Number(value)] ?? null;
+}
+
+// ── Geometry ──
+
+const NARROW = new Set("ijlIft.,:;|!'`() ");
+const WIDE = new Set("mwMW@%");
+
+// The window is sized before its page renders, so label widths are estimated. Per character at 13px, each
+// class is a little above the widest glyph of the macOS system font, so Segoe UI and Ubuntu fit too.
+function charWidth13(ch: string): number {
+  if (NARROW.has(ch)) return 4.5;
+  if (WIDE.has(ch)) return 13;
+  if (ch.charCodeAt(0) > 0x7f) return 13;
+  if (ch >= 'A' && ch <= 'Z') return 9.5;
+  return 7.5;
+}
+
+export function estimateTextWidth(text: string, fontPx: number): number {
+  return ([...text].reduce((sum, ch) => sum + charWidth13(ch), 0) * fontPx) / 13;
+}
+
+function rowWidth(row: MenuRow, reserveIcon: boolean): number {
+  if (row.kind === 'separator') return 0;
+  if (row.kind === 'header') return HEADER_CHROME + estimateTextWidth(row.label, 11);
+  return ITEM_CHROME + (reserveIcon ? SLOT : 0) + estimateTextWidth(row.label, 13) + (row.kind === 'submenu' ? SLOT : 0);
+}
+
+function hasIcons(rows: readonly MenuRow[]): boolean {
+  return rows.some((row) => (row.kind === 'item' || row.kind === 'submenu') && row.iconSvg !== null);
+}
+
+export function panelWidth(rows: readonly MenuRow[]): number {
+  const reserveIcon = hasIcons(rows);
+  const widest = rows.reduce((max, row) => Math.max(max, rowWidth(row, reserveIcon)), 0);
+  return Math.min(MENU_METRICS.maxWidth, Math.max(MENU_METRICS.minWidth, Math.ceil(widest)));
+}
+
+function rowHeight(row: MenuRow): number {
+  if (row.kind === 'separator') return MENU_METRICS.separator;
+  return row.kind === 'header' ? MENU_METRICS.header : MENU_METRICS.row;
+}
+
+function panelHeight(rows: readonly MenuRow[]): number {
+  return rows.reduce((sum, row) => sum + rowHeight(row), PANEL_CHROME);
+}
+
+/** Keeps a span inside [min, max]; when it cannot fit, the start (min) wins. */
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
+}
+
+function union(rects: readonly Rect[]): Rect {
+  const x = Math.min(...rects.map((r) => r.x));
+  const y = Math.min(...rects.map((r) => r.y));
+  const right = Math.max(...rects.map((r) => r.x + r.width));
+  const bottom = Math.max(...rects.map((r) => r.y + r.height));
+  return { x, y, width: right - x, height: bottom - y };
+}
+
+function grow(rect: Rect, by: number): Rect {
+  return { x: rect.x - by, y: rect.y - by, width: rect.width + 2 * by, height: rect.height + 2 * by };
+}
+
+/**
+ * Flips and clamps the visible menu at the click point (screen DIP) against the work area, places each
+ * submenu beside its parent row, and only then adds the shadow margin to get the window.
+ */
+export function layoutMenu(model: MenuModel, at: { x: number; y: number; anchorRight: boolean; workArea: Rect }): MenuLayout {
+  const width = panelWidth(model.rows);
+  const area = at.workArea;
+  const right = area.x + area.width;
+  const bottom = area.y + area.height;
+  const height = panelHeight(model.rows);
+
+  let x = at.anchorRight ? at.x - width : at.x;
+  let y = at.y;
+  if (x + width > right) x -= width;
+  if (y + height > bottom) y -= height;
+  x = clamp(x, area.x, right - width);
+  y = clamp(y, area.y, bottom - height);
+  const main: Rect = { x, y, width, height };
+
+  const overlap = MENU_METRICS.submenuOverlap;
+  const submenus: Rect[] = [];
+  let offset = 0;
+  for (const row of model.rows) {
+    if (row.kind === 'submenu') {
+      const subRows = model.submenus[row.submenu];
+      const subWidth = panelWidth(subRows);
+      const subHeight = panelHeight(subRows);
+      const subX = x + width + subWidth - overlap <= right ? x + width - overlap : x - subWidth + overlap;
+      submenus.push({ x: subX, y: clamp(y + offset, area.y, bottom - subHeight), width: subWidth, height: subHeight });
+    }
+    offset += rowHeight(row);
+  }
+
+  return { window: grow(union([main, ...submenus]), MENU_METRICS.shadowMargin), main, submenus };
+}
+
+// ── Page ──
+
+function menuCss(c: MenuColors, platform: NodeJS.Platform): string {
+  const smoothing = platform === 'darwin' ? ';-electron-corner-smoothing:system-ui' : '';
+  return [
+    `*{margin:0;padding:0;box-sizing:border-box${smoothing}}`,
+    'html,body{width:100%;height:100%;background:transparent;overflow:hidden}',
+    `body{position:relative;font-family:${FONT_STACK};cursor:default;user-select:none;-webkit-user-select:none}`,
+    `.m,.sm{position:absolute;padding:${MENU_METRICS.padding}px 0;background:${c.overlay};border:1px solid ${c.overlayBorder};border-radius:8px;box-shadow:0 0 12px rgba(0,0,0,.14)}`,
+    `.i{display:flex;align-items:center;height:24px;margin:0 4px;padding:0 8px;border-radius:6px;gap:8px;font-size:13px;line-height:24px;color:${c.inkSecondary};white-space:nowrap}`,
+    `.i.o{background:${c.selectionBg}}`,
+    `.i.a{background:${c.selectionBg};outline:1px solid ${c.selectionBorder};outline-offset:-1px}`,
+    `.i.d{color:${c.danger}}`,
+    `.i.d.a{background:${c.dangerHover}}`,
+    '.l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}',
+    `.ic{display:flex;flex-shrink:0;width:16px;height:16px;color:${c.inkMuted}}`,
+    `.i.d .ic{color:${c.danger}}`,
+    `.ch{display:flex;flex-shrink:0;width:16px;height:16px;align-items:center;justify-content:center;color:${c.inkMuted}}`,
+    '.ch:empty::after{content:"";width:5px;height:5px;margin-left:-3px;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;transform:rotate(45deg)}',
+    `.hd{height:24px;padding:0 12px;font-size:11px;font-weight:600;line-height:24px;color:${c.inkMuted};overflow:hidden;white-space:nowrap;text-overflow:ellipsis}`,
+    `.sep{height:1px;margin:5px 0;background:${c.divider}}`,
+  ].join('\n');
+}
+
+function rowHtml(row: MenuRow, reserveIcon: boolean, chevronSvg: string | null): string {
+  if (row.kind === 'separator') return '<div class="sep" role="separator"></div>';
+  if (row.kind === 'header') return `<div class="hd" role="presentation">${escapeHtml(row.label)}</div>`;
+  const cls = row.danger ? 'i d' : 'i';
+  const icon = row.iconSvg ? `<span class="ic">${row.iconSvg}</span>` : reserveIcon ? '<span class="ic"></span>' : '';
+  const label = `<span class="l">${escapeHtml(row.label)}</span>`;
+  if (row.kind === 'item') return `<div class="${cls}" role="menuitem" data-i="${row.index}">${icon}${label}</div>`;
+  return `<div class="${cls}" role="menuitem" aria-haspopup="menu" data-sub="${row.submenu}">${icon}${label}<span class="ch">${chevronSvg ?? ''}</span></div>`;
+}
+
+function panelHtml(rows: readonly MenuRow[], chevronSvg: string | null): string {
+  const reserveIcon = hasIcons(rows);
+  return rows.map((row) => rowHtml(row, reserveIcon, chevronSvg)).join('');
+}
+
+// Static: the page reads everything it needs from the markup. It reports the flattened index of the chosen
+// item, or "dismiss" for Escape and for a mousedown in the transparent shadow margin, which the window
+// would otherwise swallow without losing focus.
+const PAGE_SCRIPT = `(function () {
+  var main = document.querySelector('.m');
+  var active = null, openSub = null, openParent = null, hideTimer = 0;
+  function send(value) { console.log('${MESSAGE_PREFIX}' + value); }
+  function asElement(node) { return node instanceof Element ? node : null; }
+  function rowsOf(panel) { return Array.prototype.filter.call(panel.children, function (el) { return el.classList.contains('i'); }); }
+  function setActive(row) {
+    if (active) active.classList.remove('a');
+    active = row;
+    if (row) row.classList.add('a');
+  }
+  function cancelHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = 0; } }
+  function hideSub() {
+    cancelHide();
+    if (!openSub) return;
+    if (active && openSub.contains(active)) setActive(null);
+    openSub.style.display = 'none';
+    openParent.classList.remove('o');
+    openSub = null;
+    openParent = null;
+  }
+  function scheduleHide() { if (openSub && !hideTimer) hideTimer = setTimeout(hideSub, 100); }
+  function showSub(row) {
+    var sub = document.getElementById('s' + row.getAttribute('data-sub'));
+    cancelHide();
+    if (!sub || sub === openSub) return sub;
+    hideSub();
+    sub.style.display = 'block';
+    row.classList.add('o');
+    openSub = sub;
+    openParent = row;
+    return sub;
+  }
+  function choose(row) {
+    if (row.hasAttribute('data-i')) { send(row.getAttribute('data-i')); return; }
+    var sub = showSub(row);
+    if (sub) setActive(rowsOf(sub)[0] || null);
+  }
+  function move(key) {
+    var panel = active && openSub && openSub.contains(active) ? openSub : main;
+    var rows = rowsOf(panel);
+    if (!rows.length) return;
+    var i = rows.indexOf(active);
+    var last = rows.length - 1;
+    var next = key === 'Home' ? 0 : key === 'End' ? last : key === 'ArrowUp' ? (i <= 0 ? last : i - 1) : (i < 0 || i >= last ? 0 : i + 1);
+    setActive(rows[next]);
+    if (panel === main && rows[next] !== openParent) hideSub();
+  }
+  document.addEventListener('mousedown', function (e) {
+    var target = asElement(e.target);
+    if (!target || !target.closest('.m, .sm')) send('dismiss');
+  }, true);
+  document.addEventListener('mousedown', function (e) {
+    var target = asElement(e.target);
+    var row = target && target.closest('.i');
+    if (row && row.hasAttribute('data-i')) send(row.getAttribute('data-i'));
+  });
+  document.addEventListener('mouseover', function (e) {
+    var target = asElement(e.target);
+    if (!target) return;
+    var row = target.closest('.i');
+    if ((openSub && openSub.contains(target)) || (row && row === openParent)) cancelHide();
+    if (!row) return;
+    if (row !== active) setActive(row);
+    if (row.parentElement !== main) return;
+    if (row.hasAttribute('data-sub')) showSub(row); else scheduleHide();
+  });
+  document.addEventListener('mouseout', function (e) {
+    var from = asElement(e.target), to = asElement(e.relatedTarget);
+    var fromRow = from && from.closest('.i'), toRow = to && to.closest('.i');
+    if (fromRow && fromRow !== toRow && fromRow === active) setActive(null);
+    if (openSub && !(to && (openSub.contains(to) || toRow === openParent))) scheduleHide();
+  });
+  document.addEventListener('keydown', function (e) {
+    var key = e.key;
+    if (key === 'Escape') { e.preventDefault(); send('dismiss'); return; }
+    if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Home' || key === 'End') { e.preventDefault(); move(key); return; }
+    if (key === 'Enter' || key === ' ') { e.preventDefault(); if (active) choose(active); return; }
+    if (key === 'ArrowRight') { e.preventDefault(); if (active && active.hasAttribute('data-sub')) choose(active); return; }
+    if (key === 'ArrowLeft' && active && openSub && openSub.contains(active)) {
+      e.preventDefault();
+      var parent = openParent;
+      hideSub();
+      setActive(parent);
+    }
+  });
+})();`;
+
+const CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'";
+
+export function buildMenuHtml(input: { model: MenuModel; layout: MenuLayout; colors: MenuColors; chevronSvg: string | null; platform: NodeJS.Platform }): string {
+  const { model, layout, colors, chevronSvg, platform } = input;
+  const at = (rect: Rect) => `left:${rect.x - layout.window.x}px;top:${rect.y - layout.window.y}px;width:${rect.width}px`;
+  const submenus = model.submenus
+    .map((rows, k) => `<div class="sm" id="s${k}" role="menu" style="${at(layout.submenus[k])};display:none">${panelHtml(rows, chevronSvg)}</div>`)
+    .join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}"><style>
+${menuCss(colors, platform)}
+</style></head><body>
+<div class="m" role="menu" style="${at(layout.main)}">${panelHtml(model.rows, chevronSvg)}</div>${submenus}
+<script>${PAGE_SCRIPT}</script>
+</body></html>`;
+}
+
+// ── Window ──
+
+interface MenuRequest {
+  items: unknown[];
+  x: number;
+  y: number;
+  anchorRight: boolean;
+  theme: unknown;
+  colors: unknown;
+  submenuIconSvg: unknown;
+}
+
+function parseRequest(args: unknown): MenuRequest | null {
+  if (!isRecord(args) || !Array.isArray(args.items)) return null;
+  const { x, y } = args;
+  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { items: args.items, x, y, anchorRight: args.anchorRight === true, theme: args.theme, colors: args.colors, submenuIconSvg: args.submenuIconSvg };
+}
+
+function openPopup(parent: BrowserWindow, bounds: Rect, html: string, ids: readonly string[]): Promise<string | null> {
+  return new Promise<string | null>((resolve) => {
+    let popup: BrowserWindow;
+    try {
+      popup = new BrowserWindow({
+        parent,
+        ...bounds,
+        frame: false,
+        transparent: true,
+        // Electron 43+ rounds frameless windows on Linux by default; these draw their own shape.
+        ...(process.platform === 'linux' ? { roundedCorners: false } : {}),
+        skipTaskbar: true,
+        resizable: false,
+        movable: false,
+        minimizable: false,
+        maximizable: false,
+        fullscreenable: false,
+        hasShadow: false,
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+        },
+      });
+    } catch (err) {
+      console.error('[menu] Could not create the popup menu window:', err);
+      resolve(null);
+      return;
+    }
+
+    let resolved = false;
+    const done = (id: string | null) => {
+      if (resolved) return;
+      resolved = true;
+      if (!popup.isDestroyed()) popup.close();
+      resolve(id);
+    };
+
+    popup.on('blur', () => done(null));
+    popup.on('closed', () => done(null));
+    // Selections arrive as console messages, so the page needs no preload.
+    popup.webContents.on('console-message', (ev) => {
+      const selection = selectionFor(ev.message, ids);
+      if (selection !== undefined) done(selection);
+    });
+    popup.webContents.on('did-finish-load', () => {
+      if (!popup.isDestroyed()) popup.show();
+    });
+    popup.webContents.on('did-fail-load', (_ev, code, description) => {
+      console.error(`[menu] The popup menu page failed to load (${code} ${description})`);
+      done(null);
+    });
+    popup.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`).catch((err: unknown) => {
+      if (!resolved) console.error('[menu] Could not load the popup menu page:', err);
+      done(null);
+    });
+  });
+}
+
+async function showPopupMenu(args: unknown): Promise<string | null> {
+  const parentWindow = AppState.getInstance().getMainWindow();
+  if (!parentWindow) return null;
+
+  const request = parseRequest(args);
+  if (!request) {
+    console.warn('[menu] Ignored a popup menu request with an invalid payload');
+    return null;
+  }
+  const model = buildMenuModel(request.items);
+  if (model.rows.length === 0) return null;
+
+  // Use getContentBounds() not getBounds(): the menu point is relative to the page, not the frame.
+  const contentBounds = parentWindow.getContentBounds();
+  const zoom = parentWindow.webContents.getZoomFactor();
+  const x = Math.round(contentBounds.x + request.x * zoom);
+  const y = Math.round(contentBounds.y + request.y * zoom);
+  const { workArea } = screen.getDisplayNearestPoint({ x, y });
+
+  const layout = layoutMenu(model, { x, y, anchorRight: request.anchorRight, workArea });
+  const html = buildMenuHtml({
+    model,
+    layout,
+    colors: menuColors(request.colors, request.theme),
+    chevronSvg: model.submenus.length > 0 ? sanitizeSvg(request.submenuIconSvg) : null,
+    platform: process.platform,
+  });
+  return openPopup(parentWindow, layout.window, html, model.ids);
+}
 
 export function registerMenuHandlers(): void {
-  ipcMain.handle(
-    'show_context_menu_popup',
-    async (
-      _e,
-      args: {
-        items: PopupMenuItem[];
-        x: number;
-        y: number;
-        theme?: string;
-        colors?: { panel?: string; raised?: string; ink?: string; inkFaint?: string; strokeDim?: string };
-        anchorRight?: boolean;
-      }
-    ): Promise<string | null> => {
-      const parentWindow = AppState.getInstance().getMainWindow();
-      if (!parentWindow) return null;
-
-      const fallback = args.theme === 'light' ? themes.light : themes.dark;
-      const t = {
-        panel: args.colors?.panel || fallback.panel,
-        raised: args.colors?.raised || fallback.raised,
-        ink: args.colors?.ink || fallback.ink,
-        inkFaint: args.colors?.inkFaint || fallback.inkFaint,
-        strokeDim: args.colors?.strokeDim || fallback.strokeDim,
-        danger: fallback.danger,
-        dangerHover: fallback.dangerHover,
-        shadow: fallback.shadow,
-      };
-
-      // Calculate dimensions
-      const menuWidth = 210;
-      const itemH = 30;
-      const sepH = 9;
-      const headerH = 24;
-      const pad = 4;
-      // Border (2px) + padding + extra buffer for shadow/border-radius
-      const border = 2;
-      const buffer = 12;
-
-      const calcHeight = (items: PopupMenuItem[]) => {
-        let h = pad * 2 + border + buffer;
-        for (const item of items) {
-          h += item.type === 'separator' ? sepH : item.type === 'header' ? headerH : itemH;
-        }
-        return h;
-      };
-
-      const hasSubmenus = args.items.some((i) => i.children?.length);
-      let menuHeight = calcHeight(args.items);
-
-      // If submenus exist, compute max submenu height for window sizing
-      let maxSubmenuHeight = 0;
-      if (hasSubmenus) {
-        for (const item of args.items) {
-          if (item.children?.length) {
-            maxSubmenuHeight = Math.max(maxSubmenuHeight, calcHeight(item.children));
-          }
-        }
-      }
-
-      // Convert x/y from CSS pixels to screen coords (account for content area position + scale).
-      // Use getContentBounds() not getBounds() — getBounds() includes the title bar,
-      // which offsets the menu above the actual click position.
-      const contentBounds = parentWindow.getContentBounds();
-      const scale = parentWindow.webContents.getZoomFactor();
-      let x = Math.round(contentBounds.x + args.x * scale);
-      let y = Math.round(contentBounds.y + args.y * scale);
-
-      // Anchor menu from the right edge of the given x position
-      if (args.anchorRight) {
-        x = x - menuWidth;
-      }
-
-      // Keep on screen
-      const display = screen.getDisplayNearestPoint({ x, y });
-      const db = display.workArea;
-      if (x + menuWidth > db.x + db.width) x = x - menuWidth;
-      if (x < db.x) x = db.x;
-      if (y + menuHeight > db.y + db.height) y = y - menuHeight;
-
-      return new Promise<string | null>((resolve) => {
-        let resolved = false;
-        const done = (id: string | null) => {
-          if (resolved) return;
-          resolved = true;
-          if (!popup.isDestroyed()) popup.close();
-          resolve(id);
-        };
-
-        // Window must be large enough for main menu + submenu side by side
-        const windowWidth = hasSubmenus ? menuWidth * 2 + 4 : menuWidth;
-        const windowHeight = hasSubmenus ? Math.max(menuHeight, maxSubmenuHeight + itemH) : menuHeight;
-
-        const popup = new BrowserWindow({
-          parent: parentWindow,
-          x,
-          y,
-          width: windowWidth,
-          height: windowHeight,
-          frame: false,
-          transparent: true,
-          // Electron 43+ rounds frameless windows on Linux by default; these draw their own shape.
-          ...(process.platform === 'linux' ? { roundedCorners: false } : {}),
-          skipTaskbar: true,
-          resizable: false,
-          movable: false,
-          minimizable: false,
-          maximizable: false,
-          fullscreenable: false,
-          hasShadow: false,
-          show: false,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-          },
-        });
-
-        popup.on('blur', () => done(null));
-        popup.on('closed', () => done(null));
-
-        // Listen for item selection via console messages (no preload needed)
-        popup.webContents.on('console-message', (ev) => {
-          if (ev.message.startsWith('__MENU__:')) {
-            done(ev.message.slice(9));
-          }
-        });
-
-        // Build menu HTML
-        const renderItem = (item: PopupMenuItem): string => {
-          if (item.type === 'separator') {
-            return `<div style="height:1px;margin:4px 8px;background:${t.strokeDim}"></div>`;
-          }
-          if (item.type === 'header') {
-            return `<div style="padding:4px 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:${t.inkFaint};user-select:none;-webkit-user-select:none">${item.label}</div>`;
-          }
-          const color = item.variant === 'danger' ? t.danger : t.ink;
-          const iconColor = item.variant === 'danger' ? t.danger : t.inkFaint;
-          const hoverBg = item.variant === 'danger' ? t.dangerHover : t.raised;
-          const iconHtml = item.icon ? svgIcon(item.icon, iconColor) : '';
-
-          if (item.children?.length) {
-            const chevron = svgIcon('chevron-right', t.inkFaint);
-            return `<div class="i" style="color:${color}" data-hover="${hoverBg}" data-submenu="${item.id}"
-              >${iconHtml}<span style="flex:1">${item.label}</span>${chevron}</div>`;
-          }
-
-          return `<div class="i" style="color:${color}" data-hover="${hoverBg}"
-            onmouseenter="this.style.background=this.dataset.hover"
-            onmouseleave="this.style.background='transparent'"
-            onmousedown="console.log('__MENU__:${item.id}')"
-            >${iconHtml}<span>${item.label}</span></div>`;
-        };
-
-        const itemsHtml = args.items.map(renderItem).join('');
-
-        // Build submenu panels
-        let submenusHtml = '';
-        for (const item of args.items) {
-          if (!item.children?.length) continue;
-          const subItems = item.children.map(renderItem).join('');
-          submenusHtml += `<div class="sm" data-for="${item.id}">${subItems}</div>`;
-        }
-
-        const submenuJs = hasSubmenus ? `
-(function(){
-  var timer=null;
-  var activeSub=null;
-  document.querySelectorAll('[data-submenu]').forEach(function(el){
-    el.addEventListener('mouseenter',function(){
-      if(timer){clearTimeout(timer);timer=null}
-      el.style.background=el.dataset.hover;
-      var id=el.dataset.submenu;
-      if(activeSub&&activeSub.dataset.for!==id){activeSub.style.display='none'}
-      var sm=document.querySelector('.sm[data-for="'+id+'"]');
-      if(sm){
-        var rect=el.getBoundingClientRect();
-        sm.style.top=rect.top+'px';
-        sm.style.left=(${menuWidth}-2)+'px';
-        sm.style.display='block';
-        activeSub=sm;
-      }
-    });
-    el.addEventListener('mouseleave',function(e){
-      var sm=activeSub;
-      timer=setTimeout(function(){
-        el.style.background='transparent';
-        if(sm&&sm===activeSub){sm.style.display='none';activeSub=null}
-      },100);
-    });
-  });
-  document.querySelectorAll('.sm').forEach(function(sm){
-    sm.addEventListener('mouseenter',function(){if(timer){clearTimeout(timer);timer=null}
-      var forId=sm.dataset.for;
-      var parent=document.querySelector('[data-submenu="'+forId+'"]');
-      if(parent)parent.style.background=parent.dataset.hover;
-    });
-    sm.addEventListener('mouseleave',function(){
-      sm.style.display='none';activeSub=null;
-      var forId=sm.dataset.for;
-      var parent=document.querySelector('[data-submenu="'+forId+'"]');
-      if(parent)parent.style.background='transparent';
-    });
-  });
-})();` : '';
-
-        const html = `<!DOCTYPE html><html><head><style>
-*{margin:0;padding:0;box-sizing:border-box${process.platform === 'darwin' ? ';-electron-corner-smoothing:system-ui' : ''}}
-html,body{background:transparent;overflow:hidden}
-.m{background:${t.panel};border:1px solid ${t.strokeDim};border-radius:8px;
-padding:${pad}px 0;box-shadow:0 4px 24px ${t.shadow};overflow:hidden;
-font-family:Inter,system-ui,-apple-system,sans-serif}
-.i{padding:5px 12px;font-size:13px;cursor:default;border-radius:4px;margin:0 4px;
-user-select:none;-webkit-user-select:none;line-height:20px;
-display:flex;align-items:center;gap:8px}
-.sm{position:absolute;display:none;background:${t.panel};border:1px solid ${t.strokeDim};
-border-radius:8px;padding:${pad}px 0;box-shadow:0 4px 24px ${t.shadow};overflow:hidden;
-width:${menuWidth}px;font-family:Inter,system-ui,-apple-system,sans-serif}
-</style></head><body>
-<div class="m" style="width:${menuWidth}px">${itemsHtml}</div>
-${submenusHtml}
-<script>
-document.addEventListener('keydown',e=>{if(e.key==='Escape')console.log('__MENU__:')});
-${submenuJs}
-</script>
-</body></html>`;
-
-        popup.loadURL(
-          `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
-        );
-
-        popup.webContents.on('did-finish-load', () => {
-          if (!popup.isDestroyed()) popup.show();
-        });
-      });
-    }
-  );
+  ipcMain.handle('show_context_menu_popup', (_e, args: unknown) => showPopupMenu(args));
 }
