@@ -5,9 +5,8 @@ import UnlockDialog from "./UnlockDialog";
 import CredentialForm from "./CredentialForm";
 import type { CredentialMeta } from "../../types/credential";
 import { resolveCredentialType, CREDENTIAL_TYPES } from "../../types/credential";
-import {
-  CloseIcon, GlobeIcon, KeyIcon, LockIcon, LockOpenIcon, PencilIcon, PlusIcon, SearchIcon, TagIcon, TrashIcon, UserIcon
-} from "../../lib/icons";
+import { GlobeIcon, LockIcon, SearchIcon, TagIcon, UserIcon } from "../../lib/icons";
+import { Badge, Button, Dialog, DialogHeader, EmptyState, IconButton, TextInput } from "../ui";
 
 interface CredentialManagerProps {
   onClose: () => void;
@@ -91,12 +90,6 @@ export default function CredentialManager({ onClose }: CredentialManagerProps) {
     onClose();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape" && !showForm && !showUnlock && !deletingId) {
-      onClose();
-    }
-  };
-
   // Show unlock dialog if vault is locked
   if (showUnlock && !isUnlocked) {
     return (
@@ -109,117 +102,79 @@ export default function CredentialManager({ onClose }: CredentialManagerProps) {
 
   return (
     <>
-      <div
-        className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
-        onKeyDown={handleKeyDown}
+      <Dialog
+        open
+        title="Credentials"
+        icon="key"
+        width={672}
+        style={{ maxHeight: "80vh" }}
+        closeOnEscape={!showForm && !showUnlock && !deletingId}
+        onClose={onClose}
+        layout="custom"
       >
-        <div className="w-full max-w-2xl bg-panel rounded-lg shadow-xl max-h-[80vh] flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-            <div className="flex items-center gap-2">
-              <KeyIcon size={20} className="text-conduit-400" />
-              <h2 className="text-lg font-semibold">Credentials</h2>
-              {vaultType === 'team' && activeTeamVault && (
-                <span className="px-2 py-0.5 text-xs font-medium bg-conduit-500/10 text-conduit-400 rounded-full">
-                  {activeTeamVault.name}
-                </span>
-              )}
-              <span className="text-xs text-ink-faint ml-1">
-                {credentials.length} stored
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              {isUnlocked && (
-                <button
-                  onClick={() => lockVault()}
-                  className="p-1.5 hover:bg-raised rounded text-ink-muted hover:text-amber-400"
-                  title="Lock vault"
-                >
-                  <LockOpenIcon size={16} />
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="p-1 hover:bg-raised rounded"
-              >
-                <CloseIcon size={20} />
-              </button>
-            </div>
-          </div>
+        <DialogHeader>
+          {vaultType === "team" && activeTeamVault && <Badge tone="accent">{activeTeamVault.name}</Badge>}
+          <span className="text-label text-ink-faint">{credentials.length} stored</span>
+          {isUnlocked && <IconButton icon="lockOpen" label="Lock vault" onClick={() => lockVault()} />}
+        </DialogHeader>
 
-          {/* Search + Add bar */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-stroke/50">
-            <div className="flex-1 flex items-center gap-2 px-3 py-1.5 bg-well rounded">
-              <SearchIcon size={16} className="text-ink-muted" />
-              <input
-                type="text"
-                placeholder="Search credentials..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-ink-faint"
-              />
-            </div>
-            <button
-              onClick={() => {
-                setEditingId(undefined);
-                setShowForm(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-conduit-600 hover:bg-conduit-700 text-white rounded text-sm"
-            >
-              <PlusIcon size={16} />
-              <span>Add</span>
-            </button>
-          </div>
+        <div className="flex items-center gap-2 border-b border-divider px-4 pb-2">
+          <TextInput
+            leading={<SearchIcon size={16} />}
+            placeholder="Search credentials..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Button
+            variant="primary"
+            icon="plus"
+            onClick={() => {
+              setEditingId(undefined);
+              setShowForm(true);
+            }}
+          >
+            Add
+          </Button>
+        </div>
 
-          {/* Credential list */}
-          <div className="flex-1 overflow-y-auto">
-            {filteredCredentials.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-ink-faint">
-                {credentials.length === 0 ? (
-                  <>
-                    <KeyIcon size={40} className="mb-3 opacity-50" />
-                    <p className="text-sm">No credentials stored</p>
-                    <p className="text-xs mt-1">
-                      Click "Add" to create your first credential
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <SearchIcon size={40} className="mb-3 opacity-50" />
-                    <p className="text-sm">No matching credentials</p>
-                  </>
-                )}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {filteredCredentials.length === 0 ? (
+            credentials.length === 0 ? (
+              <div className="py-4">
+                <EmptyState icon="key" title="No credentials stored" description='Click "Add" to create your first credential' />
               </div>
             ) : (
-              <div className="divide-y divide-stroke/50">
-                {filteredCredentials.map((cred) => (
-                  <CredentialRow
-                    key={cred.id}
-                    credential={cred}
-                    isDeleting={deletingId === cred.id}
-                    onEdit={() => handleEdit(cred.id)}
-                    onDeleteStart={() => setDeletingId(cred.id)}
-                    onDeleteConfirm={() => handleDelete(cred.id)}
-                    onDeleteCancel={() => setDeletingId(null)}
-                  />
-                ))}
+              <div className="py-4">
+                <EmptyState icon="search" title="No matching credentials" />
               </div>
-            )}
-          </div>
-
-          {/* Footer info */}
-          <div className="px-4 py-2 border-t border-stroke text-xs text-ink-faint flex items-center gap-1.5">
-            <LockIcon size={12} />
-            <span>
-              {vaultType === 'team'
-                ? 'End-to-end encrypted with zero-knowledge team key'
-                : 'Credentials are encrypted with AES-256-GCM'}
-            </span>
-          </div>
+            )
+          ) : (
+            <div className="divide-y divide-divider">
+              {filteredCredentials.map((cred) => (
+                <CredentialRow
+                  key={cred.id}
+                  credential={cred}
+                  isDeleting={deletingId === cred.id}
+                  onEdit={() => handleEdit(cred.id)}
+                  onDeleteStart={() => setDeletingId(cred.id)}
+                  onDeleteConfirm={() => handleDelete(cred.id)}
+                  onDeleteCancel={() => setDeletingId(null)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Credential form modal */}
+        <div className="flex items-center gap-1.5 border-t border-divider px-4 py-2 text-label text-ink-faint">
+          <LockIcon size={12} compact />
+          <span>
+            {vaultType === "team"
+              ? "End-to-end encrypted with zero-knowledge team key"
+              : "Credentials are encrypted with AES-256-GCM"}
+          </span>
+        </div>
+      </Dialog>
+
       {showForm && (
         <CredentialForm
           editId={editingId}
@@ -246,82 +201,54 @@ function CredentialRow({
   onDeleteConfirm: () => void;
   onDeleteCancel: () => void;
 }) {
+  const type = resolveCredentialType(credential.credential_type);
   return (
-    <div className="px-4 py-3 hover:bg-raised/30 group">
+    <div className="group px-4 py-3 hover:bg-hover">
       {isDeleting ? (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-red-400">
-            Delete "{credential.name}"?
-          </p>
+          <p className="text-body text-danger">Delete "{credential.name}"?</p>
           <div className="flex items-center gap-2">
-            <button
-              onClick={onDeleteCancel}
-              className="px-3 py-1 text-xs hover:bg-raised rounded"
-            >
+            <Button size="sm" onClick={onDeleteCancel}>
               Cancel
-            </button>
-            <button
-              onClick={onDeleteConfirm}
-              className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 rounded"
-            >
+            </Button>
+            <Button size="sm" variant="danger" onClick={onDeleteConfirm}>
               Delete
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
         <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium text-sm">{credential.name}</span>
-              {credential.credential_type && resolveCredentialType(credential.credential_type) !== "generic" && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-500/15 text-conduit-400 rounded">
-                  {CREDENTIAL_TYPES[resolveCredentialType(credential.credential_type)].label}
-                </span>
-              )}
+              <span className="text-body font-medium text-ink">{credential.name}</span>
+              {credential.credential_type && type !== "generic" && <Badge>{CREDENTIAL_TYPES[type].label}</Badge>}
             </div>
-            <div className="flex items-center gap-4 mt-1 text-xs text-ink-muted">
+            <div className="mt-1 flex items-center gap-4 text-label text-ink-muted">
               {credential.username && (
                 <span className="flex items-center gap-1">
-                  <UserIcon size={12} />
+                  <UserIcon size={12} compact />
                   {credential.username}
                 </span>
               )}
               {credential.domain && (
                 <span className="flex items-center gap-1">
-                  <GlobeIcon size={12} />
+                  <GlobeIcon size={12} compact />
                   {credential.domain}
                 </span>
               )}
             </div>
             {credential.tags.length > 0 && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <TagIcon size={12} className="text-ink-faint" />
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <TagIcon size={12} compact className="text-ink-faint" />
                 {credential.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-1.5 py-0.5 bg-raised text-ink-secondary text-xs rounded"
-                  >
-                    {tag}
-                  </span>
+                  <Badge key={tag}>{tag}</Badge>
                 ))}
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-            <button
-              onClick={onEdit}
-              className="p-1.5 hover:bg-raised rounded text-ink-muted hover:text-ink"
-              title="Edit credential"
-            >
-              <PencilIcon size={16} />
-            </button>
-            <button
-              onClick={onDeleteStart}
-              className="p-1.5 hover:bg-raised rounded text-ink-muted hover:text-red-400"
-              title="Delete credential"
-            >
-              <TrashIcon size={16} />
-            </button>
+          <div className="ml-2 flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+            <IconButton icon="pencil" label="Edit credential" onClick={onEdit} />
+            <IconButton icon="trash" tone="danger" label="Delete credential" onClick={onDeleteStart} />
           </div>
         </div>
       )}

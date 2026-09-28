@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "../../lib/electron";
-import { CheckIcon, CloseIcon, DesktopIcon, LoaderIcon } from "../../lib/icons";
+import { CheckIcon, CloseIcon } from "../../lib/icons";
+import { Button, Callout, Card, Dialog } from "../ui";
 
 interface DeviceAuthApprovalDialogProps {
   requestId: string;
@@ -49,90 +50,61 @@ export default function DeviceAuthApprovalDialog({
     }
   };
 
+  const footer = result ? undefined : (
+    <>
+      <Button icon="close" onClick={handleDeny} disabled={loading}>
+        Deny
+      </Button>
+      <Button variant="primary" icon="check" onClick={handleApprove} loading={loading}>
+        Approve
+      </Button>
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div data-dialog-content className="bg-panel border border-stroke rounded-lg shadow-xl w-[400px] p-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-conduit-500/10 flex items-center justify-center">
-            <DesktopIcon size={20} className="text-conduit-400" />
+    <Dialog
+      open
+      title="Device Authorization Request"
+      icon="desktop"
+      width={400}
+      hideClose
+      closeOnEscape={false}
+      onClose={onClose}
+      footer={footer}
+    >
+      {result === "approved" && (
+        <div className="flex flex-col items-center gap-3 py-6">
+          <div className="flex size-12 items-center justify-center rounded-full bg-success-bg">
+            <CheckIcon size={24} className="text-success" />
           </div>
-          <h2 className="text-lg font-semibold text-ink">
-            Device Authorization Request
-          </h2>
+          <p className="text-body text-success">Device authorized successfully</p>
         </div>
+      )}
 
-        {/* Result state */}
-        {result === "approved" && (
-          <div className="flex flex-col items-center gap-3 py-6">
-            <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-              <CheckIcon size={24} className="text-green-400" />
-            </div>
-            <p className="text-sm text-green-400">
-              Device authorized successfully
-            </p>
+      {result === "denied" && (
+        <div className="flex flex-col items-center gap-3 py-6">
+          <div className="flex size-12 items-center justify-center rounded-full bg-danger-bg">
+            <CloseIcon size={24} className="text-danger" />
           </div>
-        )}
+          <p className="text-body text-danger">Request denied</p>
+        </div>
+      )}
 
-        {result === "denied" && (
-          <div className="flex flex-col items-center gap-3 py-6">
-            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
-              <CloseIcon size={24} className="text-red-400" />
-            </div>
-            <p className="text-sm text-red-400">Request denied</p>
-          </div>
-        )}
+      {!result && (
+        <>
+          <p className="text-body text-ink-secondary">
+            A new device is requesting access to your team vault keys. Only
+            approve if you initiated this from another device.
+          </p>
 
-        {/* Pending state */}
-        {!result && (
-          <>
-            <p className="text-sm text-ink-secondary mb-4">
-              A new device is requesting access to your team vault keys. Only
-              approve if you initiated this from another device.
-            </p>
+          <Card className="flex items-center gap-2 text-body">
+            <span className="text-ink-muted">Device:</span>
+            <span className="font-medium text-ink">{deviceName}</span>
+          </Card>
 
-            <div className="p-3 rounded-md bg-well border border-stroke mb-5">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-ink-muted">
-                  Device:
-                </span>
-                <span className="text-ink font-medium">
-                  {deviceName}
-                </span>
-              </div>
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20 mb-4">
-                <p className="text-sm text-red-300">{error}</p>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={handleDeny}
-                disabled={loading}
-                className="px-4 py-2 text-sm text-red-400 hover:text-red-300 rounded-md hover:bg-red-500/10 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <CloseIcon size={14} />
-                Deny
-              </button>
-              <button
-                onClick={handleApprove}
-                disabled={loading}
-                className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-500 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {loading ? (
-                  <LoaderIcon size={14} className="animate-spin" />
-                ) : (
-                  <CheckIcon size={14} />
-                )}
-                Approve
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+          {error && <Callout tone="danger">{error}</Callout>}
+        </>
+      )}
+    </Dialog>
   );
 }
