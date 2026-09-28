@@ -1,51 +1,57 @@
+import { CODICONS_MAPPING, LAZY_ICON_PACKS, getPackMapping, loadPack } from "./pack-cache";
+import { setIconPack } from "./store";
+import {
+  DEFAULT_ICON_PACK,
+  ICON_PACK_STORAGE_KEY,
+  PACK_BY_ICON_THEME,
+  isIconPackId,
+  isIconTheme,
+  type IconMapping,
+  type IconPackId,
+  type IconTheme,
+} from "./types";
+
+export { getPackMapping };
+
+/** Loads and caches a pack without making it active. */
+export function loadIconPack(id: IconPackId): Promise<IconMapping>;
 /**
- * Lazy loader for icon packs.
- * Only the default (Tabler) pack is statically bundled.
- * Other packs are loaded on demand when the platform theme changes.
+ * @deprecated Platform themes are retired. Activates the pack the theme maps to
+ * (default and ubuntu: tabler, macos: phosphor, windows: fluent) as before.
  */
+export function loadIconPack(theme: IconTheme): Promise<IconMapping>;
+export function loadIconPack(idOrTheme: IconPackId | IconTheme): Promise<IconMapping> {
+  if (isIconTheme(idOrTheme)) {
+    const id = PACK_BY_ICON_THEME[idOrTheme];
+    return setIconPack(id).then(() => getPackMapping(id) ?? CODICONS_MAPPING);
+  }
+  return loadPack(idOrTheme);
+}
 
-import type { IconTheme, IconMapping } from "./types";
-import { mapping as defaultMapping } from "./packs/default";
-import { useIconThemeStore } from "./theme-store";
+/** Loads the five lazy packs, for previews that show every pack at once. Failures are logged. */
+export async function preloadAllIconPacks(): Promise<void> {
+  const results = await Promise.allSettled(LAZY_ICON_PACKS.map((id) => loadPack(id)));
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(`[icons] Could not preload the ${LAZY_ICON_PACKS[index]} icon pack`, result.reason);
+    }
+  });
+}
 
-const cache = new Map<IconTheme, IconMapping>();
-cache.set("default", defaultMapping);
+function readStoredPack(): IconPackId {
+  try {
+    const stored = window.localStorage.getItem(ICON_PACK_STORAGE_KEY);
+    return isIconPackId(stored) ? stored : DEFAULT_ICON_PACK;
+  } catch (error) {
+    console.warn("[icons] Could not read the saved icon pack", error);
+    return DEFAULT_ICON_PACK;
+  }
+}
 
 /**
- * Load the icon pack for the given platform theme.
- * Returns immediately if already cached; otherwise loads asynchronously
- * and updates the Zustand store when ready.
+ * Call before the first render. Codicons are bundled and apply at once; any
+ * other saved pack loads lazily while Codicons show.
  */
-export async function loadIconPack(theme: IconTheme): Promise<IconMapping> {
-  const cached = cache.get(theme);
-  if (cached) {
-    useIconThemeStore.getState().setMapping(cached);
-    return cached;
-  }
-
-  let pack: IconMapping;
-
-  switch (theme) {
-    case "macos": {
-      const mod = await import("./packs/macos");
-      pack = mod.mapping;
-      break;
-    }
-    case "windows": {
-      const mod = await import("./packs/windows");
-      pack = mod.mapping;
-      break;
-    }
-    case "ubuntu": {
-      const mod = await import("./packs/ubuntu");
-      pack = mod.mapping;
-      break;
-    }
-    default:
-      pack = defaultMapping;
-  }
-
-  cache.set(theme, pack);
-  useIconThemeStore.getState().setMapping(pack);
-  return pack;
+export function bootIconPack(): Promise<void> {
+  return setIconPack(readStoredPack());
 }
