@@ -49,6 +49,30 @@ function Badges() {
   );
 }
 
+function DismissibleCallout() {
+  const [shown, setShown] = useState(true);
+  if (!shown) {
+    return (
+      <Button size="sm" onClick={() => setShown(true)}>
+        Show the dismissible callout
+      </Button>
+    );
+  }
+  return (
+    <Callout
+      size="sm"
+      icon="sparkles"
+      title="Try Pro free for 30 days"
+      onDismiss={() => setShown(false)}
+      actions={
+        <Button size="sm" variant="primary">
+          Start Free Trial
+        </Button>
+      }
+    />
+  );
+}
+
 function Notices() {
   return (
     <>
@@ -61,17 +85,21 @@ function Notices() {
         <Callout tone="info" size="sm">
           A small callout without a title.
         </Callout>
+        <DismissibleCallout />
       </Demo>
-      <Demo label="Banner tones (26px, role=status, link actions)" className="block">
+      <Demo label="Banner tones (26px, role=status, small button actions, the primary one filled)" className="block">
         <div className="flex max-w-[880px] flex-col bg-shell">
           <Banner tone="info" actions={[{ label: "Sync settings", onClick: () => {} }]}>
             This vault syncs to your other devices.
           </Banner>
-          <Banner tone="warn" actions={[{ label: "Review changes", onClick: () => {} }, { label: "Later", onClick: () => {} }]}>
+          <Banner tone="warn" actions={[{ label: "Review changes", onClick: () => {}, primary: true }, { label: "Later", onClick: () => {} }]}>
             3 changes from your other devices need review.
           </Banner>
-          <Banner tone="lock" actions={[{ label: "Take over", onClick: () => {} }]}>
+          <Banner tone="lock" actions={[{ label: "Take over", onClick: () => {}, primary: true }]}>
             This vault is open on another device. A long message wraps to a second line instead of being cut off, so no sync message is lost.
+          </Banner>
+          <Banner tone="warn" icon="wifiOff" status={false} align="center" actions={[{ label: "Reconnect", onClick: () => {} }]}>
+            Offline: working with cached features.
           </Banner>
         </div>
       </Demo>

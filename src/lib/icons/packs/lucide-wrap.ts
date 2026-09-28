@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { iconA11yAttributes } from "../a11y";
 import { DEFAULT_ICON_SIZE, type IconComponent, type IconProps } from "../types";
 
-// Lucide's default 2px stroke reads heavy next to Codicons (spec 5.2).
+// Lucide's default 2px stroke reads heavy at 16px; 1.5 matches Tabler and Hugeicons (spec 5.1).
 export const LUCIDE_STROKE_WIDTH = 1.5;
 
 export function wrapLucide(LucideComponent: LucideIcon, options: { filled?: boolean } = {}): IconComponent {

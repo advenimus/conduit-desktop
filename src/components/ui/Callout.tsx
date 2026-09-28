@@ -1,5 +1,6 @@
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import { cx } from "./cx";
+import { IconButton } from "./IconButton";
 import { IconSlot, type IconSource } from "./IconSlot";
 
 export type CalloutTone = "info" | "warning" | "danger" | "success";
@@ -11,6 +12,9 @@ export interface CalloutProps extends Omit<ComponentPropsWithRef<"div">, "title"
   /** A row of Button size="sm". */
   actions?: ReactNode;
   size?: "sm" | "md";
+  /** Adds a small close button at the top right (trial promotion, admin onboarding, spec 3.5). */
+  onDismiss?: () => void;
+  dismissLabel?: string;
 }
 
 const TONE: Readonly<Record<CalloutTone, { box: string; icon: string; glyph: IconSource }>> = {
@@ -21,7 +25,18 @@ const TONE: Readonly<Record<CalloutTone, { box: string; icon: string; glyph: Ico
 };
 
 /** Inline notice (spec 4.13). A danger callout's text is <p data-cv-error>, which the harness reads (B8). */
-export function Callout({ tone = "info", title, icon, actions, size = "md", className, children, ...rest }: CalloutProps) {
+export function Callout({
+  tone = "info",
+  title,
+  icon,
+  actions,
+  size = "md",
+  onDismiss,
+  dismissLabel = "Dismiss",
+  className,
+  children,
+  ...rest
+}: CalloutProps) {
   const style = TONE[tone];
   return (
     <div className={cx("flex gap-2 rounded-md border text-label", size === "sm" ? "p-2" : "p-2.5", style.box, className)} {...rest}>
@@ -38,6 +53,7 @@ export function Callout({ tone = "info", title, icon, actions, size = "md", clas
           ))}
         {actions && <div className="mt-2 flex gap-2">{actions}</div>}
       </div>
+      {onDismiss && <IconButton size="sm" icon="close" label={dismissLabel} onClick={onDismiss} className="-my-0.5 -ml-1 -mr-1" />}
     </div>
   );
 }

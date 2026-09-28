@@ -2,7 +2,7 @@
 
 /* Muted, faint and link text fail AA on a selected row, so the row re-scopes them. Tailwind utilities read the
    --color-* theme variables, which resolve on :root, so both names must be redeclared here. Rows only: a
-   selected tab sits on its own surface, and the Home tab icon keeps --c-accent-text (spec 3.6). */
+   selected tab sits on its own surface, and the Home tab icon keeps --c-accent-text (spec 3.4). */
 :where([role="option"][aria-selected="true"], [role="treeitem"][aria-selected="true"], [role="row"][aria-selected="true"], [role="gridcell"][aria-selected="true"], [data-selected]) {
   --c-ink-muted: var(--c-ink-secondary);
   --color-ink-muted: var(--c-ink-secondary);
@@ -45,7 +45,7 @@
     background: color-mix(in srgb, var(--c-accent) 35%, transparent);
   }
 
-  /* Drawn inside the element like VS Code: an outside ring would be clipped by cards, tab strips and the status bar. */
+  /* Drawn inside the element: an outside ring would be clipped by the tab strips, the side bar header and scrolling lists. */
   :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="treeitem"],
     [role="switch"], [role="radio"], a, summary, [tabindex],
     input:not([data-bare]), select, textarea):focus-visible {

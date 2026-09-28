@@ -76,6 +76,46 @@ describe("ListRow", () => {
   });
 });
 
+describe("ListRow meta and leading (spec 4.14, L-23)", () => {
+  it("shows meta after the label, inside the clickable button, without hover", () => {
+    render(
+      <ListRow onClick={() => {}} title="/v/Work.conduit" meta={<span data-testid="badge">Pending</span>} trailing={<IconButton size="sm" icon="chevronRight" label="Open" />}>
+        Work
+      </ListRow>,
+    );
+    const button = document.querySelector('button[title="/v/Work.conduit"]') as HTMLElement;
+    const badge = screen.getByTestId("badge");
+    expect(button.contains(badge)).toBe(true);
+    const slot = badge.parentElement as HTMLElement;
+    expect(slot.className.split(" ")).toEqual(expect.arrayContaining(["shrink-0", "text-meta", "text-ink-faint"]));
+    expect(slot.className).not.toMatch(/opacity-0|group-hover/);
+    const label = screen.getByText("Work");
+    expect(label.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(button.contains(screen.getByRole("button", { name: "Open" }))).toBe(false);
+  });
+
+  it("renders no meta slot without meta", () => {
+    render(<ListRow onClick={() => {}}>Plain</ListRow>);
+    expect(document.querySelector(".text-ink-faint")).toBeNull();
+  });
+
+  it("draws an icon source in a 16px box and lets an element size itself", () => {
+    render(
+      <>
+        <ListRow leading="folder">Icon</ListRow>
+        <ListRow leading={<span data-testid="tile" className="size-7 rounded-md bg-well" />} description="/Users/me">
+          Tile
+        </ListRow>
+      </>,
+    );
+    const iconBox = screen.getByText("Icon").closest(".h-row")!.firstElementChild as HTMLElement;
+    expect(iconBox.className.split(" ")).toContain("size-4");
+    const tileSlot = screen.getByTestId("tile").parentElement as HTMLElement;
+    expect(tileSlot.className.split(" ")).toContain("shrink-0");
+    expect(tileSlot.className.split(" ")).not.toContain("size-4");
+  });
+});
+
 describe("TreeRow", () => {
   it("is a treeitem with aria-level, aria-expanded on containers and 8px indent per level", () => {
     const onToggle = vi.fn();

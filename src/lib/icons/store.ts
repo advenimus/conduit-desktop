@@ -1,14 +1,6 @@
 import { create } from "zustand";
-import { CODICONS_MAPPING, getPackMapping, loadPack, loadedPackIds, onPackLoaded } from "./pack-cache";
-import {
-  DEFAULT_ICON_PACK,
-  ICON_PACK_STORAGE_KEY,
-  PACK_BY_ICON_THEME,
-  isIconPackId,
-  type IconMapping,
-  type IconPackId,
-  type IconTheme,
-} from "./types";
+import { LUCIDE_MAPPING, getPackMapping, loadPack, loadedPackIds, onPackLoaded } from "./pack-cache";
+import { DEFAULT_ICON_PACK, ICON_PACK_STORAGE_KEY, isIconPackId, type IconMapping, type IconPackId } from "./types";
 
 export type IconPackStatus = "ready" | "loading" | "error";
 
@@ -22,27 +14,19 @@ export interface IconPackState {
   error: string | null;
   loaded: ReadonlyArray<IconPackId>;
   setIconPack: (id: IconPackId) => Promise<void>;
-  /** @deprecated Maps a retired platform theme to its pack. Removed by W4-CLEANUP. */
-  setTheme: (theme: IconTheme) => void;
 }
 
 let latestRequest = 0;
 
 export const useIconPackStore = create<IconPackState>()(() => ({
   pack: DEFAULT_ICON_PACK,
-  mapping: CODICONS_MAPPING,
+  mapping: LUCIDE_MAPPING,
   status: "ready",
   requested: DEFAULT_ICON_PACK,
   error: null,
   loaded: loadedPackIds(),
   setIconPack: (id) => requestIconPack(id),
-  setTheme: (theme) => {
-    void requestIconPack(PACK_BY_ICON_THEME[theme] ?? DEFAULT_ICON_PACK);
-  },
 }));
-
-/** @deprecated Use useIconPackStore. Removed by W4-CLEANUP. */
-export const useIconThemeStore = useIconPackStore;
 
 /**
  * Switches the active pack. Loads lazily and never rejects: a load that finishes
@@ -75,6 +59,11 @@ export function setIconPack(id: IconPackId): Promise<void> {
 
 onPackLoaded(() => useIconPackStore.setState({ loaded: loadedPackIds() }));
 
+// The live checks read the applied pack from <html data-cv-icon-pack> in every window (spec 5.6).
+function mirrorAppliedPack(pack: IconPackId): void {
+  document.documentElement.setAttribute("data-cv-icon-pack", pack);
+}
+
 function handleThemeChange(event: Event): void {
   const detail: unknown = (event as CustomEvent<unknown>).detail;
   if (typeof detail !== "object" || detail === null) return;
@@ -88,5 +77,11 @@ function handleStorage(event: StorageEvent): void {
   void setIconPack(isIconPackId(event.newValue) ? event.newValue : DEFAULT_ICON_PACK);
 }
 
-if (typeof document !== "undefined") document.addEventListener("conduit:theme-change", handleThemeChange);
+if (typeof document !== "undefined") {
+  mirrorAppliedPack(useIconPackStore.getState().pack);
+  useIconPackStore.subscribe((state, previous) => {
+    if (state.pack !== previous.pack) mirrorAppliedPack(state.pack);
+  });
+  document.addEventListener("conduit:theme-change", handleThemeChange);
+}
 if (typeof window !== "undefined") window.addEventListener("storage", handleStorage);

@@ -15,8 +15,6 @@ interface GlyphNode {
 
 interface MappingRow {
   name: string;
-  codicon: string | null;
-  codiconCompact: string | null;
   material: string;
   materialFill: boolean;
 }
@@ -46,7 +44,7 @@ const generator = (await import('../icons/generate-icon-packs.mjs' as string)) a
   generateOutputs(root?: string): Record<string, string>;
   findStaleOutputs(root?: string): string[];
   LICENSE_SOURCES: readonly LicenseSource[];
-  OUTPUT_FILES: Record<'codicons' | 'material' | 'licenses', string>;
+  OUTPUT_FILES: Record<'material' | 'licenses', string>;
 };
 const { ICON_MAPPING } = (await import('../icons/mapping.mjs' as string)) as { ICON_MAPPING: readonly MappingRow[] };
 
@@ -89,34 +87,27 @@ describe('icon generator --check', () => {
   });
 });
 
-describe('icon mapping source', () => {
-  it('lists exactly the 123 semantic names, in registry order', () => {
-    expect(SEMANTIC_ICON_NAMES).toHaveLength(123);
-    expect(ICON_MAPPING.map((row) => row.name)).toEqual([...SEMANTIC_ICON_NAMES]);
+describe('icon mapping source (Material Symbols only, spec 5.3)', () => {
+  it('lists the 116 semantic names in registry order, less circleFilled: 115 rows', () => {
+    expect(SEMANTIC_ICON_NAMES).toHaveLength(116);
+    expect(ICON_MAPPING).toHaveLength(115);
+    expect(ICON_MAPPING.map((row) => row.name)).toEqual(SEMANTIC_ICON_NAMES.filter((name) => name !== 'circleFilled'));
   });
 
-  it('has 36 compact Codicon twins and 8 Lucide fallbacks', () => {
-    expect(ICON_MAPPING.filter((row) => row.codiconCompact)).toHaveLength(36);
-    expect(ICON_MAPPING.filter((row) => row.codiconCompact).every((row) => row.codiconCompact!.endsWith('-compact'))).toBe(true);
-    expect(ICON_MAPPING.filter((row) => row.codicon === null).map((row) => row.name).sort()).toEqual(
-      ['bolt', 'cloudOff', 'crown', 'fileX', 'fingerprint', 'heading1', 'heading2', 'qrcode'],
-    );
+  it('has only the Material columns', () => {
+    for (const row of ICON_MAPPING) expect(Object.keys(row).sort()).toEqual(['material', 'materialFill', 'name']);
   });
 
-  it('marks the four filled Material glyphs', () => {
+  it('marks the three filled Material glyphs (the state dot is shared)', () => {
     expect(ICON_MAPPING.filter((row) => row.materialFill).map((row) => row.name).sort()).toEqual(
-      ['circleFilled', 'pinFilled', 'playerStopFilled', 'starFilled'],
+      ['pinFilled', 'playerStopFilled', 'starFilled'],
     );
   });
 
-  it('pairs the shown and hidden layout glyphs', () => {
+  it('maps the tab menu split glyphs', () => {
     const byName = new Map(ICON_MAPPING.map((row) => [row.name, row]));
-    expect(byName.get('panelLeft')?.codicon).toBe('layout-sidebar-left');
-    expect(byName.get('panelLeftOff')?.codicon).toBe('layout-sidebar-left-off');
-    expect(byName.get('panelRight')?.codicon).toBe('layout-sidebar-right');
-    expect(byName.get('panelRightOff')?.codicon).toBe('layout-sidebar-right-off');
-    expect(byName.get('panelLeft')?.material).toBe('left-panel-close-outline-rounded');
-    expect(byName.get('panelLeftOff')?.material).toBe('left-panel-open-outline-rounded');
+    expect(byName.get('splitHorizontal')?.material).toBe('splitscreen-right-outline-rounded');
+    expect(byName.get('splitVertical')?.material).toBe('splitscreen-bottom-outline-rounded');
   });
 });
 
@@ -162,29 +153,27 @@ describe('icon body parser', () => {
 });
 
 describe('iconify resolution', () => {
-  const codicon = readJson<IconifySet>(path.join(ROOT, 'node_modules/@iconify-json/codicon/icons.json'));
   const material = readJson<IconifySet>(path.join(ROOT, 'node_modules/@iconify-json/material-symbols-light/icons.json'));
 
   it('honors per-icon sizes', () => {
-    for (const name of ['settings-gear', 'terminal', 'files']) {
-      expect(generator.resolveIconifyIcon(codicon, name)).toMatchObject({ width: 24, height: 24 });
-    }
-    expect(generator.resolveIconifyIcon(codicon, 'close')).toMatchObject({ width: 16, height: 16 });
-    expect(generator.resolveIconifyIcon(codicon, 'close-compact')).toMatchObject({ width: 12, height: 12 });
     expect(generator.resolveIconifyIcon(material, 'close-outline-rounded')).toMatchObject({ width: 24, height: 24 });
+    const sized: IconifySet = { prefix: 'test', width: 24, height: 24, icons: { small: { body: '<path d="M0 0"/>', width: 16, height: 12 } } };
+    expect(generator.resolveIconifyIcon(sized, 'small')).toMatchObject({ width: 16, height: 12 });
   });
 
   it('follows aliases and fails on unknown names', () => {
     expect(material.icons['close-outline-rounded']).toBeUndefined();
     expect(generator.resolveIconifyIcon(material, 'close-outline-rounded').body).toContain('<path');
-    expect(() => generator.resolveIconifyIcon(codicon, 'no-such-icon')).toThrow(/not found/);
+    expect(() => generator.resolveIconifyIcon(material, 'no-such-icon')).toThrow(/not found/);
   });
 });
 
 describe('third-party license file', () => {
   const text = fs.readFileSync(path.join(ROOT, generator.OUTPUT_FILES.licenses), 'utf8');
 
-  it('lists every pack with its installed version and notice', () => {
+  it('lists exactly the six shipped packs in picker order, each with its installed version and notice', () => {
+    expect(generator.LICENSE_SOURCES.map((source) => source.id)).toEqual(ICON_PACKS.map((pack) => pack.id));
+    expect(text.match(/^Package: /gm)).toHaveLength(6);
     for (const source of generator.LICENSE_SOURCES) {
       expect(text).toContain(`Package: ${source.packageName} ${installedVersion(source.packageName)}`);
       expect(text).toContain(`License: ${source.license}`);
@@ -192,12 +181,44 @@ describe('third-party license file', () => {
     }
   });
 
-  it('carries the Codicons attribution and the CC BY and Apache texts', () => {
-    expect(text).toContain('Codicons © Microsoft Corporation, licensed under CC BY 4.0. Converted from SVG to React path data.');
-    expect(text).toContain('Attribution 4.0 International');
+  it('carries the Hugeicons MIT text from its LICENSE.md and the Apache text, and no Codicons or CC BY text', () => {
+    expect(text).toContain('Hugeicons Free © Hugeicons, licensed under MIT.');
+    expect(text).toContain('Copyright (c) 2025 Hugeicons');
     expect(text).toContain('Apache License');
     expect(text).toContain('Version 2.0, January 2004');
+    expect(text).not.toMatch(/codicon/i);
+    expect(text).not.toContain('Attribution 4.0 International');
     expect(text).not.toContain('\r');
+  });
+
+  it('reads a LICENSE, LICENSE.md or LICENSE.txt file, in that order', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'conduit-licenses-'));
+    try {
+      const fakePackage = (pkg: string, license: string, files: Record<string, string>) => {
+        const dir = path.join(tmp, 'node_modules', ...pkg.split('/'));
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ version: '1.0.0', license }));
+        for (const [name, contents] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), contents);
+      };
+      fakePackage('lucide-react', 'ISC', { LICENSE: 'lucide LICENSE\n', 'LICENSE.md': 'lucide md\n' });
+      fakePackage('@phosphor-icons/react', 'MIT', { LICENSE: 'phosphor LICENSE\n' });
+      fakePackage('@hugeicons/core-free-icons', 'MIT', { 'LICENSE.md': 'hugeicons md\n', 'LICENSE.txt': 'hugeicons txt\n' });
+      fakePackage('@fluentui/react-icons', 'MIT', {});
+      fakePackage('@tabler/icons-react', 'MIT', { 'LICENSE.txt': 'tabler txt\n' });
+      fs.mkdirSync(path.join(tmp, 'node_modules/@iconify-json'), { recursive: true });
+      fs.symlinkSync(path.join(ROOT, 'node_modules/@iconify-json/material-symbols-light'), path.join(tmp, 'node_modules/@iconify-json/material-symbols-light'));
+
+      const licenses = generator.generateOutputs(tmp)[generator.OUTPUT_FILES.licenses];
+      expect(licenses).toContain('lucide LICENSE');
+      expect(licenses).not.toContain('lucide md');
+      expect(licenses).toContain('hugeicons md');
+      expect(licenses).not.toContain('hugeicons txt');
+      expect(licenses).toContain('tabler txt');
+      // Fluent ships no license file of its own, so the vendored text is used.
+      expect(licenses).toContain('Microsoft Corporation');
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
 
@@ -212,7 +233,9 @@ describe('icon package metadata', () => {
       expect(pkg.dependencies[name]).toBeUndefined();
       expect(pkg.devDependencies[name]).toBeDefined();
     }
-    expect(pkg.devDependencies['@iconify-json/codicon']).toBe('1.2.73');
+    expect(pkg.devDependencies['@iconify-json/codicon']).toBeUndefined();
+    expect(pkg.dependencies['@iconify-json/codicon']).toBeUndefined();
+    expect(pkg.devDependencies['@hugeicons/core-free-icons']).toBe('4.3.5');
     expect(pkg.devDependencies['@iconify-json/material-symbols-light']).toBe('1.2.94');
     expect(pkg.devDependencies['lucide-react']).toBe('1.48.0');
     expect(pkg.scripts['icons:generate']).toBe('node scripts/icons/generate-icon-packs.mjs');
@@ -220,10 +243,18 @@ describe('icon package metadata', () => {
 
   it('matches ICON_PACKS to the installed versions and the license sources', () => {
     const sources = new Map(generator.LICENSE_SOURCES.map((source) => [source.id, source]));
-    expect(ICON_PACKS.map((pack) => pack.id)).toEqual(['codicons', 'lucide', 'tabler', 'phosphor', 'fluent', 'material']);
+    expect(ICON_PACKS.map((pack) => pack.id)).toEqual(['lucide', 'phosphor', 'hugeicons', 'material', 'fluent', 'tabler']);
     for (const pack of ICON_PACKS) {
       expect(pack.version).toBe(installedVersion(pack.packageName));
       expect(sources.get(pack.id)).toMatchObject({ packageName: pack.packageName, license: pack.license });
     }
+  });
+});
+
+describe('appearance migration table', () => {
+  it("lists exactly ICON_PACKS' ids as the valid packs, Lucide as the default", () => {
+    const table = readJson<{ iconPacks: string[]; defaults: { icon_pack: string } }>(path.join(ROOT, 'src/lib/appearance/migration-table.json'));
+    expect(table.iconPacks).toEqual(ICON_PACKS.map((pack) => pack.id));
+    expect(table.defaults.icon_pack).toBe('lucide');
   });
 });

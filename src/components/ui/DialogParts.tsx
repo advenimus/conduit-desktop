@@ -11,7 +11,8 @@ export interface DialogContextValue {
   icon?: IconSource;
   tone?: DialogTone;
   hideClose: boolean;
-  onClose: () => void;
+  /** Absent only for a dialog that cannot be dismissed, which also hides its close button. */
+  onClose?: () => void;
 }
 
 export const DialogContext = createContext<DialogContextValue | null>(null);
@@ -57,7 +58,7 @@ export function DialogHeader({ title, icon, tone, hideClose, children, className
         {shownTitle}
       </h2>
       {children}
-      {!noClose && ctx && <IconButton icon="close" label="Close" onClick={ctx.onClose} />}
+      {!noClose && ctx?.onClose && <IconButton icon="close" label="Close" onClick={ctx.onClose} />}
     </div>
   );
 }

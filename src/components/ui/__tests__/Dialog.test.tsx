@@ -294,3 +294,65 @@ describe("Dialog custom layout", () => {
     expect(el.lastElementChild).toHaveAttribute("data-cv-dialog-footer");
   });
 });
+
+describe("Dialog width and close behavior (spec 4.8, D-18, D-26)", () => {
+  it("width overrides the size step with an inline max-width, so a dialog keeps today's width", () => {
+    const { rerender } = render(<Dialog open onClose={() => {}} title="Settings" width={768} />);
+    expect(panel().style.maxWidth).toBe("768px");
+    expect(panel().className).not.toMatch(/max-w-\[/);
+
+    rerender(<Dialog open onClose={() => {}} title="Settings" size="sm" />);
+    expect(panel().style.maxWidth).toBe("");
+    expect(panel().className).toContain("max-w-[400px]");
+
+    rerender(<Dialog open onClose={() => {}} title="Settings" width={448} style={{ minHeight: 10 }} />);
+    expect(panel().style.maxWidth).toBe("448px");
+    expect(panel().style.minHeight).toBe("10px");
+  });
+
+  it("closeOnEscape={false}: Escape does not call onClose, and the layer still swallows it", () => {
+    const onClose = vi.fn();
+    const outer = vi.fn();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") outer();
+    };
+    document.addEventListener("keydown", onKey);
+    render(<Dialog open onClose={onClose} title="New Entry" closeOnEscape={false} />);
+    fireEvent.keyDown(panel(), { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(outer).not.toHaveBeenCalled();
+    document.removeEventListener("keydown", onKey);
+  });
+
+  it("closeOnEscape defaults to true", () => {
+    const onClose = vi.fn();
+    render(<Dialog open onClose={onClose} title="Quick Connect" />);
+    fireEvent.keyDown(panel(), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("a dialog that cannot be dismissed takes no onClose, no close button, no Escape and no scrim close", () => {
+    render(
+      <Dialog open title="Save Your Recovery Passphrase" hideClose closeOnEscape={false}>
+        <p>Write it down.</p>
+      </Dialog>,
+    );
+    expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+    fireEvent.keyDown(panel(), { key: "Escape" });
+    const scrim = panel().parentElement as HTMLElement;
+    fireEvent.mouseDown(scrim);
+    fireEvent.click(scrim);
+    expect(document.querySelector("[data-dialog-content]")).not.toBeNull();
+  });
+
+  it("makes a missing onClose a type error unless the dialog is undismissable", () => {
+    // @ts-expect-error onClose is required while the dialog shows a close button
+    const a = <Dialog open title="No close handler" closeOnEscape={false} />;
+    // @ts-expect-error onClose is required while Escape closes the dialog
+    const b = <Dialog open title="No close handler" hideClose />;
+    // @ts-expect-error an undismissable dialog cannot close on a scrim click
+    const c = <Dialog open title="No close handler" hideClose closeOnEscape={false} closeOnScrim />;
+    const ok = <Dialog open title="Undismissable" hideClose closeOnEscape={false} />;
+    expect([a, b, c, ok]).toHaveLength(4);
+  });
+});

@@ -15,7 +15,6 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconCircleCheck,
-  IconCircleFilled,
   IconCircleX,
   IconClock,
   IconCloud,
@@ -38,11 +37,9 @@ import {
   IconFileCode,
   IconFileImport,
   IconFilePlus,
-  IconFiles,
   IconFileText,
   IconFileX,
   IconFingerprint,
-  IconFold,
   IconFolder,
   IconFolderOpen,
   IconFolderPlus,
@@ -58,10 +55,6 @@ import {
   IconKeyboard,
   IconLayoutColumns,
   IconLayoutRows,
-  IconLayoutSidebar,
-  IconLayoutSidebarInactive,
-  IconLayoutSidebarRight,
-  IconLayoutSidebarRightInactive,
   IconLink,
   IconList,
   IconListNumbers,
@@ -116,7 +109,6 @@ import {
   IconTrash,
   IconUpload,
   IconUser,
-  IconUserCircle,
   IconUsers,
   IconWifiOff,
   IconWorld,
@@ -128,6 +120,7 @@ import { createElement, memo, type ComponentType } from "react";
 import type { IconProps as TablerIconProps } from "@tabler/icons-react";
 import { iconA11yAttributes } from "../a11y";
 import { DEFAULT_ICON_SIZE, type IconComponent, type IconMapping, type IconProps } from "../types";
+import { createStateDotIcon } from "./state-dot";
 
 const TABLER_STROKE_WIDTH = 1.5;
 
@@ -293,15 +286,8 @@ export const mapping: IconMapping = {
 
   // ── Layout and chrome ──
   menu: wrap(IconMenu2),
-  panelLeft: wrap(IconLayoutSidebar),
-  panelLeftOff: wrap(IconLayoutSidebarInactive),
-  panelRight: wrap(IconLayoutSidebarRight),
-  panelRightOff: wrap(IconLayoutSidebarRightInactive),
   splitHorizontal: wrap(IconLayoutColumns),
   splitVertical: wrap(IconLayoutRows),
   ellipsis: wrap(IconDots),
-  collapseAll: wrap(IconFold),
-  account: wrap(IconUserCircle),
-  explorer: wrap(IconFiles),
-  circleFilled: wrap(IconCircleFilled),
+  circleFilled: createStateDotIcon("Tabler"),
 };

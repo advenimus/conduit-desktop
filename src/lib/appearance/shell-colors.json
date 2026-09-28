@@ -1,5 +1,5 @@
 {
-  "modern": { "dark": { "shell": "#191A1B", "fg": "#8C8C8C" }, "light": { "shell": "#FAFAFD", "fg": "#606060" } },
+  "modern": { "dark": { "shell": "#191A1B", "fg": "#8C8C8C" }, "light": { "shell": "#FAFAFD", "fg": "#6B6B6B" } },
   "ocean": { "dark": { "shell": "#1e293b", "fg": "#8B98AA" }, "light": { "shell": "#f8fafc", "fg": "#647185" } },
   "ember": { "dark": { "shell": "#1a1210", "fg": "#888078" }, "light": { "shell": "#fffbf5", "fg": "#7A7064" } },
   "forest": { "dark": { "shell": "#12231a", "fg": "#7F9089" }, "light": { "shell": "#f2faf5", "fg": "#5D7367" } },

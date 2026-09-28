@@ -4,7 +4,7 @@
  * Port of src-tauri/src/commands/settings.rs
  */
 
-import { ipcMain, app, dialog, shell } from 'electron';
+import { ipcMain, app, dialog, shell, nativeTheme } from 'electron';
 import { AppState } from '../services/state.js';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -14,6 +14,7 @@ import type { EngineType } from '../services/ai/engines/engine.js';
 import { isKnownEngineType } from '../services/ai/cli-harnesses.js';
 import { clearRecentVaults, removeRecentVault, type RecentVaultDeps } from './recent-vaults.js';
 import { applyAppearanceMigration, migrateAppearance, type AppearanceSettings } from '../services/appearance-migration.js';
+import { windowBackground } from '../services/appearance-palette.js';
 
 // Session default types — mirrored from src/types/entry.ts to avoid cross-boundary imports
 interface RdpGlobalDefaults {
@@ -66,8 +67,6 @@ export interface AppSettings {
   color_scheme: string;
   // Appearance (docs/VISUAL_REDESIGN.md 6.1); the migration in readSettings() fills them for older files
   icon_pack: string;
-  ui_density: string;
-  title_bar_style: string;
   appearance_version: number;
   default_shell: string;
   recent_vaults: string[];
@@ -122,9 +121,7 @@ export interface AppSettings {
 const defaultSettings: AppSettings = {
   theme: 'system',
   color_scheme: 'modern',
-  icon_pack: 'codicons',
-  ui_density: 'comfortable',
-  title_bar_style: 'custom',
+  icon_pack: 'lucide',
   appearance_version: 2,
   default_shell: 'default',
   recent_vaults: [],
@@ -266,6 +263,17 @@ export function updateLastVaultContext(type: 'personal' | 'team', teamVaultId?: 
   writeSettings(settings);
 }
 
+/** The native window background follows the saved scheme and mode (docs/VISUAL_REDESIGN.md 7.2). */
+function refreshWindowBackground(settings: AppSettings): void {
+  try {
+    const win = AppState.getInstance().getMainWindow();
+    if (!win || win.isDestroyed()) return;
+    win.setBackgroundColor(windowBackground(settings, nativeTheme.shouldUseDarkColors));
+  } catch (err) {
+    console.warn('[settings] Could not update the window background color:', err);
+  }
+}
+
 export function registerSettingsHandlers(): void {
   // ── app_get_version ─────────────────────────────────────────────────
   ipcMain.handle('app_get_version', () => app.getVersion());
@@ -278,6 +286,7 @@ export function registerSettingsHandlers(): void {
   // ── settings_save ──────────────────────────────────────────────────
   ipcMain.handle('settings_save', async (_e, args: { settings: AppSettings }) => {
     writeSettings(args.settings);
+    refreshWindowBackground(args.settings);
   });
 
   // ── settings_remove_recent_vault / settings_clear_recent_vaults ────

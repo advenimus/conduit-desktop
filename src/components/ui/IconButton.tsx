@@ -9,11 +9,10 @@ export interface IconButtonProps extends Omit<ComponentPropsWithRef<"button">, "
   /** Required: becomes aria-label and the native tooltip. Callers append a shortcut hint in parentheses. */
   label: string;
   size?: IconButtonSize;
-  /** Sets aria-pressed; with pressedLook (default) also the pressed background. */
+  /** Sets aria-pressed and the pressed look. */
   pressed?: boolean;
-  /** False keeps aria-pressed but not the look, for controls that show state by swapping the glyph. */
-  pressedLook?: boolean;
-  tone?: "default" | "danger";
+  /** "inherit" sets no text color, so the glyph takes its color from the CSS around it (the tab close, spec 3.4). */
+  tone?: "default" | "danger" | "inherit";
   /** Tooltip while disabled, saying why. */
   disabledReason?: string;
 }
@@ -31,7 +30,6 @@ export function IconButton({
   label,
   size = "md",
   pressed,
-  pressedLook = true,
   tone = "default",
   disabledReason,
   disabled,
@@ -39,7 +37,8 @@ export function IconButton({
   className,
   ...rest
 }: IconButtonProps) {
-  const showPressed = pressed === true && pressedLook;
+  const showPressed = pressed === true;
+  const inherit = tone === "inherit";
   return (
     <button
       type={type}
@@ -51,8 +50,11 @@ export function IconButton({
         "inline-flex shrink-0 items-center justify-center rounded disabled:opacity-40",
         COLOR_TRANSITION,
         BOX[size],
-        showPressed ? "bg-toolbar-active text-ink" : "text-ink-muted enabled:hover:bg-toolbar-hover enabled:active:bg-toolbar-active",
-        tone === "danger" ? "enabled:hover:text-danger" : !showPressed && "enabled:hover:text-ink",
+        showPressed
+          ? cx("bg-toolbar-active", !inherit && "text-ink")
+          : cx(!inherit && "text-ink-muted", "enabled:hover:bg-toolbar-hover enabled:active:bg-toolbar-active"),
+        tone === "danger" && "enabled:hover:text-danger",
+        tone === "default" && !showPressed && "enabled:hover:text-ink",
         className,
       )}
       {...rest}

@@ -150,22 +150,15 @@ export const QuoteIcon = createThemedIcon("quote");
 
 // ── Layout and chrome ──
 export const MenuIcon = createThemedIcon("menu");
-export const PanelLeftIcon = createThemedIcon("panelLeft");
-export const PanelLeftOffIcon = createThemedIcon("panelLeftOff");
-export const PanelRightIcon = createThemedIcon("panelRight");
-export const PanelRightOffIcon = createThemedIcon("panelRightOff");
 export const SplitHorizontalIcon = createThemedIcon("splitHorizontal");
 export const SplitVerticalIcon = createThemedIcon("splitVertical");
 export const EllipsisIcon = createThemedIcon("ellipsis");
-export const CollapseAllIcon = createThemedIcon("collapseAll");
-export const AccountIcon = createThemedIcon("account");
-export const ExplorerIcon = createThemedIcon("explorer");
 export const CircleFilledIcon = createThemedIcon("circleFilled");
 
 // ── Registry ──
 export { Icon } from "./Icon";
 export type { IconElementProps } from "./Icon";
-export { useIconPackStore, setIconPack, useIconThemeStore } from "./store";
+export { useIconPackStore, setIconPack } from "./store";
 export type { IconPackState, IconPackStatus } from "./store";
 export { bootIconPack, preloadAllIconPacks, getPackMapping, loadIconPack } from "./loader";
 export { iconToSvg } from "./serialize";
@@ -177,7 +170,6 @@ export {
   ICON_PACKS,
   ICON_PACK_STORAGE_KEY,
   SEMANTIC_ICON_NAMES,
-  THEME_ICON_DEFAULTS,
   isIconPackId,
 } from "./types";
 export type {
@@ -187,5 +179,4 @@ export type {
   IconMapping,
   IconPackId,
   IconPackInfo,
-  IconTheme,
 } from "./types";

@@ -13,8 +13,11 @@ export interface ListRowProps extends Omit<HTMLAttributes<HTMLElement>, "onClick
   selected?: boolean;
   /** Selected in a list that does not have focus. */
   inactive?: boolean;
+  /** An icon source draws in a 16px box; an element (a 28px icon tile, an entry icon) sizes itself. */
   leading?: RowLeadingContent;
-  /** Small IconButtons, shown on hover or focus-within and hidden with opacity only (B45). */
+  /** Always visible after the label, inside the clickable button: badges, timestamps, type labels (L-23). */
+  meta?: ReactNode;
+  /** Small IconButtons or a decorative chevron, shown on hover or focus-within and hidden with opacity only (B45). */
   trailing?: ReactNode;
   /** A second line; the row becomes 36px. */
   description?: ReactNode;
@@ -42,7 +45,16 @@ function isIconSource(value: RowLeadingContent): value is IconSource {
 
 export function RowLeading({ leading }: { leading?: RowLeadingContent }) {
   if (leading === undefined) return null;
-  return <span className="flex size-4 shrink-0 items-center justify-center">{isIconSource(leading) ? <IconSlot icon={leading} /> : leading}</span>;
+  if (!isIconSource(leading)) return <span className="flex shrink-0 items-center justify-center">{leading}</span>;
+  return (
+    <span className="flex size-4 shrink-0 items-center justify-center">
+      <IconSlot icon={leading} />
+    </span>
+  );
+}
+
+export function RowMeta({ children }: { children: ReactNode }) {
+  return <span className="flex shrink-0 items-center gap-1 text-meta text-ink-faint">{children}</span>;
 }
 
 export function RowTrailing({ children }: { children: ReactNode }) {
@@ -61,6 +73,7 @@ export function ListRow({
   selected = false,
   inactive = false,
   leading,
+  meta,
   trailing,
   description,
   onClick,
@@ -81,6 +94,7 @@ export function ListRow({
         <span className="truncate">{children}</span>
         {description && <span className="truncate text-meta text-ink-muted">{description}</span>}
       </span>
+      {meta !== undefined && meta !== null && meta !== false && <RowMeta>{meta}</RowMeta>}
     </>
   );
 

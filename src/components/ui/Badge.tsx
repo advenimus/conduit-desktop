@@ -33,7 +33,7 @@ export interface CountBadgeProps extends Omit<ComponentPropsWithRef<"span">, "ch
   max?: number;
 }
 
-/** VS Code's .monaco-count-badge: 18px minimum, 3px 5px padding, 11px line, weight 400, 10px text. */
+/** A count bubble: 18px minimum, 3px 5px padding, 11px line, weight 400, 10px text (spec 4.12). */
 export function CountBadge({ count, max, className, ...rest }: CountBadgeProps) {
   const text = max !== undefined && count > max ? `${max}+` : String(count);
   return (

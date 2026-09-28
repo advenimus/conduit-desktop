@@ -23,7 +23,6 @@ export default function OverlayApp() {
       applyAppearanceAttributes(document.documentElement, {
         mode: resolveMode(stored.theme, systemPrefersDark()),
         scheme: stored.scheme,
-        density: stored.density,
       });
     };
 

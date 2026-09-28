@@ -86,15 +86,6 @@ export function NavigationSection({ mode }: { mode: ResolvedMode }) {
             { value: "system", label: "System" },
           ]}
         />
-        <SegmentedControl
-          aria-label="Density"
-          value="comfortable"
-          onChange={() => {}}
-          options={[
-            { value: "comfortable", label: "Comfortable" },
-            { value: "compact", label: "Compact" },
-          ]}
-        />
       </Demo>
       <Demo label="NavList (the Settings nav keeps w-52)" className="items-start">
         <NavList aria-label="Settings" items={NAV} value={nav} onChange={setNav} className="w-52 rounded border border-card-border bg-sidebar p-1" />

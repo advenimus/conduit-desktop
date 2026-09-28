@@ -146,7 +146,7 @@ describe("Popover", () => {
     expect(panel.className).toContain("rounded-lg");
   });
 
-  it('freeze={true} holds a popover freeze while open; "auto" does not without an editor card under it', async () => {
+  it('freeze={true} holds a popover freeze while open; "auto" does not without a session area under it', async () => {
     const a = render(<VaultMenu freeze />);
     open();
     expect(isFrozen()).toBe(true);
@@ -166,5 +166,47 @@ describe("Popover", () => {
     render(<VaultMenu />);
     open();
     expect(isFrozen()).toBe(false);
+  });
+
+  describe('freeze="auto" probes the panes\' [data-cv-session-area] (D-21)', () => {
+    function mockRects(boxes: Record<string, DOMRect>) {
+      return vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+        for (const [selector, box] of Object.entries(boxes)) if (this.matches(selector)) return box;
+        return new DOMRect(0, 0, 0, 0);
+      });
+    }
+
+    it("freezes while the panel overlaps a session area", () => {
+      const rects = mockRects({ "[data-context-menu]": new DOMRect(10, 10, 200, 150), "[data-cv-session-area]": new DOMRect(0, 0, 800, 600) });
+      render(
+        <>
+          <div data-cv-session-area="" />
+          <VaultMenu />
+        </>,
+      );
+      open();
+      expect(freezeHolders()).toEqual([expect.objectContaining({ reason: "popover" })]);
+      cleanup();
+      rects.mockRestore();
+    });
+
+    it("does not freeze over the retired card hook or away from every session area", () => {
+      const rects = mockRects({
+        "[data-context-menu]": new DOMRect(10, 10, 200, 150),
+        "[data-cv-editor-card]": new DOMRect(0, 0, 800, 600),
+        "[data-cv-session-area]": new DOMRect(900, 0, 300, 600),
+      });
+      render(
+        <>
+          <div data-cv-editor-card="" />
+          <div data-cv-session-area="" />
+          <VaultMenu />
+        </>,
+      );
+      open();
+      expect(isFrozen()).toBe(false);
+      cleanup();
+      rects.mockRestore();
+    });
   });
 });

@@ -13,11 +13,11 @@ const gates = vi.hoisted(() => {
     return { promise, open, fail };
   };
   return {
-    lucide: make(),
-    tabler: make(),
     phosphor: make(),
-    fluent: make(),
+    hugeicons: make(),
     material: make(),
+    fluent: make(),
+    tabler: make(),
   };
 });
 
@@ -27,9 +27,10 @@ async function fakePack(label: string) {
   return { mapping: Object.fromEntries(SEMANTIC_ICON_NAMES.map((name) => [name, Fake])) };
 }
 
-vi.mock("../packs/lucide", async () => {
-  await gates.lucide.promise;
-  return fakePack("lucide");
+// Lucide is the bundled default and never loads lazily, so it is not mocked.
+vi.mock("../packs/hugeicons", async () => {
+  await gates.hugeicons.promise;
+  return fakePack("hugeicons");
 });
 vi.mock("../packs/tabler", async () => {
   await gates.tabler.promise;
@@ -58,45 +59,51 @@ async function waitForPack(id: string) {
 }
 
 describe("setIconPack", () => {
-  it("starts on Codicons, loaded and ready", () => {
-    expect(state()).toMatchObject({ pack: "codicons", requested: "codicons", status: "ready", error: null });
-    expect(state().loaded).toEqual(["codicons"]);
-    expect(state().mapping).toBe(getPackMapping("codicons"));
+  it("starts on Lucide, loaded and ready, and mirrors it on <html>", () => {
+    expect(state()).toMatchObject({ pack: "lucide", requested: "lucide", status: "ready", error: null });
+    expect(state().loaded).toEqual(["lucide"]);
+    expect(state().mapping).toBe(getPackMapping("lucide"));
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("lucide");
   });
 
   it("ends fast pack switches on the last request", async () => {
-    const first = setIconPack("lucide");
+    const first = setIconPack("hugeicons");
     const second = setIconPack("fluent");
-    expect(state()).toMatchObject({ pack: "codicons", requested: "fluent", status: "loading" });
+    expect(state()).toMatchObject({ pack: "lucide", requested: "fluent", status: "loading" });
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("lucide");
 
     gates.fluent.open();
     await second;
     expect(state()).toMatchObject({ pack: "fluent", requested: "fluent", status: "ready" });
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("fluent");
 
-    gates.lucide.open();
+    gates.hugeicons.open();
     await first;
     expect(state().pack).toBe("fluent");
     expect(state().mapping).toBe(getPackMapping("fluent"));
-    expect(getPackMapping("lucide")).not.toBeNull();
-    expect([...state().loaded].sort()).toEqual(["codicons", "fluent", "lucide"]);
+    expect(getPackMapping("hugeicons")).not.toBeNull();
+    expect([...state().loaded].sort()).toEqual(["fluent", "hugeicons", "lucide"]);
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("fluent");
   });
 
   it("drops a slow load when a cached pack is chosen meanwhile", async () => {
     const slow = setIconPack("phosphor");
     expect(state().status).toBe("loading");
-    await setIconPack("codicons");
-    expect(state()).toMatchObject({ pack: "codicons", requested: "codicons", status: "ready" });
+    await setIconPack("lucide");
+    expect(state()).toMatchObject({ pack: "lucide", requested: "lucide", status: "ready" });
 
     gates.phosphor.open();
     await slow;
-    expect(state().pack).toBe("codicons");
+    expect(state().pack).toBe("lucide");
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("lucide");
   });
 
   it("keeps the current pack and reports an error when a load fails", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     gates.material.fail(new Error("chunk missing"));
     await setIconPack("material");
-    expect(state()).toMatchObject({ pack: "codicons", requested: "material", status: "error" });
+    expect(state()).toMatchObject({ pack: "lucide", requested: "material", status: "error" });
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("lucide");
     expect(state().error).toEqual(expect.any(String));
     expect(state().error).not.toBe("");
     expect(getPackMapping("material")).toBeNull();
@@ -110,7 +117,7 @@ describe("setIconPack", () => {
 
 describe("pack events", () => {
   beforeEach(async () => {
-    await setIconPack("codicons");
+    await setIconPack("lucide");
   });
 
   afterEach(() => {
@@ -127,61 +134,72 @@ describe("pack events", () => {
     expect(state().pack).toBe("fluent");
 
     window.dispatchEvent(new StorageEvent("storage", { key: "conduit-icon-pack", newValue: "bogus" }));
-    await waitForPack("codicons");
-
-    window.dispatchEvent(new StorageEvent("storage", { key: "conduit-icon-pack", newValue: "lucide" }));
     await waitForPack("lucide");
 
+    window.dispatchEvent(new StorageEvent("storage", { key: "conduit-icon-pack", newValue: "fluent" }));
+    await waitForPack("fluent");
+
+    // A value an older build stored is not a pack any more.
+    window.dispatchEvent(new StorageEvent("storage", { key: "conduit-icon-pack", newValue: "codicons" }));
+    await waitForPack("lucide");
+
+    window.dispatchEvent(new StorageEvent("storage", { key: "conduit-icon-pack", newValue: "fluent" }));
+    await waitForPack("fluent");
     window.dispatchEvent(new StorageEvent("storage", { key: "conduit-icon-pack", newValue: null }));
-    await waitForPack("codicons");
+    await waitForPack("lucide");
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("lucide");
   });
 
   it("follows conduit:theme-change with an iconPack", async () => {
-    document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail: { theme: "dark", iconPack: "lucide" } }));
-    await waitForPack("lucide");
+    document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail: { theme: "dark", iconPack: "hugeicons" } }));
+    await waitForPack("hugeicons");
 
     document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail: { theme: "light" } }));
     document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail: { iconPack: "not-a-pack" } }));
+    document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail: { iconPack: "codicons" } }));
     document.dispatchEvent(new CustomEvent("conduit:theme-change"));
     await flush();
-    expect(state().pack).toBe("lucide");
+    expect(state().pack).toBe("hugeicons");
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("hugeicons");
 
-    document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail: { iconPack: "codicons" } }));
-    await waitForPack("codicons");
+    document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail: { iconPack: "lucide" } }));
+    await waitForPack("lucide");
   });
 
-  it("boots from localStorage and falls back to Codicons", async () => {
+  it("boots from localStorage and falls back to Lucide", async () => {
     localStorage.setItem("conduit-icon-pack", "fluent");
     await bootIconPack();
     expect(state().pack).toBe("fluent");
 
-    localStorage.setItem("conduit-icon-pack", "not-a-pack");
+    localStorage.setItem("conduit-icon-pack", "codicons");
     await bootIconPack();
-    expect(state().pack).toBe("codicons");
+    expect(state().pack).toBe("lucide");
 
-    await setIconPack("lucide");
+    await setIconPack("fluent");
     localStorage.removeItem("conduit-icon-pack");
     await bootIconPack();
-    expect(state().pack).toBe("codicons");
+    expect(state().pack).toBe("lucide");
   });
 
-  it("boots Codicons synchronously and loads other packs lazily", async () => {
+  it("boots Lucide synchronously and loads other packs lazily", async () => {
     localStorage.setItem("conduit-icon-pack", "tabler");
     const booting = bootIconPack();
-    expect(state()).toMatchObject({ pack: "codicons", requested: "tabler", status: "loading" });
+    expect(state()).toMatchObject({ pack: "lucide", requested: "tabler", status: "loading" });
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("lucide");
     gates.tabler.open();
     await booting;
     expect(state().pack).toBe("tabler");
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe("tabler");
   });
 
   it("boots when localStorage throws", async () => {
-    await setIconPack("lucide");
+    await setIconPack("fluent");
     const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("denied");
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     await bootIconPack();
-    expect(state().pack).toBe("codicons");
+    expect(state().pack).toBe("lucide");
     getItem.mockRestore();
     warn.mockRestore();
   });

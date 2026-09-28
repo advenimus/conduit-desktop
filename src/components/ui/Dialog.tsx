@@ -10,20 +10,19 @@ import { useMergedRef } from "./refs";
 export type DialogSize = "sm" | "md" | "lg" | "xl";
 export type DialogLayer = "base" | "sync" | "stacked";
 
-export interface DialogProps extends Omit<ComponentPropsWithRef<"div">, "title" | "onSubmit"> {
+interface DialogBaseProps extends Omit<ComponentPropsWithRef<"div">, "title" | "onSubmit"> {
   open: boolean;
-  onClose: () => void;
   title: ReactNode;
   icon?: IconSource;
   tone?: DialogTone;
   size?: DialogSize;
+  /** Maximum width in px; overrides `size`, so a dialog keeps today's width (spec 4.8, D-18). */
+  width?: number;
   layer?: DialogLayer;
   /** Also sets aria-label. Only sync-style dialogs pass it: the harness lists [role=dialog][aria-label] (8.3). */
   harnessLabel?: string;
-  closeOnScrim?: boolean;
   initialFocusRef?: RefObject<HTMLElement | null>;
   footer?: ReactNode;
-  hideClose?: boolean;
   /** Wraps header, body and footer in one form, so the footer's submit button is inside it (B31). */
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
   /** False renders in place instead of in a portal on document.body. */
@@ -31,6 +30,25 @@ export interface DialogProps extends Omit<ComponentPropsWithRef<"div">, "title" 
   /** "custom": the children are the whole panel content, built from DialogHeader, DialogBody and DialogFooter. */
   layout?: "standard" | "custom";
 }
+
+/** Each dialog keeps today's close behavior (spec 3.12.1, D-26). */
+interface DismissibleDialogProps extends DialogBaseProps {
+  onClose: () => void;
+  /** False: Escape does not call onClose, but the dialog's layer still swallows it. */
+  closeOnEscape?: boolean;
+  closeOnScrim?: boolean;
+  hideClose?: boolean;
+}
+
+/** A dialog that cannot be dismissed (the recovery passphrase): no onClose, no close button, no Escape, no scrim. */
+interface UndismissableDialogProps extends DialogBaseProps {
+  onClose?: undefined;
+  closeOnEscape: false;
+  closeOnScrim?: false;
+  hideClose: true;
+}
+
+export type DialogProps = DismissibleDialogProps | UndismissableDialogProps;
 
 const LAYER_Z: Readonly<Record<DialogLayer, string>> = {
   base: "z-(--c-z-dialog)",
@@ -58,8 +76,10 @@ function OpenDialog({
   icon,
   tone,
   size = "md",
+  width,
   layer = "base",
   harnessLabel,
+  closeOnEscape = true,
   closeOnScrim = false,
   initialFocusRef,
   footer,
@@ -68,6 +88,7 @@ function OpenDialog({
   portal = true,
   layout = "standard",
   className,
+  style,
   children,
   ref,
   ...rest
@@ -83,7 +104,7 @@ function OpenDialog({
   const [headerMissing, setHeaderMissing] = useState(false);
 
   useFreeze(true, "dialog", typeof title === "string" ? title : harnessLabel);
-  useLayer({ ref: panelRef, onEscape: onClose, trapFocus: true });
+  useLayer({ ref: panelRef, onEscape: closeOnEscape ? onClose : undefined, trapFocus: true });
 
   // Focus moves in once on open and back to the opener once on close.
   useLayoutEffect(() => {
@@ -147,7 +168,7 @@ function OpenDialog({
         pressedScrim.current = e.target === e.currentTarget;
       }}
       onClick={(e) => {
-        if (closeOnScrim && pressedScrim.current && e.target === e.currentTarget) onClose();
+        if (closeOnScrim && pressedScrim.current && e.target === e.currentTarget) onClose?.();
         pressedScrim.current = false;
       }}
     >
@@ -161,9 +182,10 @@ function OpenDialog({
         tabIndex={-1}
         className={cx(
           "relative flex max-h-[85vh] w-full flex-col overflow-hidden rounded-lg border border-overlay-border bg-overlay text-ink shadow-modal outline-none",
-          WIDTH[size],
+          width === undefined && WIDTH[size],
           className,
         )}
+        style={width === undefined ? style : { maxWidth: width, ...style }}
         {...rest}
       >
         <DialogContext.Provider value={context}>

@@ -30,8 +30,9 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 /**
- * Build a terminal theme from live CSS variables. The terminal sits on the editor card, so its
- * background is --c-editor. Called on every theme/scheme change so the terminal stays in sync.
+ * Build a terminal theme from live CSS variables. The terminal sits directly under its pane's tab
+ * strip, so its background is --c-editor (D-19). Called on every theme/scheme change so the terminal
+ * stays in sync.
  * ANSI colors are kept fixed: they're functional (error = red, etc.).
  */
 export function getTerminalTheme(): ITheme {

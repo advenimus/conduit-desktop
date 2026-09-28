@@ -12,7 +12,6 @@ import { NavigationSection } from "./NavigationSection";
 import { OverlaysSection } from "./OverlaysSection";
 import { RowsSection } from "./RowsSection";
 import { installStateMirror } from "./stateMirror";
-import { WorkbenchPreview } from "./WorkbenchPreview";
 
 function Toolbar({ state, onChange }: { state: GalleryState; onChange: (next: Partial<GalleryState>) => void }) {
   return (
@@ -34,15 +33,6 @@ function Toolbar({ state, onChange }: { state: GalleryState; onChange: (next: Pa
         options={[
           { value: "dark", label: "Dark" },
           { value: "light", label: "Light" },
-        ]}
-      />
-      <SegmentedControl
-        aria-label="Density"
-        value={state.density}
-        onChange={(density) => onChange({ density })}
-        options={[
-          { value: "comfortable", label: "Comfortable" },
-          { value: "compact", label: "Compact" },
         ]}
       />
       <div className="w-44">
@@ -71,7 +61,6 @@ export function GalleryApp() {
   }, []);
 
   const sections: ReadonlyArray<[string, ReactNode]> = [
-    ["workbench", <WorkbenchPreview key="workbench" />],
     ["focus", <FocusSection key="focus" />],
     ["buttons", <ButtonsSection key="buttons" />],
     ["fields", <FieldsSection key="fields" />],
@@ -85,7 +74,7 @@ export function GalleryApp() {
   return (
     <div className="min-h-screen bg-shell text-ink">
       <Toolbar state={state} onChange={(next) => setState((prev) => ({ ...prev, ...next }))} />
-      <main className="flex flex-col gap-(--c-gap) p-(--c-outer)">
+      <main className="flex flex-col gap-4 p-4">
         {sections.filter(([id]) => state.section === null || state.section === id).map(([, node]) => node)}
       </main>
     </div>

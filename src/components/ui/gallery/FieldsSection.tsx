@@ -8,7 +8,7 @@ function TextFields() {
   const [password, setPassword] = useState("correct horse");
   return (
     <div className="grid max-w-[880px] grid-cols-2 gap-4">
-      <FormField label="Vault name" description="Shown in the title bar">
+      <FormField label="Vault name" description="Shown in the vault switcher">
         <TextInput placeholder="Enter new vault name" defaultValue="Work" />
       </FormField>
       <FormField label="Host" error="Enter a host name or an IP address">
@@ -46,7 +46,7 @@ function TextFields() {
 function Toggles() {
   const [remember, setRemember] = useState(true);
   const [local, setLocal] = useState(true);
-  const [style, setStyle] = useState("custom");
+  const [conflict, setConflict] = useState("keep");
   const [scale, setScale] = useState(100);
   return (
     <>
@@ -65,9 +65,9 @@ function Toggles() {
         </Checkbox>
       </Demo>
       <Demo label="RadioGroup">
-        <RadioGroup aria-label="Title bar" value={style} onChange={setStyle}>
-          <Radio value="custom">Custom (recommended)</Radio>
-          <Radio value="native">Native</Radio>
+        <RadioGroup aria-label="When both devices changed an entry" value={conflict} onChange={setConflict}>
+          <Radio value="keep">Keep both (recommended)</Radio>
+          <Radio value="mine">Use this device's version</Radio>
           <Radio value="focus" data-gallery-focus="">
             Focused option
           </Radio>

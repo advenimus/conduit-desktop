@@ -107,23 +107,16 @@ import {
   TableRegular,
   TextQuoteRegular,
   NavigationRegular,
-  PanelLeftFilled,
-  PanelLeftRegular,
-  PanelRightFilled,
-  PanelRightRegular,
   SplitVerticalRegular,
   SplitHorizontalRegular,
   MoreHorizontalRegular,
-  ArrowMinimizeVerticalRegular,
-  PersonCircleRegular,
-  DocumentMultipleRegular,
-  CircleFilled,
 } from "@fluentui/react-icons";
 
 import { createElement, memo } from "react";
 import type { FluentIcon } from "@fluentui/react-icons";
 import { iconA11yAttributes } from "../a11y";
 import { DEFAULT_ICON_SIZE, type IconComponent, type IconMapping, type IconProps } from "../types";
+import { createStateDotIcon } from "./state-dot";
 
 // Unsized Fluent icons are 1em square, so the font size sets their size.
 function wrap(Glyph: FluentIcon): IconComponent {
@@ -286,15 +279,8 @@ export const mapping: IconMapping = {
 
   // ── Layout and chrome ──
   menu: wrap(NavigationRegular),
-  panelLeft: wrap(PanelLeftFilled),
-  panelLeftOff: wrap(PanelLeftRegular),
-  panelRight: wrap(PanelRightFilled),
-  panelRightOff: wrap(PanelRightRegular),
   splitHorizontal: wrap(SplitVerticalRegular),
   splitVertical: wrap(SplitHorizontalRegular),
   ellipsis: wrap(MoreHorizontalRegular),
-  collapseAll: wrap(ArrowMinimizeVerticalRegular),
-  account: wrap(PersonCircleRegular),
-  explorer: wrap(DocumentMultipleRegular),
-  circleFilled: wrap(CircleFilled),
+  circleFilled: createStateDotIcon("Fluent"),
 };

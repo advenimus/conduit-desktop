@@ -1,4 +1,4 @@
-// Test helper: models how the compiled token CSS resolves on <html> for one scheme, mode and density.
+// Test helper: models how the compiled token CSS resolves on <html> for one scheme and mode.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +10,6 @@ export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url
 export interface RootState {
   mode: "dark" | "light";
   scheme?: string;
-  density?: "comfortable" | "compact";
   os?: "macos" | "windows" | "linux";
 }
 
@@ -107,7 +106,6 @@ interface Match {
 export function matchRoot(selector: string, state: RootState): Match | null {
   const attrs: Record<string, string | undefined> = {
     "data-scheme": state.scheme,
-    "data-density": state.density ?? "comfortable",
     "data-os": state.os,
   };
   let rest = selector.trim();

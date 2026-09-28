@@ -26,8 +26,8 @@ export const COLOR_SCHEMES: ReadonlyArray<ColorScheme> = [
     id: "modern",
     label: "Modern",
     preview: {
-      dark: { shell: "#191A1B", editor: "#121314", sidebar: "#191A1B", accent: "#3994BC" },
-      light: { shell: "#FAFAFD", editor: "#FFFFFF", sidebar: "#FAFAFD", accent: "#0069CC" },
+      dark: { shell: "#191A1B", editor: "#121314", sidebar: "#191A1B", accent: "#0EA5E9" },
+      light: { shell: "#FAFAFD", editor: "#FFFFFF", sidebar: "#FAFAFD", accent: "#0EA5E9" },
     },
   },
   {

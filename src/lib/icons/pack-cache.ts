@@ -1,24 +1,24 @@
-import { mapping as codiconsMapping } from "./packs/codicons";
+import { mapping as lucideMapping } from "./packs/lucide";
 import type { IconMapping, IconPackId } from "./types";
 
-type LazyIconPackId = Exclude<IconPackId, "codicons">;
+type LazyIconPackId = Exclude<IconPackId, "lucide">;
 
-// Each lazy pack is its own chunk, named after its module (lucide-*.js, ...).
+// Lucide is the default and ships in the entry chunk; each other pack is its own lazy chunk.
 const IMPORTERS: Readonly<Record<LazyIconPackId, () => Promise<{ mapping: IconMapping }>>> = {
-  lucide: () => import("./packs/lucide"),
-  tabler: () => import("./packs/tabler"),
   phosphor: () => import("./packs/phosphor"),
-  fluent: () => import("./packs/fluent"),
+  hugeicons: () => import("./packs/hugeicons"),
   material: () => import("./packs/material"),
+  fluent: () => import("./packs/fluent"),
+  tabler: () => import("./packs/tabler"),
 };
 
 export const LAZY_ICON_PACKS: ReadonlyArray<LazyIconPackId> = Object.freeze(
   Object.keys(IMPORTERS) as LazyIconPackId[],
 );
 
-export const CODICONS_MAPPING: IconMapping = codiconsMapping;
+export const LUCIDE_MAPPING: IconMapping = lucideMapping;
 
-const loaded = new Map<IconPackId, IconMapping>([["codicons", codiconsMapping]]);
+const loaded = new Map<IconPackId, IconMapping>([["lucide", lucideMapping]]);
 const inFlight = new Map<IconPackId, Promise<IconMapping>>();
 const listeners = new Set<(id: IconPackId) => void>();
 

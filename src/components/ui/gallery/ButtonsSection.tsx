@@ -48,14 +48,16 @@ export function ButtonsSection() {
           </Button>
         </div>
       </Demo>
-      <Demo label="IconButton sm 20, md 22, lg 28: rest, hover, pressed, pressed without look, danger, focus, disabled">
+      <Demo label="IconButton sm 20, md 22, lg 28: rest, hover, pressed, danger, inherited color, focus, disabled">
         {(["sm", "md", "lg"] as const).map((size) => (
           <div key={size} className="flex items-center gap-2">
             <IconButton size={size} icon="settings" label={`Settings ${size}`} />
             <IconButton size={size} icon="settings" label={`Hover ${size}`} data-gallery-hover="" />
             <IconButton size={size} icon="pin" label={`Pressed ${size}`} pressed />
-            <IconButton size={size} icon="panelLeft" label={`Glyph swap ${size}`} pressed pressedLook={false} />
             <IconButton size={size} icon="trash" label={`Delete ${size}`} tone="danger" data-gallery-hover="" />
+            <span className="text-danger">
+              <IconButton size={size} icon="close" label={`Inherit ${size}`} tone="inherit" />
+            </span>
             <IconButton size={size} icon="close" label={`Focus ${size}`} data-gallery-focus="" />
             <IconButton size={size} icon="plus" label={`New ${size}`} disabled disabledReason="View-only access" />
           </div>

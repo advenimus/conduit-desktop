@@ -13,11 +13,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronsDownUp,
-  Circle,
   CircleAlert,
   CircleCheck,
-  CircleUser,
   CircleX,
   Clock,
   Cloud,
@@ -38,7 +35,6 @@ import {
   FileCode,
   FileInput,
   FilePlus,
-  Files,
   FileText,
   FileX,
   FingerprintPattern,
@@ -74,10 +70,6 @@ import {
   Network,
   NotepadText,
   Palette,
-  PanelLeft,
-  PanelLeftDashed,
-  PanelRight,
-  PanelRightDashed,
   Pencil,
   Pin,
   Play,
@@ -123,6 +115,7 @@ import {
 
 import type { IconMapping } from "../types";
 import { wrapLucide } from "./lucide-wrap";
+import { createStateDotIcon } from "./state-dot";
 
 const filled = { filled: true };
 
@@ -276,15 +269,8 @@ export const mapping: IconMapping = {
 
   // ── Layout and chrome ──
   menu: wrapLucide(Menu),
-  panelLeft: wrapLucide(PanelLeft),
-  panelLeftOff: wrapLucide(PanelLeftDashed),
-  panelRight: wrapLucide(PanelRight),
-  panelRightOff: wrapLucide(PanelRightDashed),
   splitHorizontal: wrapLucide(Columns2),
   splitVertical: wrapLucide(Rows2),
   ellipsis: wrapLucide(Ellipsis),
-  collapseAll: wrapLucide(ChevronsDownUp),
-  account: wrapLucide(CircleUser),
-  explorer: wrapLucide(Files),
-  circleFilled: wrapLucide(Circle, filled),
+  circleFilled: createStateDotIcon("Lucide"),
 };

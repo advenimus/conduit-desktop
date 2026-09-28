@@ -23,7 +23,7 @@ import {
   TextInput,
   TreeRow,
 } from "..";
-import { GlobeIcon, TerminalIcon } from "../../../lib/icons";
+import { CircleFilledIcon, GlobeIcon, TerminalIcon } from "../../../lib/icons";
 import { Demo, GallerySection } from "./Section";
 
 const noop = () => {};
@@ -44,9 +44,9 @@ function ForceFocus({ selector, children }: { selector: string; children: ReactN
 
 /**
  * Every focusable primitive at a size that fits a tab strip, each forced into its focus state. Text
- * buttons are the small size: a 26px button's ring sits 2px outside it (spec 2.7), 32px in all, which
- * fits the 33px Comfortable strip but not the 29px Compact one. Spec 2.7 exempts text Buttons md and lg,
- * Textarea, Tabs and ChoiceCard from the strips, since none of them ever sits in one; they show in the Card.
+ * buttons are the small size, whose ring sits 2px outside it (spec 2.7). Spec 2.7 exempts text Buttons
+ * md and lg, Textarea, Tabs and ChoiceCard from the strips, since none of them ever sits in one; they
+ * show in the Card.
  */
 function compactControls(): ReadonlyArray<ReactElement> {
   return [
@@ -98,27 +98,31 @@ function compactControls(): ReadonlyArray<ReactElement> {
   ];
 }
 
-function ConnectedTab({ title, icon, selected = false, focusTab = false }: { title: string; icon: ReactNode; selected?: boolean; focusTab?: boolean }) {
+/** A pane tab as spec 3.4 draws it: icon, label, state dot and an always-visible close button. */
+function PaneTab({ title, icon, active = false, focusTab = false }: { title: string; icon: ReactNode; active?: boolean; focusTab?: boolean }) {
   return (
-    <div className="cv-tab" role="tab" aria-selected={selected} tabIndex={selected ? 0 : -1} {...(focusTab ? FOCUS : {})}>
+    <div className="cv-tab" data-active={active ? "" : undefined} tabIndex={active ? 0 : -1} {...(focusTab ? FOCUS : {})}>
       <span className="cv-tab-fill" />
-      <span className="cv-tab-icon">{icon}</span>
+      {icon}
       <span className="cv-tab-label">{title}</span>
-      <span className="cv-tab-actions">
-        <IconButton size="sm" icon="close" label={`Close ${title}`} tabIndex={-1} {...(selected ? FOCUS : {})} />
+      <span title="Connected" className="flex text-(--c-state-connected)">
+        <CircleFilledIcon size={12} />
       </span>
+      <IconButton size="sm" tone="inherit" className="cv-tab-close" icon="close" label={`Close ${title}`} tabIndex={-1} {...(active ? FOCUS : {})} />
     </div>
   );
 }
 
 function TabStrip({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="cv-tabstrip" data-focused="">
-      <div className="cv-tabs" role="tablist" aria-label={label}>
-        {children}
+    <div className="cv-tabstrip" data-tabbar="">
+      <div className="cv-tabstrip-slot w-11 justify-center">
+        <IconButton icon="menu" label={`Open sidebar (${label})`} />
       </div>
-      <div className="cv-editor-actions">
-        <IconButton icon="splitHorizontal" label={`Split Right (${label})`} {...FOCUS} />
+      <div className="cv-tabs">{children}</div>
+      <div className="cv-tabstrip-slot">
+        <IconButton icon="plus" label={`New Local Shell (${label})`} className="mx-1" {...FOCUS} />
+        <IconButton icon="robot" label={`Toggle AI Panel (${label})`} className="mr-1" pressed />
       </div>
     </div>
   );
@@ -130,7 +134,7 @@ export function FocusSection() {
   const controls = compactControls();
   const perStrip = Math.ceil(controls.length / STRIPS);
   return (
-    <GallerySection id="focus" title="Focus rings inside a Card and a tab strip (spec 2.7)">
+    <GallerySection id="focus" title="Focus rings inside a Card and a pane tab strip (spec 2.7)">
       <Demo label="Inside a Card: every focusable primitive in its focus state" className="block">
         <Card className="flex flex-wrap items-center gap-3">
           {controls}
@@ -152,8 +156,8 @@ export function FocusSection() {
           </ChoiceGroup>
         </Card>
       </Demo>
-      <Demo label="Flush against a card edge (overflow hidden, no padding)" className="block">
-        <div className="cv-card w-80">
+      <Demo label="Flush against a container edge (overflow hidden, no padding)" className="block">
+        <div className="w-80 overflow-hidden rounded-lg border border-card-border bg-editor">
           <ListRow onClick={noop} leading="folder" {...FOCUS}>
             First row, focused
           </ListRow>
@@ -162,17 +166,17 @@ export function FocusSection() {
           </ListRow>
         </div>
       </Demo>
-      <Demo label="Inside connected tab strips (33px, 29px in Compact; overflow-y hidden)" className="block">
-        <div className="cv-card flex max-w-[1180px] flex-col">
+      <Demo label="Inside 33px pane tab strips (overflow hidden)" className="block">
+        <div className="flex max-w-[1180px] flex-col overflow-hidden rounded-lg border border-card-border bg-editor">
           <TabStrip label="Sessions">
-            <ConnectedTab title="web-01" icon={<TerminalIcon size={16} className="text-entry-ssh" />} selected />
-            <ConnectedTab title="Focused tab" icon={<GlobeIcon size={16} className="text-entry-web" />} focusTab />
-            <ConnectedTab title="docs.example.com" icon={<GlobeIcon size={16} className="text-entry-web" />} />
+            <PaneTab title="web-01" icon={<TerminalIcon size={16} className="text-entry-ssh" />} active />
+            <PaneTab title="Focused tab" icon={<GlobeIcon size={16} className="text-entry-web" />} focusTab />
+            <PaneTab title="docs.example.com" icon={<GlobeIcon size={16} className="text-entry-web" />} />
           </TabStrip>
           {Array.from({ length: STRIPS }, (_, strip) => (
             <TabStrip key={strip} label={`Controls ${strip + 1}`}>
               {controls.slice(strip * perStrip, (strip + 1) * perStrip).map((control) => (
-                <div key={control.key} className="flex shrink-0 items-center px-1.5">
+                <div key={control.key} className="flex shrink-0 items-center self-stretch px-1.5">
                   {control}
                 </div>
               ))}

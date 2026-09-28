@@ -27,14 +27,14 @@ describe("Radio and RadioGroup", () => {
   it("renders label > input[type=radio] whose label text is exactly the option text", () => {
     const onChange = vi.fn();
     render(
-      <RadioGroup aria-label="Title bar" value="custom" onChange={onChange}>
-        <Radio value="custom">Custom (recommended)</Radio>
-        <Radio value="native">Native</Radio>
+      <RadioGroup aria-label="When both devices changed an entry" value="custom" onChange={onChange}>
+        <Radio value="custom">Keep both (recommended)</Radio>
+        <Radio value="native">Use this device's version</Radio>
       </RadioGroup>,
     );
-    expect(screen.getByRole("radiogroup", { name: "Title bar" })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "When both devices changed an entry" })).toBeInTheDocument();
     const labels = [...document.querySelectorAll("label")];
-    expect(labels.map((l) => (l.textContent ?? "").trim())).toEqual(["Custom (recommended)", "Native"]);
+    expect(labels.map((l) => (l.textContent ?? "").trim())).toEqual(["Keep both (recommended)", "Use this device's version"]);
     const radios = labels.map((l) => l.querySelector("input[type=radio]") as HTMLInputElement);
     expect(radios[0].checked).toBe(true);
     expect(radios[0].name).toBeTruthy();
@@ -109,11 +109,11 @@ describe("SegmentedControl", () => {
 });
 
 function ControlledChoices() {
-  const [value, setValue] = useState("codicons");
+  const [value, setValue] = useState("lucide");
   return (
     <ChoiceGroup aria-label="Icon pack" value={value} onChange={setValue} columns={3}>
-      <ChoiceCard value="codicons" label="Codicons" description="VS Code icons" />
-      <ChoiceCard value="lucide" label="Lucide" />
+      <ChoiceCard value="lucide" label="Lucide" description="Clean line icons · ISC" />
+      <ChoiceCard value="hugeicons" label="Hugeicons" />
       <ChoiceCard value="tabler" label="Tabler (Classic)" />
     </ChoiceGroup>
   );
@@ -124,25 +124,25 @@ describe("ChoiceGroup and ChoiceCard", () => {
     render(<ControlledChoices />);
     const group = screen.getByRole("radiogroup", { name: "Icon pack" });
     expect(group.className).toContain("grid-cols-3");
-    const first = screen.getByRole("radio", { name: /Codicons/ });
-    expect(first).toHaveAttribute("data-cv-choice", "codicons");
+    const first = screen.getByRole("radio", { name: /Lucide/ });
+    expect(first).toHaveAttribute("data-cv-choice", "lucide");
     expect(first).toHaveAttribute("aria-checked", "true");
     expect(first).toHaveAttribute("tabindex", "0");
     // The checked card sits on bg-selected-inactive, so its muted description is re-scoped (spec 2.11).
     expect(first).toHaveAttribute("data-selected");
-    expect(screen.getByRole("radio", { name: /Lucide/ })).not.toHaveAttribute("data-selected");
+    expect(screen.getByRole("radio", { name: /Hugeicons/ })).not.toHaveAttribute("data-selected");
 
     first.focus();
     fireEvent.keyDown(first, { key: "ArrowDown" });
-    const lucide = screen.getByRole("radio", { name: /Lucide/ });
-    expect(lucide).toHaveAttribute("aria-checked", "true");
-    expect(document.activeElement).toBe(lucide);
-    fireEvent.keyDown(lucide, { key: "ArrowUp" });
+    const hugeicons = screen.getByRole("radio", { name: /Hugeicons/ });
+    expect(hugeicons).toHaveAttribute("aria-checked", "true");
+    expect(document.activeElement).toBe(hugeicons);
+    fireEvent.keyDown(hugeicons, { key: "ArrowUp" });
     expect(first).toHaveAttribute("aria-checked", "true");
     fireEvent.keyDown(first, { key: "ArrowLeft" });
     expect(screen.getByRole("radio", { name: /Tabler/ })).toHaveAttribute("aria-checked", "true");
-    fireEvent.click(lucide);
-    expect(lucide).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(hugeicons);
+    expect(hugeicons).toHaveAttribute("aria-checked", "true");
   });
 });
 

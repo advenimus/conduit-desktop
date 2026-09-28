@@ -139,15 +139,37 @@ describe("IconButton", () => {
     expect(screen.getByRole("button", { name: "lg" }).className).toContain("size-7");
   });
 
-  it("pressed sets aria-pressed and the pressed look; pressedLook={false} keeps only the attribute", () => {
-    const view = render(<IconButton icon="panelLeft" label="Toggle" pressed />);
-    const button = screen.getByRole("button", { name: "Toggle" });
+  it("pressed sets aria-pressed and the pressed look", () => {
+    const view = render(<IconButton icon="robot" label="Toggle AI Panel" pressed />);
+    const button = screen.getByRole("button", { name: "Toggle AI Panel" });
     expect(button).toHaveAttribute("aria-pressed", "true");
-    expect(button.className).toContain("bg-toolbar-active");
+    expect(button.className.split(" ")).toEqual(expect.arrayContaining(["bg-toolbar-active", "text-ink"]));
 
-    view.rerender(<IconButton icon="panelLeft" label="Toggle" pressed pressedLook={false} />);
-    expect(button).toHaveAttribute("aria-pressed", "true");
+    view.rerender(<IconButton icon="robot" label="Toggle AI Panel" pressed={false} />);
+    expect(button).toHaveAttribute("aria-pressed", "false");
     expect(button.className).not.toMatch(/(^| )bg-toolbar-active/);
+  });
+
+  it("has no pressedLook prop any more: every pressed button shows the pressed look", () => {
+    // @ts-expect-error pressedLook was removed with the glyph-swap buttons (spec 4.3)
+    render(<IconButton icon="pin" label="Pin" pressed pressedLook={false} />);
+    expect(screen.getByRole("button", { name: "Pin" }).className).toContain("bg-toolbar-active");
+  });
+
+  it('tone="inherit" sets no text color, so the glyph takes the color around it, and keeps the hover fill', () => {
+    render(
+      <>
+        <IconButton icon="close" label="Close web-01" size="sm" tone="inherit" className="cv-tab-close" />
+        <IconButton icon="robot" label="Pressed inherit" tone="inherit" pressed />
+      </>,
+    );
+    for (const name of ["Close web-01", "Pressed inherit"]) {
+      const classes = screen.getByRole("button", { name }).className.split(" ");
+      expect(classes.filter((c) => /(^|:)text-/.test(c)), name).toEqual([]);
+    }
+    const close = screen.getByRole("button", { name: "Close web-01" }).className.split(" ");
+    expect(close).toEqual(expect.arrayContaining(["size-5", "cv-tab-close", "enabled:hover:bg-toolbar-hover"]));
+    expect(screen.getByRole("button", { name: "Pressed inherit" }).className).toContain("bg-toolbar-active");
   });
 
   it("explains why it is disabled in its title", () => {

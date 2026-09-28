@@ -18,7 +18,7 @@ const originalUserAgent = navigator.userAgent;
 
 function resetRoot(): void {
   root.className = "";
-  for (const name of ["data-scheme", "data-density", "data-os"]) root.removeAttribute(name);
+  for (const name of ["data-scheme", "data-os"]) root.removeAttribute(name);
   root.removeAttribute("style");
 }
 
@@ -59,16 +59,20 @@ describe("boot-inline.js", () => {
     expect(root.classList.contains("dark")).toBe(true);
     expect(root.classList.contains("light")).toBe(false);
     expect(root.getAttribute("data-scheme")).toBe("modern");
-    expect(root.getAttribute("data-density")).toBe("comfortable");
     expect(root.getAttribute("data-os")).toBe("macos");
-    expect(root.style.getPropertyValue("--c-zoom")).toBe("1.25");
     expect(root.style.getPropertyValue("--c-boot-bg")).toBe(SHELL_COLORS.modern.dark.shell);
     expect(root.style.getPropertyValue("--c-boot-fg")).toBe(SHELL_COLORS.modern.dark.fg);
     expect(localStorage.getItem("conduit-platform-theme")).toBeNull();
     expect(localStorage.getItem("conduit-color-scheme")).toBe("modern");
     expect(localStorage.getItem("conduit-icon-pack")).toBe("phosphor");
-    expect(localStorage.getItem("conduit-density")).toBe("comfortable");
     expect(localStorage.getItem("conduit-appearance-version")).toBe("2");
+  });
+
+  it("sets no density and no counter-zoom (D-7, D-8)", () => {
+    runBoot({ storage: { "conduit-density": "compact" }, electron: { platform: "darwin", zoomFactor: () => 1.25 } });
+    expect(root.hasAttribute("data-density")).toBe(false);
+    expect(root.style.getPropertyValue("--c-zoom")).toBe("");
+    expect(localStorage.getItem("conduit-density")).toBeNull();
   });
 
   it("sets data-scheme even for Modern and follows the system mode", () => {
@@ -78,25 +82,32 @@ describe("boot-inline.js", () => {
     expect(root.getAttribute("data-scheme")).toBe("modern");
     expect(root.getAttribute("data-os")).toBe("windows");
     expect(root.style.getPropertyValue("--c-boot-bg")).toBe(SHELL_COLORS.modern.light.shell);
+    expect(root.style.getPropertyValue("--c-boot-fg")).toBe("#6B6B6B");
   });
 
-  it("a fresh profile (empty storage) resolves the system mode, Modern and Codicons", () => {
+  it("a fresh profile (empty storage) resolves the system mode, Modern and Lucide", () => {
     runBoot({ prefersDark: true, electron: { platform: "linux" } });
     expect(root.className).toBe("dark");
     expect(root.getAttribute("data-os")).toBe("linux");
     expect(localStorage.getItem("conduit-color-scheme")).toBe("modern");
-    expect(localStorage.getItem("conduit-icon-pack")).toBe("codicons");
+    expect(localStorage.getItem("conduit-icon-pack")).toBe("lucide");
+    expect(localStorage.getItem("conduit-theme")).toBe("system");
   });
 
-  it("keeps a migrated choice and applies the scheme's boot colors and compact density", () => {
+  it("keeps a migrated choice and applies the scheme's boot colors", () => {
     runBoot({
-      storage: { "conduit-theme": "light", "conduit-color-scheme": "forest", "conduit-density": "compact", "conduit-appearance-version": "2", "conduit-icon-pack": "lucide" },
+      storage: { "conduit-theme": "light", "conduit-color-scheme": "forest", "conduit-appearance-version": "2", "conduit-icon-pack": "hugeicons" },
     });
     expect(root.getAttribute("data-scheme")).toBe("forest");
-    expect(root.getAttribute("data-density")).toBe("compact");
     expect(root.style.getPropertyValue("--c-boot-bg")).toBe(SHELL_COLORS.forest.light.shell);
     expect(root.style.getPropertyValue("--c-boot-fg")).toBe(SHELL_COLORS.forest.light.fg);
+    expect(localStorage.getItem("conduit-icon-pack")).toBe("hugeicons");
+  });
+
+  it("turns a stored codicons into Lucide and maps a retired scheme in a version-2 profile", () => {
+    runBoot({ storage: { "conduit-appearance-version": "2", "conduit-icon-pack": "codicons", "conduit-color-scheme": "ubuntu-yaru" } });
     expect(localStorage.getItem("conduit-icon-pack")).toBe("lucide");
+    expect(root.getAttribute("data-scheme")).toBe("ember");
   });
 
   it("keeps a newer appearance version instead of writing 2 over it", () => {
@@ -105,11 +116,10 @@ describe("boot-inline.js", () => {
     expect(localStorage.getItem("conduit-appearance-version")).toBe("3");
   });
 
-  it("falls back to the user agent for data-os and to 1 for the zoom", () => {
+  it("falls back to the user agent for data-os", () => {
     setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
     runBoot();
     expect(root.getAttribute("data-os")).toBe("windows");
-    expect(root.style.getPropertyValue("--c-zoom")).toBe("1");
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)");
     runBoot();
     expect(root.getAttribute("data-os")).toBe("macos");
@@ -118,21 +128,10 @@ describe("boot-inline.js", () => {
     expect(root.getAttribute("data-os")).toBe("linux");
   });
 
-  it.each([
-    ["a zero factor", () => 0],
-    ["a non-number", () => "big"],
-    ["a throwing bridge", () => {
-      throw new Error("no webFrame");
-    }],
-  ])("ignores %s from zoomFactor()", (_label, zoomFactor) => {
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    runBoot({ electron: { platform: "darwin", zoomFactor } });
-    expect(root.style.getPropertyValue("--c-zoom")).toBe("1");
-  });
-
-  it("an unknown theme value falls back to system", () => {
+  it("an unknown theme value falls back to system and is repaired", () => {
     runBoot({ storage: { "conduit-theme": "sepia" }, prefersDark: false });
     expect(root.className).toBe("light");
+    expect(localStorage.getItem("conduit-theme")).toBe("system");
   });
 
   it("still paints when localStorage throws, and says why", () => {
@@ -146,7 +145,6 @@ describe("boot-inline.js", () => {
     runBoot({ prefersDark: true });
     expect(root.className).toBe("dark");
     expect(root.getAttribute("data-scheme")).toBe("modern");
-    expect(root.getAttribute("data-density")).toBe("comfortable");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("[appearance boot]"), expect.any(Error));
   });
 });
