@@ -7,7 +7,7 @@
       "reason": "The platform themes are retired (OD-7) and their block becomes the Icon pack picker (OD-4); Modern is the first color scheme (OD-7).",
       "changes": [
         {
-          "reason": "Platform Theme block removed; the Icon pack section takes its place once R1-FOUNDATION renders it",
+          "reason": "Platform Theme block removed; the Icon pack section takes its place (R1-FOUNDATION) and must be there",
           "remove": [
             { "tag": "label", "text": "Platform Theme" },
             { "tag": "button", "text": "Default Conduit Classic" },
@@ -15,7 +15,6 @@
             { "tag": "button", "text": "— ☐ ✕ Windows 11 Fluent Design" },
             { "tag": "button", "text": "Ubuntu GNOME / Libadwaita" }
           ],
-          "insertWhen": "[data-cv-appearance=\"icon-pack\"]",
           "insert": [
             { "tag": "label", "text": "Icon pack" },
             { "tag": "button", "textStartsWith": "Lucide" },

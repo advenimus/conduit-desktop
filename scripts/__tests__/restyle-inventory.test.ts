@@ -204,28 +204,38 @@ describe('allowed deltas', () => {
     for (const c of deltas[0].changes) expect(c.reason).toBeTruthy();
   });
 
-  it('passes the Appearance tab without the Icon pack section, as on the base branch', () => {
-    const res = inv.compareInventory(controls('settings-appearance', APPEARANCE_BEFORE), controls('settings-appearance', appearanceAfter(false), { [PROBE]: false }), deltas);
-    expect(res).toEqual({ ok: true, lines: [] });
-  });
-
-  it('passes it with the section once the tab renders it', () => {
+  it('passes the Appearance tab with the Icon pack section in the Platform Theme slot', () => {
     const res = inv.compareInventory(controls('settings-appearance', APPEARANCE_BEFORE), controls('settings-appearance', appearanceAfter(true), { [PROBE]: true }), deltas);
     expect(res).toEqual({ ok: true, lines: [] });
   });
 
-  it('fails the section without its probe, the probe without the section, and anything else', () => {
+  it('fails the Appearance tab without the Icon pack section, now that R1-FOUNDATION has merged', () => {
+    const res = inv.compareInventory(controls('settings-appearance', APPEARANCE_BEFORE), controls('settings-appearance', appearanceAfter(false)), deltas);
+    expect(res.ok).toBe(false);
+    expect(res.lines).toContain(`missing    ${JSON.stringify({ tag: 'label', text: 'Icon pack' })}`);
+    const labelOnly = appearanceAfter(true).filter((c) => !PACK_SECTION.slice(1).includes(c));
+    expect(inv.compareInventory(controls('settings-appearance', APPEARANCE_BEFORE), controls('settings-appearance', labelOnly), deltas).ok).toBe(false);
+  });
+
+  it('fails a reordered section, a missing Modern card, an extra control and a kept Platform Theme block', () => {
     const before = controls('settings-appearance', APPEARANCE_BEFORE);
-    expect(inv.compareInventory(before, controls('settings-appearance', appearanceAfter(true), { [PROBE]: false }), deltas).ok).toBe(false);
-    expect(inv.compareInventory(before, controls('settings-appearance', appearanceAfter(false), { [PROBE]: true }), deltas).ok).toBe(false);
     const reordered = appearanceAfter(true).map((c) => (c.text?.startsWith('Hugeicons') ? { ...c, text: 'Fluent Windows 11 icons · MIT' } : c.text?.startsWith('Fluent') ? { ...c, text: 'Hugeicons Rounded line icons · MIT' } : c));
-    expect(inv.compareInventory(before, controls('settings-appearance', reordered, { [PROBE]: true }), deltas).ok).toBe(false);
-    const noModern = appearanceAfter(false).filter((c) => c.text !== 'Modern');
-    expect(inv.compareInventory(before, controls('settings-appearance', noModern, { [PROBE]: false }), deltas).ok).toBe(false);
-    const extra = [...appearanceAfter(false), { tag: 'label', text: 'Density' }];
-    expect(inv.compareInventory(before, controls('settings-appearance', extra, { [PROBE]: false }), deltas).ok).toBe(false);
+    expect(inv.compareInventory(before, controls('settings-appearance', reordered), deltas).ok).toBe(false);
+    const noModern = appearanceAfter(true).filter((c) => c.text !== 'Modern');
+    expect(inv.compareInventory(before, controls('settings-appearance', noModern), deltas).ok).toBe(false);
+    const extra = [...appearanceAfter(true), { tag: 'label', text: 'Density' }];
+    expect(inv.compareInventory(before, controls('settings-appearance', extra), deltas).ok).toBe(false);
     const platformKept = [...APPEARANCE_BEFORE];
-    expect(inv.compareInventory(before, controls('settings-appearance', platformKept, { [PROBE]: false }), deltas).ok).toBe(false);
+    expect(inv.compareInventory(before, controls('settings-appearance', platformKept), deltas).ok).toBe(false);
+  });
+
+  it('expects the inserted controls of a change with insertWhen exactly when its probe matched', () => {
+    const probed: Delta[] = [{ screen: 'settings-appearance', reason: 'probe', changes: [{ reason: 'probe', remove: APPEARANCE_BEFORE.slice(1, 6), insertWhen: PROBE, insert: PACK_SECTION }, deltas[0].changes[1]] }];
+    const before = controls('settings-appearance', APPEARANCE_BEFORE);
+    expect(inv.compareInventory(before, controls('settings-appearance', appearanceAfter(true), { [PROBE]: true }), probed).ok).toBe(true);
+    expect(inv.compareInventory(before, controls('settings-appearance', appearanceAfter(false), { [PROBE]: false }), probed).ok).toBe(true);
+    expect(inv.compareInventory(before, controls('settings-appearance', appearanceAfter(true), { [PROBE]: false }), probed).ok).toBe(false);
+    expect(inv.compareInventory(before, controls('settings-appearance', appearanceAfter(false), { [PROBE]: true }), probed).ok).toBe(false);
   });
 
   it('applies deltas only to their screen', () => {
