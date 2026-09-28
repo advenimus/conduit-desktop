@@ -269,6 +269,28 @@ describe("containers", () => {
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
+  it("SettingsRow titleAside sits right after the title, outside its label, and keeps the switch a direct child (B39)", () => {
+    render(
+      <SettingsRow
+        title="Cloud Backup"
+        titleAside={<span data-testid="badge">Pro and Team</span>}
+        toggle={<Switch checked={false} onChange={() => {}} data-cv-toggle="cloud" />}
+      />,
+    );
+    const label = [...document.querySelectorAll("label")].find((l) => l.textContent === "Cloud Backup") as HTMLLabelElement;
+    expect(label).toBeTruthy();
+    const badge = screen.getByTestId("badge");
+    expect(label.contains(badge)).toBe(false);
+    expect(label.nextElementSibling).toBe(badge);
+    const row = label.closest("[data-cv-toggle-row]") as HTMLElement;
+    expect(row.querySelector(":scope > button")).toHaveAttribute("data-cv-toggle", "cloud");
+  });
+
+  it("SettingsRow titleAside also follows a plain title", () => {
+    render(<SettingsRow title="Idle lock" titleAside={<span data-testid="aside">Pro</span>} />);
+    expect(screen.getByText("Idle lock").nextElementSibling).toBe(screen.getByTestId("aside"));
+  });
+
   it("SettingsRow without a toggle shows the title, the description and the control", () => {
     render(
       <SettingsRow title="Idle lock" description="Lock after a while">
