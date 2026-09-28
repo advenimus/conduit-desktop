@@ -3,7 +3,7 @@ import { cx } from "../cx";
 
 export function GallerySection({ id, title, children, className }: { id: string; title: string; children: ReactNode; className?: string }) {
   return (
-    <section id={id} data-gallery-section={id} className={cx("cv-card flex flex-col gap-4 p-4", className)}>
+    <section id={id} data-gallery-section={id} className={cx("flex flex-col gap-4 overflow-hidden rounded-lg border border-card-border bg-editor p-4", className)}>
       <h2 className="text-title font-semibold text-ink">{title}</h2>
       {children}
     </section>

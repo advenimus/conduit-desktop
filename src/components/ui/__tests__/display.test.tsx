@@ -81,7 +81,7 @@ describe("Badge and CountBadge", () => {
     expect(screen.getByText("Neutral").className).toContain("text-badge");
   });
 
-  it("the count badge has VS Code's metrics", () => {
+  it("the count badge has the spec 4.12 metrics", () => {
     render(<CountBadge count={7} />);
     const cls = screen.getByText("7").className;
     for (const c of ["min-w-[18px]", "min-h-[18px]", "px-[5px]", "py-[3px]", "rounded-full", "text-badge", "font-normal", "leading-[11px]", "bg-badge"]) {
@@ -158,10 +158,10 @@ describe("Callout", () => {
 });
 
 describe("Banner", () => {
-  it("keeps role=status, span.flex-1 with data-cv-banner-text and exact link-button labels (B14, B15)", () => {
+  it("keeps role=status, span.flex-1 with data-cv-banner-text and exact button labels (B14, B15)", () => {
     const onReview = vi.fn();
     render(
-      <Banner tone="warn" actions={[{ label: "Review", onClick: onReview }, { label: "Not Now", onClick: () => {} }]}>
+      <Banner tone="warn" actions={[{ label: "Review", onClick: onReview, primary: true }, { label: "Not Now", onClick: () => {} }]}>
         3 changes need review
       </Banner>,
     );
@@ -171,10 +171,46 @@ describe("Banner", () => {
     expect(text).toHaveTextContent("3 changes need review");
     const labels = [...banner.querySelectorAll("button")].map((b) => b.textContent?.trim());
     expect(labels).toEqual(["Review", "Not Now"]);
-    expect(banner.querySelector("button")?.className).toContain("underline");
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(onReview).toHaveBeenCalled();
     expect(banner.className).toContain("bg-warning-bg");
+  });
+
+  it("draws actions as small buttons, filled where primary (D-27), inside the 26px row", () => {
+    render(
+      <Banner tone="lock" actions={[{ label: "Use here instead", onClick: () => {}, primary: true }, { label: "Later", onClick: () => {}, disabled: true }]}>
+        This vault is open on another device.
+      </Banner>,
+    );
+    const primary = screen.getByRole("button", { name: "Use here instead" }).className.split(" ");
+    const secondary = screen.getByRole("button", { name: "Later" });
+    expect(primary).toEqual(expect.arrayContaining(["h-control-sm", "bg-btn-primary", "ml-2"]));
+    expect(primary).not.toContain("underline");
+    expect(secondary.className.split(" ")).toEqual(expect.arrayContaining(["h-control-sm", "bg-(--c-btn-secondary-bg)"]));
+    expect(secondary).toBeDisabled();
+  });
+
+  it('status={false} leaves out role="status" for the offline banners', () => {
+    render(
+      <Banner tone="warn" icon="wifiOff" status={false} align="center" actions={[{ label: "Reconnect", onClick: () => {} }]}>
+        Offline: working with cached features.
+      </Banner>,
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: "Reconnect" })).toBeInTheDocument();
+  });
+
+  it('align="center" centers icon, text and actions as one group, the text not growing', () => {
+    const { container } = render(
+      <Banner tone="warn" status={false} align="center" actions={[{ label: "Reconnect", onClick: () => {} }]}>
+        Offline
+      </Banner>,
+    );
+    const row = container.firstElementChild as HTMLElement;
+    expect(row.className.split(" ")).toContain("justify-center");
+    const text = row.querySelector("[data-cv-banner-text]") as HTMLElement;
+    expect(text.className.split(" ")).not.toContain("flex-1");
+    expect(row.querySelector("span.flex-1")).toBeNull();
   });
 
   it("info and lock tones use the neutral selected background", () => {

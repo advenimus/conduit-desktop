@@ -23,7 +23,7 @@ export interface PopoverProps extends Omit<ComponentPropsWithRef<"div">, "childr
   open: boolean;
   onClose: () => void;
   placement?: PopoverPlacement;
-  /** "auto" freezes native web views only while the panel overlaps [data-cv-editor-card] (spec 4.9). */
+  /** "auto" freezes native web views only while the panel overlaps a pane's [data-cv-session-area] (spec 4.9, D-21). */
   freeze?: "auto" | boolean;
   /** False drops the panel's 4px padding, for a Menu, which brings its own (spec 4.10). */
   padding?: boolean;
@@ -70,10 +70,10 @@ function usePlacedAnchor(anchorRef: RefObject<HTMLElement | null>, placement: Po
   );
 }
 
-function overlapsEditorCard(panel: HTMLElement): boolean {
+function overlapsSessionArea(panel: HTMLElement): boolean {
   const r = panel.getBoundingClientRect();
-  return Array.from(document.querySelectorAll("[data-cv-editor-card]")).some((card) => {
-    const c = card.getBoundingClientRect();
+  return Array.from(document.querySelectorAll("[data-cv-session-area]")).some((area) => {
+    const c = area.getBoundingClientRect();
     return r.left < c.right && r.right > c.left && r.top < c.bottom && r.bottom > c.top;
   });
 }
@@ -104,13 +104,13 @@ function PopoverPanel({
   const setPanelRef = useMergedRef(panelRef, ref);
   const sizeRef = useRef<Size>({ width: 0, height: 0 });
   const [size, setSize] = useState<Size>(sizeRef.current);
-  const [overEditor, setOverEditor] = useState(false);
+  const [overSessionArea, setOverSessionArea] = useState(false);
   const placedAnchor = usePlacedAnchor(anchorRef, placement, sizeRef);
   const pos = usePopoverPosition(placedAnchor, size);
 
   // Not tied to `open`: the panel still paints while it plays cv-pop-out, and a web view shown again
   // during that time would cover it. The freeze ends when the panel unmounts.
-  useFreeze(freeze === true || (freeze === "auto" && overEditor), "popover");
+  useFreeze(freeze === true || (freeze === "auto" && overSessionArea), "popover");
   useLayer({ ref: panelRef, onEscape: onClose, active: open });
 
   useLayoutEffect(() => {
@@ -129,7 +129,7 @@ function PopoverPanel({
   }, []);
 
   useLayoutEffect(() => {
-    if (panelRef.current) setOverEditor(overlapsEditorCard(panelRef.current));
+    if (panelRef.current) setOverSessionArea(overlapsSessionArea(panelRef.current));
   }, [pos.top, pos.left, size]);
 
   useEffect(() => {

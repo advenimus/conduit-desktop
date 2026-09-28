@@ -3,7 +3,7 @@ import { render, screen, fireEvent, cleanup, act, within } from "@testing-librar
 import { GalleryApp } from "../gallery/GalleryApp";
 import { gallerySearch, readGalleryState } from "../gallery/galleryState";
 import { installStateMirror, mirrorRules, MIRROR_STYLE_ID } from "../gallery/stateMirror";
-import { preloadAllIconPacks, setIconPack } from "../../../lib/icons";
+import { DEFAULT_ICON_PACK, ICON_PACKS, SEMANTIC_ICON_NAMES, preloadAllIconPacks, setIconPack } from "../../../lib/icons";
 import { freezeHolders } from "../../../lib/native-freeze";
 
 // The first import of the five lazy packs takes seconds in a loaded run.
@@ -15,35 +15,40 @@ beforeAll(async () => {
 
 afterEach(async () => {
   cleanup();
-  await act(() => setIconPack("codicons"));
+  await act(() => setIconPack(DEFAULT_ICON_PACK));
   document.getElementById(MIRROR_STYLE_ID)?.remove();
   window.history.replaceState(null, "", "/");
 });
 
 describe("gallery state", () => {
-  it("reads and writes the four switches and the section filter through the URL", () => {
-    const state = readGalleryState("?scheme=ocean&mode=light&density=compact&pack=lucide&section=focus");
-    expect(state).toEqual({ scheme: "ocean", mode: "light", density: "compact", pack: "lucide", section: "focus" });
+  it("reads and writes the three switches and the section filter through the URL, with no density", () => {
+    const state = readGalleryState("?scheme=ocean&mode=light&density=compact&pack=hugeicons&section=focus");
+    expect(state).toEqual({ scheme: "ocean", mode: "light", pack: "hugeicons", section: "focus" });
     expect(readGalleryState(gallerySearch(state))).toEqual(state);
-    expect(readGalleryState("?scheme=nope&mode=dim&density=x&pack=y")).toEqual({ scheme: "modern", mode: "dark", density: "comfortable", pack: "codicons", section: null });
+    expect(gallerySearch(state)).not.toContain("density");
+    expect(readGalleryState("?scheme=nope&mode=dim&pack=codicons")).toEqual({ scheme: "modern", mode: "dark", pack: "lucide", section: null });
   });
 });
 
 describe("GalleryApp", () => {
   it("renders every section without console errors and applies the switches to <html>", async () => {
     const errors = vi.spyOn(console, "error");
-    window.history.replaceState(null, "", "/gallery.html?scheme=forest&mode=light&density=compact");
+    window.history.replaceState(null, "", "/gallery.html?scheme=forest&mode=light");
     render(<GalleryApp />);
     await act(async () => {});
-    for (const id of ["workbench", "focus", "buttons", "fields", "navigation", "overlays", "rows", "display", "icons"]) {
+    for (const id of ["focus", "buttons", "fields", "navigation", "overlays", "rows", "display", "icons"]) {
       expect(document.querySelector(`[data-gallery-section="${id}"]`)).not.toBeNull();
     }
+    expect(document.querySelector('[data-gallery-section="workbench"]')).toBeNull();
     const root = document.documentElement;
     expect(root.getAttribute("data-scheme")).toBe("forest");
     expect(root.classList.contains("light")).toBe(true);
-    expect(root.getAttribute("data-density")).toBe("compact");
+    expect(root.hasAttribute("data-density")).toBe(false);
 
     const toolbar = within(screen.getByRole("banner"));
+    expect(toolbar.queryByRole("radiogroup", { name: "Density" })).toBeNull();
+    const packs = [...toolbar.getByRole("combobox", { name: "Icon pack" }).querySelectorAll("option")].map((o) => o.value);
+    expect(packs).toEqual(ICON_PACKS.map((pack) => pack.id));
     fireEvent.change(toolbar.getByRole("combobox", { name: "Color scheme" }), { target: { value: "rose" } });
     fireEvent.click(toolbar.getByRole("radio", { name: "Dark" }));
     await act(async () => {});
@@ -52,6 +57,20 @@ describe("GalleryApp", () => {
     expect(window.location.search).toContain("scheme=rose");
     expect(errors).not.toHaveBeenCalled();
     expect(freezeHolders()).toEqual([]);
+    errors.mockRestore();
+  });
+
+  it.each(ICON_PACKS.map((pack) => pack.id))("?pack=%s draws every icon and the state dot from that pack", async (pack) => {
+    const errors = vi.spyOn(console, "error");
+    window.history.replaceState(null, "", `/gallery.html?pack=${pack}&section=icons`);
+    render(<GalleryApp />);
+    await act(async () => {});
+    expect(document.documentElement.getAttribute("data-cv-icon-pack")).toBe(pack);
+    const cells = document.querySelectorAll("[data-gallery-icon]");
+    expect(cells).toHaveLength(SEMANTIC_ICON_NAMES.length);
+    for (const cell of cells) expect(cell.querySelectorAll("svg"), cell.getAttribute("data-gallery-icon")!).toHaveLength(1);
+    expect(document.querySelectorAll("[data-gallery-pack]")).toHaveLength(ICON_PACKS.length);
+    expect(errors).not.toHaveBeenCalled();
     errors.mockRestore();
   });
 
