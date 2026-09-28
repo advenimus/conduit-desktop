@@ -114,6 +114,30 @@ async function captureMacWindows(device, file, overlays) {
   return { file, method: 'window', scale, main, missing: [] };
 }
 
+/**
+ * Captures the first window of `role` alone into `file`: the credential picker opens near the pointer,
+ * often away from the main window, so it cannot be cut out of a main window capture. On macOS a window
+ * capture, elsewhere (or when macOS refuses) a screenshot of its page.
+ */
+export async function captureChildWindow(device, role, file) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const child = (await listWindows(device)).find((w) => w.role === role);
+  if (!child) throw new Error(`${device.name}: no ${role} window to capture`);
+  if (process.platform === 'darwin') {
+    try {
+      await screencapture(child.cg, file);
+      return file;
+    } catch (err) {
+      device.captureWarning = `${role} window capture failed (${err.message}); page screenshot instead`;
+    }
+  }
+  const origin = devOrigin(device);
+  const page = device.app.windows().find((p) => windowRole(p.url(), origin) === role);
+  if (!page) throw new Error(`${device.name}: no ${role} page to screenshot`);
+  await withTimeout(page.screenshot({ path: file, scale: 'css' }), CAPTURE_TIMEOUT_MS, `${device.name}: ${role} page screenshot`);
+  return file;
+}
+
 const near = (a, b) => Math.abs(a - b) <= 2;
 
 /**

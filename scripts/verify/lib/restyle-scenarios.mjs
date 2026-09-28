@@ -10,7 +10,7 @@ import { openTeamVaultInUi } from './team-flows.mjs';
 import { createRestyleSession } from './restyle-session.mjs';
 import { SCENARIOS, screen } from './restyle-screens.mjs';
 import { writeSheet } from './restyle-reference.mjs';
-import { captureWindow, cropCapture } from './window-capture.mjs';
+import { captureChildWindow, captureWindow, cropCapture } from './window-capture.mjs';
 import {
   childWindowRegion,
   clearToasts,
@@ -169,12 +169,11 @@ async function capturePackRow(device, dir, pack, rs, mode) {
   const overlayPack = (await iconPackAttributes(device)).overlay;
   await clearToasts(device);
   await openPicker(device);
-  const withPicker = await captureWindow(device, file('picker-full'), { overlays: ['picker'] });
-  shots.picker = await cropCapture(withPicker, await childWindowRegion(device, 'picker', { padX: 0, padY: 0, zoom: 1 }), file('picker'));
+  shots.picker = await captureChildWindow(device, 'picker', file('picker'));
   const pickerPack = (await iconPackAttributes(device)).picker;
   const pickerIcons = await pickerIconMarkup(device);
   await closePicker(device);
-  for (const f of ['full', 'menu-full', 'toast-full', 'picker-full']) fs.rmSync(file(f), { force: true });
+  for (const f of ['full', 'menu-full', 'toast-full']) fs.rmSync(file(f), { force: true });
   const ok = overlayPack === pack && pickerPack === pack && Boolean(editIcon);
   rs.record(mode, `pack ${pack}`, { rule: 'packs', status: ok ? 'pass' : 'fail', detail: `main ${pack}, overlay ${overlayPack}, picker ${pickerPack}, menu Edit icon ${editIcon ? 'present' : 'missing'}` });
   return { shots, editIcon, pickerIcons };
