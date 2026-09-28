@@ -304,6 +304,12 @@ describe('extraction in the page', () => {
     expect(ai.items.map((i) => i.tag)).toEqual(['button', 'button', 'textarea']);
     expect(inv.extractControlsInPage({ roots: ['#nothing'], probes: [] }).rootsFound).toBe(0);
   });
+
+  it('takes the dialog on the highest layer as the last root, whatever the document order', () => {
+    document.body.innerHTML = `<div id="root"><div data-cv-layer="sync" style="z-index: 60"><div data-dialog-content><button>Done</button></div></div></div>
+      <div data-cv-layer="base" style="z-index: 50"><div data-dialog-content><button>Save</button></div></div>`;
+    expect(inv.extractControlsInPage({ roots: [{ last: '[data-dialog-content]' }], probes: [] }).items).toEqual([{ tag: 'button', text: 'Done' }]);
+  });
 });
 
 describe('popup menu reader', () => {
