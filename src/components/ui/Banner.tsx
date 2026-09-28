@@ -35,7 +35,8 @@ export function Banner({ tone = "info", icon, actions, className, children, ...r
     <div
       role="status"
       className={cx(
-        "flex min-h-(--c-banner-h) items-center border-b border-divider pr-2.5 text-label text-ink",
+        // The text line (5 + 16 + 5) already fills the 26px, so a border would make the row 27; draw the divider inside.
+        "flex min-h-(--c-banner-h) items-center shadow-[inset_0_-1px_0_var(--c-divider)] pr-2.5 text-label text-ink",
         "[--color-link-hover:var(--c-ink)] [--color-link:var(--c-ink)]",
         style.bg,
         className,

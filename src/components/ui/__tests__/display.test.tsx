@@ -186,6 +186,15 @@ describe("Banner", () => {
     );
     for (const el of screen.getAllByRole("status")) expect(el.className).toContain("bg-selected");
   });
+
+  it("stays 26px tall: the 5 + 16 + 5 text line fills it, so the divider is drawn inside instead of added", () => {
+    render(<Banner tone="info">Info</Banner>);
+    const classes = screen.getByRole("status").className.split(" ");
+    expect(classes).toContain("min-h-(--c-banner-h)");
+    expect(classes).toContain("shadow-[inset_0_-1px_0_var(--c-divider)]");
+    expect(classes).not.toContain("border-b");
+    expect(screen.getByText("Info").className.split(" ")).toEqual(expect.arrayContaining(["py-[5px]", "leading-4"]));
+  });
 });
 
 describe("containers", () => {
