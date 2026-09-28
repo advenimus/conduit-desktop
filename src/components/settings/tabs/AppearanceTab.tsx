@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { COLOR_SCHEMES, type SchemePreview } from "../../../lib/schemes";
+import { DEFAULT_ICON_PACK, ICON_PACKS, Icon, isIconPackId, preloadAllIconPacks, type IconPackId, type SemanticIconName } from "../../../lib/icons";
+import { Badge, ChoiceCard, ChoiceGroup } from "../../ui";
 import type { TabProps } from "../SettingsHelpers";
+
+const PACK_PREVIEW: ReadonlyArray<SemanticIconName> = ["folder", "terminal", "desktop", "globe", "key", "search", "settings", "cloud"];
 
 export default function AppearanceTab({ settings, setSettings }: TabProps) {
   // Sync ui_scale with actual zoom factor (covers Cmd+/- and other external changes)
@@ -38,6 +42,14 @@ export default function AppearanceTab({ settings, setSettings }: TabProps) {
 
   return (
     <div className="space-y-6">
+      <IconPackSection
+        value={isIconPackId(settings.icon_pack) ? settings.icon_pack : DEFAULT_ICON_PACK}
+        onChange={(pack) => {
+          setSettings((prev) => ({ ...prev, icon_pack: pack }));
+          dispatchThemeChange({ iconPack: pack });
+        }}
+      />
+
       {/* ── Color Scheme ── */}
       <div>
         <label className="block text-sm font-medium mb-2">Color Scheme</label>
@@ -119,6 +131,40 @@ export default function AppearanceTab({ settings, setSettings }: TabProps) {
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Settings > Appearance > Icon pack (spec 5.8): every card previews its own pack, so all packs load on mount. */
+function IconPackSection({ value, onChange }: { value: IconPackId; onChange: (pack: IconPackId) => void }) {
+  useEffect(() => {
+    void preloadAllIconPacks();
+  }, []);
+
+  return (
+    <div data-cv-appearance="icon-pack">
+      <label id="appearance-icon-pack-label" className="block text-sm font-medium mb-2">Icon pack</label>
+      <ChoiceGroup aria-labelledby="appearance-icon-pack-label" value={value} onChange={onChange} columns={3}>
+        {ICON_PACKS.map((pack) => (
+          <ChoiceCard
+            key={pack.id}
+            value={pack.id}
+            label={
+              <span className="inline-flex items-center gap-1.5">
+                {pack.label}
+                {pack.id === DEFAULT_ICON_PACK && <Badge tone="neutral">Default</Badge>}
+              </span>
+            }
+            description={pack.description}
+          >
+            <span className="flex h-8 items-center gap-2 rounded bg-well px-2 text-ink-secondary">
+              {PACK_PREVIEW.map((name) => (
+                <Icon key={name} name={name} pack={pack.id} size={16} />
+              ))}
+            </span>
+          </ChoiceCard>
+        ))}
+      </ChoiceGroup>
     </div>
   );
 }
