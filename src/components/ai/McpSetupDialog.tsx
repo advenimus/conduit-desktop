@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "../../lib/electron";
 import { toast } from "../common/Toast";
 import { MCP_TOOL_COMMANDS } from "./mcpCommands";
-import { CheckIcon, CloseIcon, CopyIcon } from "../../lib/icons";
+import { Button, Dialog, IconButton, Spinner } from "../ui";
 
 interface McpSetupDialogProps {
   onClose: () => void;
@@ -19,82 +19,67 @@ export default function McpSetupDialog({ onClose }: McpSetupDialogProps) {
   }, []);
 
   const handleCopy = useCallback(async (idx: number, text: string) => {
-    await navigator.clipboard.writeText(text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error("Failed to copy the MCP command:", err);
+      toast.error("Could not copy the command");
+      return;
+    }
     toast.success("Command copied");
     setCopiedIdx(idx);
     setTimeout(() => setCopiedIdx(null), 2000);
   }, []);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  };
-
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/50 z-[60]"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      onKeyDown={handleKeyDown}
+    <Dialog
+      open
+      onClose={onClose}
+      title="Register MCP Tools"
+      width={448}
+      layer="sync"
+      closeOnScrim
+      footer={
+        <Button variant="primary" onClick={onClose}>
+          Got it
+        </Button>
+      }
     >
-      <div data-dialog-content className="w-full max-w-md bg-panel border border-stroke rounded-lg shadow-xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-          <h3 className="text-sm font-semibold text-ink">Register MCP Tools</h3>
-          <button onClick={onClose} className="p-1 hover:bg-raised rounded">
-            <CloseIcon size={16} />
-          </button>
-        </div>
+      <div className="space-y-3 py-2">
+        <p className="text-label text-ink-muted">
+          In terminal mode, CLI agents need Conduit's MCP server registered manually.
+          Run the command for your agent in your project directory:
+        </p>
 
-        <div className="p-4 space-y-3 overflow-y-auto">
-          <p className="text-xs text-ink-muted">
-            In terminal mode, CLI agents need Conduit's MCP server registered manually.
-            Run the command for your agent in your project directory:
-          </p>
-
-          {!mcpPath || !socketPath ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-ink-muted">Loading MCP path...</span>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {MCP_TOOL_COMMANDS.map((tool, idx) => {
-                const cmd = tool.command(mcpPath, socketPath);
-                return (
-                  <div key={tool.label}>
-                    <div className="text-xs font-medium text-ink-muted mb-1">
-                      {tool.label}
-                    </div>
-                    <div className="flex items-start gap-2 bg-raised rounded-md p-2">
-                      <code className="flex-1 text-xs text-ink break-all select-all font-mono leading-relaxed">
-                        {cmd}
-                      </code>
-                      <button
-                        onClick={() => handleCopy(idx, cmd)}
-                        className="flex-shrink-0 p-1 rounded hover:bg-panel text-ink-muted hover:text-ink transition-colors"
-                        title="Copy command"
-                      >
-                        {copiedIdx === idx ? (
-                          <CheckIcon size={14} className="text-green-400" />
-                        ) : (
-                          <CopyIcon size={14} />
-                        )}
-                      </button>
-                    </div>
+        {!mcpPath || !socketPath ? (
+          <Spinner size={16} text="Loading MCP path..." className="text-label text-ink-muted" />
+        ) : (
+          <div className="space-y-2">
+            {MCP_TOOL_COMMANDS.map((tool, idx) => {
+              const cmd = tool.command(mcpPath, socketPath);
+              const copied = copiedIdx === idx;
+              return (
+                <div key={tool.label}>
+                  <div className="mb-1 text-label font-semibold text-ink-secondary">{tool.label}</div>
+                  <div className="flex items-start gap-2 rounded-md border border-card-border bg-code p-2">
+                    <code className="flex-1 select-all break-all font-mono text-label leading-relaxed text-ink">
+                      {cmd}
+                    </code>
+                    <IconButton
+                      size="sm"
+                      icon={copied ? "check" : "copy"}
+                      label="Copy command"
+                      tone={copied ? "inherit" : "default"}
+                      className={copied ? "text-success" : undefined}
+                      onClick={() => handleCopy(idx, cmd)}
+                    />
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end px-4 py-3 border-t border-stroke">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-white bg-conduit-600 hover:bg-conduit-700 rounded"
-          >
-            Got it
-          </button>
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
+    </Dialog>
   );
 }
