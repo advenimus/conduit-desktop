@@ -194,6 +194,30 @@ describe("state dot (circleFilled)", () => {
   });
 });
 
+describe("Material optical size", () => {
+  // Material Symbols keep a 2px padding on their 24px grid and draw smaller than the other packs in the same
+  // box (a 24px star was 14px of ink against 19 to 22 elsewhere). The adapter trims the viewBox as far as it
+  // can without clipping any glyph, so every Material glyph grows by the same factor.
+  it("trims every glyph's viewBox by MATERIAL_TRIM on each side and clips none", async () => {
+    const material = await loadIconPack("material");
+    const { MATERIAL_TRIM } = await import("../packs/material");
+    expect(MATERIAL_TRIM).toBeGreaterThan(1);
+    const box = 24 - 2 * MATERIAL_TRIM;
+    for (const name of SEMANTIC_ICON_NAMES) {
+      if (name === "circleFilled") continue;
+      const { viewBox, x, y } = extent(material[name], { size: 24 });
+      expect(viewBox, name).toBe(`${MATERIAL_TRIM} ${MATERIAL_TRIM} ${box} ${box}`);
+      expect(Math.min(x[0], y[0]), name).toBeGreaterThanOrEqual(MATERIAL_TRIM);
+      expect(Math.max(x[1], y[1]), name).toBeLessThanOrEqual(24 - MATERIAL_TRIM);
+    }
+  }, PRELOAD_TIMEOUT_MS);
+
+  it("keeps the state dot the 8px Codicons disc", async () => {
+    const material = await loadIconPack("material");
+    expect(extent(material.circleFilled, { size: 16 })).toEqual(extent(getPackMapping("codicons")!.circleFilled, { size: 16 }));
+  }, PRELOAD_TIMEOUT_MS);
+});
+
 describe("index exports", () => {
   it("exports the 12 new named icons and the registry API", () => {
     const names = [

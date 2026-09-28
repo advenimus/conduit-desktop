@@ -46,8 +46,18 @@ function renderNodes(nodes: ReadonlyArray<GlyphNode>, prefix = ""): ReactElement
   });
 }
 
+export interface GlyphOptions {
+  /** viewBox units cut from each side of a full-size glyph, so a pack drawn inside padding fills the box. */
+  readonly trim?: number;
+}
+
+function viewBoxFor(glyph: Glyph, trim: number): string {
+  return trim === 0 ? `0 0 ${glyph.w} ${glyph.h}` : `${trim} ${trim} ${glyph.w - 2 * trim} ${glyph.h - 2 * trim}`;
+}
+
 /** Renders generated path data as an <svg> that draws with currentColor. */
-export function createGlyphIcon(icon: GlyphIcon, displayName: string): IconComponent {
+export function createGlyphIcon(icon: GlyphIcon, displayName: string, options: GlyphOptions = {}): IconComponent {
+  const trim = options.trim ?? 0;
   const fullNodes = renderNodes(icon.nodes);
   const compactGlyph = icon.compact ?? null;
   const compactNodes = compactGlyph ? renderNodes(compactGlyph.nodes) : null;
@@ -59,7 +69,7 @@ export function createGlyphIcon(icon: GlyphIcon, displayName: string): IconCompo
     return createElement(
       "svg",
       {
-        viewBox: `0 0 ${glyph.w} ${glyph.h}`,
+        viewBox: viewBoxFor(glyph, useCompact ? 0 : trim),
         width: size,
         height: size,
         fill: "currentColor",
@@ -78,7 +88,8 @@ export function createGlyphIcon(icon: GlyphIcon, displayName: string): IconCompo
 export function createGlyphIcons<K extends SemanticIconName>(
   glyphs: Readonly<Record<K, GlyphIcon>>,
   packLabel: string,
+  options: GlyphOptions = {},
 ): Record<K, IconComponent> {
-  const entries = (Object.keys(glyphs) as K[]).map((name) => [name, createGlyphIcon(glyphs[name], `${packLabel}(${name})`)]);
+  const entries = (Object.keys(glyphs) as K[]).map((name) => [name, createGlyphIcon(glyphs[name], `${packLabel}(${name})`, options)]);
   return Object.fromEntries(entries) as Record<K, IconComponent>;
 }
