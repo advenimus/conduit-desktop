@@ -33,6 +33,7 @@ import {
   selectEntry,
   setSidebar,
   startTestSite,
+  TREE_MENU_X,
   vaultDir,
   vaultPath,
   waitForDialogs,
@@ -65,6 +66,8 @@ function perMode(id, prefix, body) {
 }
 
 const inv = (rs, device, mode, name, vaultDirs) => rs.inventory(device, mode, screen(name), { vaultDirs });
+// The pane that had focus in the reference shots 05, 06 and 10b (its tab bar holds the AI toggle).
+const REFERENCE_FOCUS = Object.freeze({ dark: 'left', light: 'right' });
 const tabbarCrop = (d) => async () => ({ ...(await regions(d)).tabbars, zoom: 1.5 });
 
 async function screensBody(ctx, d, mode, rs) {
@@ -107,8 +110,10 @@ async function sidebarBody(ctx, d, mode, rs) {
   await openReferenceSessions(d, ids);
   await setSidebar(d, 'floating');
   await selectEntry(d, ids.web);
+  await focusPane(d, REFERENCE_FOCUS[mode]);
   await rs.shot(d, mode, '06-main-split-sidebar-floating');
   await rs.check(d, mode, 'sidebar-floating-split', { webSession: true });
+  await focusPane(d, 'right');
   await setSidebar(d, 'docked');
   await rs.shot(d, mode, '07-main-split-sidebar-pinned');
   await rs.shot(d, mode, '08-zoom-sidebar-header', { crop: async () => ({ ...(await regions(d)).header, zoom: 2 }) });
@@ -144,12 +149,14 @@ async function closeVaultMenu(ctx, d) {
 async function tabsBody(ctx, d, mode, rs) {
   const dirs = [vaultDir(d)];
   const { ids } = await referenceMain(d, { siteUrl: (await testSite(ctx)).url, sidebar: 'hidden' });
+  await focusPane(d, REFERENCE_FOCUS[mode]);
   await rs.shot(d, mode, '05-main-split-sidebar-closed');
   await rs.shot(d, mode, '10b-zoom-tabbars-sidebar-closed', { crop: tabbarCrop(d) });
   await rs.check(d, mode, 'split-sidebar-hidden', { webSession: true });
   await setSidebar(d, 'floating');
   await rs.shot(d, mode, '06-main-split-sidebar-floating');
   await rs.check(d, mode, 'split-sidebar-floating', { webSession: true });
+  await focusPane(d, 'right');
   await setSidebar(d, 'docked');
   await rs.shot(d, mode, '07-main-split-sidebar-pinned');
   await rs.shot(d, mode, '10-zoom-tabbars-split', { crop: tabbarCrop(d) });
@@ -165,11 +172,12 @@ async function tabsBody(ctx, d, mode, rs) {
   await focusPane(d, 'left');
   await openHome(d);
   await waitForText(d, 'Welcome back');
-  await rs.shot(d, mode, '40-home-dashboard-pinned');
   await rs.check(d, mode, 'home-dashboard-tab', { webSession: true });
   await closeAllSessions(d);
   await selectEntry(d, null);
   await waitForText(d, 'Welcome back');
+  // Shot 40 shows the dashboard alone in the window, with no session open.
+  await rs.shot(d, mode, '40-home-dashboard-pinned');
   await inv(rs, d, mode, 'home-dashboard-full-window', dirs);
   await rs.check(d, mode, 'home-dashboard-full-window');
   await openEntry(d, ids.runbook);
@@ -234,7 +242,7 @@ async function menusBody(ctx, d, mode, rs) {
   await closeMenus(d);
   rs.menu(mode, 'ctx-tab-ssh-entry', await openMenu(d, () => rightClick(d, '[data-tabbar]', 'web-01')));
   await closeMenus(d);
-  items = await openMenu(d, () => rightClick(d, '[data-sidebar-panel]', 'web-01'));
+  items = await openMenu(d, () => rightClick(d, '[data-sidebar-panel]', 'web-01', { x: TREE_MENU_X }));
   await rs.shot(d, mode, '14-context-menu-tree-entry');
   rs.menu(mode, 'ctx-tree-entry-ssh', items);
   rs.menu(mode, 'ctx-submenus', items.filter((i) => i.kind === 'submenu'));
@@ -243,11 +251,11 @@ async function menusBody(ctx, d, mode, rs) {
   await hoverMenuItem(d, 'Auto-type');
   await rs.shot(d, mode, '17-context-menu-autotype-submenu');
   await closeMenus(d);
-  rs.menu(mode, 'ctx-tree-entry-web', await openMenu(d, () => rightClick(d, '[data-sidebar-panel]', 'Intranet Status')));
+  rs.menu(mode, 'ctx-tree-entry-web', await openMenu(d, () => rightClick(d, '[data-sidebar-panel]', 'Intranet Status', { x: TREE_MENU_X })));
   await closeMenus(d);
-  rs.menu(mode, 'ctx-tree-entry-credential', await openMenu(d, () => rightClick(d, '[data-sidebar-panel]', 'Domain Admin')));
+  rs.menu(mode, 'ctx-tree-entry-credential', await openMenu(d, () => rightClick(d, '[data-sidebar-panel]', 'Domain Admin', { x: TREE_MENU_X })));
   await closeMenus(d);
-  items = await openMenu(d, () => rightClick(d, '[data-sidebar-panel]', 'Production'));
+  items = await openMenu(d, () => rightClick(d, '[data-sidebar-panel]', 'Production', { x: TREE_MENU_X }));
   await rs.shot(d, mode, '15-context-menu-tree-folder');
   rs.menu(mode, 'ctx-tree-folder', items);
   await closeMenus(d);

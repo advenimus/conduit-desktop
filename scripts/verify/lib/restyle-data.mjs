@@ -289,19 +289,26 @@ export function selectEntry(device, id) {
   }, id, { label: 'select entry' });
 }
 
-function contextMenuInPage({ scope, text }) {
+function contextMenuInPage({ scope, text, x }) {
   const root = document.querySelector(scope);
   if (!root) return `no ${scope}`;
   const ownText = (e) => [...e.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join('').trim();
   const el = [...root.querySelectorAll('span, div, button')].find((e) => ownText(e) === text && e.getClientRects().length > 0);
   if (!el) return `no "${text}" in ${scope}`;
   const r = el.getBoundingClientRect();
-  el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+  const clientX = x ?? r.left + r.width / 2;
+  el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX, clientY: r.top + r.height / 2 }));
   return 'opened';
 }
 
-/** Right-clicks the element showing exactly `text` inside `scope` (a tree row, a tab). */
-export async function rightClick(device, scope, text) {
-  const res = await withTimeout(device.page.evaluate(contextMenuInPage, { scope, text }), 10_000, `${device.name}: right-click ${text}`);
+/** Where the reference shots (14 to 17) right-clicked a side bar row: near its left edge, in CSS pixels. */
+export const TREE_MENU_X = 38;
+
+/**
+ * Right-clicks the element showing exactly `text` inside `scope` (a tree row, a tab), at its center
+ * or at window x `x` on its middle line. The popup menu opens where the click lands.
+ */
+export async function rightClick(device, scope, text, { x = null } = {}) {
+  const res = await withTimeout(device.page.evaluate(contextMenuInPage, { scope, text, x }), 10_000, `${device.name}: right-click ${text}`);
   if (res !== 'opened') throw new Error(`${device.name}: ${res}`);
 }

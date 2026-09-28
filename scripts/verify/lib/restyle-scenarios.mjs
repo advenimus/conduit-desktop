@@ -25,7 +25,7 @@ import {
   regions,
   showReferenceToasts,
 } from './restyle-flows.mjs';
-import { ACME, VAULT_PASSWORD, clickInTopDialog, createAcme, expandFolders, rightClick, selectEntry, setSidebar, vaultDir, vaultPath } from './restyle-data.mjs';
+import { ACME, TREE_MENU_X, VAULT_PASSWORD, clickInTopDialog, createAcme, expandFolders, rightClick, selectEntry, setSidebar, vaultDir, vaultPath } from './restyle-data.mjs';
 import { openSettings, saveSettings } from './settings-flows.mjs';
 import { clickSelector, clickText, invoke, sleep, waitFor, waitForText, withTimeout } from './ui.mjs';
 
@@ -156,7 +156,7 @@ async function capturePackRow(device, dir, pack, rs, mode) {
   const r = await regions(device);
   shots.sidebar = await cropCapture(full, { ...r.panel, x: r.panel.x, y: 0, height: Math.min(r.panel.height + r.panel.y, 420) }, file('sidebar'));
   shots.tabbars = await cropCapture(full, r.tabbars, file('tabbars'));
-  await openMenu(device, () => rightClick(device, SIDEBAR, 'web-01'));
+  await openMenu(device, () => rightClick(device, SIDEBAR, 'web-01', { x: TREE_MENU_X }));
   const editIcon = await menuItemIcon(device, 'Edit');
   const withMenu = await captureWindow(device, file('menu-full'));
   shots.menu = await cropCapture(withMenu, await childWindowRegion(device, 'menu', { zoom: 1 }), file('menu'));
