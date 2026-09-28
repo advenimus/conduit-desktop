@@ -165,15 +165,20 @@ function pushToasts(device) {
 }
 
 /**
- * The overlay hides the toasts while the main window is not focused, and a test device is rarely the
- * active app; a focus event on the main window (no real focus change) shows them again.
+ * The overlay draws toasts only while the main window reports focus (OverlayManager.showOverlay asks
+ * isFocused()), and a test device is rarely the active app. The device's main window reports focus
+ * from here on, and a focus event makes the overlay show what it holds.
  */
-function announceMainFocus(device) {
-  return mainEval(device, ({ BrowserWindow }) => {
-    const main = BrowserWindow.getAllWindows().find((w) => /^https?:\/\/[^/]+\/?(\?|#|$)/.test(w.webContents.getURL()));
-    main?.emit('focus');
-    return Boolean(main);
-  }, undefined, { label: 'main window focus event' });
+async function announceMainFocus(device) {
+  const main = (await listWindows(device)).find((w) => w.role === 'main');
+  if (!main) return false;
+  return mainEval(device, ({ BrowserWindow }, id) => {
+    const win = BrowserWindow.fromId(id);
+    if (!win) return false;
+    win.isFocused = () => true;
+    win.emit('focus');
+    return true;
+  }, main.id, { label: 'main window focus' });
 }
 
 async function toastsDrawn(device) {
