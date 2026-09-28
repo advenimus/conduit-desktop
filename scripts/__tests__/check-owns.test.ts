@@ -85,8 +85,12 @@ describe('the package plan', () => {
   });
 });
 
+// A commit starts a detached `git maintenance run --auto` that can still be writing into .git while
+// afterEach deletes the repo (ENOTEMPTY under a loaded full run), so auto maintenance is off here.
+const GIT_CONFIG = ['-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', '-c', 'maintenance.auto=false', '-c', 'gc.auto=0'];
+
 function git(cwd: string, ...args: string[]): string {
-  return execFileSync('git', ['-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', ...args], {
+  return execFileSync('git', [...GIT_CONFIG, ...args], {
     cwd,
     encoding: 'utf8',
     env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.com', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.com' },
