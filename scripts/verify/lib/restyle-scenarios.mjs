@@ -4,7 +4,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { signIn, openVault, waitForScreen } from './flows.mjs';
+import { currentScreen, signIn, openVault, waitForScreen } from './flows.mjs';
 import { createTeamVault } from './team.mjs';
 import { openTeamVaultInUi } from './team-flows.mjs';
 import { createRestyleSession } from './restyle-session.mjs';
@@ -205,9 +205,18 @@ async function packsMode(ctx, mode, rs, { testSite }) {
   const saved = packs[packs.length - 1];
   await ctx.quitDevice(d);
   const again = await launchInMode(ctx, 'rsp', mode);
-  await waitForScreen(again, 'auth').catch(() => {});
-  const after = await iconPackAttributes(again);
-  rs.record(mode, 'pack after restart', { rule: 'packs', status: after.main === saved ? 'pass' : 'fail', detail: `saved ${saved}, after restart ${after.main}` });
+  // Any rendered screen will do: the pack applies at boot, and a local-mode relaunch can land on the
+  // hub or, through a known startup race, on sign-in. A relaunch that renders nothing throws here.
+  const landed = await waitFor(async () => {
+    const s = await currentScreen(again);
+    return s === 'loading' ? null : s;
+  }, { timeoutMs: 60_000, label: `${again.name}: a screen after the restart` });
+  // A pack other than Lucide loads lazily after the first render.
+  const after = await waitFor(async () => {
+    const a = await iconPackAttributes(again);
+    return a.main === saved ? a : null;
+  }, { timeoutMs: 20_000, label: `${again.name}: ${saved} after the restart` }).catch(() => iconPackAttributes(again));
+  rs.record(mode, 'pack after restart', { rule: 'packs', status: after.main === saved ? 'pass' : 'fail', detail: `saved ${saved}, after restart ${after.main} (${landed} screen)` });
   await ctx.quitDevice(again);
 }
 
