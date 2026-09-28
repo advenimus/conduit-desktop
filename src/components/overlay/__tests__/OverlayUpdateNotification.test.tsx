@@ -48,6 +48,8 @@ describe("OverlayUpdateNotification", () => {
     expect(buttons()).toEqual(["Restart Now", "Later", "Download manually from website", ""]);
     expect(screen.getByRole("button", { name: "Restart Now" }).className).toContain("bg-btn-primary");
     expect(screen.getByRole("button", { name: "Later" }).className).toContain("--c-btn-secondary-bg");
+    const icons = ["Restart Now", "Later", "Download manually from website"].map((name) => screen.getByRole("button", { name }).querySelector("svg") !== null);
+    expect(icons).toEqual([true, false, true]);
     fireEvent.click(screen.getByRole("button", { name: "Restart Now" }));
     fireEvent.click(screen.getByRole("button", { name: "Later" }));
     fireEvent.click(screen.getByRole("button", { name: "Download manually from website" }));
@@ -61,6 +63,7 @@ describe("OverlayUpdateNotification", () => {
     expect(card.querySelector("svg")?.getAttribute("class")).toContain("text-danger");
     expect(buttons()).toEqual(["Download from Website", "Later", ""]);
     expect(screen.getByRole("button", { name: "Download from Website" }).className).toContain("bg-btn-primary");
+    expect(screen.getByRole("button", { name: "Download from Website" }).querySelector("svg")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Download from Website" }));
     fireEvent.click(screen.getByRole("button", { name: "Later" }));
     expect(onAction.mock.calls).toEqual([["website"], ["dismiss"]]);

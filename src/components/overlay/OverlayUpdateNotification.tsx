@@ -29,14 +29,14 @@ function messageFor({ state, version }: UpdateState): string {
 function actionsFor(state: UpdateState["state"], onAction: (action: UpdateAction) => void): ReadonlyArray<ToastCardAction> | undefined {
   if (state === "downloaded") {
     return [
-      { id: "install", label: "Restart Now", variant: "primary", onClick: () => onAction("install") },
+      { id: "install", label: "Restart Now", variant: "primary", icon: "refresh", onClick: () => onAction("install") },
       { id: "dismiss", label: "Later", onClick: () => onAction("dismiss") },
-      { id: "website", label: "Download manually from website", onClick: () => onAction("website") },
+      { id: "website", label: "Download manually from website", icon: "externalLink", onClick: () => onAction("website") },
     ];
   }
   if (state === "error") {
     return [
-      { id: "website", label: "Download from Website", variant: "primary", onClick: () => onAction("website") },
+      { id: "website", label: "Download from Website", variant: "primary", icon: "externalLink", onClick: () => onAction("website") },
       { id: "dismiss", label: "Later", onClick: () => onAction("dismiss") },
     ];
   }

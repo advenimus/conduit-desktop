@@ -325,4 +325,25 @@ describe("ToastCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("wraps its action row, draws an action's icon and eases the progress fill", () => {
+    render(
+      <ToastCard
+        type="info"
+        toastId="t2"
+        title="Update Ready"
+        actions={[
+          { id: "a", label: "Restart Now", icon: "refresh", onClick: () => {} },
+          { id: "b", label: "Later", onClick: () => {} },
+        ]}
+        progress={{ percent: 30 }}
+      />,
+    );
+    const restart = screen.getByRole("button", { name: "Restart Now" });
+    expect(restart.parentElement?.className.split(" ")).toContain("flex-wrap");
+    expect(restart.querySelector("svg")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Later" }).querySelector("svg")).toBeNull();
+    const fill = document.querySelector('[data-toast="t2"] [style]') as HTMLElement;
+    expect(fill.className.split(" ")).toEqual(expect.arrayContaining(["transition-[width]", "duration-150", "ease-linear"]));
+  });
 });
