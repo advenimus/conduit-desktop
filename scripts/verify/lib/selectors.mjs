@@ -4,7 +4,7 @@
 // the legacy selector. The halves are never joined into one comma list: querySelector() returns
 // whichever match comes first in the document and closest() whichever ancestor is nearest, so an
 // unrelated element that keeps a legacy class after a restyle could win over the hooked one.
-// W4-HARNESS deletes the legacy halves.
+// R4-HARNESS deletes the legacy halves.
 
 import { waitFor, withTimeout } from './ui.mjs';
 
@@ -50,6 +50,8 @@ export const SELECTORS = Object.freeze({
   reviewField: pair('[data-cv-review-field]', '.rounded-md'),
   reviewFieldLabel: pair('[data-cv-review-field-label]', 'span'),
   reviewValue: pair('[data-cv-review-value]', '.font-mono'),
+  // B47: a version line (closest from its [Use this]) holds the value, the In use now badge and the button
+  reviewVersion: pair('[data-cv-review-version]', '.items-start.gap-3'),
   // B13
   reviewButton: pair('[data-cv-review-button]', 'button[title="Review changes from your other devices"]'),
   // B15, scope: each [role=status] banner

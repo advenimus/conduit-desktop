@@ -14,7 +14,7 @@ const SYNC_TOOL_BUTTONS = ['Review changes', 'Recently deleted', 'Other copies']
 const CHANGE_PW_TITLE = 'Change Password';
 export const ERASE_DELETED_TEXT = 'Also permanently delete items in Recently deleted';
 
-/** B1: W3-SETTINGS puts data-cv-settings on the panel; until then the harness marks it. */
+/** B1: R3-SETTINGS puts data-cv-settings on the panel; until then the harness marks it. */
 function markSettingsInPage() {
   if (document.querySelector('[data-cv-settings]')) return true;
   const root = [...document.querySelectorAll('[data-dialog-content]')].find((el) => el.querySelector('h2')?.innerText?.trim() === 'Settings');

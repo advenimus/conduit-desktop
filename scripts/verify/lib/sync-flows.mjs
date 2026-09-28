@@ -138,7 +138,7 @@ function clickVersionInPage({ field, value }, cv) {
   const buttons = [...panel.querySelectorAll('button')].filter((b) => (b.innerText ?? '').trim() === 'Use this');
   for (const button of buttons) {
     const row = cv.pickClosest(button, panel, cv.S.reviewField);
-    const line = button.parentElement;
+    const line = cv.pickClosest(button, panel, cv.S.reviewVersion);
     if (!row || !line) continue;
     const label = cv.pickOne(row, cv.S.reviewFieldLabel)?.innerText?.trim();
     if (label !== field || !(line.innerText ?? '').includes(value)) continue;

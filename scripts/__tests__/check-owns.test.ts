@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-interface Pkg { id: string; wave: number; owns: string[] }
+interface Pkg { id: string; wave: number; owns: string[]; title?: string; depends_on?: string[] }
 interface Plan { packages: Pkg[] }
 
 // The redesign scripts are plain .mjs without type declarations.
@@ -83,7 +83,45 @@ describe('the package plan', () => {
     });
     expect(plan.packages.map((p) => ({ id: p.id, owns: p.owns }))).toEqual(fromSpec);
   });
+
+  it('matches the wave, title and depends_on of every package in the wave tables of section 10', () => {
+    const rows = waveTableRows(fs.readFileSync(SPEC_FILE, 'utf8'));
+    expect(rows.length).toBe(plan.packages.length);
+    expect(plan.packages.map((p) => ({ id: p.id, wave: p.wave, title: p.title, depends_on: p.depends_on }))).toEqual(rows);
+  });
+
+  it('reads only the Id, Title, Depends on table under each wave heading', () => {
+    const spec = [
+      '### 10.1 Wave 1: foundation', '', '| Id | Title | Depends on |', '|---|---|---|', '| A-1 | First | none |', '| A-2 | Second | A-1, B-9 |', '',
+      '| Package | Test files | What they check |', '|---|---|---|', '| A-1 | `x.test.ts` | nothing |', '',
+      '### 10.2 Wave 2: more', '', '| Id | Title | Depends on |', '|---|---|---|', '| B-1 | Third | A-2 |', '',
+      '### 10.3 Dead files', '', '| Id | Title | Depends on |', '|---|---|---|', '| C-1 | Not a wave | none |',
+    ].join('\n');
+    expect(waveTableRows(spec)).toEqual([
+      { id: 'A-1', wave: 1, title: 'First', depends_on: [] },
+      { id: 'A-2', wave: 1, title: 'Second', depends_on: ['A-1', 'B-9'] },
+      { id: 'B-1', wave: 2, title: 'Third', depends_on: ['A-2'] },
+    ]);
+  });
 });
+
+/** Rows of the `| Id | Title | Depends on |` table right under each `### 10.N Wave N` heading. */
+function waveTableRows(spec: string): { id: string; wave: number; title: string; depends_on: string[] }[] {
+  const heads = [...spec.matchAll(/^### 10\.\d+ Wave (\d+)\b.*$/gm)];
+  return heads.flatMap((h, i) => {
+    const body = spec.slice(h.index, heads[i + 1]?.index ?? spec.length).split(/^### /m)[1] ?? '';
+    const lines = body.split('\n');
+    const start = lines.findIndex((l) => /^\|\s*Id\s*\|\s*Title\s*\|\s*Depends on\s*\|\s*$/.test(l));
+    if (start < 0) return [];
+    const rows = [];
+    for (const line of lines.slice(start + 2)) {
+      if (!line.startsWith('|')) break;
+      const [id, title, deps] = line.split('|').slice(1, -1).map((c) => c.trim());
+      rows.push({ id, wave: Number(h[1]), title, depends_on: deps === 'none' ? [] : deps.split(',').map((d) => d.trim()) });
+    }
+    return rows;
+  });
+}
 
 // A commit starts a detached `git maintenance run --auto` that can still be writing into .git while
 // afterEach deletes the repo (ENOTEMPTY under a loaded full run), so auto maintenance is off here.
