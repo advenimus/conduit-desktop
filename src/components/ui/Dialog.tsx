@@ -13,6 +13,10 @@ export type DialogLayer = "base" | "sync" | "stacked";
 interface DialogBaseProps extends Omit<ComponentPropsWithRef<"div">, "title" | "onSubmit"> {
   open: boolean;
   title: ReactNode;
+  /** Right after the title on its line (spec 4.8). */
+  subtitle?: ReactNode;
+  /** A line under the title (spec 4.8). */
+  description?: ReactNode;
   icon?: IconSource;
   tone?: DialogTone;
   size?: DialogSize;
@@ -73,6 +77,8 @@ function OpenDialog({
   open: _open,
   onClose,
   title,
+  subtitle,
+  description,
   icon,
   tone,
   size = "md",
@@ -136,7 +142,7 @@ function OpenDialog({
     if (missing !== headerMissing) setHeaderMissing(missing);
   });
 
-  const context: DialogContextValue = { titleId, title, icon, tone, hideClose, onClose };
+  const context: DialogContextValue = { titleId, title, subtitle, description, icon, tone, hideClose, onClose };
   const content =
     layout === "custom" ? (
       <>

@@ -4,9 +4,18 @@ import { DialogBody, DialogContext, DialogFooter, DialogHeader } from "../Dialog
 import { Demo, GallerySection } from "./Section";
 
 /** The dialog's look without its behavior (no freeze, no focus trap), so the gallery stays usable. */
-function DialogPreview({ title, tone, children, footer }: { title: string; tone?: DialogTone; children: ReactNode; footer: ReactNode }) {
+interface DialogPreviewProps {
+  title: string;
+  subtitle?: ReactNode;
+  description?: ReactNode;
+  tone?: DialogTone;
+  children: ReactNode;
+  footer: ReactNode;
+}
+
+function DialogPreview({ title, subtitle, description, tone, children, footer }: DialogPreviewProps) {
   return (
-    <DialogContext.Provider value={{ titleId: `preview-${title}`, title, tone, hideClose: false, onClose: () => {} }}>
+    <DialogContext.Provider value={{ titleId: `preview-${title}`, title, subtitle, description, tone, hideClose: false, onClose: () => {} }}>
       <div className="flex w-[400px] flex-col overflow-hidden rounded-lg border border-overlay-border bg-overlay text-ink shadow-modal">
         <DialogHeader />
         <DialogBody>{children}</DialogBody>
@@ -124,11 +133,14 @@ function LivePopover() {
 export function OverlaysSection() {
   return (
     <GallerySection id="overlays" title="Dialog, Popover and Menu">
-      <Demo label="Dialog (static preview): plain, tone tiles" className="items-start">
-        <DialogPreview title="Rename vault" footer={<><Button>Cancel</Button><Button variant="primary">Rename</Button></>}>
+      <Demo label="Dialog (static preview): plain, subtitle and description, tone tiles" className="items-start">
+        <DialogPreview title="Rename vault" description="Change the display name of this vault" footer={<><Button>Cancel</Button><Button variant="primary">Rename</Button></>}>
           <FormField label="Vault name">
             <TextInput placeholder="Enter new vault name" defaultValue="Work" />
           </FormField>
+        </DialogPreview>
+        <DialogPreview title="Credentials" subtitle="12 stored" footer={<Button>Close</Button>}>
+          <p className="text-ink-muted">The subtitle sits right after the title.</p>
         </DialogPreview>
         <DialogPreview title="Take over this vault?" tone="warn" footer={<><Button>Not now</Button><Button variant="primary">Take over</Button></>}>
           <p className="text-ink-muted">Another device has this vault open.</p>

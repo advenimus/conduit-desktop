@@ -8,6 +8,8 @@ export type DialogTone = "info" | "warn" | "danger";
 export interface DialogContextValue {
   titleId: string;
   title: ReactNode;
+  subtitle?: ReactNode;
+  description?: ReactNode;
   icon?: IconSource;
   tone?: DialogTone;
   hideClose: boolean;
@@ -30,8 +32,12 @@ const TONE_ICON: Readonly<Record<DialogTone, IconSource>> = {
 };
 
 export interface DialogHeaderProps {
-  /** Defaults to the Dialog's title, icon and tone. */
+  /** Defaults to the Dialog's title, subtitle, description, icon and tone. */
   title?: ReactNode;
+  /** Right after the title on its line (a vault name, a count). */
+  subtitle?: ReactNode;
+  /** A line under the title. */
+  description?: ReactNode;
   icon?: IconSource;
   tone?: DialogTone;
   hideClose?: boolean;
@@ -40,10 +46,12 @@ export interface DialogHeaderProps {
   className?: string;
 }
 
-/** Title row: optional tone tile, the h2 (13px/600) the dialog is labelled by, and the Close button. */
-export function DialogHeader({ title, icon, tone, hideClose, children, className }: DialogHeaderProps) {
+/** Title row: optional tone tile, the h2 (13px/600) the dialog is labelled by with its subtitle and description, and the Close button. */
+export function DialogHeader({ title, subtitle, description, icon, tone, hideClose, children, className }: DialogHeaderProps) {
   const ctx = useContext(DialogContext);
   const shownTitle = title ?? ctx?.title;
+  const shownSubtitle = subtitle ?? ctx?.subtitle;
+  const shownDescription = description ?? ctx?.description;
   const shownTone = tone ?? ctx?.tone;
   const shownIcon = icon ?? ctx?.icon ?? (shownTone ? TONE_ICON[shownTone] : undefined);
   const noClose = hideClose ?? ctx?.hideClose ?? false;
@@ -54,9 +62,29 @@ export function DialogHeader({ title, icon, tone, hideClose, children, className
           <IconSlot icon={shownIcon} />
         </span>
       )}
-      <h2 id={ctx?.titleId} className="mt-0.5 min-w-0 flex-1 text-heading font-semibold text-ink">
-        {shownTitle}
-      </h2>
+      {shownSubtitle == null && shownDescription == null ? (
+        <h2 id={ctx?.titleId} className="mt-0.5 min-w-0 flex-1 text-heading font-semibold text-ink">
+          {shownTitle}
+        </h2>
+      ) : (
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 id={ctx?.titleId} className="mt-0.5 min-w-0 text-heading font-semibold text-ink">
+              {shownTitle}
+            </h2>
+            {shownSubtitle != null && (
+              <span data-cv-dialog-subtitle="" className="mt-0.5 flex min-w-0 items-center gap-2 text-label text-ink-faint">
+                {shownSubtitle}
+              </span>
+            )}
+          </div>
+          {shownDescription != null && (
+            <p data-cv-dialog-description="" className="text-label text-ink-muted">
+              {shownDescription}
+            </p>
+          )}
+        </div>
+      )}
       {children}
       {!noClose && ctx?.onClose && <IconButton icon="close" label="Close" onClick={ctx.onClose} />}
     </div>
