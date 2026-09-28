@@ -21,6 +21,8 @@ export interface ListRowProps extends Omit<HTMLAttributes<HTMLElement>, "onClick
   trailing?: ReactNode;
   /** A second line; the row becomes 36px. */
   description?: ReactNode;
+  /** A further line under the description (tags); the row then grows to fit. */
+  detail?: ReactNode;
 }
 
 const ARIA_SELECTED_ROLES = new Set(["option", "treeitem", "row", "gridcell", "tab"]);
@@ -66,7 +68,7 @@ export function RowTrailing({ children }: { children: ReactNode }) {
 }
 
 /**
- * A 22px row (36px with a description), spec 4.14. Clickable rows are a <button> (B44); a clickable row
+ * A 22px row (36px with a description, taller with a detail line), spec 4.14. Clickable rows are a <button> (B44); a clickable row
  * with trailing actions wraps that button, so no button sits inside another.
  */
 export function ListRow({
@@ -76,6 +78,7 @@ export function ListRow({
   meta,
   trailing,
   description,
+  detail,
   onClick,
   disabled,
   role,
@@ -84,7 +87,8 @@ export function ListRow({
   ref,
   ...rest
 }: ListRowProps) {
-  const rowBox = cx("flex w-full min-w-0 items-center gap-1.5 rounded px-2 text-left text-body disabled:opacity-40", description ? "h-row-2line" : "h-row");
+  const height = detail ? "h-auto py-1" : description ? "h-row-2line" : "h-row";
+  const rowBox = cx("flex w-full min-w-0 items-center gap-1.5 rounded px-2 text-left text-body disabled:opacity-40", height);
   const state = rowStateClasses(selected, inactive);
   const selection = selectionAttributes(selected, role);
   const content = (
@@ -93,6 +97,7 @@ export function ListRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{children}</span>
         {description && <span className="truncate text-meta text-ink-muted">{description}</span>}
+        {detail && <span className="mt-0.5 text-meta text-ink-muted">{detail}</span>}
       </span>
       {meta !== undefined && meta !== null && meta !== false && <RowMeta>{meta}</RowMeta>}
     </>

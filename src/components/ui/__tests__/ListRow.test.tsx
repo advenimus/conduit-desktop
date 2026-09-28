@@ -20,6 +20,19 @@ describe("ListRow", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it("grows to fit a detail line under the description instead of a fixed height", () => {
+    render(
+      <ListRow onClick={() => {}} description="admin" detail={<span>#prod</span>}>
+        Domain Admin
+      </ListRow>,
+    );
+    const row = screen.getByText("Domain Admin").closest("button") as HTMLButtonElement;
+    const cls = row.className.split(" ");
+    expect(cls).toEqual(expect.arrayContaining(["h-auto", "py-1"]));
+    expect(cls).not.toContain("h-row-2line");
+    expect(screen.getByText("admin").nextElementSibling).toHaveTextContent("#prod");
+  });
+
   it("is a div when not clickable, 22px tall without a description", () => {
     render(<ListRow>Static</ListRow>);
     const row = screen.getByText("Static").closest(".h-row");
