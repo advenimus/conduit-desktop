@@ -7,6 +7,8 @@ import { EngineStatusRow } from "../SettingsHelpers";
 import type { TabProps } from "../SettingsHelpers";
 import { FolderIcon, PlugIcon } from "../../../lib/icons";
 import { AI_HARNESSES } from "../../../lib/ai-harnesses";
+import { Button, IconButton, Slider, TextInput, cx } from "../../ui";
+import { CAPTION, HINT, SECTION_LABEL } from "../settings-styles";
 
 export default function AiTab({ settings, setSettings }: TabProps) {
   const engineAvailability = useAiStore((s) => s.engineAvailability);
@@ -20,7 +22,7 @@ export default function AiTab({ settings, setSettings }: TabProps) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1">Default Engine</label>
+        <label className={`${SECTION_LABEL} mb-1`}>Default Engine</label>
         <div className="grid grid-cols-2 gap-2">
           {AI_HARNESSES.map((harness) => {
             const selected = settings.default_engine === harness.id;
@@ -29,95 +31,74 @@ export default function AiTab({ settings, setSettings }: TabProps) {
               <button
                 key={harness.id}
                 type="button"
-                onClick={() =>
-                  setSettings({
-                    ...settings,
-                    default_engine: harness.id,
-                  })
-                }
-                className={`flex items-center gap-2 px-3 py-2 rounded border text-left transition-colors ${
-                  selected
-                    ? "border-conduit-500 bg-conduit-600/15"
-                    : "border-stroke bg-well hover:bg-raised"
-                }`}
+                data-selected={selected ? "" : undefined}
+                onClick={() => setSettings({ ...settings, default_engine: harness.id })}
+                className={cx(
+                  "flex items-center gap-2 rounded-md border px-2 py-1.5 text-left transition-colors duration-100",
+                  selected ? "border-accent bg-selected-inactive" : "border-card-border bg-well hover:border-(--c-control-border)",
+                )}
               >
-                <EngineLogo type={harness.id} size={16} className="text-ink flex-shrink-0" />
+                <EngineLogo type={harness.id} size={16} className="shrink-0 text-ink" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm text-ink truncate">{harness.name}</span>
-                  <span
-                    className={`block text-[10px] ${
-                      available ? "text-emerald-400" : "text-ink-faint"
-                    }`}
-                  >
+                  <span className="block truncate text-body text-ink">{harness.name}</span>
+                  <span className={cx("block text-meta", available ? "text-success" : "text-ink-faint")}>
                     {available ? "Installed" : "Not installed"}
                   </span>
                 </span>
-                {selected && <span className="text-conduit-400 text-xs flex-shrink-0">●</span>}
+                {selected && <span className="shrink-0 text-meta text-(--c-accent)">●</span>}
               </button>
             );
           })}
         </div>
-        <p className="text-xs text-ink-muted mt-1">
+        <p className={`mt-1 ${HINT}`}>
           Engine selected by default when opening the AI panel. You can switch anytime in the chat header.
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Default Working Directory</label>
+        <label htmlFor="ai-working-directory" className={`${SECTION_LABEL} mb-1`}>Default Working Directory</label>
         <div className="flex items-center gap-2">
-          <input
-            type="text"
+          <TextInput
+            id="ai-working-directory"
             value={settings.default_working_directory ?? ""}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                default_working_directory: e.target.value || null,
-              })
-            }
+            onChange={(e) => setSettings({ ...settings, default_working_directory: e.target.value || null })}
             placeholder="Leave empty for home directory"
-            className="flex-1 px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500 text-sm"
           />
-          <button
+          <IconButton
+            icon={FolderIcon}
+            label="Browse"
             onClick={async () => {
               const folder = await invoke<string | null>("dialog_select_folder");
               if (folder) {
                 setSettings({ ...settings, default_working_directory: folder });
               }
             }}
-            className="px-3 py-2 bg-raised hover:bg-well rounded"
-            title="Browse"
-          >
-            <FolderIcon size={16} />
-          </button>
+          />
         </div>
-        <p className="text-xs text-ink-muted mt-1">
+        <p className={`mt-1 ${HINT}`}>
           Starting directory for agent sessions.
         </p>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <label className="text-sm font-medium">MCP Server Setup</label>
-          <p className="text-xs text-ink-muted mt-0.5">
+          <label className={SECTION_LABEL}>MCP Server Setup</label>
+          <p className={`mt-0.5 ${HINT}`}>
             Show the commands to connect each CLI agent to Conduit's MCP server.
           </p>
         </div>
-        <button
-          onClick={() => setShowMcpSetup(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-raised hover:bg-well rounded flex-shrink-0"
-        >
-          <PlugIcon size={14} />
+        <Button icon={PlugIcon} onClick={() => setShowMcpSetup(true)} className="shrink-0">
           Show setup commands
-        </button>
+        </Button>
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium">Terminal Font Size</label>
-          <span className="text-sm text-ink-muted tabular-nums">{settings.cli_font_size}px</span>
+        <div className="mb-1 flex items-center justify-between">
+          <label htmlFor="ai-terminal-font-size" className={SECTION_LABEL}>Terminal Font Size</label>
+          <span className={CAPTION}>{settings.cli_font_size}px</span>
         </div>
-        <input
-          type="range"
+        <Slider
+          id="ai-terminal-font-size"
           min={10}
           max={24}
           value={settings.cli_font_size}
@@ -126,16 +107,12 @@ export default function AiTab({ settings, setSettings }: TabProps) {
             setSettings({ ...settings, cli_font_size: size });
             document.dispatchEvent(new CustomEvent("conduit:terminal-font-size-change", { detail: { fontSize: size } }));
           }}
-          className="w-full accent-conduit-500"
+          marks={["10px", "", "24px"]}
         />
-        <div className="flex justify-between text-[10px] text-ink-faint mt-1">
-          <span>10px</span>
-          <span>24px</span>
-        </div>
       </div>
 
-      <div className="pt-3 border-t border-stroke space-y-2">
-        <label className="block text-sm font-medium mb-2">Engine Status</label>
+      <div className="space-y-2 border-t border-divider pt-3">
+        <label className={`${SECTION_LABEL} mb-2`}>Engine Status</label>
         {AI_HARNESSES.map((harness) => {
           const available = engineAvailability?.[harness.id] ?? false;
           return (

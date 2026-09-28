@@ -7,13 +7,14 @@ import { errorText } from "../../../lib/sync-api";
 import { toast } from "../../common/Toast";
 import SyncDevicesList from "../../sync/SyncDevicesList";
 import SyncNoticeList from "../../sync/SyncNoticeList";
-import { smallButton } from "../../sync/ConflictFieldRow";
+import { Button, Card, SectionHeader } from "../../ui";
+import { HINT } from "../settings-styles";
 import { deviceLimitText, statusDetail, statusLabel } from "../../sync/sync-copy";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-ink mb-3">{title}</h3>
+      <SectionHeader title={title} />
       {children}
     </div>
   );
@@ -26,7 +27,7 @@ function StatusBlock() {
   if (state === null || status === null) {
     const shared = state?.vault?.shared === true;
     return (
-      <p className="text-sm text-ink-muted">
+      <p className="text-body text-ink-muted">
         {shared ? "Sync is off for this vault until the next unlock." : "Unlock a vault stored in a synced folder to see its sync status."}
       </p>
     );
@@ -45,21 +46,21 @@ function StatusBlock() {
   const detail = statusDetail(status);
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between p-3 rounded-lg bg-well border border-stroke-dim">
+      <Card data-cv-sync-status="" className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-ink">{statusLabel(status, state.killSwitch)}</p>
-          {detail && <p className="text-xs text-ink-muted mt-0.5">{detail}</p>}
+          <p data-cv-sync-status-label="" className="text-body font-semibold text-ink">{statusLabel(status, state.killSwitch)}</p>
+          {detail && <p data-cv-sync-status-detail="" className={`mt-0.5 ${HINT}`}>{detail}</p>}
         </div>
-        <button type="button" disabled={syncing} onClick={() => void syncNow()} className={smallButton(true)}>
-          {syncing ? "Syncing..." : "Sync now"}
-        </button>
-      </div>
+        <Button variant="primary" size="sm" loading={syncing} loadingLabel="Syncing..." onClick={() => void syncNow()}>
+          Sync now
+        </Button>
+      </Card>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => open({ kind: "review", row: null })} className={smallButton()}>
+        <Button size="sm" onClick={() => open({ kind: "review", row: null })}>
           Review changes{status.conflictCount > 0 ? ` (${status.conflictCount})` : ""}
-        </button>
-        <button type="button" onClick={() => open({ kind: "recently-deleted" })} className={smallButton()}>Recently deleted</button>
-        <button type="button" onClick={() => open({ kind: "other-copies" })} className={smallButton()}>Other copies</button>
+        </Button>
+        <Button size="sm" onClick={() => open({ kind: "recently-deleted" })}>Recently deleted</Button>
+        <Button size="sm" onClick={() => open({ kind: "other-copies" })}>Other copies</Button>
       </div>
       <SyncNoticeList />
     </div>
@@ -81,14 +82,14 @@ export default function SyncTab() {
   return (
     <div className="space-y-6">
       <Section title="Multi-device sync">
-        <p className="text-sm text-ink-muted px-1">
+        <p className="px-1 text-body text-ink-muted">
           Conduit merges changes from every device that opens a vault file in a synced folder.
         </p>
-        <p className="text-xs text-ink-muted mt-2 px-1">
+        <p data-cv-sync-plan="" className={`mt-2 px-1 ${HINT}`}>
           Your plan: a vault can be open {deviceLimitText(stateLimit ?? tierLimit)}
           {stateLimit?.source === "dev-override" ? " (dev override)" : ""}. Team vaults sync through your team.
         </p>
-        {killSwitch && <p className="text-xs text-amber-400 mt-2 px-1">Conduit paused syncing for now. Your changes are saved on this device.</p>}
+        {killSwitch && <p data-cv-sync-paused="" className="mt-2 px-1 text-meta text-warning">Conduit paused syncing for now. Your changes are saved on this device.</p>}
       </Section>
       {vaultType === "personal" && (
         <Section title="This vault">

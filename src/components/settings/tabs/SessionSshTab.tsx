@@ -1,8 +1,10 @@
 import type { TabProps } from "../SettingsHelpers";
 import type { SshGlobalDefaults, SshAuthMethod } from "../../../types/entry";
 import { HARDCODED_SSH_DEFAULTS } from "../../../types/entry";
+import { SegmentedControl, type SegmentOption } from "../../ui";
+import { HINT, SECTION_LABEL } from "../settings-styles";
 
-const AUTH_METHOD_OPTIONS: { value: SshAuthMethod; label: string }[] = [
+const AUTH_METHOD_OPTIONS: ReadonlyArray<SegmentOption<SshAuthMethod>> = [
   { value: "key", label: "SSH Key" },
   { value: "password", label: "Password" },
 ];
@@ -19,33 +21,24 @@ export default function SessionSshTab({ settings, setSettings }: TabProps) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-ink-muted">
+      <p className={HINT}>
         Default settings for SSH connections. Individual entries or credentials can override these.
       </p>
 
       <div>
-        <label className="block text-sm font-medium mb-1">
+        <label id="ssh-auth-method-label" className={`${SECTION_LABEL} mb-1`}>
           Auth Method When Key Present
         </label>
-        <p className="text-xs text-ink-muted mb-2">
+        <p className={`mb-2 ${HINT}`}>
           When a credential has both an SSH key and a password, which method to use by default.
         </p>
-        <div className="flex gap-1 p-1 bg-well rounded-lg">
-          {AUTH_METHOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => updateSsh({ authMethodWhenKeyPresent: opt.value })}
-              className={`flex-1 py-1.5 px-3 text-sm rounded-md transition-colors ${
-                defaults.authMethodWhenKeyPresent === opt.value
-                  ? "bg-conduit-600 text-white"
-                  : "hover:bg-raised text-ink-muted"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          aria-labelledby="ssh-auth-method-label"
+          options={AUTH_METHOD_OPTIONS}
+          value={defaults.authMethodWhenKeyPresent}
+          onChange={(authMethodWhenKeyPresent) => updateSsh({ authMethodWhenKeyPresent })}
+          className="flex w-full [&>button]:flex-1 [&>button]:justify-center"
+        />
       </div>
     </div>
   );

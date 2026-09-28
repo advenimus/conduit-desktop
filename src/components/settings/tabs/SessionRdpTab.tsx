@@ -4,6 +4,8 @@ import type { Settings } from "../SettingsHelpers";
 import type { RdpGlobalDefaults, RdpGlobalResolution } from "../../../types/entry";
 import { GLOBAL_RESOLUTION_OPTIONS, COLOR_DEPTH_OPTIONS, QUALITY_OPTIONS, SOUND_OPTIONS } from "../../../lib/sessionOptions";
 import { HARDCODED_RDP_DEFAULTS } from "../../../types/entry";
+import { Checkbox, FormField, Select, Slider } from "../../ui";
+import { CAPTION, HINT, SECTION_LABEL } from "../settings-styles";
 
 interface SessionRdpTabProps extends TabProps {
   onApplyDisplayScale?: (updatedSettings: Settings) => void;
@@ -57,32 +59,25 @@ export default function SessionRdpTab({ settings, setSettings, onApplyDisplaySca
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-ink-muted">
+      <p className={HINT}>
         Default settings for all RDP connections. Individual entries can override these.
       </p>
 
-      {/* Resolution */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Resolution</label>
-        <select
-          value={defaults.resolution}
-          onChange={(e) => update({ resolution: e.target.value as RdpGlobalResolution })}
-          className="w-full px-3 py-2 bg-well border border-stroke rounded"
-        >
+      <FormField label="Resolution">
+        <Select value={defaults.resolution} onChange={(e) => update({ resolution: e.target.value as RdpGlobalResolution })}>
           {GLOBAL_RESOLUTION_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
-        </select>
-      </div>
+        </Select>
+      </FormField>
 
-      {/* Display Scale */}
       <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className="text-sm font-medium">Display Scale</label>
-          <span className="text-xs text-ink-muted tabular-nums">{scalePercent}%</span>
+        <div className="mb-1 flex items-center justify-between">
+          <label htmlFor="rdp-display-scale" className={SECTION_LABEL}>Display Scale</label>
+          <span className={CAPTION}>{scalePercent}%</span>
         </div>
-        <input
-          type="range"
+        <Slider
+          id="rdp-display-scale"
           min={0}
           max={100}
           step={1}
@@ -90,90 +85,48 @@ export default function SessionRdpTab({ settings, setSettings, onApplyDisplaySca
           onChange={handleScaleChange}
           onPointerDown={() => { scaleBeforeDrag.current = defaults.displayScale ?? 1.0; }}
           onPointerUp={handleScaleCommit}
-          className="w-full accent-conduit-500"
+          marks={["50% (smaller)", "100%", "200% (larger)"]}
         />
-        <div className="flex justify-between text-[10px] text-ink-faint mt-0.5">
-          <span>50% (smaller)</span>
-          <span>100%</span>
-          <span>200% (larger)</span>
-        </div>
-        <p className="text-[10px] text-ink-muted mt-1">
+        <p className={`mt-1 ${HINT}`}>
           Adjusts the effective resolution. Higher values make objects appear larger. Active sessions will reconnect on change.
         </p>
       </div>
 
-      {/* Color Depth */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Color Depth</label>
-        <select
-          value={defaults.colorDepth}
-          onChange={(e) => update({ colorDepth: parseInt(e.target.value) as 32 | 24 | 16 | 15 })}
-          className="w-full px-3 py-2 bg-well border border-stroke rounded"
-        >
+      <FormField label="Color Depth">
+        <Select value={defaults.colorDepth} onChange={(e) => update({ colorDepth: parseInt(e.target.value) as 32 | 24 | 16 | 15 })}>
           {COLOR_DEPTH_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
-        </select>
-      </div>
+        </Select>
+      </FormField>
 
-      {/* Quality */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Quality</label>
-        <select
-          value={defaults.quality}
-          onChange={(e) => update({ quality: e.target.value as "best" | "good" | "low" })}
-          className="w-full px-3 py-2 bg-well border border-stroke rounded"
-        >
+      <FormField label="Quality">
+        <Select value={defaults.quality} onChange={(e) => update({ quality: e.target.value as "best" | "good" | "low" })}>
           {QUALITY_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
-        </select>
-      </div>
+        </Select>
+      </FormField>
 
-      {/* Sound */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Sound</label>
-        <select
-          value={defaults.sound}
-          onChange={(e) => update({ sound: e.target.value as "local" | "remote" | "none" })}
-          className="w-full px-3 py-2 bg-well border border-stroke rounded"
-        >
+      <FormField label="Sound">
+        <Select value={defaults.sound} onChange={(e) => update({ sound: e.target.value as "local" | "remote" | "none" })}>
           {SOUND_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
-        </select>
+        </Select>
+      </FormField>
+
+      <div className="flex flex-col gap-3">
+        <Checkbox checked={defaults.enableHighDpi} onChange={(enableHighDpi) => update({ enableHighDpi })}>
+          High DPI (Retina)
+        </Checkbox>
+        <Checkbox checked={defaults.clipboard} onChange={(clipboard) => update({ clipboard })}>
+          Clipboard Sharing
+        </Checkbox>
+        <Checkbox checked={defaults.enableNla} onChange={(enableNla) => update({ enableNla })}>
+          NLA (Network Level Auth)
+        </Checkbox>
       </div>
-
-      {/* Checkboxes */}
-      <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-        <input
-          type="checkbox"
-          checked={defaults.enableHighDpi}
-          onChange={(e) => update({ enableHighDpi: e.target.checked })}
-          className="rounded border-stroke-dim bg-well text-conduit-500 focus:ring-conduit-500"
-        />
-        High DPI (Retina)
-      </label>
-
-      <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-        <input
-          type="checkbox"
-          checked={defaults.clipboard}
-          onChange={(e) => update({ clipboard: e.target.checked })}
-          className="rounded border-stroke-dim bg-well text-conduit-500 focus:ring-conduit-500"
-        />
-        Clipboard Sharing
-      </label>
-
-      <label className="flex items-center gap-2 text-sm text-ink-secondary cursor-pointer">
-        <input
-          type="checkbox"
-          checked={defaults.enableNla}
-          onChange={(e) => update({ enableNla: e.target.checked })}
-          className="rounded border-stroke-dim bg-well text-conduit-500 focus:ring-conduit-500"
-        />
-        NLA (Network Level Auth)
-      </label>
     </div>
   );
 }

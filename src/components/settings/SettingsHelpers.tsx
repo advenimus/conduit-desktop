@@ -1,4 +1,5 @@
 import { CheckIcon, AlertTriangleIcon } from "../../lib/icons";
+import { EmptyState } from "../ui";
 import type { RdpGlobalDefaults, WebGlobalDefaults, TerminalGlobalDefaults, SshGlobalDefaults } from "../../types/entry";
 import { HARDCODED_RDP_DEFAULTS, HARDCODED_WEB_DEFAULTS, HARDCODED_TERMINAL_DEFAULTS, HARDCODED_SSH_DEFAULTS } from "../../types/entry";
 import type { EngineType } from "../../lib/ai-harnesses";
@@ -81,18 +82,24 @@ export function formatFileSize(bytes: number): string {
 export function EngineStatusRow({ label, available, description }: { label: string; available: boolean; description: string }) {
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${available ? "bg-green-400" : "bg-ink-faint"}`} />
-      <div className="flex-1 min-w-0">
+      <div className={`size-2 shrink-0 rounded-full ${available ? "bg-success" : "bg-ink-faint"}`} />
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-ink">{label}</span>
+          <span className="text-label font-semibold text-ink">{label}</span>
           {available
-            ? <CheckIcon size={12} className="text-green-400" />
+            ? <CheckIcon size={12} className="text-success" />
             : <AlertTriangleIcon size={12} className="text-ink-faint" />}
         </div>
-        <p className="text-[10px] text-ink-muted truncate">{description}</p>
+        <p className="truncate text-meta text-ink-muted">{description}</p>
       </div>
     </div>
   );
+}
+
+function usageTone(isExhausted: boolean, isWarning: boolean): { bar: string; text: string } {
+  if (isExhausted) return { bar: "bg-danger", text: "text-danger" };
+  if (isWarning) return { bar: "bg-warning", text: "text-warning" };
+  return { bar: "bg-accent", text: "text-ink-muted" };
 }
 
 export function UsageBar({ used, limit, label, resetsAt }: {
@@ -105,10 +112,7 @@ export function UsageBar({ used, limit, label, resetsAt }: {
   const percentage = isUnlimited ? 0 : Math.min(100, (used / limit) * 100);
   const isWarning = !isUnlimited && percentage >= 80;
   const isExhausted = !isUnlimited && percentage >= 100;
-
-  let barColor = "bg-conduit-500";
-  if (isExhausted) barColor = "bg-red-500";
-  else if (isWarning) barColor = "bg-amber-500";
+  const tone = usageTone(isExhausted, isWarning);
 
   const resetsLabel = resetsAt
     ? new Date(resetsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
@@ -116,30 +120,27 @@ export function UsageBar({ used, limit, label, resetsAt }: {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-medium text-ink-secondary">{label}</span>
-        <span className="text-xs text-ink-muted">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-label font-semibold text-ink-secondary">{label}</span>
+        <span className="text-label text-ink-muted">
           {isUnlimited
             ? `${formatTokens(used)} used (unlimited)`
             : `${formatTokens(used)} / ${formatTokens(limit)}`}
         </span>
       </div>
       {!isUnlimited && (
-        <div className="w-full h-2 bg-well rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${barColor}`}
-            style={{ width: `${percentage}%` }}
-          />
+        <div className="h-1 w-full overflow-hidden rounded-full bg-selected">
+          <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${percentage}%` }} />
         </div>
       )}
-      <div className="flex items-center justify-between mt-0.5">
+      <div className="mt-0.5 flex items-center justify-between">
         {!isUnlimited && (
-          <span className={`text-[10px] ${isExhausted ? "text-red-400" : isWarning ? "text-amber-400" : "text-ink-muted"}`}>
+          <span className={`text-meta ${tone.text}`}>
             {isExhausted ? "Limit reached" : `${formatTokens(limit - used)} remaining`}
           </span>
         )}
         {resetsLabel && !isUnlimited && (
-          <span className="text-[10px] text-ink-muted">Resets {resetsLabel}</span>
+          <span className="text-meta text-ink-muted">Resets {resetsLabel}</span>
         )}
       </div>
     </div>
@@ -148,11 +149,10 @@ export function UsageBar({ used, limit, label, resetsAt }: {
 
 export function SessionEmptyState({ type }: { type: string }) {
   return (
-    <div className="text-center py-12">
-      <p className="text-sm text-ink-muted">No {type} settings yet</p>
-      <p className="text-xs text-ink-faint mt-1">
-        Session-specific settings for {type} connections will appear here.
-      </p>
-    </div>
+    <EmptyState
+      className="py-12"
+      title={`No ${type} settings yet`}
+      description={`Session-specific settings for ${type} connections will appear here.`}
+    />
   );
 }
