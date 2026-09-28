@@ -840,6 +840,8 @@ The top padding is the 4px gap under the title bar or banners. The bottom paddin
 | EditorCard | `--c-editor` | flex | radius 8, 1px border | none |
 | AuxCard (AI) | `--c-sidebar` | 300 to 800 | radius 8, 1px border | none; the 4px sash before it paints the divider |
 
+Hooks [wave 1 review]: every card is a `.cv-card`. The LeftCard carries `data-cv-card="left"` and the AuxCard `data-cv-card="aux"`, which `cards.css` paints `--c-sidebar` (`.cv-card[data-cv-card="left"], .cv-card[data-cv-card="aux"]`); the EditorCard keeps the `.cv-card` default `--c-editor` and carries `data-cv-editor-card`, which Popover `freeze="auto"` (4.9) and the web view corner radius rule (3.7, D-17) look for. `Workbench.tsx` (W2-WORKBENCH) sets `data-cv-card` on the side cards; W2-TABS's `EditorCard` sets `data-cv-editor-card`.
+
 The activity bar and a docked side bar share **one card** [V VS Code: "Joined into one card: side bar loses its left radii when activity bar is present"]. There is no divider between them in Comfortable, because both are `--c-sidebar`.
 
 [ADAPT] VS Code's Compact keeps a 4px outer margin and rounds the outermost corners. OD-3 asks Compact for "no gaps, no radii", so Conduit's Compact is flush to the window edges.
@@ -3130,6 +3132,7 @@ New hooks, all harness-safe (none uses `role=dialog` or `role=status`):
 
 - window and title bar: `data-cv-window`, `data-cv-titlebar`, `data-cv-command-center`, `data-cv-layout`, `data-cv-app-menu`, `data-cv-caption`;
 - activity bar and side bar: `data-cv-activitybar`, `data-cv-activity`, `data-cv-sidebar-toggle`, `data-cv-vault-switcher`;
+- cards: `data-cv-card="left"` and `data-cv-card="aux"` (the `--c-sidebar` cards, 3.3);
 - editor: `data-cv-editor-card`, `data-square-bottom-left`, `data-square-bottom-right`, `data-cv-tab`, `data-cv-new-tab`;
 - status bar and banners: `data-cv-statusbar`, `data-cv-status`, `data-cv-review-button`, `data-cv-banner-text`;
 - primitives: `data-cv-dialog-footer`, `data-cv-dialog-form`, `data-cv-layer`, `data-cv-error`, `data-cv-text-button`;
