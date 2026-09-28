@@ -10,31 +10,13 @@ import PasswordHistoryDialog from "../vault/PasswordHistoryDialog";
 import EntryConflictInline from "../sync/EntryConflictInline";
 import type { EntryFull, ResolvedCredential } from "../../types/entry";
 import {
-  CalendarIcon, ClockIcon, CopyIcon, ExternalLinkIcon, EyeIcon, EyeOffIcon, GlobeIcon, HistoryIcon, KeyIcon, LockIcon, NotesIcon, PencilIcon, ServerIcon, ShieldLockIcon, StarFilledIcon, StarIcon, TagIcon, UserIcon
+  CalendarIcon, ClockIcon, GlobeIcon, KeyIcon, LockIcon, NotesIcon, ServerIcon, ShieldLockIcon, TagIcon, UserIcon
 } from "../../lib/icons";
+import { Button, IconButton } from "../ui";
+import { DetailLabel, DetailRow, TotpCountdown } from "./EntryDetailParts";
 
 interface EntryDashboardProps {
   entryId: string;
-}
-
-function IconButton({
-  icon,
-  title,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className="p-1.5 rounded hover:bg-raised text-ink-muted hover:text-ink transition-colors"
-    >
-      {icon}
-    </button>
-  );
 }
 
 function formatRelativeDate(dateStr: string): string {
@@ -122,8 +104,8 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
 
   if (!entry) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-canvas">
-        <p className="text-ink-faint">Entry not found</p>
+      <div className="flex-1 flex items-center justify-center bg-editor">
+        <p className="text-body text-ink-faint">Entry not found</p>
       </div>
     );
   }
@@ -177,49 +159,34 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
 
   return (
     <>
-    <div className="flex-1 flex flex-col bg-canvas overflow-hidden">
+    <div className="flex-1 flex flex-col bg-editor overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-stroke flex-shrink-0">
+      <div className="px-6 py-5 border-b border-divider flex-shrink-0">
         <div className="flex items-center gap-4">
-          <div className="bg-well p-2.5 rounded-lg">
+          <div className="bg-well p-2.5 rounded-md">
             <Icon size={24} className={colorResult.className} style={colorResult.style} />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-ink truncate">{entry.name}</h2>
-            <p className="text-xs text-ink-muted capitalize">{entry.entry_type}</p>
+            <h2 className="text-title font-semibold text-ink truncate">{entry.name}</h2>
+            <p className="text-label text-ink-muted capitalize">{entry.entry_type}</p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <IconButton
-              icon={
-                entry.is_favorite ? (
-                  <StarFilledIcon size={18} className="text-yellow-400" />
-                ) : (
-                  <StarIcon size={18} />
-                )
-              }
-              title={entry.is_favorite ? "Remove from favorites" : "Add to favorites"}
+              icon={entry.is_favorite ? "starFilled" : "star"}
+              label={entry.is_favorite ? "Remove from favorites" : "Add to favorites"}
               onClick={handleToggleFavorite}
+              tone={entry.is_favorite ? "inherit" : "default"}
+              className={entry.is_favorite ? "text-favorite" : undefined}
             />
-            <IconButton
-              icon={<PencilIcon size={18} />}
-              title="Edit entry"
-              onClick={handleEdit}
-            />
+            <IconButton icon="pencil" label="Edit entry" onClick={handleEdit} />
             {isConnectionType && (
-              <IconButton
-                icon={<ExternalLinkIcon size={18} />}
-                title="Open in external app"
-                onClick={handleOpenExternal}
-              />
+              <IconButton icon="externalLink" label="Open in external app" onClick={handleOpenExternal} />
             )}
           </div>
           {entry.entry_type !== "credential" && (
-            <button
-              onClick={handleOpen}
-              className="px-4 py-2 bg-conduit-600 hover:bg-conduit-700 text-white rounded-md text-sm font-medium transition-colors"
-            >
+            <Button variant="primary" onClick={handleOpen}>
               {entry.entry_type === "document" ? "Open Document" : "Open Session"}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -229,7 +196,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
       {/* Content area — two columns when notes exist */}
       <div className={`flex-1 min-h-0 flex ${entry.notes ? "" : "flex-col"}`}>
         {/* Left: Details */}
-        <div className={`overflow-y-auto px-6 py-5 ${entry.notes ? "w-2/5 flex-shrink-0 border-r border-stroke" : `flex-1 ${entry.entry_type !== "document" ? "max-w-2xl" : ""}`}`}>
+        <div className={`overflow-y-auto px-6 py-5 ${entry.notes ? "w-2/5 flex-shrink-0 border-r border-divider" : `flex-1 ${entry.entry_type !== "document" ? "max-w-2xl" : ""}`}`}>
           {/* Document preview */}
           {entry.entry_type === "document" && (
             <div className="mb-4">
@@ -240,12 +207,12 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
                     <div className="max-h-40 overflow-hidden relative">
                       <MarkdownRenderer content={docContent.slice(0, 500)} />
                       {docContent.length > 500 && (
-                        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-canvas to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-editor to-transparent" />
                       )}
                     </div>
                   );
                 }
-                return <p className="text-sm text-ink-faint italic">Empty document</p>;
+                return <p className="text-body text-ink-faint italic">Empty document</p>;
               })()}
             </div>
           )}
@@ -258,11 +225,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
                 icon={<ServerIcon size={16} />}
                 value={`${entry.host}${entry.port ? `:${entry.port}` : ""}`}
                 actions={
-                  <IconButton
-                    icon={<CopyIcon size={14} />}
-                    title="Copy host"
-                    onClick={() => copyToClipboard(entry.host!, "Host")}
-                  />
+                  <IconButton size="sm" icon="copy" label="Copy host" onClick={() => copyToClipboard(entry.host!, "Host")} />
                 }
               />
             )}
@@ -272,11 +235,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
                 icon={<UserIcon size={16} />}
                 value={displayUsername}
                 actions={
-                  <IconButton
-                    icon={<CopyIcon size={14} />}
-                    title="Copy username"
-                    onClick={() => copyToClipboard(displayUsername, "Username")}
-                  />
+                  <IconButton size="sm" icon="copy" label="Copy username" onClick={() => copyToClipboard(displayUsername, "Username")} />
                 }
               />
             )}
@@ -292,24 +251,16 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
                 actions={
                   <div className="flex items-center gap-0.5">
                     <IconButton
-                      icon={
-                        showPassword ? (
-                          <EyeOffIcon size={14} />
-                        ) : (
-                          <EyeIcon size={14} />
-                        )
-                      }
-                      title={showPassword ? "Hide password" : "Reveal password"}
+                      size="sm"
+                      icon={showPassword ? "eyeOff" : "eye"}
+                      label={showPassword ? "Hide password" : "Reveal password"}
                       onClick={() => setShowPassword(!showPassword)}
                     />
+                    <IconButton size="sm" icon="copy" label="Copy password" onClick={() => copyToClipboard(displayPassword, "Password")} />
                     <IconButton
-                      icon={<CopyIcon size={14} />}
-                      title="Copy password"
-                      onClick={() => copyToClipboard(displayPassword, "Password")}
-                    />
-                    <IconButton
-                      icon={<HistoryIcon size={14} />}
-                      title="Password history"
+                      size="sm"
+                      icon="history"
+                      label="Password history"
                       onClick={() => setShowPasswordHistory(true)}
                     />
                   </div>
@@ -322,25 +273,21 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
                 icon={<ShieldLockIcon size={16} />}
                 value={
                   <div className="flex items-center gap-2">
-                    <span className="font-mono tracking-widest">
+                    <span className="font-mono tabular-nums">
                       {totpResult.code.slice(0, Math.ceil(totpResult.code.length / 2))}
                       {" "}
                       {totpResult.code.slice(Math.ceil(totpResult.code.length / 2))}
                     </span>
                     <TotpCountdown remaining={totpResult.remainingSeconds} period={totpResult.period} />
                     {totpIssuer && (
-                      <span className="text-xs text-ink-faint">
+                      <span className="text-label text-ink-faint">
                         {totpIssuer}{totpLabel ? ` (${totpLabel})` : ""}
                       </span>
                     )}
                   </div>
                 }
                 actions={
-                  <IconButton
-                    icon={<CopyIcon size={14} />}
-                    title="Copy code"
-                    onClick={() => copyToClipboard(totpResult.code, "TOTP code")}
-                  />
+                  <IconButton size="sm" icon="copy" label="Copy code" onClick={() => copyToClipboard(totpResult.code, "TOTP code")} />
                 }
               />
             )}
@@ -355,17 +302,15 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
               />
             )}
             {entry.tags.length > 0 && (
-              <div className="py-3 border-b border-stroke-dim">
-                <span className="text-[11px] font-medium text-conduit-500 uppercase tracking-wide">
-                  Tags
-                </span>
+              <div className="py-3 border-b border-divider">
+                <DetailLabel>Tags</DetailLabel>
                 <div className="flex flex-wrap gap-1.5 mt-1.5">
                   {entry.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-well border border-stroke rounded-full text-xs text-ink-secondary"
+                      className="inline-flex items-center gap-1 h-5 px-2 bg-well border border-card-border rounded-full text-label text-ink-secondary"
                     >
-                      <TagIcon size={11} className="text-ink-faint" />
+                      <TagIcon size={12} compact className="text-ink-faint" />
                       {tag}
                     </span>
                   ))}
@@ -381,11 +326,9 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
         {entry.notes && (
           <div className="flex-1 min-w-0 overflow-y-auto px-6 py-5 allow-select">
             <div className="flex items-center gap-2 mb-4">
-              <NotesIcon size={16} className="text-conduit-500" />
-              <span className="text-[11px] font-medium text-conduit-500 uppercase tracking-wide">
-                Notes
-              </span>
-              <div className="flex-1 border-b border-stroke-dim" />
+              <NotesIcon size={16} className="text-ink-muted" />
+              <DetailLabel>Notes</DetailLabel>
+              <div className="flex-1 border-b border-divider" />
             </div>
             <MarkdownRenderer content={entry.notes} />
           </div>
@@ -400,70 +343,5 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
       />
     )}
     </>
-  );
-}
-
-function TotpCountdown({ remaining, period }: { remaining: number; period: number }) {
-  const size = 14;
-  const strokeWidth = 2;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const fraction = remaining / period;
-  const dashOffset = circumference * (1 - fraction);
-  const isLow = remaining <= 5;
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0">
-      <circle
-        cx={size / 2} cy={size / 2} r={radius}
-        fill="none" stroke="currentColor" strokeWidth={strokeWidth}
-        className="text-stroke"
-      />
-      <circle
-        cx={size / 2} cy={size / 2} r={radius}
-        fill="none" strokeWidth={strokeWidth}
-        strokeDasharray={circumference}
-        strokeDashoffset={dashOffset}
-        strokeLinecap="round"
-        className={`transition-all duration-1000 linear ${isLow ? "text-red-400" : "text-conduit-500"}`}
-        stroke="currentColor"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </svg>
-  );
-}
-
-function DetailRow({
-  label,
-  value,
-  icon,
-  actions,
-  last,
-}: {
-  label: string;
-  value: React.ReactNode;
-  icon?: React.ReactNode;
-  actions?: React.ReactNode;
-  last?: boolean;
-}) {
-  return (
-    <div className={`py-3 flex items-center gap-3 ${last ? "" : "border-b border-stroke-dim"}`}>
-      {icon && (
-        <div className="flex-shrink-0 text-ink-faint mt-0.5">
-          {icon}
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <div className="text-[11px] font-medium text-conduit-500 uppercase tracking-wide">
-          {label}
-        </div>
-        <div className="text-sm text-ink mt-0.5 allow-select">{value}</div>
-      </div>
-      {actions && (
-        <div className="flex-shrink-0">
-          {actions}
-        </div>
-      )}
-    </div>
   );
 }

@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import { useEntryStore } from "../../stores/entryStore";
-import { useVaultStore, type CloudSyncState, type LocalBackupState, type TeamSyncState } from "../../stores/vaultStore";
+import { useVaultStore } from "../../stores/vaultStore";
 import { useTierStore } from "../../stores/tierStore";
 import { useAuthStore } from "../../stores/authStore";
 import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import type { EntryMeta } from "../../types/entry";
 import { SearchIcon } from "../../lib/icons";
-import { useDeviceSyncRow } from "../sync/useDeviceSyncRow";
+import { Button, Card, Kbd, ListRow, SectionHeader } from "../ui";
+import VaultStatusCard from "./VaultStatusCard";
+import { formatRelativeTime } from "./relativeTime";
 
 const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 
@@ -19,23 +21,6 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const CONNECTION_TYPES = ["ssh", "rdp", "vnc", "web"] as const;
-
-function formatRelativeTime(dateString: string): string {
-  const now = Date.now();
-  const then = new Date(dateString).getTime();
-  const diffMs = now - then;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  return new Date(dateString).toLocaleDateString();
-}
 
 export default function DashboardOverview() {
   const { entries, folders, setSelectedEntry, openEntry } = useEntryStore();
@@ -114,7 +99,7 @@ export default function DashboardOverview() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-canvas overflow-y-auto h-full">
+    <div className="flex-1 flex flex-col bg-editor overflow-y-auto h-full">
       <div className="max-w-4xl w-full mx-auto p-6 space-y-6">
         {/* Welcome Bar */}
         <WelcomeBar
@@ -134,13 +119,18 @@ export default function DashboardOverview() {
 
         {/* Favorites + Recently Modified */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FavoritesSection
+          <EntryListCard
+            title="Favorites"
+            emptyText="Star entries to add them here"
             entries={favoriteEntries}
             onEntryClick={handleEntryClick}
             onEntryDoubleClick={handleEntryDoubleClick}
           />
-          <RecentlyModifiedSection
+          <EntryListCard
+            title="Recently Modified"
+            emptyText="No recent entries"
             entries={recentEntries}
+            showTimestamp
             onEntryClick={handleEntryClick}
             onEntryDoubleClick={handleEntryDoubleClick}
           />
@@ -148,7 +138,7 @@ export default function DashboardOverview() {
 
         {/* Vault Status + Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <VaultStatusSection
+          <VaultStatusCard
             cloudSyncState={cloudSyncState}
             localBackupState={localBackupState}
             teamSyncState={teamSyncState}
@@ -188,24 +178,19 @@ function WelcomeBar({
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-xl font-semibold text-ink">
+        <h1 className="text-title font-semibold text-ink">
           Welcome back{displayName ? `, ${displayName}` : ""}
         </h1>
-        <p className="text-sm text-ink-muted mt-1">
+        <p className="text-body text-ink-muted mt-1">
           {entryCount} {entryCount === 1 ? "entry" : "entries"} &middot;{" "}
           {credentialCount} {credentialCount === 1 ? "credential" : "credentials"} &middot;{" "}
           {folderCount} {folderCount === 1 ? "folder" : "folders"}
         </p>
       </div>
-      <button
-        onClick={onQuickConnect}
-        className="flex items-center gap-2 px-4 py-2 bg-conduit-600 hover:bg-conduit-500 text-white rounded-lg transition-colors text-sm font-medium"
-      >
+      <Button variant="primary" onClick={onQuickConnect} className="gap-2">
         Quick Connect
-        <kbd className="ml-1 px-1.5 py-0.5 text-[11px] bg-white/20 rounded">
-          {IS_MAC ? "⌘N" : "Ctrl+N"}
-        </kbd>
-      </button>
+        <Kbd className="!border-white/40 !text-white">{IS_MAC ? "⌘N" : "Ctrl+N"}</Kbd>
+      </Button>
     </div>
   );
 }
@@ -228,26 +213,23 @@ function SearchTagSection({
   return (
     <div className="space-y-2">
       <button
+        type="button"
         onClick={onSearchFocus}
-        className="w-full flex items-center gap-2 px-3 py-2.5 bg-well border border-stroke rounded-lg text-left hover:border-stroke-dim transition-colors"
+        className="w-full flex items-center gap-1.5 h-control-lg px-2 bg-input border border-input-border rounded text-left hover:border-control transition-colors"
       >
         <SearchIcon size={16} className="text-ink-muted" />
-        <span className="text-sm text-ink-faint">Search entries...</span>
+        <span className="text-body text-(--c-input-placeholder)">Search entries...</span>
       </button>
 
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {visibleTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => onTagClick(tag)}
-              className="px-2.5 py-1 text-xs bg-panel border border-stroke rounded-full text-ink-muted hover:text-ink hover:border-stroke-dim transition-colors"
-            >
+            <Button key={tag} size="sm" onClick={() => onTagClick(tag)}>
               {tag}
-            </button>
+            </Button>
           ))}
           {hiddenCount > 0 && (
-            <span className="px-2.5 py-1 text-xs text-ink-faint">
+            <span className="inline-flex items-center h-control-sm px-1.5 text-meta text-ink-faint">
               +{hiddenCount} more
             </span>
           )}
@@ -274,276 +256,53 @@ function EntryRow({
   const colorResult = getEntryColor(entry.entry_type, entry.color);
 
   return (
-    <button
+    <ListRow
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md hover:bg-raised text-left transition-colors"
+      leading={<Icon size={16} className={colorResult.className} style={colorResult.style} />}
+      meta={showTimestamp ? formatRelativeTime(entry.updated_at) : (TYPE_LABELS[entry.entry_type] ?? entry.entry_type)}
     >
-      <Icon size={16} className={colorResult.className} style={colorResult.style} />
-      <span className="text-sm text-ink truncate flex-1">{entry.name}</span>
-      {showTimestamp ? (
-        <span className="text-xs text-ink-faint flex-shrink-0">
-          {formatRelativeTime(entry.updated_at)}
-        </span>
-      ) : (
-        <span className="text-xs text-ink-faint flex-shrink-0 uppercase">
-          {TYPE_LABELS[entry.entry_type] ?? entry.entry_type}
-        </span>
-      )}
-    </button>
+      {entry.name}
+    </ListRow>
   );
 }
 
-/* ── Favorites ────────────────────────────────────────────────────────────── */
+/* ── Entry lists: Favorites and Recently Modified ─────────────────────────── */
 
-function FavoritesSection({
+function EntryListCard({
+  title,
+  emptyText,
   entries,
+  showTimestamp,
   onEntryClick,
   onEntryDoubleClick,
 }: {
+  title: string;
+  emptyText: string;
   entries: EntryMeta[];
+  showTimestamp?: boolean;
   onEntryClick: (id: string) => void;
   onEntryDoubleClick: (entry: EntryMeta) => void;
 }) {
   return (
-    <div className="bg-panel rounded-lg border border-stroke p-4">
-      <h3 className="text-sm font-medium text-ink-muted mb-3">Favorites</h3>
+    <Card>
+      <SectionHeader title={title} />
       {entries.length === 0 ? (
-        <p className="text-xs text-ink-faint py-4 text-center">
-          Star entries to add them here
-        </p>
+        <p className="text-label text-ink-faint py-4 text-center">{emptyText}</p>
       ) : (
-        <div className="space-y-0.5">
+        <div className="space-y-px">
           {entries.map((entry) => (
             <EntryRow
               key={entry.id}
               entry={entry}
+              showTimestamp={showTimestamp}
               onClick={() => onEntryClick(entry.id)}
               onDoubleClick={() => onEntryDoubleClick(entry)}
             />
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ── Recently Modified ────────────────────────────────────────────────────── */
-
-function RecentlyModifiedSection({
-  entries,
-  onEntryClick,
-  onEntryDoubleClick,
-}: {
-  entries: EntryMeta[];
-  onEntryClick: (id: string) => void;
-  onEntryDoubleClick: (entry: EntryMeta) => void;
-}) {
-  return (
-    <div className="bg-panel rounded-lg border border-stroke p-4">
-      <h3 className="text-sm font-medium text-ink-muted mb-3">Recently Modified</h3>
-      {entries.length === 0 ? (
-        <p className="text-xs text-ink-faint py-4 text-center">
-          No recent entries
-        </p>
-      ) : (
-        <div className="space-y-0.5">
-          {entries.map((entry) => (
-            <EntryRow
-              key={entry.id}
-              entry={entry}
-              showTimestamp
-              onClick={() => onEntryClick(entry.id)}
-              onDoubleClick={() => onEntryDoubleClick(entry)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Status Row (shared) ──────────────────────────────────────────────────── */
-
-function StatusRow({
-  label,
-  status,
-  detail,
-}: {
-  label: string;
-  status: "ok" | "error" | "syncing" | "idle" | "disabled";
-  detail: string;
-}) {
-  const dotColor =
-    status === "ok"
-      ? "bg-green-400"
-      : status === "error"
-        ? "bg-red-400"
-        : status === "syncing"
-          ? "bg-yellow-400"
-          : "bg-ink-faint";
-
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-        <span className="text-xs text-ink">{label}</span>
-      </div>
-      <span className="text-xs text-ink-muted truncate ml-2">{detail}</span>
-    </div>
-  );
-}
-
-/* ── Vault Status ─────────────────────────────────────────────────────────── */
-
-function VaultStatusSection({
-  cloudSyncState,
-  localBackupState,
-  teamSyncState,
-  authMode,
-  maxConnections,
-  connectionCount,
-  isTrialing,
-  trialDaysRemaining,
-}: {
-  cloudSyncState: CloudSyncState | null;
-  localBackupState: LocalBackupState | null;
-  teamSyncState: TeamSyncState | null;
-  authMode: string | null;
-  maxConnections: number;
-  connectionCount: number;
-  isTrialing: boolean;
-  trialDaysRemaining: number;
-}) {
-  const deviceSync = useDeviceSyncRow();
-  return (
-    <div className="bg-panel rounded-lg border border-stroke p-4">
-      <h3 className="text-sm font-medium text-ink-muted mb-3">Vault Status</h3>
-      <div className="space-y-2.5">
-        {deviceSync && <StatusRow label="Device Sync" status={deviceSync.status} detail={deviceSync.detail} />}
-
-        {/* Cloud backup */}
-        {authMode !== "local" && (
-          <StatusRow
-            label="Cloud Backup"
-            status={
-              !cloudSyncState?.enabled
-                ? "disabled"
-                : cloudSyncState.status === "error"
-                  ? "error"
-                  : cloudSyncState.status === "synced"
-                    ? "ok"
-                    : cloudSyncState.status === "syncing"
-                      ? "syncing"
-                      : "idle"
-            }
-            detail={
-              !cloudSyncState?.enabled
-                ? "Disabled"
-                : cloudSyncState.status === "error"
-                  ? cloudSyncState.error ?? "Error"
-                  : cloudSyncState.status === "synced"
-                    ? "Synced"
-                    : cloudSyncState.status === "syncing"
-                      ? "Syncing..."
-                      : "Idle"
-            }
-          />
-        )}
-
-        {/* Local Backup */}
-        <StatusRow
-          label="Local Backup"
-          status={
-            !localBackupState?.enabled
-              ? "disabled"
-              : localBackupState.status === "error"
-                ? "error"
-                : localBackupState.status === "backed-up"
-                  ? "ok"
-                  : "idle"
-          }
-          detail={
-            !localBackupState?.enabled
-              ? "Disabled"
-              : localBackupState.status === "error"
-                ? localBackupState.error ?? "Error"
-                : localBackupState.lastBackedUpAt
-                  ? `Last: ${formatRelativeTime(localBackupState.lastBackedUpAt)}`
-                  : "No backups yet"
-          }
-        />
-
-        {/* Team Sync */}
-        {authMode !== "local" && teamSyncState && (
-          <StatusRow
-            label="Team Sync"
-            status={
-              teamSyncState.status === "error"
-                ? "error"
-                : teamSyncState.status === "synced"
-                  ? "ok"
-                  : teamSyncState.status === "syncing"
-                    ? "syncing"
-                    : "idle"
-            }
-            detail={
-              teamSyncState.status === "error"
-                ? teamSyncState.error ?? "Error"
-                : teamSyncState.pendingChanges > 0
-                  ? `${teamSyncState.pendingChanges} pending`
-                  : teamSyncState.status === "synced"
-                    ? "Synced"
-                    : "Idle"
-            }
-          />
-        )}
-
-        {/* Plan Usage */}
-        {maxConnections > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-ink-muted">Plan Usage</span>
-              <span className="text-xs text-ink-muted">
-                {connectionCount}/{maxConnections}
-              </span>
-            </div>
-            <div className="h-1.5 bg-well rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  connectionCount >= maxConnections
-                    ? "bg-red-400"
-                    : connectionCount > maxConnections * 0.8
-                      ? "bg-yellow-400"
-                      : "bg-conduit-500"
-                }`}
-                style={{
-                  width: `${Math.min(100, (connectionCount / maxConnections) * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Trial Info */}
-        {isTrialing && trialDaysRemaining >= 0 && (
-          <div className="flex items-center justify-between pt-1 border-t border-stroke-dim">
-            <span className="text-xs text-ink-muted">Trial</span>
-            <span
-              className={`text-xs font-medium ${
-                trialDaysRemaining <= 3
-                  ? "text-red-400"
-                  : trialDaysRemaining <= 7
-                    ? "text-yellow-400"
-                    : "text-conduit-400"
-              }`}
-            >
-              {trialDaysRemaining} {trialDaysRemaining === 1 ? "day" : "days"} remaining
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
+    </Card>
   );
 }
 
@@ -561,26 +320,26 @@ function VaultOverviewSection({
   folderCount: number;
 }) {
   return (
-    <div className="bg-panel rounded-lg border border-stroke p-4">
-      <h3 className="text-sm font-medium text-ink-muted mb-3">Overview</h3>
+    <Card>
+      <SectionHeader title="Overview" />
       <div className="grid grid-cols-2 gap-2 mb-3">
         {CONNECTION_TYPES.map((type) => {
           const Icon = getEntryIcon(type);
           const colorResult = getEntryColor(type);
           return (
-            <div key={type} className="flex items-center gap-2.5 p-2.5 bg-well rounded-md">
+            <div key={type} className="flex items-center gap-2.5 p-2.5 bg-editor border border-card-border rounded-md">
               <Icon size={18} className={colorResult.className} style={colorResult.style} />
               <div>
-                <p className="text-lg font-semibold text-ink leading-none">
+                <p className="text-title font-semibold text-ink leading-none">
                   {typeCounts[type] || 0}
                 </p>
-                <p className="text-[11px] text-ink-faint">{TYPE_LABELS[type]}</p>
+                <p className="text-meta text-ink-faint">{TYPE_LABELS[type]}</p>
               </div>
             </div>
           );
         })}
       </div>
-      <div className="flex items-center gap-4 text-xs text-ink-faint">
+      <div className="flex items-center gap-4 text-label text-ink-faint">
         <span>
           {credentialCount} {credentialCount === 1 ? "credential" : "credentials"}
         </span>
@@ -591,6 +350,6 @@ function VaultOverviewSection({
           {folderCount} {folderCount === 1 ? "folder" : "folders"}
         </span>
       </div>
-    </div>
+    </Card>
   );
 }
