@@ -13,6 +13,7 @@ import {
   exists,
   invoke,
   mainEval,
+  readSyncState,
   stubFileDialogs,
   typeInto,
   waitFor,
@@ -90,7 +91,9 @@ export function waitForUnlockOutcome(device, { timeoutMs = UNLOCK_TIMEOUT_MS } =
     const text = await bodyText(device, { timeoutMs: 10_000 });
     await dismissBiometricOffer(device, text);
     if (await invoke(device, 'vault_is_unlocked', undefined, { timeoutMs: 10_000 }) && !text.includes(HUB_TEXT)) {
-      return { outcome: 'unlocked' };
+      // vault_is_unlocked turns true when the working copy opens, before the unlock cycle and the
+      // lease finish; sync_get_state names the vault only once the whole open has finished.
+      return (await readSyncState(device))?.vault ? { outcome: 'unlocked' } : null;
     }
     const dialogs = await openDialogs(device);
     // `text` was read before the dialog check and can predate the dialog: read it again.

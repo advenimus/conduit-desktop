@@ -162,7 +162,9 @@ A scenario fails by throwing. Keep device names short (`a`, `b`, `m`; 1-12 of `[
 returns `{email, tier}`), `signOut(d)`, `createVault(d, path, pw)` (hub "New Vault" with the save dialog
 stubbed), `openVault(d, path, pw, {expect})` (hub "Open Vault File"; returns `{outcome: 'unlocked'}`,
 `{outcome: 'dialog', dialogs, text}` for sync dialogs such as "Vault open on another device", or
-`{outcome: 'error', text}`; `expect: 'unlocked'` throws otherwise), `waitForUnlockOutcome(d)`,
+`{outcome: 'error', text}`; `expect: 'unlocked'` throws otherwise), `waitForUnlockOutcome(d)` (reports
+`unlocked` only once `sync_get_state` names the vault, since `vault_is_unlocked` turns true while the
+open is still finishing),
 `openDialogs(d)`, `lockVault(d)`, `addEntry(d, fields)`, `updateEntry(d, id, patch)`, `deleteEntry(d, id)`,
 `listEntries(d)` (IPC `entry_*`, then the renderer is told to reload), `refreshEntries(d)`,
 `openConflictReview(d)`.
