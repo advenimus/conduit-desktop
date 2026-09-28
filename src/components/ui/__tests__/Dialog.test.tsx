@@ -273,5 +273,24 @@ describe("Dialog custom layout", () => {
     expect(el).toHaveAttribute("aria-labelledby", title?.id);
     expect(el.lastElementChild).toHaveAttribute("data-cv-dialog-footer");
     expect(screen.getByText("Custom body")).toBeInTheDocument();
+    expect(el.querySelectorAll(`[id="${title?.id}"]`)).toHaveLength(1);
+  });
+
+  it("still has an accessible name without a DialogHeader, and no aria-label (the harness reads that as a sync dialog)", () => {
+    render(
+      <Dialog open onClose={() => {}} title="Pick an icon" layout="custom">
+        <DialogBody>
+          <p>Icons</p>
+        </DialogBody>
+        <DialogFooter>
+          <Button>Done</Button>
+        </DialogFooter>
+      </Dialog>,
+    );
+    const el = panel();
+    expect(screen.getByRole("dialog", { name: "Pick an icon" })).toBe(el);
+    expect(el).not.toHaveAttribute("aria-label");
+    expect(document.getElementById(el.getAttribute("aria-labelledby") ?? "")).not.toBeNull();
+    expect(el.lastElementChild).toHaveAttribute("data-cv-dialog-footer");
   });
 });

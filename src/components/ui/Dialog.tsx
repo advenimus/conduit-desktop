@@ -79,6 +79,8 @@ function OpenDialog({
   const [opener] = useState<HTMLElement | null>(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
   const pressedScrim = useRef(false);
   const focusedAtCleanup = useRef<HTMLElement | null>(null);
+  const fallbackTitleId = `${titleId}-title`;
+  const [headerMissing, setHeaderMissing] = useState(false);
 
   useFreeze(true, "dialog", typeof title === "string" ? title : harnessLabel);
   useLayer({ ref: panelRef, onEscape: onClose, trapFocus: true });
@@ -104,10 +106,26 @@ function OpenDialog({
     };
   }, []);
 
+  // A custom layout may leave out DialogHeader; the panel then names itself with a hidden h2. aria-label
+  // is not an option: the harness treats [role=dialog][aria-label] as a sync dialog (8.3).
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    const header = panel?.ownerDocument.getElementById(titleId);
+    const missing = layout === "custom" && !(header && panel?.contains(header));
+    if (missing !== headerMissing) setHeaderMissing(missing);
+  });
+
   const context: DialogContextValue = { titleId, title, icon, tone, hideClose, onClose };
   const content =
     layout === "custom" ? (
-      children
+      <>
+        {headerMissing && (
+          <h2 id={fallbackTitleId} className="sr-only">
+            {title}
+          </h2>
+        )}
+        {children}
+      </>
     ) : (
       <>
         <DialogHeader />
@@ -138,7 +156,7 @@ function OpenDialog({
         data-dialog-content=""
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
+        aria-labelledby={headerMissing ? fallbackTitleId : titleId}
         aria-label={harnessLabel}
         tabIndex={-1}
         className={cx(
