@@ -9,10 +9,8 @@ import { FolderIcon, PlugIcon } from "../../../lib/icons";
 import { AI_HARNESSES } from "../../../lib/ai-harnesses";
 
 export default function AiTab({ settings, setSettings }: TabProps) {
-  const tierCapabilities = useAiStore((s) => s.tierCapabilities);
   const engineAvailability = useAiStore((s) => s.engineAvailability);
   const checkEngineAvailability = useAiStore((s) => s.checkEngineAvailability);
-  const mcpEnabled = tierCapabilities?.mcp_enabled ?? false;
   const [showMcpSetup, setShowMcpSetup] = useState(false);
 
   useEffect(() => {
@@ -150,13 +148,6 @@ export default function AiTab({ settings, setSettings }: TabProps) {
           );
         })}
       </div>
-
-      {mcpEnabled && (
-        <div className="pt-3 border-t border-stroke">
-          <label className="block text-sm font-medium mb-1">MCP Tool Calls</label>
-          <p className="text-xs text-ink-muted">Unlimited MCP tool calls on every plan.</p>
-        </div>
-      )}
 
       {showMcpSetup && <McpSetupDialog onClose={() => setShowMcpSetup(false)} />}
     </div>
