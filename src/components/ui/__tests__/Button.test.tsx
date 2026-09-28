@@ -84,6 +84,7 @@ describe("Button", () => {
         <Button variant="ghost">G</Button>
         <Button variant="danger">D</Button>
         <Button variant="link">L</Button>
+        <Button variant="ghost-danger">GD</Button>
       </>,
     );
     expect(screen.getByText("P").className).toContain("bg-btn-primary");
@@ -92,6 +93,9 @@ describe("Button", () => {
     expect(screen.getByText("D").className).toContain("bg-btn-danger");
     expect(screen.getByText("L").className).toContain("text-link");
     expect(screen.getByText("L").className).not.toContain("h-control");
+    const ghostDanger = screen.getByText("GD").className.split(" ");
+    expect(ghostDanger).toEqual(expect.arrayContaining(["bg-transparent", "text-danger", "hover:bg-hover"]));
+    expect(ghostDanger).not.toContain("text-ink-secondary");
   });
 
   it("sizes: sm 22px with 11px text, md 26px, lg 32px, fullWidth", () => {

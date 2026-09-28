@@ -92,7 +92,7 @@ export function CloudBackupSection({ allowed, onOpenManager }: CloudBackupSectio
                 </Button>
               </div>
             ) : (
-              <Button variant="ghost" size="sm" className="text-danger! hover:text-danger!" onClick={() => setConfirmDelete(true)}>
+              <Button variant="ghost-danger" size="sm" onClick={() => setConfirmDelete(true)}>
                 Delete Cloud Backup
               </Button>
             )}
