@@ -50,7 +50,7 @@ function themeChange(detail: Record<string, unknown>): void {
 beforeEach(() => {
   localStorage.clear();
   root.className = "";
-  for (const name of ["data-scheme", "data-density", "data-os"]) root.removeAttribute(name);
+  for (const name of ["data-scheme", "data-os"]) root.removeAttribute(name);
   systemDark = true;
   mediaListeners = [];
   installMatchMedia();
@@ -66,54 +66,54 @@ describe("useAppearance", () => {
     localStorage.setItem("conduit-theme", "light");
     localStorage.setItem("conduit-platform-theme", "windows");
     localStorage.setItem("conduit-color-scheme", "rose");
-    const bridge = installBridge({ theme: "light", color_scheme: "rose", icon_pack: "fluent", ui_density: "comfortable" });
+    const bridge = installBridge({ theme: "light", color_scheme: "rose", icon_pack: "fluent" });
     const { result } = renderHook(() => useAppearance());
-    expect(result.current).toMatchObject({ theme: "light", scheme: "rose", iconPack: "fluent", density: "comfortable", mode: "light" });
+    expect(result.current).toMatchObject({ theme: "light", scheme: "rose", iconPack: "fluent", mode: "light" });
+    expect(result.current).not.toHaveProperty("density");
     expect(root.className).toBe("light");
     expect(root.getAttribute("data-scheme")).toBe("rose");
-    expect(root.getAttribute("data-density")).toBe("comfortable");
+    expect(root.hasAttribute("data-density")).toBe(false);
     expect(localStorage.getItem("conduit-platform-theme")).toBeNull();
     expect(localStorage.getItem("conduit-icon-pack")).toBe("fluent");
     expect(bridge.send).toHaveBeenCalledWith("set-native-theme", "light");
     await waitFor(() => expect(bridge.invoke).toHaveBeenCalledWith("settings_get", undefined));
   });
 
-  it("dispatches conduit:appearance-applied after the attributes are set, and never sends window_chrome_update", () => {
-    const bridge = installBridge({});
-    const seen: Array<{ detail: AppearanceAppliedDetail; scheme: string | null; density: string | null; dark: boolean }> = [];
+  it("dispatches conduit:appearance-applied after the attributes are set, with no density", () => {
+    installBridge({});
+    const seen: Array<{ detail: AppearanceAppliedDetail; scheme: string | null; dark: boolean }> = [];
     const listener = (e: Event) => {
       seen.push({
         detail: (e as CustomEvent<AppearanceAppliedDetail>).detail,
         scheme: root.getAttribute("data-scheme"),
-        density: root.getAttribute("data-density"),
         dark: root.classList.contains("dark"),
       });
     };
     document.addEventListener(APPEARANCE_APPLIED_EVENT, listener);
     renderHook(() => useAppearance());
-    themeChange({ colorScheme: "forest", density: "compact", theme: "dark" });
+    themeChange({ colorScheme: "forest", theme: "dark" });
     document.removeEventListener(APPEARANCE_APPLIED_EVENT, listener);
 
     const last = seen[seen.length - 1];
-    expect(last.detail).toEqual({ scheme: "forest", mode: "dark", density: "compact", iconPack: "codicons" });
-    expect(last).toMatchObject({ scheme: "forest", density: "compact", dark: true });
+    expect(last.detail).toEqual({ scheme: "forest", mode: "dark", iconPack: "lucide" });
+    expect(last).toMatchObject({ scheme: "forest", dark: true });
     for (const entry of seen) expect(entry.scheme).toBe(entry.detail.scheme);
-    const channels = [...bridge.send.mock.calls, ...bridge.invoke.mock.calls].map((c) => c[0]);
-    expect(channels).not.toContain("window_chrome_update");
   });
 
   it("follows conduit:theme-change for every key and ignores unknown values", () => {
     installBridge({});
     const { result } = renderHook(() => useAppearance());
-    themeChange({ theme: "light", colorScheme: "midnight", iconPack: "lucide", density: "compact" });
-    expect(result.current).toMatchObject({ theme: "light", scheme: "midnight", iconPack: "lucide", density: "compact" });
+    themeChange({ theme: "light", colorScheme: "midnight", iconPack: "hugeicons" });
+    expect(result.current).toMatchObject({ theme: "light", scheme: "midnight", iconPack: "hugeicons" });
     expect(localStorage.getItem("conduit-theme")).toBe("light");
     expect(localStorage.getItem("conduit-color-scheme")).toBe("midnight");
-    expect(localStorage.getItem("conduit-density")).toBe("compact");
-    expect(useIconPackStore.getState().requested).toBe("lucide");
-    themeChange({ colorScheme: "macos-blue", density: "roomy", theme: "sepia", iconPack: "emoji", platformTheme: "macos" });
-    expect(result.current).toMatchObject({ theme: "light", scheme: "midnight", iconPack: "lucide", density: "compact" });
+    expect(localStorage.getItem("conduit-icon-pack")).toBe("hugeicons");
+    expect(localStorage.getItem("conduit-density")).toBeNull();
+    expect(useIconPackStore.getState().requested).toBe("hugeicons");
+    themeChange({ colorScheme: "macos-blue", density: "compact", theme: "sepia", iconPack: "codicons", platformTheme: "macos" });
+    expect(result.current).toMatchObject({ theme: "light", scheme: "midnight", iconPack: "hugeicons" });
     expect(root.hasAttribute("data-platform")).toBe(false);
+    expect(root.hasAttribute("data-density")).toBe(false);
   });
 
   it("dispatches conduit:resolved-theme-change for terminals", () => {
@@ -142,10 +142,10 @@ describe("useAppearance", () => {
   });
 
   it("adopts the settings file when localStorage was cleared (the file wins)", async () => {
-    installBridge({ theme: "light", color_scheme: "amethyst", icon_pack: "tabler", ui_density: "compact" });
+    installBridge({ theme: "light", color_scheme: "amethyst", icon_pack: "tabler" });
     const { result } = renderHook(() => useAppearance());
     await waitFor(() => expect(result.current.scheme).toBe("amethyst"));
-    expect(result.current).toMatchObject({ theme: "light", iconPack: "tabler", density: "compact" });
+    expect(result.current).toMatchObject({ theme: "light", iconPack: "tabler" });
     expect(root.getAttribute("data-scheme")).toBe("amethyst");
     expect(localStorage.getItem("conduit-color-scheme")).toBe("amethyst");
   });
@@ -172,7 +172,7 @@ describe("useAppearance", () => {
   });
 
   it("the storage mirror writes version 2 but never lowers a newer version", () => {
-    const state = { theme: "dark", scheme: "ember", iconPack: "lucide", density: "compact" } as const;
+    const state = { theme: "dark", scheme: "ember", iconPack: "lucide" } as const;
     writeStoredAppearance(state);
     expect(localStorage.getItem("conduit-appearance-version")).toBe("2");
     localStorage.setItem("conduit-appearance-version", "3");
@@ -180,7 +180,7 @@ describe("useAppearance", () => {
     expect(localStorage.getItem("conduit-appearance-version")).toBe("3");
   });
 
-  it("useTheme re-exports useAppearance until W4-CLEANUP", () => {
+  it("useTheme re-exports useAppearance until R4-CLEANUP", () => {
     expect(useTheme).toBe(useAppearance);
   });
 });

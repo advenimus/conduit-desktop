@@ -38,7 +38,6 @@ function dispatchThemeChange(settings: Settings): void {
     theme: settings.theme,
     colorScheme: settings.color_scheme,
     iconPack: settings.icon_pack,
-    density: settings.ui_density,
   };
   document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail }));
 }
@@ -54,8 +53,6 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
     theme: "system",
     color_scheme: DEFAULT_SCHEME,
     icon_pack: DEFAULT_ICON_PACK,
-    ui_density: "comfortable",
-    title_bar_style: "custom",
     default_shell: "default",
     ai_mode: "api",
     cli_agent: "claude",

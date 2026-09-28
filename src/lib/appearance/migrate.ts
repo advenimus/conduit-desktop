@@ -6,33 +6,37 @@
 import TABLE from "./migration-table.json";
 import type { SchemeId } from "../schemes";
 import type { IconPackId } from "../icons/types";
-import type { Density } from "../../styles/metrics";
 
 export const APPEARANCE_VERSION = TABLE.version;
+
+export type ThemePreference = "dark" | "light" | "system";
 
 export const APPEARANCE_KEYS = Object.freeze({
   theme: "conduit-theme",
   scheme: "conduit-color-scheme",
   iconPack: "conduit-icon-pack",
-  density: "conduit-density",
   version: "conduit-appearance-version",
 });
 
-const LEGACY_PLATFORM_KEY = "conduit-platform-theme";
+/** The localStorage mirrors of the retired settings keys, removed at every boot. */
+export const RETIRED_STORAGE_KEYS = Object.freeze({
+  platform: "conduit-platform-theme",
+  density: "conduit-density",
+});
 
 export interface RawAppearance {
   appearance_version?: unknown;
   platform_theme?: unknown;
   color_scheme?: unknown;
   icon_pack?: unknown;
-  ui_density?: unknown;
+  theme?: unknown;
 }
 
 export interface MigratedAppearance {
   appearance_version: number;
   color_scheme: SchemeId;
   icon_pack: IconPackId;
-  ui_density: Density;
+  theme: ThemePreference;
 }
 
 function pick<T extends string>(value: unknown, allowed: readonly string[], fallback: T): T {
@@ -43,22 +47,27 @@ function lookup(map: Record<string, string>, key: string): string | undefined {
   return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
 }
 
-/** A higher version was written by a later build: keeping it stops that build's migration from running again. */
+/** max(2, the stored integer): a higher version was written by a later build and is never written back as 2. */
 export function keptVersion(value: unknown): number {
   const stored = Number(value);
   return Number.isInteger(stored) && stored > TABLE.version ? stored : TABLE.version;
 }
 
+function retiredOr(scheme: unknown): unknown {
+  return typeof scheme === "string" ? (lookup(TABLE.retiredSchemes, scheme) ?? scheme) : scheme;
+}
+
 export function migrateAppearance(raw: RawAppearance): MigratedAppearance {
   const d = TABLE.defaults;
-  const ui_density = pick<Density>(raw.ui_density, TABLE.densities, d.ui_density as Density);
+  const theme = pick<ThemePreference>(raw.theme, TABLE.themes, d.theme as ThemePreference);
+  const appearance_version = keptVersion(raw.appearance_version);
 
   if (Number(raw.appearance_version) >= TABLE.version) {
     return {
-      appearance_version: keptVersion(raw.appearance_version),
-      color_scheme: pick<SchemeId>(raw.color_scheme, TABLE.schemes, d.color_scheme as SchemeId),
+      appearance_version,
+      color_scheme: pick<SchemeId>(retiredOr(raw.color_scheme), TABLE.schemes, d.color_scheme as SchemeId),
       icon_pack: pick<IconPackId>(raw.icon_pack, TABLE.iconPacks, d.icon_pack as IconPackId),
-      ui_density,
+      theme,
     };
   }
 
@@ -69,10 +78,10 @@ export function migrateAppearance(raw: RawAppearance): MigratedAppearance {
   const platformPack = lookup(TABLE.packByPlatform, platform) ?? d.icon_pack;
 
   return {
-    appearance_version: TABLE.version,
+    appearance_version,
     color_scheme: pick<SchemeId>(nextScheme, TABLE.schemes, d.color_scheme as SchemeId),
     icon_pack: pick<IconPackId>(raw.icon_pack, TABLE.iconPacks, platformPack as IconPackId),
-    ui_density,
+    theme,
   };
 }
 
@@ -100,15 +109,16 @@ function write(storage: Storage | null, key: string, value: string | null): void
 export function migrateAppearanceStorage(storage: Storage | null): MigratedAppearance {
   const result = migrateAppearance({
     appearance_version: read(storage, APPEARANCE_KEYS.version),
-    platform_theme: read(storage, LEGACY_PLATFORM_KEY),
+    platform_theme: read(storage, RETIRED_STORAGE_KEYS.platform),
     color_scheme: read(storage, APPEARANCE_KEYS.scheme),
     icon_pack: read(storage, APPEARANCE_KEYS.iconPack),
-    ui_density: read(storage, APPEARANCE_KEYS.density),
+    theme: read(storage, APPEARANCE_KEYS.theme),
   });
   write(storage, APPEARANCE_KEYS.scheme, result.color_scheme);
   write(storage, APPEARANCE_KEYS.iconPack, result.icon_pack);
-  write(storage, APPEARANCE_KEYS.density, result.ui_density);
+  write(storage, APPEARANCE_KEYS.theme, result.theme);
   write(storage, APPEARANCE_KEYS.version, String(result.appearance_version));
-  write(storage, LEGACY_PLATFORM_KEY, null);
+  write(storage, RETIRED_STORAGE_KEYS.platform, null);
+  write(storage, RETIRED_STORAGE_KEYS.density, null);
   return result;
 }

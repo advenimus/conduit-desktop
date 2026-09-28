@@ -1,28 +1,22 @@
 /** Reading, validating and applying the appearance on <html>. Shared by useAppearance and the overlay window. */
 import TABLE from "./migration-table.json";
-import { APPEARANCE_KEYS, keptVersion, migrateAppearance } from "./migrate";
+import { APPEARANCE_KEYS, keptVersion, migrateAppearance, type ThemePreference } from "./migrate";
 import { isSchemeId, type SchemeId } from "../schemes";
 import { isIconPackId, type IconPackId } from "../icons/types";
-import type { Density } from "../../styles/metrics";
 
-export type ThemePreference = "dark" | "light" | "system";
+export type { ThemePreference };
 export type ResolvedMode = "dark" | "light";
 
 export interface AppearanceState {
   theme: ThemePreference;
   scheme: SchemeId;
   iconPack: IconPackId;
-  density: Density;
 }
 
 export const DEFAULT_THEME = TABLE.defaults.theme as ThemePreference;
 
 export function isThemePreference(value: unknown): value is ThemePreference {
   return typeof value === "string" && TABLE.themes.includes(value);
-}
-
-export function isDensity(value: unknown): value is Density {
-  return typeof value === "string" && TABLE.densities.includes(value);
 }
 
 export { isSchemeId, isIconPackId };
@@ -51,15 +45,9 @@ export function readStoredAppearance(storage: Storage | null = safeLocalStorage(
     appearance_version: read(storage, APPEARANCE_KEYS.version),
     color_scheme: read(storage, APPEARANCE_KEYS.scheme),
     icon_pack: read(storage, APPEARANCE_KEYS.iconPack),
-    ui_density: read(storage, APPEARANCE_KEYS.density),
+    theme: read(storage, APPEARANCE_KEYS.theme),
   });
-  const theme = read(storage, APPEARANCE_KEYS.theme);
-  return {
-    theme: isThemePreference(theme) ? theme : DEFAULT_THEME,
-    scheme: migrated.color_scheme,
-    iconPack: migrated.icon_pack,
-    density: migrated.ui_density,
-  };
+  return { theme: migrated.theme, scheme: migrated.color_scheme, iconPack: migrated.icon_pack };
 }
 
 export function writeStoredAppearance(state: AppearanceState, storage: Storage | null = safeLocalStorage()): void {
@@ -68,7 +56,6 @@ export function writeStoredAppearance(state: AppearanceState, storage: Storage |
     [APPEARANCE_KEYS.theme, state.theme],
     [APPEARANCE_KEYS.scheme, state.scheme],
     [APPEARANCE_KEYS.iconPack, state.iconPack],
-    [APPEARANCE_KEYS.density, state.density],
     [APPEARANCE_KEYS.version, String(keptVersion(read(storage, APPEARANCE_KEYS.version)))],
   ];
   for (const [key, value] of entries) {
@@ -93,10 +80,9 @@ export function resolveMode(theme: ThemePreference, prefersDark: boolean): Resol
   return theme;
 }
 
-export function applyAppearanceAttributes(root: HTMLElement, look: { mode: ResolvedMode; scheme: SchemeId; density: Density }): void {
+export function applyAppearanceAttributes(root: HTMLElement, look: { mode: ResolvedMode; scheme: SchemeId }): void {
   const other: ResolvedMode = look.mode === "dark" ? "light" : "dark";
   root.classList.remove(other);
   root.classList.add(look.mode);
   if (root.getAttribute("data-scheme") !== look.scheme) root.setAttribute("data-scheme", look.scheme);
-  if (root.getAttribute("data-density") !== look.density) root.setAttribute("data-density", look.density);
 }

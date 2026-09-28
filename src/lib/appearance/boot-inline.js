@@ -8,10 +8,10 @@
     theme: "conduit-theme",
     scheme: "conduit-color-scheme",
     iconPack: "conduit-icon-pack",
-    density: "conduit-density",
-    version: "conduit-appearance-version",
-    legacyPlatform: "conduit-platform-theme"
+    version: "conduit-appearance-version"
   };
+  // The mirrors of the retired settings keys (spec 6.1), removed at every boot.
+  var RETIRED_KEYS = ["conduit-platform-theme", "conduit-density"];
   var root = document.documentElement;
 
   function warn(message, error) {
@@ -61,21 +61,28 @@
     return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
   }
 
-  // A higher version was written by a later build: keeping it stops that build's migration from running again.
+  // max(2, the stored integer): a higher version was written by a later build and is never written back as 2.
   function keptVersion(value) {
     var stored = Number(value);
     return isFinite(stored) && Math.floor(stored) === stored && stored > TABLE.version ? stored : TABLE.version;
   }
 
+  function retiredOr(scheme) {
+    if (typeof scheme !== "string") return scheme;
+    var retired = lookup(TABLE.retiredSchemes, scheme);
+    return retired !== undefined ? retired : scheme;
+  }
+
   function migrate(raw) {
     var d = TABLE.defaults;
-    var density = pick(raw.ui_density, TABLE.densities, d.ui_density);
+    var theme = pick(raw.theme, TABLE.themes, d.theme);
+    var version = keptVersion(raw.appearance_version);
     if (Number(raw.appearance_version) >= TABLE.version) {
       return {
-        version: keptVersion(raw.appearance_version),
-        color_scheme: pick(raw.color_scheme, TABLE.schemes, d.color_scheme),
+        version: version,
+        color_scheme: pick(retiredOr(raw.color_scheme), TABLE.schemes, d.color_scheme),
         icon_pack: pick(raw.icon_pack, TABLE.iconPacks, d.icon_pack),
-        ui_density: density
+        theme: theme
       };
     }
     var platform = typeof raw.platform_theme === "string" ? raw.platform_theme : TABLE.legacy.platform_theme;
@@ -85,10 +92,10 @@
     var next = retired !== undefined ? retired : untouchedDefault ? d.color_scheme : scheme;
     var platformPack = lookup(TABLE.packByPlatform, platform);
     return {
-      version: TABLE.version,
+      version: version,
       color_scheme: pick(next, TABLE.schemes, d.color_scheme),
       icon_pack: pick(raw.icon_pack, TABLE.iconPacks, platformPack !== undefined ? platformPack : d.icon_pack),
-      ui_density: density
+      theme: theme
     };
   }
 
@@ -113,41 +120,27 @@
     return "linux";
   }
 
-  function zoomFactor() {
-    try {
-      var bridge = window.electron;
-      var factor = bridge && typeof bridge.zoomFactor === "function" ? bridge.zoomFactor() : 1;
-      return typeof factor === "number" && isFinite(factor) && factor > 0 ? factor : 1;
-    } catch (e) {
-      warn("could not read the zoom factor", e);
-      return 1;
-    }
-  }
-
   var store = openStorage();
   var result = migrate({
     appearance_version: read(store, KEYS.version),
-    platform_theme: read(store, KEYS.legacyPlatform),
+    platform_theme: read(store, RETIRED_KEYS[0]),
     color_scheme: read(store, KEYS.scheme),
     icon_pack: read(store, KEYS.iconPack),
-    ui_density: read(store, KEYS.density)
+    theme: read(store, KEYS.theme)
   });
   write(store, KEYS.scheme, result.color_scheme);
   write(store, KEYS.iconPack, result.icon_pack);
-  write(store, KEYS.density, result.ui_density);
+  write(store, KEYS.theme, result.theme);
   write(store, KEYS.version, String(result.version));
-  write(store, KEYS.legacyPlatform, null);
+  for (var r = 0; r < RETIRED_KEYS.length; r++) write(store, RETIRED_KEYS[r], null);
 
-  var theme = pick(read(store, KEYS.theme), TABLE.themes, TABLE.defaults.theme);
-  var mode = theme === "dark" || (theme === "system" && prefersDark()) ? "dark" : "light";
+  var mode = result.theme === "dark" || (result.theme === "system" && prefersDark()) ? "dark" : "light";
   var colors = SHELL_COLORS[result.color_scheme][mode];
 
   root.classList.remove("dark", "light");
   root.classList.add(mode);
   root.setAttribute("data-scheme", result.color_scheme);
-  root.setAttribute("data-density", result.ui_density);
   root.setAttribute("data-os", detectOs());
-  root.style.setProperty("--c-zoom", String(zoomFactor()));
   root.style.setProperty("--c-boot-bg", colors.shell);
   root.style.setProperty("--c-boot-fg", colors.fg);
 })();

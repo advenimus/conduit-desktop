@@ -1,16 +1,12 @@
 {
   "version": 2,
   "schemes": ["modern", "ocean", "ember", "forest", "amethyst", "rose", "midnight"],
-  "iconPacks": ["codicons", "lucide", "tabler", "phosphor", "fluent", "material"],
-  "densities": ["comfortable", "compact"],
+  "iconPacks": ["lucide", "phosphor", "hugeicons", "material", "fluent", "tabler"],
   "themes": ["dark", "light", "system"],
-  "titleBarStyles": ["custom", "native"],
   "defaults": {
     "color_scheme": "modern",
-    "icon_pack": "codicons",
-    "ui_density": "comfortable",
-    "theme": "system",
-    "title_bar_style": "custom"
+    "icon_pack": "lucide",
+    "theme": "system"
   },
   "legacy": {
     "platform_theme": "default",
@@ -21,6 +17,7 @@
     "windows": "fluent",
     "ubuntu": "tabler"
   },
+  "retiredKeys": ["platform_theme", "ui_density", "title_bar_style"],
   "retiredSchemes": {
     "macos-blue": "modern",
     "macos-graphite": "modern",
