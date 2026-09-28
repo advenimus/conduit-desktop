@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "about": "Intended differences from the reference inventory, per screen (docs/VISUAL_REDESIGN.md 8.6 step 3). Each change removes a run of reference controls and puts its insert in their place, or inserts before a reference control; with insertWhen, the inserted controls are expected exactly when that selector matches a visible element on the screen. Edited only by the wave's owner of scripts/verify, signed off by the wave's integrator, with the same delta recorded in 8.6.",
+  "deltas": [
+    {
+      "screen": "settings-appearance",
+      "reason": "The platform themes are retired (OD-7) and their block becomes the Icon pack picker (OD-4); Modern is the first color scheme (OD-7).",
+      "changes": [
+        {
+          "reason": "Platform Theme block removed; the Icon pack section takes its place once R1-FOUNDATION renders it",
+          "remove": [
+            { "tag": "label", "text": "Platform Theme" },
+            { "tag": "button", "text": "Default Conduit Classic" },
+            { "tag": "button", "text": "macOS Tahoe Liquid Glass" },
+            { "tag": "button", "text": "— ☐ ✕ Windows 11 Fluent Design" },
+            { "tag": "button", "text": "Ubuntu GNOME / Libadwaita" }
+          ],
+          "insertWhen": "[data-cv-appearance=\"icon-pack\"]",
+          "insert": [
+            { "tag": "label", "text": "Icon pack" },
+            { "tag": "button", "textStartsWith": "Lucide" },
+            { "tag": "button", "textStartsWith": "Phosphor" },
+            { "tag": "button", "textStartsWith": "Hugeicons" },
+            { "tag": "button", "textStartsWith": "Material Symbols" },
+            { "tag": "button", "textStartsWith": "Fluent" },
+            { "tag": "button", "textStartsWith": "Tabler (Classic)" }
+          ]
+        },
+        {
+          "reason": "Modern is the first color scheme card",
+          "insertBefore": { "tag": "button", "text": "Ocean" },
+          "insert": [{ "tag": "button", "text": "Modern" }]
+        }
+      ]
+    }
+  ]
+}

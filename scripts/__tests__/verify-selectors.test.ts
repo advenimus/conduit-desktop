@@ -188,10 +188,15 @@ const ERRORS: Screen = {
     <p data-expect="dialogError" class="text-sm text-red-400">Current password is wrong</p></div></div>`,
 };
 
-const versionLine = (value: string, inUse: boolean, decoy: boolean) => `<div data-line class="flex items-start gap-3 py-2${decoy ? ' rounded-md" data-decoy-class="rounded-md' : ''}">
+// In the redesigned line a wrapper nearer the button than the line carries the legacy line classes.
+const useThis = (value: string, decoy: boolean) => {
+  const button = `<button data-from="reviewField reviewVersion" data-click="use-${value}" type="button"${decoy ? ' class="rounded-md" data-decoy-class="rounded-md"' : ''}>Use this</button>`;
+  return decoy ? `<div class="flex items-start gap-3" data-decoy-class="items-start gap-3">${button}</div>` : button;
+};
+const versionLine = (value: string, inUse: boolean, decoy: boolean) => `<div data-line data-expect="reviewVersion"${decoy ? ' data-cv-review-version' : ''} class="flex items-start gap-3 py-2${decoy ? ' rounded-md" data-decoy-class="rounded-md' : ''}">
   <div class="flex-1 min-w-0"><div class="flex items-start gap-2"><div class="min-w-0 flex-1">${decoy ? '<code data-decoy class="font-mono">v</code>' : ''}<span class="font-mono text-xs"${decoy ? ` data-cv-review-value` : ''} data-expect="reviewValue">${value}</span></div>
   ${inUse ? '<span class="px-1.5 rounded">In use now</span>' : ''}</div><p class="text-[11px]">Mac Mini, 2 min ago</p></div>
-  <button data-from="reviewField" data-click="use-${value}" type="button"${decoy ? ' class="rounded-md" data-decoy-class="rounded-md"' : ''}>Use this</button></div>`;
+  ${useThis(value, decoy)}</div>`;
 
 const REVIEW: Screen = {
   old: `<div class="fixed inset-0 z-[60]"><div data-dialog-content data-root role="dialog" aria-modal="true" aria-label="Review changes">
@@ -206,23 +211,42 @@ const REVIEW: Screen = {
       <div>${versionLine('10.0.0.1', true, true)}${versionLine('10.0.0.2', false, true)}</div></div></div>`,
 };
 
+// Today's layout: a hamburger at the left of every pane's tab bar opens the side bar; once the side
+// bar floats open it becomes an invisible spacer. The side bar holds the vault switcher in its header
+// and the review button in its footer.
+const hamburger = (click: string, hooked: boolean) => hooked
+  ? `<button data-cv-sidebar-toggle aria-expanded="false" aria-label="Open sidebar" data-expect="sidebarOpener" data-click="${click}" title="Open sidebar (Ctrl+B)"><svg></svg></button>`
+  : `<button data-expect="sidebarOpener" data-click="${click}" class="flex items-center justify-center w-11 h-full flex-shrink-0 border-r" title="Open sidebar (Ctrl+B)"><div><span></span><span></span><span></span></div></button>`;
+
 const SHELL_CLOSED: Screen = {
-  old: `<div data-tabbar class="flex h-9"><button data-expect="sidebarOpener" data-click="opener" class="flex w-11" title="Open sidebar (Ctrl+B)"><div><span></span></div></button><div>Home</div></div>`,
-  next: `<div data-cv-titlebar></div><div data-decoy data-tabbar><button data-click="decoy" title="Open sidebar (Ctrl+B)">=</button></div>
-    <div data-cv-activitybar><button data-cv-activity data-cv-sidebar-toggle data-expect="sidebarOpener" data-click="opener" aria-expanded="false" title="Open sidebar (Ctrl+B)">V</button></div>`,
+  old: `<div class="flex"><div data-tabbar class="flex items-center h-9">${hamburger('opener', false)}<div class="flex items-center flex-1"><div>Terminal</div></div><button title="New Local Shell"><svg></svg></button></div>
+    <div data-tabbar class="flex items-center h-9">${hamburger('opener-2', false)}<div class="flex items-center flex-1"><div>Intranet Status</div></div><button title="New Local Shell"><svg></svg></button></div></div>`,
+  next: `<div data-decoy class="welcome"><button data-click="decoy" title="Open sidebar (Ctrl+B)">Open sidebar</button></div>
+    <div class="flex"><div data-tabbar class="cv-tabstrip"><div class="cv-tabstrip-slot">${hamburger('opener', true)}</div><div class="flex-1"><div data-cv-tab>Terminal</div></div><div class="cv-tabstrip-slot"><button data-cv-new-tab title="New Local Shell"><svg></svg></button></div></div>
+    <div data-tabbar class="cv-tabstrip"><div class="cv-tabstrip-slot">${hamburger('opener-2', true)}</div><div class="flex-1"><div data-cv-tab>Intranet Status</div></div><div class="cv-tabstrip-slot"><button data-cv-new-tab title="New Local Shell"><svg></svg></button></div></div></div>`,
 };
 
 const SHELL_OPEN: Screen = {
-  old: `<div data-sidebar-panel data-expect="sidebarOpen" class="fixed top-0"><div class="flex items-center justify-between p-3"><div class="flex items-center gap-1">
-    <button data-expect="vaultSwitcher" title="Close sidebar (Ctrl+B)" aria-label="Close sidebar">x</button><button data-expect="vaultSwitcher" aria-pressed="false" title="Pin sidebar open (Ctrl+Shift+B)">p</button>
-    <div class="relative"><button data-expect="vaultSwitcher" data-click="switcher" class="flex" title="/Users/me/Work.conduit">Work Vault<svg></svg></button></div></div>
-    <div><button data-expect="vaultSwitcher reviewButton" data-click="review" title="Review changes from your other devices">2 to review</button></div></div></div>
-    <div data-tabbar><button data-expect="vaultSwitcher" title="Close sidebar (Ctrl+B)">=</button></div>`,
-  next: `<div data-decoy><button data-click="decoy" title="Review changes from your other devices">2 to review</button></div>
-    <div data-cv-activitybar><button data-cv-sidebar-toggle aria-expanded="true" title="Close sidebar (Ctrl+B)">V</button></div>
-    <div data-sidebar-panel data-expect="sidebarOpen"><div><button data-decoy data-click="decoy" title="Work Vault settings">Work Vault</button>
-      <button data-cv-vault-switcher data-expect="vaultSwitcher" data-click="switcher" title="/Users/me/Work.conduit">Work Vault</button></div></div>
-    <div data-cv-statusbar><button data-cv-status data-cv-review-button data-expect="reviewButton" data-click="review" title="Review changes from your other devices">2</button></div>`,
+  old: `<div data-sidebar-panel data-expect="sidebarOpen" class="fixed top-0 left-0"><div class="h-[2px]"></div>
+    <div class="flex items-center justify-between p-3"><div class="flex items-center gap-1">
+      <button data-expect="vaultSwitcher" title="Close sidebar (Ctrl+B)" aria-label="Close sidebar"><svg></svg></button><button data-expect="vaultSwitcher" aria-pressed="false" title="Pin sidebar open (Ctrl+Shift+B)" aria-label="Pin sidebar open"><svg></svg></button>
+      <div class="relative"><button data-expect="vaultSwitcher" data-click="switcher" class="flex" title="/Users/me/Work.conduit">Work Vault<svg></svg></button></div></div>
+      <div class="flex items-center gap-1"><button data-expect="vaultSwitcher" title="Show favorites only"><svg></svg></button><button data-expect="vaultSwitcher" title="New Entry (Ctrl+E)"><svg></svg></button><button data-expect="vaultSwitcher" title="New Folder (Ctrl+Shift+N)"><svg></svg></button></div></div>
+    <div class="px-3"><input placeholder="Search entries..."></div><div class="flex-1">tree</div>
+    <div class="border-t"><div class="flex items-center justify-between"><span>9 items</span>
+      <button data-expect="vaultSwitcher reviewButton" data-click="review" title="Review changes from your other devices">2 to review</button>
+      <button data-expect="vaultSwitcher" title="Home"><svg></svg></button><button data-expect="vaultSwitcher" title="Settings (Ctrl+,)"><svg></svg></button></div></div></div>
+    <div data-tabbar><button data-expect="vaultSwitcher" class="text-transparent" title="Close sidebar (Ctrl+B)"><div class="opacity-0"></div></button><div>Terminal</div></div>`,
+  next: `<div data-decoy class="banner"><button data-click="decoy" title="Review changes from your other devices">2 to review</button></div>
+    <div data-sidebar-panel data-expect="sidebarOpen"><div data-cv-accent-line></div>
+    <div data-cv-sidebar-header><button aria-label="Close sidebar" title="Close sidebar (Ctrl+B)"><svg></svg></button><button aria-pressed="false" aria-label="Pin sidebar open" title="Pin sidebar open (Ctrl+Shift+B)"><svg></svg></button>
+      <button data-decoy data-click="decoy" title="Work Vault settings">Work Vault</button>
+      <button data-cv-vault-switcher data-expect="vaultSwitcher" data-click="switcher" title="/Users/me/Work.conduit">Work Vault<svg></svg></button>
+      <button title="Show favorites only"><svg></svg></button><button title="New Entry (Ctrl+E)"><svg></svg></button><button title="New Folder (Ctrl+Shift+N)"><svg></svg></button></div>
+    <div data-cv-sidebar-search><input placeholder="Search entries..."></div><div>tree</div>
+    <div data-cv-sidebar-footer><span>9 items</span><button data-cv-review-button data-expect="reviewButton" data-click="review" title="Review changes from your other devices">2 to review</button>
+      <button title="Home"><svg></svg></button><button title="Settings (Ctrl+,)"><svg></svg></button></div></div>
+    <div data-tabbar class="cv-tabstrip"><div class="cv-tabstrip-slot"><button data-cv-sidebar-toggle aria-expanded="true" aria-label="Close sidebar" title="Close sidebar (Ctrl+B)"><svg></svg></button></div><div data-cv-tab>Terminal</div></div>`,
 };
 
 const BANNERS: Screen = {
@@ -317,6 +341,7 @@ const CASES: Record<string, PairCase[]> = {
   reviewField: [{ screen: REVIEW, mode: 'closest', scopes: root }],
   reviewFieldLabel: [{ screen: REVIEW, mode: 'first', scopes: expected('reviewField') }],
   reviewValue: [{ screen: REVIEW, mode: 'first', scopes: () => all('[data-line]') }],
+  reviewVersion: [{ screen: REVIEW, mode: 'closest', scopes: root }],
   reviewButton: [{ screen: SHELL_OPEN, mode: 'all', scopes: doc }],
   bannerText: [{ screen: BANNERS, mode: 'first', scopes: () => all('[role=status]') }],
   sidebarOpener: [

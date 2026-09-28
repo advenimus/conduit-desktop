@@ -224,9 +224,10 @@ async function hasConflictFlag(ctx) {
 
 /** In-page: clicks "Use this" on the version without the "In use now" badge; returns that version's text. */
 export function pickVersionNotInUseInPage(_, cv) {
-  const panel = document.querySelector('[aria-label="Review changes"]');
-  const buttons = [...(panel?.querySelectorAll('button') ?? [])].filter((b) => b.innerText.trim() === 'Use this');
-  const row = buttons.map((b) => ({ b, row: b.parentElement })).find(({ row }) => row && !row.innerText.includes('In use now'));
+  const panel = document.querySelector('[role=dialog][aria-label="Review changes"]');
+  if (!panel) return null;
+  const buttons = [...panel.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'Use this');
+  const row = buttons.map((b) => ({ b, row: cv.pickClosest(b, panel, cv.S.reviewVersion) })).find(({ row }) => row && !row.innerText.includes('In use now'));
   if (!row) return null;
   const value = cv.pickOne(row.row, cv.S.reviewValue)?.innerText.trim() ?? null;
   row.b.click();

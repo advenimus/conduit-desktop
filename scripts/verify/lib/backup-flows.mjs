@@ -187,7 +187,7 @@ export async function cloudBackupNow(device, { timeoutMs = 90_000 } = {}) {
 /** cloud_backup_list_all: [{path, vaultId, vaultName, created_at, size}]. */
 export const listCloudBackups = (device) => invoke(device, 'cloud_backup_list_all');
 
-/** B25: W3-VAULT puts data-cv-backup-manager on the panel; until then the harness marks it. */
+/** B25: R3-VAULT puts data-cv-backup-manager on the panel; until then the harness marks it. */
 function markManagerInPage() {
   if (document.querySelector('[data-cv-backup-manager]')) return true;
   const root = [...document.querySelectorAll('[data-dialog-content]')].find((el) => el.querySelector('h2')?.innerText?.trim() === 'Backup Manager');
