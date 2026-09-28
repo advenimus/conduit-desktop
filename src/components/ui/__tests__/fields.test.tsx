@@ -27,6 +27,44 @@ describe("FormField", () => {
     expect(screen.getByText("At least 12 characters")).toBeInTheDocument();
   });
 
+  it("keeps the description and the error out of the label: they describe the control instead of naming it", () => {
+    render(
+      <FormField label="Host" description="A name or an IP address" error="Enter a host">
+        <TextInput value="" onChange={() => {}} aria-describedby="extra" />
+      </FormField>,
+    );
+    const input = screen.getByRole("textbox", { name: "Host" });
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    const describedBy = (input.getAttribute("aria-describedby") ?? "").split(" ");
+    expect(describedBy[0]).toBe("extra");
+    expect(describedBy.slice(1).map((id) => document.getElementById(id)?.textContent)).toEqual(["A name or an IP address", "Enter a host"]);
+    expect(document.querySelector("label [data-cv-error], label p")).toBeNull();
+    expect(document.querySelector("[data-cv-error]")?.tagName).toBe("P");
+  });
+
+  it("sets no aria-invalid or aria-describedby when there is nothing to describe", () => {
+    render(
+      <FormField label="Host">
+        <TextInput value="" onChange={() => {}} />
+      </FormField>,
+    );
+    const input = screen.getByRole("textbox", { name: "Host" });
+    expect(input).not.toHaveAttribute("aria-invalid");
+    expect(input).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("forwards ref, className and data-* hooks to its root", () => {
+    const ref = createRef<HTMLDivElement>();
+    render(
+      <FormField ref={ref} label="Vault name" className="col-span-2" data-cv-vault-name="">
+        <TextInput value="" onChange={() => {}} />
+      </FormField>,
+    );
+    expect(ref.current).toBe(document.querySelector("[data-cv-vault-name]"));
+    expect(ref.current?.className).toContain("col-span-2");
+    expect(ref.current?.contains(screen.getByRole("textbox", { name: "Vault name" }))).toBe(true);
+  });
+
   it("works with Select and Textarea as the control", () => {
     render(
       <>

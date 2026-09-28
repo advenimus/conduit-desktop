@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { createRef } from "react";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import {
   Badge,
@@ -37,6 +38,22 @@ describe("Spinner", () => {
     expect(screen.getByText("Looking for copies...")).toBeVisible();
     expect(container.textContent).toBe("Looking for copies...");
     expect(container.querySelector("[role=status]")).toBeNull();
+  });
+
+  it("forwards ref, className and data-* hooks to one root element, with or without text", () => {
+    const iconOnly = createRef<HTMLSpanElement>();
+    const withText = createRef<HTMLSpanElement>();
+    render(
+      <>
+        <Spinner ref={iconOnly} className="text-accent" data-cv-busy="icon" />
+        <Spinner ref={withText} text="Opening..." data-cv-busy="text" />
+      </>,
+    );
+    expect(iconOnly.current).toBe(document.querySelector('[data-cv-busy="icon"]'));
+    expect(iconOnly.current?.className).toContain("text-accent");
+    expect(iconOnly.current?.querySelector("svg")).not.toBeNull();
+    expect(withText.current).toBe(document.querySelector('[data-cv-busy="text"]'));
+    expect(withText.current).toHaveTextContent("Opening...");
   });
 
   it("renders at 12, 16 or 24", () => {
