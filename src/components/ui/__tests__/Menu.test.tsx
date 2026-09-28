@@ -148,6 +148,13 @@ describe("Popover", () => {
     expect(freezeHolders()).toEqual([expect.objectContaining({ reason: "popover" })]);
     fireEvent.keyDown(document.activeElement as Element, { key: "Escape" });
     await act(async () => {});
+    // The panel still paints while cv-pop-out plays, so the web view stays hidden until it unmounts.
+    const exiting = document.querySelector("[data-context-menu]") as HTMLElement;
+    expect(exiting).not.toBeNull();
+    expect(isFrozen()).toBe(true);
+    // jsdom plays no animation, so the exit ends on the fallback timer.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 250)));
+    expect(document.querySelector("[data-context-menu]")).toBeNull();
     expect(isFrozen()).toBe(false);
     a.unmount();
 

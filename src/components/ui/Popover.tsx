@@ -108,7 +108,9 @@ function PopoverPanel({
   const placedAnchor = usePlacedAnchor(anchorRef, placement, sizeRef);
   const pos = usePopoverPosition(placedAnchor, size);
 
-  useFreeze(open && (freeze === true || (freeze === "auto" && overEditor)), "popover");
+  // Not tied to `open`: the panel still paints while it plays cv-pop-out, and a web view shown again
+  // during that time would cover it. The freeze ends when the panel unmounts.
+  useFreeze(freeze === true || (freeze === "auto" && overEditor), "popover");
   useLayer({ ref: panelRef, onEscape: onClose, active: open });
 
   useLayoutEffect(() => {

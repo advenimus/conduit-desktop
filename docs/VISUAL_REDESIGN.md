@@ -1237,7 +1237,7 @@ export function freezeHolders(): ReadonlyArray<{ reason: FreezeReason; label?: s
   - every `Dialog`;
   - wave 1's direct additions to the three shared shells: `SyncDialogFrame`, `ConflictReviewPanel` and `ConfirmDialog`. These close today's gap: sync dialogs never froze web views, because they are not in the `App.tsx:389-391` list;
   - the floating side bar and the spilled vault menu;
-  - DOM popovers with `freeze="auto"` whose rect intersects `[data-cv-editor-card]`;
+  - DOM popovers with `freeze="auto"` whose rect intersects `[data-cv-editor-card]` (and `freeze={true}` ones), until the panel unmounts: the freeze outlasts `open` by the `cv-pop-out` exit, so a web view shown again cannot paint over the fading panel;
   - tab drags (`DragContext`).
   
   Native popup menus hold none (D-20).
