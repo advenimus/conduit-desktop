@@ -11,6 +11,7 @@ import { smallButton } from "./ConflictFieldRow";
 import { plural } from "./sync-copy";
 import { useDialogFocus } from "./SyncDialogFrame";
 import { useEscapeLayer } from "./useEscapeLayer";
+import { useFreeze } from "../../lib/native-freeze";
 
 type BulkChoice = "keep-newest-all" | "keep-newest-older-apps";
 
@@ -75,6 +76,7 @@ export default function ConflictReviewPanel({ initialRow }: { initialRow: SyncRo
   const close = () => useSyncStore.getState().closeView();
   const content = useDialogFocus();
   useEscapeLayer(close);
+  useFreeze(true, "dialog", "Review changes");
 
   useEffect(() => {
     void useSyncStore.getState().loadConflicts();
