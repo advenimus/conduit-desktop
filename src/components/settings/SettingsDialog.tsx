@@ -47,6 +47,12 @@ async function saveChangedSettings(edited: Settings, original: Settings | null):
   await invoke("settings_save", { settings: mergeChangedSettings(fresh, original, edited) });
 }
 
+// Only the RDP defaults: an icon pack, scheme or theme being previewed stays unsaved, so Cancel still reverts it.
+async function saveRdpDefaults(rdp: Settings["session_defaults_rdp"]): Promise<void> {
+  const fresh = await invoke<Settings>("settings_get");
+  await invoke("settings_save", { settings: { ...fresh, session_defaults_rdp: rdp } });
+}
+
 export default function SettingsDialog({ onClose, initialTab }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab ?? "general");
   const [settings, setSettings] = useState<Settings>({
@@ -121,11 +127,13 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
     onClose();
   }, [onClose]);
 
-  /** Immediately save settings and reconnect active RDP sessions (used by display scale slider) */
+  /** Immediately save the RDP display scale and reconnect active RDP sessions (used by display scale slider) */
   const handleApplyDisplayScale = useCallback(async (updatedSettings: Settings) => {
     setSettings(updatedSettings);
+    const rdp = updatedSettings.session_defaults_rdp;
     try {
-      await saveChangedSettings(updatedSettings, originalSettingsRef.current);
+      await saveRdpDefaults(rdp);
+      if (originalSettingsRef.current) originalSettingsRef.current = { ...originalSettingsRef.current, session_defaults_rdp: rdp };
       await useSettingsStore.getState().refresh();
       // Reconnect all active RDP sessions in the background
       const rdpSessions = useSessionStore.getState().sessions.filter(
