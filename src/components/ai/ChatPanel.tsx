@@ -1,14 +1,23 @@
-import { useState, useRef, useEffect } from "react";
-import { SendIcon, LoaderIcon, UserIcon, PlusIcon, AlertTriangleIcon, PencilIcon, RefreshIcon, PlayerStopFilledIcon, TerminalIcon, ChevronDownIcon } from "../../lib/icons";
+import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import { SendIcon, LoaderIcon, UserIcon, AlertTriangleIcon, PencilIcon, RefreshIcon, PlayerStopFilledIcon, TerminalIcon, ChevronDownIcon } from "../../lib/icons";
 import { useAiStore, initEngineStreamListener, initEngineModelRefreshListener, ENGINE_SLASH_COMMANDS } from "../../stores/aiStore";
 import type { EngineType } from "../../stores/aiStore";
 import { invoke } from "../../lib/electron";
+import type { IconComponent, IconProps } from "../../lib/icons";
+import { Button, IconButton, Menu, MenuItem } from "../ui";
 import EngineLogo from "./EngineLogo";
 import { ENGINE_TYPES, getHarness, isEngineType } from "../../lib/ai-harnesses";
 import EnginePicker from "./EnginePicker";
 import ModelPicker from "./ModelPicker";
 import MessageBlockRenderer from "./blocks/MessageBlockRenderer";
 import TerminalView from "../sessions/TerminalView";
+
+// Stable per-engine components: MenuItem takes an icon component, and a new one per render would remount the logo.
+const ENGINE_ICONS: Readonly<Record<EngineType, IconComponent>> = Object.freeze(
+  Object.fromEntries(
+    ENGINE_TYPES.map((type) => [type, ({ size, className }: IconProps) => <EngineLogo type={type} size={size} className={className} />]),
+  ) as Record<EngineType, IconComponent>,
+);
 
 export default function ChatPanel() {
   const {
@@ -57,6 +66,18 @@ export default function ChatPanel() {
   // current session without touching the saved default_engine in settings.
   const [engineSwitcherOpen, setEngineSwitcherOpen] = useState(false);
   const engineSwitcherRef = useRef<HTMLDivElement>(null);
+  const engineButtonRef = useRef<HTMLButtonElement>(null);
+
+  const closeEngineSwitcher = () => {
+    setEngineSwitcherOpen(false);
+    engineButtonRef.current?.focus();
+  };
+
+  const onEngineMenuKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    closeEngineSwitcher();
+  };
 
   useEffect(() => {
     if (!engineSwitcherOpen) return;
@@ -220,70 +241,58 @@ export default function ChatPanel() {
   const showPicker = pickerNeeded === true;
 
   return (
-    <div className="flex flex-col h-full bg-canvas">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-        <div className="flex items-center gap-2 min-w-0">
+    <div className="flex flex-col h-full bg-sidebar">
+      <div data-cv-ai-header className="flex h-tabstrip shrink-0 items-center justify-between gap-1 px-2">
+        <div className="flex min-w-0 items-center gap-1">
           {/* Active engine — click to temporarily swap for this session.
               Doesn't touch the saved default; change that in Settings. */}
           <div className="relative" ref={engineSwitcherRef}>
             <button
+              ref={engineButtonRef}
+              type="button"
               onClick={() => setEngineSwitcherOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-well border border-stroke hover:bg-raised text-ink-muted hover:text-ink"
+              aria-haspopup="menu"
+              aria-expanded={engineSwitcherOpen}
+              className="flex h-6 items-center gap-1.5 rounded px-1.5 text-label font-semibold text-ink-secondary hover:bg-hover hover:text-ink"
               title="Switch engine for this session"
             >
-              <EngineLogo type={activeEngineType} size={14} />
-              <span className="text-xs">
-                {getHarness(activeEngineType).name}
-              </span>
-              <ChevronDownIcon size={12} className="text-ink-faint" />
+              <EngineLogo type={activeEngineType} size={16} />
+              <span>{getHarness(activeEngineType).name}</span>
+              <ChevronDownIcon size={16} className="text-ink-muted" />
             </button>
             {engineSwitcherOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-panel border border-stroke rounded-md shadow-lg z-20 min-w-[200px] py-1 max-h-72 overflow-y-auto">
-                {ENGINE_TYPES.map((type) => {
-                  const active = activeEngineType === type;
-                  return (
-                    <button
+              <div className="absolute top-full left-0 mt-1 z-20 min-w-[200px] max-h-72 overflow-y-auto rounded-lg border border-overlay-border bg-overlay shadow-overlay">
+                <Menu onClose={closeEngineSwitcher} onKeyDown={onEngineMenuKeyDown}>
+                  {ENGINE_TYPES.map((type) => (
+                    <MenuItem
                       key={type}
-                      onClick={() => {
-                        // In-memory only — never write to settings here so
-                        // next launch still uses the saved default.
-                        useAiStore.getState().setActiveEngine(type);
-                        setEngineSwitcherOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-raised ${
-                        active ? 'text-ink' : 'text-ink-muted'
-                      }`}
+                      // In-memory only: never write to settings here, so the
+                      // next launch still uses the saved default.
+                      onSelect={() => useAiStore.getState().setActiveEngine(type)}
+                      icon={ENGINE_ICONS[type]}
+                      end={activeEngineType === type ? <span className="shrink-0 text-meta text-link">●</span> : undefined}
                     >
-                      <EngineLogo type={type} size={14} />
-                      <span className="flex-1">
-                        {getHarness(type).name}
-                      </span>
-                      {active && <span className="text-conduit-400 text-xs">●</span>}
-                    </button>
-                  );
-                })}
+                      {getHarness(type).name}
+                    </MenuItem>
+                  ))}
+                </Menu>
               </div>
             )}
           </div>
           {currentEngineModel && (
-            <button
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => useAiStore.getState().fetchEngineModels()}
-              className="ml-1 px-2 py-0.5 text-xs text-ink-muted hover:text-ink bg-well hover:bg-raised border border-stroke rounded truncate max-w-[160px]"
+              className="min-w-0 max-w-[160px]"
               title={`Model: ${currentEngineModel} (click to change)`}
             >
-              {currentEngineModel}
-            </button>
+              <span className="truncate">{currentEngineModel}</span>
+            </Button>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={handleNewChat}
-            className="p-2 hover:bg-panel rounded text-ink-muted hover:text-ink"
-            title="New conversation"
-          >
-            <PlusIcon size={16} />
-          </button>
+        <div className="flex shrink-0 items-center">
+          <IconButton icon="plus" label="New conversation" onClick={handleNewChat} />
         </div>
       </div>
 
