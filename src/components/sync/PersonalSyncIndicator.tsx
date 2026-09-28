@@ -7,10 +7,10 @@ import type { SyncStatus } from "../../types/sync";
 import { statusDetail, statusLabel, statusTone, type StatusTone } from "./sync-copy";
 
 const TONE_CLASS: Readonly<Record<StatusTone, string>> = {
-  ok: "text-green-400",
-  busy: "text-conduit-400",
-  warn: "text-amber-400",
-  error: "text-red-400",
+  ok: "text-success",
+  busy: "text-link",
+  warn: "text-warning",
+  error: "text-danger",
   off: "text-ink-faint",
 };
 
@@ -41,21 +41,22 @@ export default function PersonalSyncIndicator() {
   const review = status.conflictCount;
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       <button
         type="button"
         onClick={openSyncSettings}
-        className={`p-1 rounded hover:bg-raised ${TONE_CLASS[statusTone(status, killSwitch)]}`}
+        className={`inline-flex size-toolbar shrink-0 items-center justify-center rounded hover:bg-toolbar-hover ${TONE_CLASS[statusTone(status, killSwitch)]}`}
         title={detail ? `${label}. ${detail}` : label}
         aria-label={`Sync: ${label}`}
       >
-        <Icon size={14} className={spinning ? "animate-spin" : undefined} />
+        <Icon size={16} className={spinning ? "animate-spin" : undefined} />
       </button>
       {review > 0 && (
         <button
           type="button"
           onClick={() => useSyncStore.getState().openView({ kind: "review", row: null })}
-          className="px-1.5 py-0.5 text-[10px] font-medium text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded"
+          data-cv-review-button
+          className="h-5 shrink-0 rounded px-1.5 text-badge font-semibold text-warning bg-warning-bg hover:underline"
           title="Review changes from your other devices"
         >
           {review} to review

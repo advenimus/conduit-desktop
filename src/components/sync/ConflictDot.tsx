@@ -19,7 +19,7 @@ export default function ConflictDot({ tbl, rowId }: ConflictDotProps) {
         e.stopPropagation();
         useSyncStore.getState().openView({ kind: "review", row: { tbl, rowId } });
       }}
-      className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 cursor-pointer"
+      className="inline-block w-1.5 h-1.5 rounded-full bg-warning flex-shrink-0 cursor-pointer"
     />
   );
 }

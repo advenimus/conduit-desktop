@@ -19,6 +19,7 @@ import type { EntryType, EntryMeta, FolderData } from "../../types/entry";
 import {
   ChevronDownIcon, ChevronRightIcon, LockIcon, StarFilledIcon, UsersIcon
 } from "../../lib/icons";
+import { cx } from "../ui";
 
 interface TreeNode {
   id: string;
@@ -39,6 +40,37 @@ interface FolderGroup {
 interface EntryTreeProps {
   searchQuery?: string;
   showFavoritesOnly?: boolean;
+}
+
+/** Row inset and indent per tree level (spec 3.6, 4.14). */
+const ROW_INSET_PX = 4;
+const INDENT_PX = 8;
+/** The first indent guide runs through the middle of a top-level row's 16px twistie. */
+const GUIDE_OFFSET_PX = ROW_INSET_PX + 8;
+
+function rowStateClass(isDragOver: boolean, isLocked: boolean, isSelected: boolean): string {
+  if (isDragOver) return "bg-(--c-drop-bg) outline outline-1 -outline-offset-1 outline-accent text-ink-secondary";
+  if (isLocked) return "opacity-60 text-ink-faint";
+  if (isSelected) return "bg-selected text-ink";
+  return "hover:bg-hover text-ink-secondary";
+}
+
+/** One 1px line per ancestor level, shown while the tree is hovered or focused. */
+function IndentGuides({ depth }: { depth: number }) {
+  if (depth === 0) return null;
+  return (
+    <>
+      {Array.from({ length: depth }, (_, k) => (
+        <span
+          key={k}
+          data-indent-guide=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 w-px bg-(--c-indent-guide) opacity-0 transition-opacity duration-100 group-hover/tree:opacity-100 group-focus-within/tree:opacity-100"
+          style={{ left: `${GUIDE_OFFSET_PX + k * INDENT_PX}px` }}
+        />
+      ))}
+    </>
+  );
 }
 
 function saveExpandedFolders(folders: Set<string>, favoritesMode: boolean, vid: string | null): void {
@@ -865,7 +897,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
     return (
       <div key={group.path}>
         <div
-          className="px-3 pt-3 pb-1 text-[11px] font-medium text-ink-faint uppercase tracking-wide truncate"
+          className="h-row px-2 pt-2 text-meta font-semibold text-ink-muted truncate"
           title={group.path === "/" ? "Root" : group.path}
         >
           {group.path === "/" ? "Root" : group.path}
@@ -894,16 +926,12 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
     return (
       <div key={node.id}>
         <div
-          className={`flex items-center gap-1 px-2 py-1 cursor-pointer rounded text-sm whitespace-nowrap ${
-            isDragOver
-              ? "bg-conduit-600/30 ring-1 ring-conduit-500"
-              : isLocked
-                ? "opacity-60 text-ink-faint"
-                : isSelected
-                  ? "bg-conduit-600/20 text-conduit-400"
-                  : "hover:bg-raised/50 text-ink-secondary"
-          }`}
-          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+          data-selected={isSelected ? "" : undefined}
+          className={cx(
+            "relative flex h-row items-center gap-1.5 rounded pr-2 text-body whitespace-nowrap cursor-pointer",
+            rowStateClass(isDragOver, isLocked, isSelected),
+          )}
+          style={{ paddingLeft: ROW_INSET_PX + depth * INDENT_PX }}
           onClick={(e) => {
             if (e.ctrlKey || e.metaKey) {
               // Ctrl/Cmd+Click: toggle selection without toggling expand
@@ -932,7 +960,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
               // Create drag image badge showing count
               const badge = document.createElement("div");
               badge.textContent = `${dragItems.length} items`;
-              badge.style.cssText = "position:fixed;top:-100px;left:-100px;padding:4px 10px;border-radius:6px;background:#6366f1;color:white;font-size:12px;font-weight:500;white-space:nowrap;";
+              badge.style.cssText = "position:fixed;top:-100px;left:-100px;padding:4px 10px;border-radius:4px;background:var(--c-btn-primary-bg);color:white;font-size:12px;font-weight:600;white-space:nowrap;";
               document.body.appendChild(badge);
               e.dataTransfer.setDragImage(badge, 0, 0);
               requestAnimationFrame(() => document.body.removeChild(badge));
@@ -962,22 +990,23 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             handleDrop(e, node.id);
           }}
         >
+          <IndentGuides depth={depth} />
           {isExpandable ? (
-            <button className="p-0.5 flex-shrink-0">
+            <button type="button" className="flex size-4 shrink-0 items-center justify-center text-ink-muted">
               {isExpanded ? (
-                <ChevronDownIcon size={12} />
+                <ChevronDownIcon size={16} />
               ) : (
-                <ChevronRightIcon size={12} />
+                <ChevronRightIcon size={16} />
               )}
             </button>
           ) : (
-            <span className="w-4 flex-shrink-0" />
+            <span className="size-4 shrink-0" />
           )}
           <Icon size={16} className={`flex-shrink-0 ${colorResult.className ?? ""}`} style={colorResult.style} />
           {isRenaming ? (
             <input
               ref={renameInputRef}
-              className="bg-raised text-ink border border-conduit-500 rounded px-1 outline-none min-w-0 flex-1 text-sm"
+              className="h-5 min-w-0 flex-1 rounded-[2px] border border-(--c-focus) bg-input px-1 text-body text-ink outline-hidden"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
@@ -992,17 +1021,17 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
               {node.name}
               {vaultType === "personal" && <ConflictDot tbl={isFolder ? 2 : 1} rowId={node.id} />}
               {isLocked && (
-                <LockIcon size={10} className="text-ink-faint flex-shrink-0" />
+                <LockIcon size={12} className="text-ink-faint flex-shrink-0" />
               )}
               {isFolder && vaultType === "team" && (() => {
                 const effectiveRole = getEffectiveRole(node.id);
                 if (effectiveRole === "viewer") {
-                  return <span title="View-only"><LockIcon size={10} className="text-amber-400 flex-shrink-0" /></span>;
+                  return <span title="View-only" className="flex shrink-0"><LockIcon size={12} className="text-warning" /></span>;
                 }
                 return null;
               })()}
               {!isFolder && !isLocked && favoriteIds.has(node.id) && (
-                <StarFilledIcon size={10} className="text-yellow-400 flex-shrink-0" />
+                <StarFilledIcon size={12} className="text-favorite flex-shrink-0" />
               )}
             </span>
           )}
@@ -1022,15 +1051,15 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
       return (
         <div className="mt-8 text-center px-4">
           <UsersIcon size={32} className="text-ink-faint mx-auto mb-2" />
-          <p className="text-sm text-ink-muted">No entries in this vault yet</p>
-          <p className="text-xs text-ink-faint mt-1">
+          <p className="text-body text-ink-muted">No entries in this vault yet</p>
+          <p className="text-label text-ink-faint mt-1">
             Click + above to add your first connection or credential.
           </p>
         </div>
       );
     }
     return (
-      <div className="mt-4 text-center text-sm text-ink-faint">
+      <div className="mt-4 text-center text-body text-ink-faint">
         {searchQuery
           ? "No matching entries"
           : showFavoritesOnly
@@ -1042,7 +1071,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
 
   return (
     <div
-      className="py-1"
+      className="group/tree py-1"
       onClick={(e) => {
         // Click on empty tree area: clear selection
         if (e.target === e.currentTarget) {
@@ -1068,9 +1097,10 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
       {/* Root drop zone: drop items here to move to root level */}
       {!isFlatMode && (
         <div
-          className={`h-6 mx-2 mt-1 rounded transition-colors ${
-            dragOverRoot ? "bg-conduit-600/20 border border-dashed border-conduit-500/50" : ""
-          }`}
+          className={cx(
+            "h-6 mx-1 mt-1 rounded",
+            dragOverRoot && "bg-(--c-drop-bg) border border-dashed border-accent",
+          )}
           onDragOver={(e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
