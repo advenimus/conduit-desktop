@@ -2,19 +2,20 @@ import { useMemo } from "react";
 import { useEntryStore } from "../../stores/entryStore";
 import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import type { EntryMeta, EntryType } from "../../types/entry";
+import { Button, Card, ListRow, SectionHeader } from "../ui";
 
 interface FolderDashboardProps {
   folderId: string;
 }
 
 const TYPE_COLORS: Record<EntryType, string> = {
-  ssh: "bg-green-400",
-  rdp: "bg-blue-400",
-  vnc: "bg-purple-400",
-  web: "bg-cyan-400",
-  credential: "bg-yellow-400",
-  document: "bg-teal-400",
-  command: "bg-amber-400",
+  ssh: "bg-entry-ssh",
+  rdp: "bg-entry-rdp",
+  vnc: "bg-entry-vnc",
+  web: "bg-entry-web",
+  credential: "bg-entry-credential",
+  document: "bg-entry-document",
+  command: "bg-entry-command",
 };
 
 const TYPE_LABELS: Record<EntryType, string> = {
@@ -104,8 +105,8 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
 
   if (!folder) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-canvas">
-        <p className="text-ink-faint">Folder not found</p>
+      <div className="flex-1 flex items-center justify-center bg-editor">
+        <p className="text-body text-ink-faint">Folder not found</p>
       </div>
     );
   }
@@ -114,9 +115,9 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
   const typeEntries = Object.entries(typeCounts) as [EntryType, number][];
 
   return (
-    <div className="flex-1 flex flex-col bg-canvas overflow-y-auto h-full">
+    <div className="flex-1 flex flex-col bg-editor overflow-y-auto h-full">
       {/* Header */}
-      <div className="p-6 border-b border-stroke">
+      <div className="p-6 border-b border-divider">
         <div className="flex items-center gap-3">
           {(() => {
             const FolderIcon = getEntryIcon("folder", true, folder.icon);
@@ -124,8 +125,8 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
             return <FolderIcon size={28} stroke={1.5} className={folderColorResult.className} style={folderColorResult.style} />;
           })()}
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-semibold text-ink truncate">{folder.name}</h2>
-            <p className="text-sm text-ink-muted">
+            <h2 className="text-title font-semibold text-ink truncate">{folder.name}</h2>
+            <p className="text-body text-ink-muted">
               {total} {total === 1 ? "entry" : "entries"}
               {subFolderCount > 0 && ` \u00b7 ${subFolderCount} sub-folder${subFolderCount === 1 ? "" : "s"}`}
             </p>
@@ -140,16 +141,13 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
             const Icon = getEntryIcon(type, false);
             const colorResult = getEntryColor(type);
             return (
-              <div
-                key={type}
-                className="bg-panel rounded-lg px-4 py-3 border border-stroke flex items-center gap-3"
-              >
+              <Card key={type} className="flex items-center gap-3">
                 <Icon size={18} stroke={1.5} className={colorResult.className} style={colorResult.style} />
                 <div>
-                  <p className="text-lg font-semibold text-ink">{count}</p>
-                  <p className="text-xs text-ink-muted">{TYPE_LABELS[type]}</p>
+                  <p className="text-title font-semibold text-ink">{count}</p>
+                  <p className="text-label text-ink-muted">{TYPE_LABELS[type]}</p>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -158,7 +156,7 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
       {/* Type distribution bar */}
       {total > 0 && typeEntries.length > 1 && (
         <div className="px-6 py-3">
-          <p className="text-xs text-ink-faint mb-2">Type Distribution</p>
+          <p className="text-label text-ink-faint mb-2">Type Distribution</p>
           <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
             {typeEntries.map(([type, count]) => (
               <div
@@ -171,7 +169,7 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
           </div>
           <div className="flex flex-wrap gap-3 mt-2">
             {typeEntries.map(([type, count]) => (
-              <div key={type} className="flex items-center gap-1.5 text-xs text-ink-muted">
+              <div key={type} className="flex items-center gap-1.5 text-label text-ink-muted">
                 <span className={`inline-block w-2 h-2 rounded-full ${TYPE_COLORS[type]}`} />
                 {TYPE_LABELS[type]} ({Math.round((count / total) * 100)}%)
               </div>
@@ -182,8 +180,8 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
 
       {/* Recent activity */}
       {recentEntries.length > 0 && (
-        <div className="px-6 py-4">
-          <h3 className="text-sm font-medium text-ink-muted mb-3">Recent Activity</h3>
+        <section className="px-6 py-4">
+          <SectionHeader title="Recent Activity" />
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
             {recentEntries.map((entry) => (
               <EntryCard
@@ -197,50 +195,47 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
               />
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Entry age */}
       {oldestEntries.length > 0 && (
-        <div className="px-6 pb-6">
-          <h3 className="text-sm font-medium text-ink-muted mb-3">Entry Age</h3>
-          <div className="space-y-1">
+        <section className="px-6 pb-6">
+          <SectionHeader title="Entry Age" />
+          <div className="space-y-px">
             {oldestEntries.map((entry) => {
               const Icon = getEntryIcon(entry.entry_type, false, entry.icon);
               const colorResult = getEntryColor(entry.entry_type, entry.color);
               return (
-                <button
+                <ListRow
                   key={entry.id}
                   onClick={() => setSelectedEntry(entry.id)}
-                  className="flex items-center gap-3 w-full px-3 py-2 rounded hover:bg-panel text-left transition-colors"
+                  leading={<Icon size={16} stroke={1.5} className={colorResult.className} style={colorResult.style} />}
+                  meta={timeAgo(entry.created_at)}
                 >
-                  <Icon size={16} stroke={1.5} className={colorResult.className} style={colorResult.style} />
-                  <span className="text-sm text-ink truncate flex-1">{entry.name}</span>
-                  <span className="text-xs text-ink-faint flex-shrink-0">
-                    {timeAgo(entry.created_at)}
-                  </span>
-                </button>
+                  {entry.name}
+                </ListRow>
               );
             })}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Empty state */}
       {total === 0 && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-ink-faint mb-2">This folder is empty</p>
-            <button
+            <p className="text-body text-ink-faint mb-2">This folder is empty</p>
+            <Button
+              variant="primary"
               onClick={() =>
                 document.dispatchEvent(
                   new CustomEvent("conduit:new-entry", { detail: { folderId } }),
                 )
               }
-              className="px-4 py-2 bg-conduit-600 hover:bg-conduit-700 text-white rounded-md text-sm font-medium transition-colors"
             >
               New Entry
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -263,16 +258,14 @@ function EntryCard({
   const colorResult = getEntryColor(entry.entry_type, entry.color);
 
   return (
-    <button
+    <ListRow
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      className="flex items-center gap-3 p-3 bg-panel hover:bg-raised border border-stroke rounded-lg text-left transition-colors hover:border-stroke-dim"
+      leading={<Icon size={20} stroke={1.5} className={colorResult.className} style={colorResult.style} />}
+      description={subtitle}
+      className="border border-card-border bg-well"
     >
-      <Icon size={20} stroke={1.5} className={colorResult.className} style={colorResult.style} />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-ink truncate">{entry.name}</p>
-        <p className="text-xs text-ink-faint truncate">{subtitle}</p>
-      </div>
-    </button>
+      {entry.name}
+    </ListRow>
   );
 }
