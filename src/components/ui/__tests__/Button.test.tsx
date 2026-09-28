@@ -39,6 +39,17 @@ describe("Button", () => {
     expect(screen.getByRole("button")).toHaveTextContent("Checking...");
   });
 
+  it("draws the loader at the icon size: 16px, 12px in sm (spec 4.2)", () => {
+    const view = render(<Button loading>Saving</Button>);
+    expect(screen.getByRole("button").querySelector("svg")).toHaveAttribute("width", "16");
+    view.rerender(
+      <Button loading size="sm">
+        Saving
+      </Button>,
+    );
+    expect(screen.getByRole("button").querySelector("svg")).toHaveAttribute("width", "12");
+  });
+
   it("does not fire onClick while loading or disabled", () => {
     const onClick = vi.fn();
     const view = render(

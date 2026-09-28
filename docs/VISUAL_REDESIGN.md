@@ -1127,7 +1127,7 @@ Text rule: no status bar item may show text exactly equal to the six unscoped ha
 | `danger` | `bg-btn-danger hover:bg-btn-danger-hover text-white border-transparent` | 2.2.3 |
 | `link` | `h-auto px-0 border-0 bg-transparent text-link hover:text-link-hover hover:underline` | [V] `textLink.*` |
 | Icon | 16px (`sm`: 12px, the compact glyph when the pack has one), 4px gap | [V] leading icon 16, 4px gap |
-| Loading | a 16px spinning `loader` replaces the icon; the label stays visible: `loadingLabel` when given (for example `<Button loading loadingLabel="Opening...">`), else the children; `aria-busy="true"`; disabled | the harness reads `Opening...`, `Please wait...` and `Checking...` from the button text (B35) |
+| Loading | a spinning `loader` at the icon size replaces the icon (16px; in `sm` 12px with the compact glyph, as the Icon row, so a small button keeps its size) [wave 1 review]; the label stays visible: `loadingLabel` when given (for example `<Button loading loadingLabel="Opening...">`), else the children; `aria-busy="true"`; disabled | the harness reads `Opening...`, `Please wait...` and `Checking...` from the button text (B35) |
 | Order in footers | secondary first, primary last (right), as today (`SettingsDialog.tsx:218-231`) | |
 
 Replaces the 332 raw text buttons, `DialogButton` (`SyncDialogFrame.tsx:71-100`), `smallButton()` (`ConflictFieldRow.tsx:34-38`), the `ConfirmDialog` buttons (`ConfirmDialog.tsx:30-43`), and the toast and banner actions [V counts, primitives research].
