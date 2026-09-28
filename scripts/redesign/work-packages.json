@@ -142,7 +142,7 @@
       "deliverables": [
         "Every primitive in spec section 4 (4.2-4.15) as one file each, barrel index.ts and cx.ts, including: Dialog with onSubmit (one form around header, body and footer), the portal prop and no animation; Button loadingLabel and data-cv-text-button; Spinner text; Menu items as button[role=menuitem]; ListRow as a button when clickable, with opacity-only reveal; Radio as label > input; the Switch off state on the checkbox tokens; Tabs panel and underline variants; IconButton radius 4; the count badge metrics",
         "layers.ts (useLayer, useEscapeLayer); src/components/sync/useEscapeLayer.ts becomes a re-export",
-        "gallery.html + src/gallery.tsx with scheme, mode, density and pack switches (dev server only), including every focusable primitive focused inside a Card and inside a tab strip",
+        "gallery.html + src/gallery.tsx with scheme, mode, density and pack switches (dev server only), including every focusable primitive focused inside a Card and inside a tab strip (except the strip exemptions in 2.7)",
         "scripts/redesign/legacy-classes.mjs: reports the 4.16 legacy patterns (uppercase and tracking, text-base, text-xl and bg-well on code blocks included) found inside class strings only, per path, with the Appendix B allowlist and the 10.5 dead files excluded"
       ],
       "acceptance": [

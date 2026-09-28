@@ -45,7 +45,8 @@ function ForceFocus({ selector, children }: { selector: string; children: ReactN
 /**
  * Every focusable primitive at a size that fits a tab strip, each forced into its focus state. Text
  * buttons are the small size: a 26px button's ring sits 2px outside it (spec 2.7), 32px in all, which
- * fits the 33px Comfortable strip but not the 29px Compact one.
+ * fits the 33px Comfortable strip but not the 29px Compact one. Spec 2.7 exempts text Buttons md and lg,
+ * Textarea, Tabs and ChoiceCard from the strips, since none of them ever sits in one; they show in the Card.
  */
 function compactControls(): ReadonlyArray<ReactElement> {
   return [

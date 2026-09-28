@@ -490,7 +490,7 @@ One rule set in `base.css`, zero specificity so components can refine it:
 
 VS Code draws the default ring inside the element: `.monaco-workbench [tabindex="0"]:focus, … button:focus, … input[type=checkbox]:focus {outline-width:1px; outline-style:solid; outline-offset:-1px}`, then moves it 2px outside only for `input[type=checkbox]:focus` and `.monaco-text-button:focus` [V]. An outside ring would be clipped by `.cv-card {overflow:hidden}`, `.cv-tabs {overflow-y:hidden}` and the 22px status bar. The `Button` primitive (text buttons) sets `data-cv-text-button`; `IconButton`, status bar items, title bar controls, tab close buttons and activity items keep the inset ring. The `Checkbox` and `Radio` inputs get the 2px ring because of the second rule, which beats the `input` part of the first (same zero specificity, later in the file). `ChoiceCard` (`data-cv-choice`) also takes the 2px ring [ADAPT, wave 1 review]: the checked card's 1px border is the accent, and `--c-focus` equals `--c-accent` in all seven dark schemes and in Modern light, so an inset ring would lie exactly on that border and show nothing (roving focus always lands on the checked card). `ChoiceGroup` keeps `p-[3px]` so a scrolling parent cannot clip the ring.
 
-This replaces `index.css:418-430`, which removed button focus outlines entirely (1 of 452 buttons re-added one [V research]). `:focus-visible` does not match mouse clicks on buttons, so pointer users see no ring. Composite fields whose wrapper shows focus keep `data-bare` on the inner input and put `focus-within:outline …` on the wrapper. The gallery (4.1) shows every focusable primitive focused inside a Card and inside a tab strip, so a clipped ring is visible in review.
+This replaces `index.css:418-430`, which removed button focus outlines entirely (1 of 452 buttons re-added one [V research]). `:focus-visible` does not match mouse clicks on buttons, so pointer users see no ring. Composite fields whose wrapper shows focus keep `data-bare` on the inner input and put `focus-within:outline …` on the wrapper. The gallery (4.1) shows every focusable primitive focused inside a Card, and every one that can sit in a 29px row focused inside a tab strip, so a clipped ring is visible in review. Text `Button`s at `md` and `lg`, `Textarea`, `Tabs` (it brings its own 35px strip) and `ChoiceCard` are exempt from the strip: they never sit in a tab strip, the status bar or the title bar, and a 26px text button's 2px-outside ring needs 32px, more than the 29px Compact strip [wave 1 review]. `Button sm` and `link` stand in for text buttons there.
 
 ### 2.8 Other global rules in `base.css`
 
@@ -1109,7 +1109,7 @@ Text rule: no status bar item may show text exactly equal to the six unscoped ha
   - DOM menu items render `<button type="button" role="menuitem">` (the harness clicks `Lock Current Vault` with selector `button`, B43). Clickable `ListRow`s render `<button>` (B44).
   - Actions revealed on hover or focus hide with `opacity: 0` only, never `visibility` or `display`: the harness skips elements that are `visibility: hidden` or have no layout box (`ui.mjs:85-88`, B45).
   - Busy text stays visible text: `Button loading` keeps a visible label and `Spinner` can show text (4.2, 4.12, B35).
-- A shared gallery (`gallery.html` + `src/gallery.tsx`, dev server only, not in `rollupOptions.input`) renders every primitive in every state, including each focusable primitive focused inside a `Card` and inside a tab strip (2.7). It has scheme, mode, density and icon pack switches. It is the screenshot source in section 8.6.
+- A shared gallery (`gallery.html` + `src/gallery.tsx`, dev server only, not in `rollupOptions.input`) renders every primitive in every state, including each focusable primitive focused inside a `Card` and, except the strip exemptions in 2.7, inside a tab strip. It has scheme, mode, density and icon pack switches. It is the screenshot source in section 8.6.
 
 ### 4.2 Button
 
@@ -1920,7 +1920,7 @@ There are 30 packages in 4 waves. The same list is in machine-readable form at `
 
 - Every primitive in spec section 4 (4.2-4.15) as one file each, barrel index.ts and cx.ts, including: Dialog with onSubmit (one form around header, body and footer), the portal prop and no animation; Button loadingLabel and data-cv-text-button; Spinner text; Menu items as button[role=menuitem]; ListRow as a button when clickable, with opacity-only reveal; Radio as label > input; the Switch off state on the checkbox tokens; Tabs panel and underline variants; IconButton radius 4; the count badge metrics
 - layers.ts (useLayer, useEscapeLayer); src/components/sync/useEscapeLayer.ts becomes a re-export
-- gallery.html + src/gallery.tsx with scheme, mode, density and pack switches (dev server only), including every focusable primitive focused inside a Card and inside a tab strip
+- gallery.html + src/gallery.tsx with scheme, mode, density and pack switches (dev server only), including every focusable primitive focused inside a Card and inside a tab strip (except the strip exemptions in 2.7)
 - scripts/redesign/legacy-classes.mjs: reports the 4.16 legacy patterns (uppercase and tracking, text-base, text-xl and bg-well on code blocks included) found inside class strings only, per path, with the Appendix B allowlist and the 10.5 dead files excluded
 
 **Acceptance:**
