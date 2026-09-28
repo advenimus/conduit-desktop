@@ -150,16 +150,9 @@ export const SEMANTIC_ICON_NAMES = [
 
   // ── Layout and chrome ──
   "menu",
-  "panelLeft",
-  "panelLeftOff",
-  "panelRight",
-  "panelRightOff",
   "splitHorizontal",
   "splitVertical",
   "ellipsis",
-  "collapseAll",
-  "account",
-  "explorer",
   "circleFilled",
 ] as const;
 
@@ -172,11 +165,11 @@ export interface IconProps {
   size?: number;
   className?: string;
   style?: CSSProperties;
-  /** Use the pack's 12px glyph where one exists (Codicons). */
+  /** Use the glyph's 12px variant where one exists (the state dot). */
   compact?: boolean;
   /** Makes the icon an image with this accessible name; icons are decorative otherwise. */
   title?: string;
-  /** Line width for Lucide and Tabler; the fill-based packs ignore it. */
+  /** Line width for Lucide, Tabler and Hugeicons; the fill-based packs ignore it. */
   stroke?: number;
 }
 
@@ -186,7 +179,7 @@ export type IconComponent = ComponentType<IconProps>;
 /** A complete mapping from every semantic name to an icon component. */
 export type IconMapping = Readonly<Record<SemanticIconName, IconComponent>>;
 
-export type IconPackId = "codicons" | "lucide" | "tabler" | "phosphor" | "fluent" | "material";
+export type IconPackId = "lucide" | "phosphor" | "hugeicons" | "material" | "fluent" | "tabler";
 
 export interface IconPackInfo {
   id: IconPackId;
@@ -197,19 +190,12 @@ export interface IconPackInfo {
   version: string;
 }
 
-export const DEFAULT_ICON_PACK: IconPackId = "codicons";
+export const DEFAULT_ICON_PACK: IconPackId = "lucide";
 
 export const ICON_PACK_STORAGE_KEY = "conduit-icon-pack";
 
+/** Every shipped pack, in the order the Settings picker shows them (spec 5.8). */
 export const ICON_PACKS: ReadonlyArray<IconPackInfo> = Object.freeze([
-  {
-    id: "codicons",
-    label: "Codicons",
-    description: "VS Code icons · CC BY 4.0",
-    license: "CC-BY-4.0",
-    packageName: "@iconify-json/codicon",
-    version: "1.2.73",
-  },
   {
     id: "lucide",
     label: "Lucide",
@@ -217,14 +203,6 @@ export const ICON_PACKS: ReadonlyArray<IconPackInfo> = Object.freeze([
     license: "ISC",
     packageName: "lucide-react",
     version: "1.48.0",
-  },
-  {
-    id: "tabler",
-    label: "Tabler (Classic)",
-    description: "The classic Conduit icons · MIT",
-    license: "MIT",
-    packageName: "@tabler/icons-react",
-    version: "3.38.0",
   },
   {
     id: "phosphor",
@@ -235,12 +213,12 @@ export const ICON_PACKS: ReadonlyArray<IconPackInfo> = Object.freeze([
     version: "2.1.10",
   },
   {
-    id: "fluent",
-    label: "Fluent",
-    description: "Windows 11 icons · MIT",
+    id: "hugeicons",
+    label: "Hugeicons",
+    description: "Rounded line icons · MIT",
     license: "MIT",
-    packageName: "@fluentui/react-icons",
-    version: "2.0.321",
+    packageName: "@hugeicons/core-free-icons",
+    version: "4.3.5",
   },
   {
     id: "material",
@@ -250,41 +228,26 @@ export const ICON_PACKS: ReadonlyArray<IconPackInfo> = Object.freeze([
     packageName: "@iconify-json/material-symbols-light",
     version: "1.2.94",
   },
+  {
+    id: "fluent",
+    label: "Fluent",
+    description: "Windows 11 icons · MIT",
+    license: "MIT",
+    packageName: "@fluentui/react-icons",
+    version: "2.0.321",
+  },
+  {
+    id: "tabler",
+    label: "Tabler (Classic)",
+    description: "The classic Conduit icons · MIT",
+    license: "MIT",
+    packageName: "@tabler/icons-react",
+    version: "3.38.0",
+  },
 ] as const satisfies ReadonlyArray<IconPackInfo>);
 
 const PACK_IDS: ReadonlySet<string> = new Set(ICON_PACKS.map((pack) => pack.id));
 
 export function isIconPackId(value: unknown): value is IconPackId {
   return typeof value === "string" && PACK_IDS.has(value);
-}
-
-/** @deprecated Platform themes are retired; use IconPackId. Removed by W4-CLEANUP. */
-export type IconTheme = "default" | "macos" | "windows" | "ubuntu";
-
-/** @deprecated Retired with the platform themes. */
-export interface ThemeIconDefaults {
-  size: number;
-  strokeWidth: number;
-}
-
-/** @deprecated Retired with the platform themes. */
-export const THEME_ICON_DEFAULTS: Readonly<Record<IconTheme, ThemeIconDefaults>> = Object.freeze({
-  default: { size: 16, strokeWidth: 1.5 },
-  macos: { size: 16, strokeWidth: 1.5 },
-  windows: { size: 16, strokeWidth: 1.5 },
-  ubuntu: { size: 16, strokeWidth: 2.0 },
-});
-
-/** @deprecated Maps a retired platform theme to the pack its users keep (spec 5.9). */
-export const PACK_BY_ICON_THEME: Readonly<Record<IconTheme, IconPackId>> = Object.freeze({
-  default: "tabler",
-  macos: "phosphor",
-  windows: "fluent",
-  ubuntu: "tabler",
-});
-
-const ICON_THEMES: ReadonlySet<string> = new Set(Object.keys(PACK_BY_ICON_THEME));
-
-export function isIconTheme(value: unknown): value is IconTheme {
-  return typeof value === "string" && ICON_THEMES.has(value);
 }

@@ -106,14 +106,10 @@ import {
   ListNumbers,
   Table,
   Quotes,
-  ArrowsInLineVertical,
   DotsThree,
-  Files,
   List,
-  SidebarSimple,
   SquareSplitHorizontal,
   SquareSplitVertical,
-  UserCircle,
 } from "@phosphor-icons/react";
 
 import { createElement, memo } from "react";
@@ -124,12 +120,11 @@ import { createStateDotIcon } from "./state-dot";
 
 type Weight = "regular" | "fill";
 
-function wrap(Glyph: PhosphorIcon, weight: Weight = "regular", options: { mirrored?: boolean } = {}): IconComponent {
+function wrap(Glyph: PhosphorIcon, weight: Weight = "regular"): IconComponent {
   const Wrapped = memo(function WrappedPhosphorIcon(props: IconProps) {
     return createElement(Glyph, {
       size: props.size ?? DEFAULT_ICON_SIZE,
       weight,
-      mirrored: options.mirrored,
       className: props.className,
       style: props.style,
       ...iconA11yAttributes(props.title),
@@ -138,8 +133,6 @@ function wrap(Glyph: PhosphorIcon, weight: Weight = "regular", options: { mirror
   Wrapped.displayName = `Phosphor(${Glyph.displayName ?? "icon"})`;
   return Wrapped;
 }
-
-const mirrored = { mirrored: true };
 
 export const mapping: IconMapping = {
   // ── Actions ──
@@ -289,15 +282,8 @@ export const mapping: IconMapping = {
 
   // ── Layout and chrome ──
   menu: wrap(List),
-  panelLeft: wrap(SidebarSimple, "fill"),
-  panelLeftOff: wrap(SidebarSimple),
-  panelRight: wrap(SidebarSimple, "fill", mirrored),
-  panelRightOff: wrap(SidebarSimple, "regular", mirrored),
   splitHorizontal: wrap(SquareSplitHorizontal),
   splitVertical: wrap(SquareSplitVertical),
   ellipsis: wrap(DotsThree),
-  collapseAll: wrap(ArrowsInLineVertical),
-  account: wrap(UserCircle),
-  explorer: wrap(Files),
   circleFilled: createStateDotIcon("Phosphor"),
 };

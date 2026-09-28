@@ -1,31 +1,12 @@
-import { CODICONS_MAPPING, LAZY_ICON_PACKS, getPackMapping, loadPack } from "./pack-cache";
+import { LAZY_ICON_PACKS, getPackMapping, loadPack } from "./pack-cache";
 import { setIconPack } from "./store";
-import {
-  DEFAULT_ICON_PACK,
-  ICON_PACK_STORAGE_KEY,
-  PACK_BY_ICON_THEME,
-  isIconPackId,
-  isIconTheme,
-  type IconMapping,
-  type IconPackId,
-  type IconTheme,
-} from "./types";
+import { DEFAULT_ICON_PACK, ICON_PACK_STORAGE_KEY, isIconPackId, type IconMapping, type IconPackId } from "./types";
 
 export { getPackMapping };
 
 /** Loads and caches a pack without making it active. */
-export function loadIconPack(id: IconPackId): Promise<IconMapping>;
-/**
- * @deprecated Platform themes are retired. Activates the pack the theme maps to
- * (default and ubuntu: tabler, macos: phosphor, windows: fluent) as before.
- */
-export function loadIconPack(theme: IconTheme): Promise<IconMapping>;
-export function loadIconPack(idOrTheme: IconPackId | IconTheme): Promise<IconMapping> {
-  if (isIconTheme(idOrTheme)) {
-    const id = PACK_BY_ICON_THEME[idOrTheme];
-    return setIconPack(id).then(() => getPackMapping(id) ?? CODICONS_MAPPING);
-  }
-  return loadPack(idOrTheme);
+export function loadIconPack(id: IconPackId): Promise<IconMapping> {
+  return loadPack(id);
 }
 
 /** Loads the five lazy packs, for previews that show every pack at once. Failures are logged. */
@@ -49,8 +30,8 @@ function readStoredPack(): IconPackId {
 }
 
 /**
- * Call before the first render. Codicons are bundled and apply at once; any
- * other saved pack loads lazily while Codicons show.
+ * Call before the first render. Lucide is bundled and applies at once; any
+ * other saved pack loads lazily while Lucide shows.
  */
 export function bootIconPack(): Promise<void> {
   return setIconPack(readStoredPack());

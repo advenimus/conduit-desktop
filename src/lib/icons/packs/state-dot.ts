@@ -1,9 +1,9 @@
 import { createGlyphIcon, type GlyphIcon } from "../glyph";
 import type { IconComponent } from "../types";
 
-// The packs' own filled circles span 12 to 13px of a 16px box. Tab and status bar
-// dots must match the Codicons dot in every pack: an 8px disc, also at the 12px
-// compact size (spec 3.6, 3.10, 5.2).
+// The packs' own filled circles span 12 to 13px of a 16px box. Tab and sync state
+// dots must keep one size in every pack: an 8px disc, also at the 12px compact
+// size (spec 5.4, D-12).
 const STATE_DOT: GlyphIcon = {
   w: 16,
   h: 16,

@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "@fluentui/react-icons": "^2.0.321",
-    "@iconify-json/codicon": "1.2.73",
+    "@hugeicons/core-free-icons": "4.3.5",
     "@iconify-json/material-symbols-light": "1.2.94",
     "@phosphor-icons/react": "^2.1.10",
     "@tabler/icons-react": "^3.36.1",

@@ -107,16 +107,9 @@ import {
   TableRegular,
   TextQuoteRegular,
   NavigationRegular,
-  PanelLeftFilled,
-  PanelLeftRegular,
-  PanelRightFilled,
-  PanelRightRegular,
   SplitVerticalRegular,
   SplitHorizontalRegular,
   MoreHorizontalRegular,
-  ArrowMinimizeVerticalRegular,
-  PersonCircleRegular,
-  DocumentMultipleRegular,
 } from "@fluentui/react-icons";
 
 import { createElement, memo } from "react";
@@ -286,15 +279,8 @@ export const mapping: IconMapping = {
 
   // ── Layout and chrome ──
   menu: wrap(NavigationRegular),
-  panelLeft: wrap(PanelLeftFilled),
-  panelLeftOff: wrap(PanelLeftRegular),
-  panelRight: wrap(PanelRightFilled),
-  panelRightOff: wrap(PanelRightRegular),
   splitHorizontal: wrap(SplitVerticalRegular),
   splitVertical: wrap(SplitHorizontalRegular),
   ellipsis: wrap(MoreHorizontalRegular),
-  collapseAll: wrap(ArrowMinimizeVerticalRegular),
-  account: wrap(PersonCircleRegular),
-  explorer: wrap(DocumentMultipleRegular),
   circleFilled: createStateDotIcon("Fluent"),
 };
