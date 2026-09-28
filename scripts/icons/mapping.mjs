@@ -156,4 +156,7 @@ export const ICON_MAPPING = Object.freeze([
   row("splitHorizontal", "splitscreen-right-outline-rounded"),
   row("splitVertical", "splitscreen-bottom-outline-rounded"),
   row("ellipsis", "more-horiz-outline-rounded"),
+
+  // Editing
+  row("textCursor", "title-outline-rounded"),
 ]);

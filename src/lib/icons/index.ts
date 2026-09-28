@@ -155,6 +155,9 @@ export const SplitVerticalIcon = createThemedIcon("splitVertical");
 export const EllipsisIcon = createThemedIcon("ellipsis");
 export const CircleFilledIcon = createThemedIcon("circleFilled");
 
+// ── Editing ──
+export const TextCursorIcon = createThemedIcon("textCursor");
+
 // ── Registry ──
 export { Icon } from "./Icon";
 export type { IconElementProps } from "./Icon";

@@ -23,6 +23,7 @@ import ComputerIcon from "@hugeicons/core-free-icons/ComputerIcon";
 import ComputerPhoneSyncIcon from "@hugeicons/core-free-icons/ComputerPhoneSyncIcon";
 import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
 import CrownIcon from "@hugeicons/core-free-icons/CrownIcon";
+import CursorTextIcon from "@hugeicons/core-free-icons/CursorTextIcon";
 import Database01Icon from "@hugeicons/core-free-icons/Database01Icon";
 import Delete02Icon from "@hugeicons/core-free-icons/Delete02Icon";
 import Download04Icon from "@hugeicons/core-free-icons/Download04Icon";
@@ -273,4 +274,7 @@ export const mapping: IconMapping = {
   splitVertical: wrapHugeicon(Layout2RowIcon, "Layout2RowIcon"),
   ellipsis: wrapHugeicon(MoreHorizontalIcon, "MoreHorizontalIcon"),
   circleFilled: createStateDotIcon("Hugeicons"),
+
+  // ── Editing ──
+  textCursor: wrapHugeicon(CursorTextIcon, "CursorTextIcon"),
 };

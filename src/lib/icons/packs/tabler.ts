@@ -23,6 +23,7 @@ import {
   IconCode,
   IconCopy,
   IconCrown,
+  IconCursorText,
   IconDatabase,
   IconDeviceDesktop,
   IconDeviceFloppy,
@@ -290,4 +291,7 @@ export const mapping: IconMapping = {
   splitVertical: wrap(IconLayoutRows),
   ellipsis: wrap(IconDots),
   circleFilled: createStateDotIcon("Tabler"),
+
+  // ── Editing ──
+  textCursor: wrap(IconCursorText),
 };

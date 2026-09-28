@@ -110,6 +110,7 @@ import {
   SplitVerticalRegular,
   SplitHorizontalRegular,
   MoreHorizontalRegular,
+  RenameRegular,
 } from "@fluentui/react-icons";
 
 import { createElement, memo } from "react";
@@ -283,4 +284,7 @@ export const mapping: IconMapping = {
   splitVertical: wrap(SplitHorizontalRegular),
   ellipsis: wrap(MoreHorizontalRegular),
   circleFilled: createStateDotIcon("Fluent"),
+
+  // ── Editing ──
+  textCursor: wrap(RenameRegular),
 };

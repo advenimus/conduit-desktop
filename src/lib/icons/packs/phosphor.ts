@@ -110,6 +110,7 @@ import {
   List,
   SquareSplitHorizontal,
   SquareSplitVertical,
+  CursorText,
 } from "@phosphor-icons/react";
 
 import { createElement, memo } from "react";
@@ -286,4 +287,7 @@ export const mapping: IconMapping = {
   splitVertical: wrap(SquareSplitVertical),
   ellipsis: wrap(DotsThree),
   circleFilled: createStateDotIcon("Phosphor"),
+
+  // ── Editing ──
+  textCursor: wrap(CursorText),
 };

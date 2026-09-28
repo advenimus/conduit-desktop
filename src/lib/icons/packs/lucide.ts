@@ -101,6 +101,7 @@ import {
   Tag,
   Target,
   Terminal,
+  TextCursor,
   Trash2,
   TriangleAlert,
   Unplug,
@@ -273,4 +274,7 @@ export const mapping: IconMapping = {
   splitVertical: wrapLucide(Rows2),
   ellipsis: wrapLucide(Ellipsis),
   circleFilled: createStateDotIcon("Lucide"),
+
+  // ── Editing ──
+  textCursor: wrapLucide(TextCursor),
 };

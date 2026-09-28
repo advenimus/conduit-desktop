@@ -154,6 +154,9 @@ export const SEMANTIC_ICON_NAMES = [
   "splitVertical",
   "ellipsis",
   "circleFilled",
+
+  // ── Editing ──
+  "textCursor",
 ] as const;
 
 export type SemanticIconName = (typeof SEMANTIC_ICON_NAMES)[number];
