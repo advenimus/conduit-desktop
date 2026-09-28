@@ -1,8 +1,9 @@
 import { useState, useCallback, type JSX } from "react";
 import { invoke } from "../../lib/electron";
 import {
-  AlertTriangleIcon, CheckIcon, CloseIcon, DesktopIcon, EyeIcon, EyeOffIcon, FileImportIcon, FolderIcon, GlobeWwwIcon, KeyIcon, LoaderIcon, LockIcon, ServerIcon, TerminalIcon, UploadIcon
+  CheckIcon, DesktopIcon, FileImportIcon, FolderIcon, GlobeWwwIcon, KeyIcon, LockIcon, ServerIcon, TerminalIcon
 } from "../../lib/icons";
+import { Button, Callout, Dialog, FormField, IconButton, Spinner, TextInput } from "../ui";
 
 interface FolderTreeItem {
   id: string;
@@ -45,10 +46,6 @@ export default function VaultImportDialog({ onClose }: Props) {
   const [loading, setLoading] = useState(false);
 
   const canClose = step !== "importing";
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape" && canClose) onClose();
-  };
 
   // ── Step 1: Pick file ───────────────────────────────────────────
   const handlePickFile = useCallback(async () => {
@@ -109,243 +106,217 @@ export default function VaultImportDialog({ onClose }: Props) {
       : "Folders will be matched by name to existing root-level folders, or created if no match exists."
     : null;
 
+  const footer =
+    step === "file" ? (
+      <>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={handleDecrypt} disabled={!filePath || !passphrase} loading={loading} loadingLabel="Decrypting...">
+          Continue
+        </Button>
+      </>
+    ) : step === "preview" ? (
+      <>
+        <Button
+          onClick={() => {
+            setStep("file");
+            setPreview(null);
+            setError(null);
+          }}
+        >
+          Back
+        </Button>
+        <Button variant="primary" onClick={handleImport}>
+          Import {preview ? preview.entry_count : 0} Entries
+        </Button>
+      </>
+    ) : step === "results" ? (
+      <Button variant="primary" onClick={onClose}>
+        Done
+      </Button>
+    ) : null;
+
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
-      onKeyDown={handleKeyDown}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && canClose) onClose();
-      }}
+    <Dialog
+      open
+      title="Import from Export"
+      icon="upload"
+      width={512}
+      onClose={onClose}
+      closeOnEscape={canClose}
+      closeOnScrim={canClose}
+      hideClose={!canClose}
+      footer={footer}
     >
-      <div data-dialog-content className="w-full max-w-lg bg-panel rounded-lg shadow-xl flex flex-col max-h-[80vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-stroke flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <UploadIcon size={20} className="text-conduit-400" />
-            <h2 className="text-lg font-semibold">Import from Export</h2>
-          </div>
-          {canClose && (
-            <button onClick={onClose} className="p-1 hover:bg-raised rounded">
-              <CloseIcon size={18} />
-            </button>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {step === "file" && (
-            <div className="space-y-4">
-              {/* File picker */}
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Export File</label>
-                <button
-                  onClick={handlePickFile}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded border border-stroke hover:bg-raised text-left"
-                >
-                  <FileImportIcon size={16} className="text-ink-muted flex-shrink-0" />
-                  <span className={filePath ? "" : "text-ink-muted"}>
-                    {filePath ? filePath.split(/[/\\]/).pop() : "Choose .conduit-export file..."}
-                  </span>
-                </button>
-              </div>
-
-              {/* Passphrase */}
-              <div>
-                <label className="block text-sm font-medium mb-1.5">
-                  <span className="flex items-center gap-1">
-                    <LockIcon size={14} />
-                    Export Passphrase
-                  </span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassphrase ? "text" : "password"}
-                    value={passphrase}
-                    onChange={(e) => setPassphrase(e.target.value)}
-                    placeholder="Enter the passphrase used during export"
-                    className="w-full px-3 py-2 pr-9 text-sm rounded border border-stroke bg-canvas focus:border-conduit-500 focus:outline-none"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && filePath && passphrase) handleDecrypt();
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassphrase(!showPassphrase)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-ink-muted hover:text-ink"
-                    tabIndex={-1}
-                  >
-                    {showPassphrase ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              {error && (
-                <div className="flex items-start gap-2 p-3 rounded bg-red-500/10 text-red-400 text-sm">
-                  <AlertTriangleIcon size={16} className="flex-shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {step === "preview" && preview && (
-            <div className="space-y-4">
-              {/* Source info */}
-              <div className="p-3 rounded bg-well text-sm space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-ink-muted">Source Vault</span>
-                  <span className="font-medium">{preview.source_vault_name}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-ink-muted">Exported</span>
-                  <span>{new Date(preview.exported_at).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-ink-muted">Scope</span>
-                  <span>{preview.scope === "full" ? "Full vault" : preview.scope_path ?? "Folder"}</span>
-                </div>
-              </div>
-
-              {/* Counts */}
-              <div className="flex flex-wrap gap-3 text-sm">
-                <span className="flex items-center gap-1">
-                  <FolderIcon size={14} className="text-ink-muted" />
-                  {preview.folder_count} folders
-                </span>
-                {Object.entries(preview.entry_type_counts).map(([type, count]) => (
-                  <span key={type} className="flex items-center gap-1">
-                    <EntryTypeIcon type={type} />
-                    {count} {type}
-                  </span>
-                ))}
-              </div>
-
-              {/* Folder tree preview */}
-              {preview.folder_tree.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-ink-muted mb-1.5">Folder Structure</label>
-                  <div className="p-2 rounded bg-well text-xs space-y-0.5 max-h-32 overflow-y-auto">
-                    {renderFolderTree(preview.folder_tree)}
-                  </div>
-                </div>
-              )}
-
-              {/* Placement info */}
-              {placementNote && (
-                <p className="text-xs text-ink-faint">
-                  {placementNote}
-                </p>
-              )}
-
-              {error && (
-                <div className="flex items-start gap-2 p-3 rounded bg-red-500/10 text-red-400 text-sm">
-                  <AlertTriangleIcon size={16} className="flex-shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {step === "importing" && (
-            <div className="flex flex-col items-center gap-3 py-8">
-              <LoaderIcon size={32} className="text-conduit-400 animate-spin" />
-              <p className="text-ink-muted text-sm">Importing entries and folders...</p>
-            </div>
-          )}
-
-          {step === "results" && result && (
-            <div className="space-y-4">
-              <div className="flex flex-col items-center gap-2 py-4">
-                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <CheckIcon size={24} className="text-green-400" />
-                </div>
-                <p className="text-sm font-medium">Import Complete</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="p-3 rounded bg-well">
-                  <div className="text-xl font-bold text-conduit-400">{result.foldersCreated}</div>
-                  <div className="text-xs text-ink-muted">Folders Created</div>
-                </div>
-                <div className="p-3 rounded bg-well">
-                  <div className="text-xl font-bold text-conduit-400">{result.entriesCreated}</div>
-                  <div className="text-xs text-ink-muted">Entries Created</div>
-                </div>
-              </div>
-
-              {(result.credentialRefsRemapped > 0 || result.credentialRefsCleared > 0) && (
-                <div className="text-xs text-ink-muted space-y-0.5">
-                  {result.credentialRefsRemapped > 0 && (
-                    <p>{result.credentialRefsRemapped} credential reference(s) remapped successfully</p>
-                  )}
-                  {result.credentialRefsCleared > 0 && (
-                    <p>{result.credentialRefsCleared} credential reference(s) cleared (referenced credentials not in export)</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-stroke flex-shrink-0">
-          {step === "file" && (
-            <>
-              <button onClick={onClose} className="px-4 py-2 text-sm rounded hover:bg-raised">
-                Cancel
-              </button>
-              <button
-                onClick={handleDecrypt}
-                disabled={!filePath || !passphrase || loading}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm rounded bg-conduit-600 hover:bg-conduit-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <LoaderIcon size={14} className="animate-spin" />
-                    Decrypting...
-                  </>
-                ) : (
-                  "Continue"
-                )}
-              </button>
-            </>
-          )}
-
-          {step === "preview" && (
-            <>
-              <button
-                onClick={() => { setStep("file"); setPreview(null); setError(null); }}
-                className="px-4 py-2 text-sm rounded hover:bg-raised"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleImport}
-                className="px-4 py-2 text-sm rounded bg-conduit-600 hover:bg-conduit-700 text-white"
-              >
-                Import {preview ? preview.entry_count : 0} Entries
-              </button>
-            </>
-          )}
-
-          {step === "results" && (
+      {step === "file" && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-label font-semibold text-ink-secondary mb-1">Export File</label>
             <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm rounded bg-conduit-600 hover:bg-conduit-700 text-white"
+              type="button"
+              onClick={handlePickFile}
+              className="w-full flex items-center gap-2 h-control px-2 rounded border border-input-border bg-input hover:bg-hover text-left"
             >
-              Done
+              <FileImportIcon size={16} className="text-ink-muted flex-shrink-0" />
+              <span className={filePath ? "truncate text-ink" : "truncate text-ink-muted"}>
+                {filePath ? filePath.split(/[/\\]/).pop() : "Choose .conduit-export file..."}
+              </span>
             </button>
+          </div>
+
+          <FormField
+            label={
+              <span className="inline-flex items-center gap-1">
+                <LockIcon size={16} />
+                Export Passphrase
+              </span>
+            }
+          >
+            <TextInput
+              type={showPassphrase ? "text" : "password"}
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              placeholder="Enter the passphrase used during export"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && filePath && passphrase) handleDecrypt();
+              }}
+              trailing={
+                <IconButton
+                  size="sm"
+                  icon={showPassphrase ? "eyeOff" : "eye"}
+                  label={showPassphrase ? "Hide passphrase" : "Show passphrase"}
+                  onClick={() => setShowPassphrase(!showPassphrase)}
+                  tabIndex={-1}
+                />
+              }
+            />
+          </FormField>
+
+          {error && (
+            <Callout tone="danger" icon="alertTriangle">
+              {error}
+            </Callout>
           )}
         </div>
-      </div>
+      )}
+
+      {step === "preview" && preview && (
+        <div className="space-y-4">
+          <div className="p-3 rounded-md bg-well space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-ink-muted">Source Vault</span>
+              <span className="font-medium text-ink">{preview.source_vault_name}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-ink-muted">Exported</span>
+              <span>{new Date(preview.exported_at).toLocaleDateString()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-ink-muted">Scope</span>
+              <span>{preview.scope === "full" ? "Full vault" : preview.scope_path ?? "Folder"}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <span className="flex items-center gap-1">
+              <FolderIcon size={16} className="text-ink-muted" />
+              {preview.folder_count} folders
+            </span>
+            {Object.entries(preview.entry_type_counts).map(([type, count]) => (
+              <span key={type} className="flex items-center gap-1">
+                <EntryTypeIcon type={type} />
+                {count} {type}
+              </span>
+            ))}
+          </div>
+
+          {preview.folder_tree.length > 0 && (
+            <div>
+              <label className="block text-label font-semibold text-ink-secondary mb-1">Folder Structure</label>
+              <div className="p-2 rounded-md bg-well text-label space-y-0.5 max-h-32 overflow-y-auto">
+                {renderFolderTree(preview.folder_tree)}
+              </div>
+            </div>
+          )}
+
+          {placementNote && (
+            <p className="text-meta text-ink-faint">
+              {placementNote}
+            </p>
+          )}
+
+          {error && (
+            <Callout tone="danger" icon="alertTriangle">
+              {error}
+            </Callout>
+          )}
+        </div>
+      )}
+
+      {step === "importing" && <WorkingState text="Importing entries and folders..." />}
+
+      {step === "results" && result && (
+        <div className="space-y-4">
+          <ResultSummary
+            title="Import Complete"
+            counts={[
+              { value: result.foldersCreated, label: "Folders Created" },
+              { value: result.entriesCreated, label: "Entries Created" },
+            ]}
+          />
+
+          {(result.credentialRefsRemapped > 0 || result.credentialRefsCleared > 0) && (
+            <div className="text-meta text-ink-muted space-y-0.5">
+              {result.credentialRefsRemapped > 0 && (
+                <p>{result.credentialRefsRemapped} credential reference(s) remapped successfully</p>
+              )}
+              {result.credentialRefsCleared > 0 && (
+                <p>{result.credentialRefsCleared} credential reference(s) cleared (referenced credentials not in export)</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </Dialog>
+  );
+}
+
+/** The busy state of the export and import dialogs while they cannot be closed. */
+export function WorkingState({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-8">
+      <Spinner size={24} className="text-info" />
+      <p className="text-ink-muted">{text}</p>
     </div>
+  );
+}
+
+/** The success tick and the two count tiles the export and import dialogs end on. */
+export function ResultSummary({ title, counts }: { title: string; counts: ReadonlyArray<{ value: number; label: string }> }) {
+  return (
+    <>
+      <div className="flex flex-col items-center gap-2 py-4">
+        <div className="size-10 rounded-full bg-success-bg flex items-center justify-center">
+          <CheckIcon size={24} className="text-success" />
+        </div>
+        <p className="font-semibold text-ink">{title}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 text-center">
+        {counts.map((count) => (
+          <div key={count.label} className="p-3 rounded-md bg-well">
+            <div className="text-title font-semibold text-info">{count.value}</div>
+            <div className="text-meta text-ink-muted">{count.label}</div>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
 
 function EntryTypeIcon({ type }: { type: string }) {
-  const props = { size: 14, stroke: 1.5, className: "text-ink-muted" };
+  const props = { size: 16, stroke: 1.5, className: "text-ink-muted" };
   switch (type) {
     case "ssh": return <TerminalIcon {...props} />;
     case "rdp": return <DesktopIcon {...props} />;
