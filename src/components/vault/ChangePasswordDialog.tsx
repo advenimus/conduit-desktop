@@ -56,6 +56,7 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
     <Dialog
       open
       title="Change Password"
+      description="Update the master password for this vault"
       icon="lock"
       width={420}
       hideClose
@@ -71,8 +72,6 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
         </>
       }
     >
-      <p className="text-ink-muted">Update the master password for this vault</p>
-
       <FormField label="Current Password">
         <PasswordField
           value={currentPassword}

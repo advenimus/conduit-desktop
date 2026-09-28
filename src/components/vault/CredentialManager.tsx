@@ -112,9 +112,14 @@ export default function CredentialManager({ onClose }: CredentialManagerProps) {
         onClose={onClose}
         layout="custom"
       >
-        <DialogHeader>
-          {vaultType === "team" && activeTeamVault && <Badge tone="accent">{activeTeamVault.name}</Badge>}
-          <span className="text-label text-ink-faint">{credentials.length} stored</span>
+        <DialogHeader
+          subtitle={
+            <>
+              {vaultType === "team" && activeTeamVault && <Badge tone="accent">{activeTeamVault.name}</Badge>}
+              <span>{credentials.length} stored</span>
+            </>
+          }
+        >
           {isUnlocked && <IconButton icon="lockOpen" label="Lock vault" onClick={() => lockVault()} />}
         </DialogHeader>
 

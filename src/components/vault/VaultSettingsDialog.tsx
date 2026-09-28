@@ -688,7 +688,7 @@ export default function VaultSettingsDialog({
 
   return (
     <Dialog open title="Vault Settings" width={900} closeOnEscape={false} onClose={onClose} layout="custom">
-      <DialogHeader>{activeVault && <span className="text-label text-ink-faint">{activeVault.name}</span>}</DialogHeader>
+      <DialogHeader subtitle={activeVault?.name} />
 
       <div className="flex min-h-0 flex-1 border-y border-divider">
         <NavList

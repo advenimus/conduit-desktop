@@ -67,6 +67,7 @@ export default function RenameVaultDialog({ onClose }: RenameVaultDialogProps) {
     <Dialog
       open
       title="Rename Vault"
+      description="Change the display name of this vault"
       icon="pencil"
       width={400}
       hideClose
@@ -82,8 +83,6 @@ export default function RenameVaultDialog({ onClose }: RenameVaultDialogProps) {
         </>
       }
     >
-      <p className="text-ink-muted">Change the display name of this vault</p>
-
       <FormField
         label="Vault Name"
         description={isTeamVault ? undefined : <>File will be renamed to &ldquo;{newName.trim() || "..."}.conduit&rdquo;</>}
