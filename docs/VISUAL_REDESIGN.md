@@ -896,7 +896,7 @@ Window, position and stacking unchanged (D-15). `OverlayToast.tsx` and `OverlayU
 
 ### 3.15 Credential picker window
 
-`src/components/picker/`: the 380 × 500 window, its drag header and its flows unchanged; lists on `ListRow`, fields on `TextInput` and `PasswordInput`, inline SVGs replaced by semantic icons, colors from tokens. The window follows the active icon pack through the `storage` event (5.6), which the `packs` scenario checks (8.6).
+`src/components/picker/`: the 380 × 500 window, its drag header and its flows unchanged; lists on `ListRow`, fields on `TextInput` and `PasswordInput`, inline SVGs replaced by semantic icons, colors from tokens. The window follows the active icon pack through the `storage` event (5.6), which the `packs` scenario checks (8.6). Until R3-PICKER replaces the inline SVGs, the window only carries the pack's id: its glyphs are the same in every pack, and the scenario reports its picker icon check as `deferred`.
 
 ### 3.16 In-app pickers
 
@@ -1214,7 +1214,7 @@ Icons render at 12, 16, 20, 24, 32 or 48px. The restyle rounds today's 10 and 11
 
 ### 5.6 Loading in every window
 
-`src/main.tsx`, `src/overlay.tsx` and `src/picker.tsx` call `bootIconPack()` before the first render (wave 1). The overlay and picker windows follow pack changes through the `storage` event (`store.ts` `handleStorage` [V]). Lucide being static means no window ever shows a missing icon. **(restyle)** Whenever a pack applies, the store writes its id to `<html data-cv-icon-pack>` in that window, so the `packs` scenario (8.6) can prove that every window, toasts and the credential picker included, follows each of the six packs.
+`src/main.tsx`, `src/overlay.tsx` and `src/picker.tsx` call `bootIconPack()` before the first render (wave 1). The overlay and picker windows follow pack changes through the `storage` event (`store.ts` `handleStorage` [V]). Lucide being static means no window ever shows a missing icon. **(restyle)** Whenever a pack applies, the store writes its id to `<html data-cv-icon-pack>` in that window, so the `packs` scenario (8.6) can prove that every window, toasts and the credential picker included, follows each of the six packs. The attribute proves that a window applied the pack; the glyphs are compared separately, because the credential picker draws its own inline SVGs until R3-PICKER (3.15).
 
 ### 5.7 Popup menu icons
 
@@ -1492,7 +1492,7 @@ A failure found by an integrator goes back to the file's owner in that wave, or 
 
 **Owner gates** (10, rule 8). The owner sees the work before most of it is built, not only at the end:
 
-1. **Gate 1, closing R1-MENUS.** The `packs` sheets of 8.6 (dark and light): the side bar, both tab bars, the tree entry context menu, a toast, the credential picker window and Settings > Appearance with Lucide as the default, in each of the six packs, in the real app. Two questions go with it: (a) Modern's accent: Conduit's sky ramp as planned (D-25), or VS Code's blue; (b) tab close buttons: always visible as today (D-3), or VS Code's hover-only close. A different answer is written into the spec (10, rule 4) before wave 2 starts.
+1. **Gate 1, closing R1-MENUS.** The `packs` sheets of 8.6 (dark and light): the side bar, both tab bars, the tree entry context menu, a toast, the credential picker window and Settings > Appearance with Lucide as the default, in each of the six packs, in the real app. The picker row looks the same in every pack until R3-PICKER moves the window onto the registry (3.15); in wave 1 only its `<html data-cv-icon-pack>` follows the pack. Two questions go with it: (a) Modern's accent: Conduit's sky ramp as planned (D-25), or VS Code's blue; (b) tab close buttons: always visible as today (D-3), or VS Code's hover-only close. A different answer is written into the spec (10, rule 4) before wave 2 starts.
 2. **Gate 2, closing R2-SHELL.** The before and after composites of shots 04 to 10b, 18, 19, 21 and 44 to 49: the whole restyled chrome, signed-in states included. Every R3 package depends on R2-SHELL, so wave 3 waits for this approval.
 3. **Gate 3, closing R4-CLEANUP.** The dark and light composites of every reference shot.
 
@@ -1555,7 +1555,7 @@ Rules each package can meet before `--strict`:
 | `settings` | 20-01 to 20-14 | the 14 `settings-*` screens |
 | `dialogs` | 22 to 35 | `new-entry-dialog`, `new-entry-ssh-form`, the six `edit-entry-rdp-*`, `new-folder-dialog`, `quick-connect-dialog`, `confirm-delete-dialog`, the three `sync-panel-*` |
 | `toasts` | 36, 37 | none (screenshots; the four toasts come from View > Trigger Test Toast, or from the toast API) |
-| `packs` | none (sheets for owner gate 1) | none; for each of the six packs in dark and light it picks the pack in Settings > Appearance (live preview, then Save), captures the Appearance tab with its six cards, the side bar, both tab bars, the tree entry context menu window, a test toast and the credential picker window (opened the way its global shortcut opens it [A]), and asserts that `<html data-cv-icon-pack>` equals the pack id in the main, overlay and picker windows and that the menu's Edit icon markup differs from pack to pack; it writes one six-column sheet per mode under `.verify/runs/<id>/restyle/packs/`, then restarts the device and checks that the saved pack still applies |
+| `packs` | none (sheets for owner gate 1) | none; for each of the six packs in dark and light it picks the pack in Settings > Appearance (live preview, then Save), captures the Appearance tab with its six cards, the side bar, both tab bars, the tree entry context menu window, a test toast and the credential picker window (opened the way its global shortcut opens it [A]), and asserts that `<html data-cv-icon-pack>` equals the pack id in the main, overlay and picker windows and that the menu's Edit icon markup differs from pack to pack; it also compares the picker window's icon markup across the six packs: six different markups pass, one markup for every pack (the picker's own inline SVGs, before R3-PICKER) reports `deferred`, which is listed but never fails, not even with `--strict`, and anything else fails; it writes one six-column sheet per mode under `.verify/runs/<id>/restyle/packs/`, then restarts the device and checks that the saved pack still applies |
 
 Output also includes `inventory.json` and `inventory-diff.txt` per scenario. Pixels are not diffed: styling changes sizes by design; the inventory and geometry rules decide pass or fail, and the owner reviews the composites at the gates.
 
@@ -1697,7 +1697,7 @@ Wave 1 turns the base branch into the restyle foundation. R1-FOUNDATION and R1-H
 - `git grep -nE "[Tt]itle ?bar|[Aa]ctivity ?bar|[Ss]tatusbar|[Cc]ommand center|command-center|[Ee]ditor card|editor-card|[Ww]orkbench|BannerStack|monaco-|VS ?Code|vscode" -- src ':(exclude)**/__tests__/**'` prints nothing
 - `git grep -niE "3994bc|3a94bc|0069cc|0d6fcf|297aa0|2b7da3|48a0c7|53a5ca|005bb5|0063c1|307e9f|1e3a47|e6f2fa|ebf4f8|d7eaf2|b0d4e4|1c4a5e|143442|0b1e26|ebf3fb|d6e7f7|a8ccee|004485|003466|00203d" -- src ':(exclude)**/__tests__/**'` prints nothing: Modern's old VS Code accent values are gone from `tokens.css`, `schemes.css` and the scheme preview in `src/lib/schemes.ts` (D-25)
 - After `npm run build`, `dist/licenses/third-party-icons.txt` names the six packs and no Codicons. `npx vite build --manifest --emptyOutDir --outDir "$TMPDIR/conduit-manifest"` writes `.vite/manifest.json`, in which `src/lib/icons/packs/phosphor.ts`, `hugeicons.ts`, `fluent.ts`, `tabler.ts` and `material.tsx` each have `isDynamicEntry: true` and `src/lib/icons/packs/lucide.ts` has no entry; `git grep -n 'import("./packs/lucide")' -- src` finds nothing (Lucide is a static import of the main, overlay and picker entries)
-- Manual, `npm run dev:electron` on a fresh profile: Modern dark with Lucide icons and the sky accent line; Settings > Appearance shows the Icon pack section first with six cards and previews; picking Hugeicons switches the side bar, the tabs, the dialogs, a test toast and the credential picker window live; Save survives a restart; Cancel reverts. A profile whose `settings.json` holds `{"platform_theme":"macos","color_scheme":"macos-blue"}` starts in Modern with Phosphor; one holding `{"appearance_version":2,"icon_pack":"codicons","ui_density":"compact","title_bar_style":"native"}` starts with Lucide and loses both retired keys
+- Manual, `npm run dev:electron` on a fresh profile: Modern dark with Lucide icons and the sky accent line; Settings > Appearance shows the Icon pack section first with six cards and previews; picking Hugeicons switches the side bar, the tabs, the dialogs and a test toast live, and the credential picker window's `<html data-cv-icon-pack>` (its glyphs follow once R3-PICKER replaces its inline SVGs); Save survives a restart; Cancel reverts. A profile whose `settings.json` holds `{"platform_theme":"macos","color_scheme":"macos-blue"}` starts in Modern with Phosphor; one holding `{"appearance_version":2,"icon_pack":"codicons","ui_density":"compact","title_bar_style":"native"}` starts with Lucide and loses both retired keys
 - `npm run dev`, then `/gallery.html?pack=<id>` for each of the six packs: every icon and the state dot render, no console errors
 - `npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them
 - `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
@@ -2138,7 +2138,7 @@ Wave 3 restyles dialogs, screens, session views, the picker and toasts, one dire
 **Acceptance:**
 
 - `node scripts/redesign/legacy-classes.mjs src/components/picker` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)
-- `node scripts/verify/run.mjs restyle --only packs` passes its picker-window checks (the window follows each of the six packs, dark and light)
+- `node scripts/verify/run.mjs restyle --only packs` passes its picker-window checks in dark and light: the window's `<html data-cv-icon-pack>` in each of the six packs, and the `picker icons` check reads `pass`, not `deferred`
 - Manual: Cmd/Ctrl+Shift+Space opens the picker in dark and light with the active icon pack, at today's size, with a working drag header
 - `npx vitest run` passes with no failures
 - `npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors
@@ -2929,3 +2929,4 @@ Review of the wave-1 tip `5a0aeac`, 2026-09-28 (owner-intent and bugs lenses). F
 | # | Finding | Resolution |
 |---|---|---|
 | W1 | The Icon pack picker stayed optional in the layout check: the `settings-appearance` delta inserted the section only when its hook was present, so a later package could drop it and still pass | Fixed: the delta's `insertWhen` is removed, the section is required (8.6 step 3), and a test proves a missing section fails (8.1) |
+| W2 | The credential picker window draws the same inline SVGs in every pack, while the `packs` check compared only `<html data-cv-icon-pack>`, a pass that proved nothing about its glyphs | Fixed: the scenario compares the picker's icon markup across the packs and reports `deferred` until R3-PICKER (8.6); gate 1 (8.5), 3.15, 5.6 and R1-FOUNDATION's manual line say the picker row stays the same until then; R3-PICKER's acceptance asks for `pass` |
