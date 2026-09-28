@@ -1,0 +1,49 @@
+/* Workbench cards (spec 3.3) and the floating side bar card (spec 3.5). */
+@layer components {
+  .cv-workbench {
+    display: flex;
+    gap: var(--c-gap);
+    padding: var(--c-gap) var(--c-outer);
+    min-height: 0;
+    flex: 1;
+    position: relative;
+  }
+
+  .cv-card {
+    background: var(--c-editor);
+    border: var(--c-card-border-w) solid var(--c-card-border);
+    border-radius: var(--c-card-radius);
+    overflow: hidden;
+    min-width: 0;
+  }
+  .cv-card[data-cv-card="left"],
+  .cv-card[data-cv-card="aux"] {
+    background: var(--c-sidebar);
+  }
+  /* A square native web view on a rounded corner would paint over it (D-17), so that corner goes square. */
+  .cv-card[data-square-bottom-left] {
+    border-bottom-left-radius: 0;
+  }
+  .cv-card[data-square-bottom-right] {
+    border-bottom-right-radius: 0;
+  }
+
+  .cv-sidebar-float {
+    position: absolute;
+    z-index: var(--c-z-sidebar);
+    left: calc(var(--c-outer) + var(--c-activitybar-w) + var(--c-gap));
+    top: var(--c-gap);
+    bottom: var(--c-gap);
+    background: var(--c-sidebar);
+    border: 1px solid var(--c-card-border);
+    border-radius: var(--c-card-radius);
+    box-shadow: var(--c-shadow-overlay);
+  }
+  .cv-sidebar-scrim {
+    position: absolute;
+    z-index: var(--c-z-sidebar-scrim);
+    inset: 0;
+    left: calc(var(--c-outer) + var(--c-activitybar-w));
+    background: var(--c-scrim-sidebar);
+  }
+}

@@ -22,7 +22,8 @@ import { HARDCODED_RDP_DEFAULTS, HARDCODED_WEB_DEFAULTS, HARDCODED_TERMINAL_DEFA
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useEntryStore } from "../../stores/entryStore";
-import { CloseIcon } from "../../lib/icons";
+import { CloseIcon, DEFAULT_ICON_PACK } from "../../lib/icons";
+import type { ThemeChangeDetail } from "../../lib/appearance/useAppearance";
 import { mergeChangedSettings } from "./settings-merge";
 
 export type { SettingsTab } from "./SettingsHelpers";
@@ -30,6 +31,16 @@ export type { SettingsTab } from "./SettingsHelpers";
 interface SettingsDialogProps {
   onClose: () => void;
   initialTab?: SettingsTab;
+}
+
+function dispatchThemeChange(settings: Settings): void {
+  const detail: ThemeChangeDetail = {
+    theme: settings.theme,
+    colorScheme: settings.color_scheme,
+    iconPack: settings.icon_pack,
+    density: settings.ui_density,
+  };
+  document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail }));
 }
 
 async function saveChangedSettings(edited: Settings, original: Settings | null): Promise<void> {
@@ -42,7 +53,9 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
   const [settings, setSettings] = useState<Settings>({
     theme: "system",
     color_scheme: DEFAULT_SCHEME,
-    platform_theme: "default",
+    icon_pack: DEFAULT_ICON_PACK,
+    ui_density: "comfortable",
+    title_bar_style: "custom",
     default_shell: "default",
     ai_mode: "api",
     cli_agent: "claude",
@@ -85,12 +98,8 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
       // Refresh the cached session defaults store
       await useSettingsStore.getState().refresh();
 
-      // Apply theme + scheme
-      document.dispatchEvent(
-        new CustomEvent("conduit:theme-change", {
-          detail: { theme: settings.theme, colorScheme: settings.color_scheme, platformTheme: settings.platform_theme },
-        })
-      );
+      // Apply the saved appearance
+      dispatchThemeChange(settings);
 
       // Apply default engine setting to the store — only if it actually changed
       if (settings.default_engine && settings.default_engine !== originalSettingsRef.current?.default_engine) {
@@ -108,15 +117,7 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
   const handleCancel = useCallback(() => {
     // Revert live-previewed scheme to what it was on dialog open
     if (originalSettingsRef.current) {
-      document.dispatchEvent(
-        new CustomEvent("conduit:theme-change", {
-          detail: {
-            theme: originalSettingsRef.current.theme,
-            colorScheme: originalSettingsRef.current.color_scheme,
-            platformTheme: originalSettingsRef.current.platform_theme,
-          },
-        })
-      );
+      dispatchThemeChange(originalSettingsRef.current);
       // Revert live-previewed UI scale
       window.electron?.send?.("set-zoom-factor", originalSettingsRef.current.ui_scale ?? 1);
     }

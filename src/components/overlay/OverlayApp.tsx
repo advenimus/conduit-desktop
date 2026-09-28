@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import OverlayToast from "./OverlayToast";
 import OverlayUpdateNotification from "./OverlayUpdateNotification";
 import type { OverlayState } from "../../types/toast";
+import { applyAppearanceAttributes, readStoredAppearance, resolveMode, systemPrefersDark } from "../../lib/appearance/dom";
 
 export default function OverlayApp() {
   const [state, setState] = useState<OverlayState>({ toasts: [], update: null });
@@ -15,29 +16,15 @@ export default function OverlayApp() {
     return () => { unlisten(); };
   }, []);
 
-  // Theme sync: listen for localStorage changes from the main window
+  // Appearance sync: follow the main window through localStorage (the icon pack follows in its store)
   useEffect(() => {
     const applyTheme = () => {
-      const t = localStorage.getItem("conduit-theme") || "dark";
-      const resolved = t === "system"
-        ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-        : t;
-      document.documentElement.classList.remove("dark", "light");
-      document.documentElement.classList.add(resolved);
-
-      const scheme = localStorage.getItem("conduit-color-scheme");
-      if (scheme && scheme !== "ocean") {
-        document.documentElement.setAttribute("data-scheme", scheme);
-      } else {
-        document.documentElement.removeAttribute("data-scheme");
-      }
-
-      const platform = localStorage.getItem("conduit-platform-theme");
-      if (platform && platform !== "default") {
-        document.documentElement.setAttribute("data-platform", platform);
-      } else {
-        document.documentElement.removeAttribute("data-platform");
-      }
+      const stored = readStoredAppearance();
+      applyAppearanceAttributes(document.documentElement, {
+        mode: resolveMode(stored.theme, systemPrefersDark()),
+        scheme: stored.scheme,
+        density: stored.density,
+      });
     };
 
     applyTheme();

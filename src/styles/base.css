@@ -1,0 +1,194 @@
+/* Global rules (spec 2.7, 2.8). Element rules sit in @layer base so Tailwind utilities can still refine them. */
+
+/* Muted, faint and link text fail AA on a selected row, so the row re-scopes them. Tailwind utilities read the
+   --color-* theme variables, which resolve on :root, so both names must be redeclared here. */
+:where([aria-selected="true"], [data-selected]) {
+  --c-ink-muted: var(--c-ink-secondary);
+  --color-ink-muted: var(--c-ink-secondary);
+  --c-ink-faint: var(--c-ink-secondary);
+  --color-ink-faint: var(--c-ink-secondary);
+  --c-accent-text: var(--c-ink);
+  --color-link: var(--c-ink);
+  --c-accent-text-hover: var(--c-ink);
+  --color-link-hover: var(--c-ink);
+}
+
+@layer base {
+  :root.dark { color-scheme: dark; }
+  :root.light { color-scheme: light; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--c-font-ui);
+    font-size: var(--c-text-body);
+    line-height: var(--c-text-body-lh);
+    color: var(--c-ink);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  [data-os="macos"] body {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input,
+  textarea,
+  [contenteditable],
+  .allow-select {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--c-accent) 35%, transparent);
+  }
+
+  /* Drawn inside the element like VS Code: an outside ring would be clipped by cards, tab strips and the status bar. */
+  :where(button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="treeitem"],
+    [role="switch"], [role="radio"], a, summary, [tabindex],
+    input:not([data-bare]), select, textarea):focus-visible {
+    outline: 1px solid var(--c-focus);
+    outline-offset: -1px;
+  }
+  :where([data-cv-text-button], input[type="checkbox"], input[type="radio"]):focus-visible {
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--c-scrollbar-thumb);
+    border-radius: var(--c-radius-sm);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--c-scrollbar-thumb-hover);
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--c-scrollbar-thumb-active);
+  }
+
+  /* JS fades the thumb in and out through an inline --sb-opacity (0 to 1). */
+  .scrollbar-autohide {
+    overflow: auto;
+  }
+  .scrollbar-autohide::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--c-scrollbar-thumb) calc(var(--sb-opacity, 0) * 100%), transparent);
+  }
+
+  .xterm .xterm-viewport::-webkit-scrollbar {
+    width: 4px;
+  }
+  .xterm .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--c-ink-muted) 40%, transparent);
+    border-radius: 2px;
+  }
+  .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--c-ink-muted) 70%, transparent);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+}
+
+@keyframes sidebar-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sidebar-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+@keyframes cv-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes cv-pop-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+}
+
+@layer utilities {
+  .animate-toast-in {
+    animation: toast-in 0.2s ease-out;
+  }
+  .animate-toast-out {
+    animation: toast-out 0.2s ease-in forwards;
+  }
+  /* Durations come from tokens that drop to 0ms under reduced motion, so animationend still fires. */
+  .animate-sidebar-in {
+    animation: sidebar-in var(--c-motion-open) var(--c-ease-out);
+  }
+  .animate-sidebar-out {
+    animation: sidebar-out var(--c-motion-close) var(--c-ease-out) forwards;
+  }
+  .animate-pop-in {
+    animation: cv-pop-in var(--c-motion-open) var(--c-ease-out);
+  }
+  .animate-pop-out {
+    animation: cv-pop-out var(--c-motion-close) var(--c-ease-out) forwards;
+  }
+  .animate-indeterminate {
+    animation: indeterminate 1.5s ease-in-out infinite;
+  }
+}

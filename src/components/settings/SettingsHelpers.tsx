@@ -6,7 +6,10 @@ import type { EngineType } from "../../lib/ai-harnesses";
 export interface Settings {
   theme: string;
   color_scheme: string;
-  platform_theme: string;
+  icon_pack: string;
+  ui_density: string;
+  /** Read by the main process at window creation; a change needs a restart. */
+  title_bar_style: string;
   default_shell: string;
   ai_mode: "api" | "cli";
   cli_agent: "claude" | "codex";

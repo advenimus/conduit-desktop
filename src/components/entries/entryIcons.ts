@@ -60,21 +60,21 @@ export function getEntryColor(
 
   switch (entryType) {
     case "ssh":
-      return { className: "text-green-400" };
+      return { className: "text-entry-ssh" };
     case "rdp":
-      return { className: "text-blue-400" };
+      return { className: "text-entry-rdp" };
     case "vnc":
-      return { className: "text-purple-400" };
+      return { className: "text-entry-vnc" };
     case "web":
-      return { className: "text-cyan-400" };
+      return { className: "text-entry-web" };
     case "credential":
-      return { className: "text-yellow-400" };
+      return { className: "text-entry-credential" };
     case "document":
-      return { className: "text-teal-400" };
+      return { className: "text-entry-document" };
     case "command":
-      return { className: "text-amber-400" };
+      return { className: "text-entry-command" };
     case "folder":
-      return { className: "text-ink-muted" };
+      return { className: "text-entry-folder" };
     default:
       return { className: "text-ink-muted" };
   }
