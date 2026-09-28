@@ -1,14 +1,11 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
 @import "./styles/schemes.css";
-@import "./styles/density.css";
 @import "./styles/base.css";
-@import "./styles/components/cards.css";
 @import "./styles/components/tabs.css";
 @import "./styles/components/sash.css";
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
-@custom-variant compact (&:where([data-density="compact"], [data-density="compact"] *));
 
 @theme {
   --font-sans: var(--c-font-ui);
@@ -48,7 +45,6 @@
   --radius-control: var(--c-radius-sm);
   --radius-container: var(--c-radius-md);
   --radius-overlay: var(--c-radius-lg);
-  --radius-card: var(--c-card-radius);
 
   --shadow-sm: var(--c-shadow-sm);
   --shadow-md: var(--c-shadow-md);
@@ -63,13 +59,10 @@
   --spacing-row: var(--c-row-h);
   --spacing-row-2line: var(--c-row-h-2line);
   --spacing-toolbar: var(--c-toolbar-btn);
-  --spacing-titlebar: var(--c-titlebar-h);
   --spacing-banner: var(--c-banner-h);
   --spacing-part-title: var(--c-part-title-h);
   --spacing-section: var(--c-section-h);
-  --spacing-statusbar: var(--c-statusbar-h);
   --spacing-tabstrip: var(--c-tabstrip-h);
-  --spacing-activitybar: var(--c-activitybar-w);
 
   --color-conduit-50: var(--c-accent-50);
   --color-conduit-100: var(--c-accent-100);
@@ -143,4 +136,5 @@
   --color-entry-document: var(--c-entry-document);
   --color-entry-command: var(--c-entry-command);
   --color-entry-folder: var(--c-entry-folder);
+  --color-favorite: var(--c-favorite);
 }

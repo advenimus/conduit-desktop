@@ -1,7 +1,7 @@
 /* Color schemes (spec 2.2 and 2.3). Every block is mode-specific, (0,3,0), so it always beats the mode base.
-   Accent ramps repeat per mode: in light mode steps 300 and 400 hold text-safe shades (D-15). */
+   Accent ramps repeat per mode: in light mode steps 300 and 400 hold text-safe shades. */
 
-/* Modern: VS Code 2026 Dark / Light exact values (the primitives live in the mode base) */
+/* Modern: neutral grays with Conduit's sky accent (D-25); the primitives and the ramp live in the mode base */
 :root[data-scheme="modern"].dark,
 :root:not([data-scheme]).dark {
   --c-shell: #191a1b;
@@ -19,26 +19,11 @@
   --c-selected-inactive: #2c2d2e;
   --c-toolbar-hover: #5a5d5e50;
   --c-toolbar-active: #ffffff33;
-  --c-activity-active-bg: #ffffff22;
-  --c-activity-hover-bg: #ffffff11;
-  --c-activity-fg: #8c8c8c;
-  --c-activity-fg-hover: #bfbfbf;
-  --c-activity-fg-active: #ededed;
-  --c-titlebar-fg: #8c8c8c;
-  --c-statusbar-fg: #8c8c8c;
-  --c-statusbar-hover: #323233;
-  --c-statusbar-hover-fg: #ffffff;
-  --c-statusbar-active: #4b4c4d;
-  --c-cc-bg: #191a1b;
-  --c-cc-fg: #bfbfbf;
-  --c-cc-border: #2e3031;
-  --c-cc-hover-bg: #ffffff0f;
-  --c-cc-hover-border: #333536;
   --c-tab-fg: #8c8c8c;
   --c-tab-fg-active: #ededed;
   --c-tab-fg-hover: #bfbfbf;
   --c-tab-active-bg: #121314;
-  --c-tab-underline: #3994bc;
+  --c-tab-underline: #0ea5e9;
   --c-input-bg: #191a1b;
   --c-input-fg: #bfbfbf;
   --c-input-border: #333536;
@@ -48,34 +33,31 @@
   --c-checkbox-bg: #242526;
   --c-checkbox-border: #707070;
   --c-checkbox-fg: #8c8c8c;
-  --c-btn-primary-bg: #297aa0;
-  --c-btn-primary-hover: #2b7da3;
+  --c-btn-primary-bg: #0369a1;
+  --c-btn-primary-hover: #075985;
   --c-btn-secondary-bg: #00000000;
   --c-btn-secondary-fg: #cccccc;
   --c-btn-secondary-hover: #ffffff10;
   --c-btn-secondary-border: #333536;
-  --c-accent: #3994bc;
-  --c-accent-text: #48a0c7;
-  --c-accent-text-hover: #53a5ca;
-  --c-focus: #3994bc;
-  --c-badge-bg: #307e9f;
-  --c-menu-selection-bg: #3994bc26;
-  --c-menu-selection-border: #3994bc;
-  --c-progress: #878889;
+  --c-accent: #0ea5e9;
+  --c-accent-text: #38bdf8;
+  --c-accent-text-hover: #7dd3fc;
+  --c-focus: #0ea5e9;
+  --c-badge-bg: #0369a1;
+  --c-menu-selection-bg: #0ea5e926;
+  --c-menu-selection-border: #0ea5e9;
+  --c-progress: #0ea5e9;
   --c-scrollbar-thumb: #a8a9aa85;
   --c-scrollbar-thumb-hover: #a8a9aa90;
   --c-scrollbar-thumb-active: #a8a9aa9c;
-  --c-drop-bg: #3994bc1a;
+  --c-drop-bg: #0ea5e91a;
   --c-code-bg: #242526;
-  --c-sash-grip: #bfbfbf66;
   --c-indent-guide: #585858;
-  --c-info: #3a94bc;
+  --c-info: #38bdf8;
   --c-danger-bg: #3a1d1d;
   --c-danger-border: #be1100;
   --c-warning-bg: #352a05;
   --c-warning-border: #b89500;
-  --c-info-bg: #1e3a47;
-  --c-info-border: #3994bc;
 }
 
 :root[data-scheme="modern"].light,
@@ -95,21 +77,6 @@
   --c-selected-inactive: #dadada99;
   --c-toolbar-hover: #0000001f;
   --c-toolbar-active: #d6d6d8;
-  --c-activity-active-bg: #e4e6f1;
-  --c-activity-hover-bg: #f2f2f2;
-  --c-activity-fg: #606060;
-  --c-activity-fg-hover: #3b3b3b;
-  --c-activity-fg-active: #3b3b3b;
-  --c-titlebar-fg: #606060;
-  --c-statusbar-fg: #606060;
-  --c-statusbar-hover: #e3e3e5;
-  --c-statusbar-hover-fg: #000000;
-  --c-statusbar-active: #eeeeee;
-  --c-cc-bg: #ffffff;
-  --c-cc-fg: #202020;
-  --c-cc-border: #d8d8d8aa;
-  --c-cc-hover-bg: #dadada4f;
-  --c-cc-hover-border: #d8d8d8;
   --c-tab-fg: #606060;
   --c-tab-fg-active: #202020;
   --c-tab-fg-hover: #202020;
@@ -124,34 +91,31 @@
   --c-checkbox-bg: #eaeaea;
   --c-checkbox-border: #868686;
   --c-checkbox-fg: #606060;
-  --c-btn-primary-bg: #0069cc;
-  --c-btn-primary-hover: #0063c1;
+  --c-btn-primary-bg: #0369a1;
+  --c-btn-primary-hover: #075985;
   --c-btn-secondary-bg: #eaeaea;
   --c-btn-secondary-fg: #202020;
   --c-btn-secondary-hover: #f2f3f4;
   --c-btn-secondary-border: #eaeaea;
-  --c-accent: #0069cc;
-  --c-accent-text: #0069cc;
-  --c-accent-text-hover: #005bb5;
-  --c-focus: #0069cc;
-  --c-badge-bg: #0069cc;
-  --c-menu-selection-bg: #0069cc1a;
-  --c-menu-selection-border: #0069cc;
-  --c-progress: #0069cc;
+  --c-accent: #0ea5e9;
+  --c-accent-text: #0369a1;
+  --c-accent-text-hover: #075985;
+  --c-focus: #0369a1;
+  --c-badge-bg: #0369a1;
+  --c-menu-selection-bg: #0ea5e91a;
+  --c-menu-selection-border: #0ea5e9;
+  --c-progress: #0ea5e9;
   --c-scrollbar-thumb: #646464c0;
   --c-scrollbar-thumb-hover: #646464d0;
   --c-scrollbar-thumb-active: #646464e0;
-  --c-drop-bg: #0069cc15;
+  --c-drop-bg: #0ea5e915;
   --c-code-bg: #eaeaea;
-  --c-sash-grip: #20202066;
   --c-indent-guide: #a9a9a9;
-  --c-info: #0069cc;
+  --c-info: #0369a1;
   --c-danger-bg: #fdeded;
   --c-danger-border: #ad0707;
   --c-warning-bg: #fdf6e3;
   --c-warning-border: #b69500;
-  --c-info-bg: #e6f2fa;
-  --c-info-border: #0069cc;
 }
 
 /* Ocean: sky blue accent, slate surfaces */

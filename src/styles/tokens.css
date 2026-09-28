@@ -43,20 +43,14 @@
   --c-icon-lg: 24px;
   --c-toolbar-btn: 22px;
 
-  --c-titlebar-h: 35px;
-  --c-traffic-reserve: 70px;
-  --c-wco-reserve-start: 0px;
-  --c-wco-reserve-end: 138px;
-  --c-cc-h: 22px;
-  --c-cc-w: 38vw;
-  --c-cc-max-w: 600px;
+  --c-tabstrip-h: 33px;
+  --c-tab-h: 24px;
+  --c-tab-gutter-top: 4px;
+  --c-tab-min-w: 78px;
+  --c-list-inset: 4px;
   --c-banner-h: 26px;
   --c-part-title-h: 32px;
   --c-section-h: 28px;
-  --c-statusbar-h: 22px;
-  --c-activity-item: 36px;
-  --c-activity-pill: 32px;
-  --c-zoom: 1;
 
   --c-shadow-sm: none;
   --c-shadow-md: 0 0 6px rgba(0, 0, 0, 0.08);
@@ -97,7 +91,7 @@
   }
 }
 
-/* VS Code 1.139 .monaco-workbench font stacks per OS */
+/* System UI font stacks per OS (spec 2.4) */
 :root[data-os="macos"] {
   --c-font-ui: -apple-system, BlinkMacSystemFont, sans-serif;
   --c-font-mono: "SF Mono", Monaco, Menlo, Courier, monospace;
@@ -125,17 +119,18 @@
   --c-stroke: #2a2b2c;
   --c-stroke-dim: #333536;
 
-  --c-accent-50: #ebf4f8;
-  --c-accent-100: #d7eaf2;
-  --c-accent-200: #b0d4e4;
-  --c-accent-300: #53a5ca;
-  --c-accent-400: #48a0c7;
-  --c-accent-500: #3994bc;
-  --c-accent-600: #297aa0;
-  --c-accent-700: #2b7da3;
-  --c-accent-800: #1c4a5e;
-  --c-accent-900: #143442;
-  --c-accent-950: #0b1e26;
+  /* Conduit's sky ramp (D-25); only Modern reads it, every universal scheme sets its own. */
+  --c-accent-50: #f0f9ff;
+  --c-accent-100: #e0f2fe;
+  --c-accent-200: #bae6fd;
+  --c-accent-300: #7dd3fc;
+  --c-accent-400: #38bdf8;
+  --c-accent-500: #0ea5e9;
+  --c-accent-600: #0284c7;
+  --c-accent-700: #0369a1;
+  --c-accent-800: #075985;
+  --c-accent-900: #0c4a6e;
+  --c-accent-950: #082f49;
 
   --c-shell: var(--c-panel);
   --c-sidebar: var(--c-shell);
@@ -152,21 +147,6 @@
   --c-selected-inactive: color-mix(in srgb, var(--c-ink) 8%, var(--c-sidebar));
   --c-toolbar-hover: color-mix(in srgb, var(--c-ink) 20%, transparent);
   --c-toolbar-active: color-mix(in srgb, var(--c-ink) 20%, transparent);
-  --c-activity-active-bg: var(--c-selected);
-  --c-activity-hover-bg: color-mix(in srgb, var(--c-ink) 7%, transparent);
-  --c-activity-fg: var(--c-ink-faint);
-  --c-activity-fg-hover: var(--c-ink-secondary);
-  --c-activity-fg-active: var(--c-ink);
-  --c-titlebar-fg: var(--c-ink-faint);
-  --c-statusbar-fg: var(--c-ink-faint);
-  --c-statusbar-hover: color-mix(in srgb, var(--c-ink) 10%, var(--c-shell));
-  --c-statusbar-hover-fg: var(--c-ink);
-  --c-statusbar-active: color-mix(in srgb, var(--c-ink) 20%, var(--c-shell));
-  --c-cc-bg: var(--c-shell);
-  --c-cc-fg: var(--c-ink-secondary);
-  --c-cc-border: color-mix(in srgb, var(--c-ink) 12%, var(--c-shell));
-  --c-cc-hover-bg: color-mix(in srgb, var(--c-ink) 6%, transparent);
-  --c-cc-hover-border: var(--c-control-border);
   --c-tab-fg: var(--c-ink-faint);
   --c-tab-fg-active: var(--c-ink);
   --c-tab-fg-hover: var(--c-ink-secondary);
@@ -202,7 +182,6 @@
   --c-drop-bg: color-mix(in srgb, var(--c-accent) 18%, transparent);
   --c-code-bg: color-mix(in srgb, var(--c-ink) 6%, var(--c-editor));
   --c-menu-danger-hover-bg: color-mix(in srgb, var(--c-danger) 10%, transparent);
-  --c-sash-grip: color-mix(in srgb, var(--c-ink-secondary) 40%, transparent);
   --c-indent-guide: color-mix(in srgb, var(--c-ink) 30%, var(--c-sidebar));
 
   --c-danger: #f48771;
@@ -220,6 +199,7 @@
   --c-state-connected: var(--c-success);
   --c-state-connecting: var(--c-warning);
   --c-state-error: var(--c-danger);
+  --c-favorite: #facc15;
 
   --c-entry-ssh: #4ade80;
   --c-entry-rdp: #60a5fa;
@@ -244,17 +224,18 @@
   --c-stroke: #e4e5e6;
   --c-stroke-dim: #f0f1f2;
 
-  --c-accent-50: #ebf3fb;
-  --c-accent-100: #d6e7f7;
-  --c-accent-200: #a8ccee;
-  --c-accent-300: #005bb5;
-  --c-accent-400: #0069cc;
-  --c-accent-500: #0d6fcf;
-  --c-accent-600: #0069cc;
-  --c-accent-700: #0063c1;
-  --c-accent-800: #004485;
-  --c-accent-900: #003466;
-  --c-accent-950: #00203d;
+  /* Conduit's sky ramp (D-25) with the text-safe 800 and 700 in steps 300 and 400, as Ocean light. */
+  --c-accent-50: #f0f9ff;
+  --c-accent-100: #e0f2fe;
+  --c-accent-200: #bae6fd;
+  --c-accent-300: #075985;
+  --c-accent-400: #0369a1;
+  --c-accent-500: #0ea5e9;
+  --c-accent-600: #0284c7;
+  --c-accent-700: #0369a1;
+  --c-accent-800: #075985;
+  --c-accent-900: #0c4a6e;
+  --c-accent-950: #082f49;
 
   --c-shell: var(--c-canvas);
   --c-sidebar: var(--c-shell);
@@ -271,21 +252,6 @@
   --c-selected-inactive: color-mix(in srgb, var(--c-ink) 9%, var(--c-sidebar));
   --c-toolbar-hover: color-mix(in srgb, var(--c-ink) 12%, transparent);
   --c-toolbar-active: color-mix(in srgb, var(--c-ink) 16%, transparent);
-  --c-activity-active-bg: var(--c-selected);
-  --c-activity-hover-bg: color-mix(in srgb, var(--c-ink) 7%, transparent);
-  --c-activity-fg: var(--c-ink-faint);
-  --c-activity-fg-hover: var(--c-ink-secondary);
-  --c-activity-fg-active: var(--c-ink-secondary);
-  --c-titlebar-fg: var(--c-ink-faint);
-  --c-statusbar-fg: var(--c-ink-faint);
-  --c-statusbar-hover: color-mix(in srgb, var(--c-ink) 10%, var(--c-shell));
-  --c-statusbar-hover-fg: var(--c-ink);
-  --c-statusbar-active: color-mix(in srgb, var(--c-ink) 20%, var(--c-shell));
-  --c-cc-bg: var(--c-editor);
-  --c-cc-fg: var(--c-ink);
-  --c-cc-border: var(--c-control-border);
-  --c-cc-hover-bg: color-mix(in srgb, var(--c-ink) 8%, transparent);
-  --c-cc-hover-border: var(--c-control-border);
   --c-tab-fg: var(--c-ink-muted);
   --c-tab-fg-active: var(--c-ink);
   --c-tab-fg-hover: var(--c-ink);
@@ -321,7 +287,6 @@
   --c-drop-bg: color-mix(in srgb, var(--c-accent) 18%, transparent);
   --c-code-bg: color-mix(in srgb, var(--c-ink) 6%, var(--c-editor));
   --c-menu-danger-hover-bg: color-mix(in srgb, var(--c-danger) 10%, transparent);
-  --c-sash-grip: color-mix(in srgb, var(--c-ink-secondary) 40%, transparent);
   --c-indent-guide: color-mix(in srgb, var(--c-ink) 37%, var(--c-sidebar));
 
   --c-danger: #ad0707;
@@ -339,6 +304,7 @@
   --c-state-connected: var(--c-success);
   --c-state-connecting: var(--c-warning);
   --c-state-error: var(--c-danger);
+  --c-favorite: #a16207;
 
   --c-entry-ssh: #15803d;
   --c-entry-rdp: #1d4ed8;

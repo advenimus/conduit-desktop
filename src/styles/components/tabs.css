@@ -1,37 +1,39 @@
-/* Connected editor tabs (spec 3.6), from VS Code 1.139 modern-ui-rules.css. */
+/* Pane tab bars (spec 3.4) */
 @layer components {
-  .cv-tabstrip { position:relative; display:flex; align-items:stretch; height:var(--c-tabstrip-h); background:var(--c-tabstrip); }
-  .cv-tabs { display:flex; align-items:stretch; flex:1 1 auto; min-width:0; overflow-x:auto; overflow-y:hidden;
-             padding-bottom:1px; scrollbar-width:thin; }
-  .cv-tabs::-webkit-scrollbar { height:3px; }
-  .cv-tab { position:relative; flex:0 0 auto; display:flex; align-items:center; box-sizing:border-box;
-            min-width:80px; max-width:240px;
-            height:calc(var(--c-tab-h) + 8px); border-block:4px solid transparent;
-            padding:0 33px 0 6px;
-            font:400 13px/18px var(--c-font-ui); color:var(--c-tab-fg); cursor:default; user-select:none; }
-  .cv-tab-fill { position:absolute; inset-inline:0; top:-4px; bottom:-5px; border-radius:4px; pointer-events:none; }
-  .cv-tab:hover > .cv-tab-fill { background:var(--c-tab-hover-bg); }
-  .cv-tab[aria-selected="true"] { color:var(--c-tab-fg-active); z-index:1; }
-  .cv-tab[aria-selected="true"] > .cv-tab-fill { top:-4px; bottom:-5px; background:var(--c-tab-active-bg);
-            border-radius:5px 5px 0 0; }
-  .cv-tab[aria-selected="true"] > .cv-tab-fill::before,
-  .cv-tab[aria-selected="true"] > .cv-tab-fill::after { content:""; position:absolute; bottom:0; width:5px; height:5px;
-            clip-path:inset(0); pointer-events:none; }
-  .cv-tab[aria-selected="true"] > .cv-tab-fill::before { right:100%; border-bottom-right-radius:5px;
-            box-shadow:2.5px 2.5px 0 2.5px var(--c-tab-active-bg); }
-  .cv-tab[aria-selected="true"] > .cv-tab-fill::after { left:100%; border-bottom-left-radius:5px;
-            box-shadow:-2.5px 2.5px 0 2.5px var(--c-tab-active-bg); }
-  .cv-tab:first-child[aria-selected="true"] > .cv-tab-fill::before { content:none; }
-  .cv-tab:not([aria-selected="true"]):hover { color:var(--c-tab-fg-hover); }
-  .cv-tab-icon { flex:none; width:16px; height:16px; margin-right:6px; position:relative; }
-  .cv-tab-label { position:relative; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .cv-tab-actions { position:absolute; top:0; bottom:0; right:5px; width:24px; display:flex;
-            align-items:center; justify-content:center; z-index:2; }
-  .cv-tab:not([aria-selected="true"]):not(:hover):not(:focus-within) > .cv-tab-actions { opacity:0; pointer-events:none; }
-  .cv-tab[data-state]:not(:hover):not(:focus-within) > .cv-tab-actions { opacity:1; pointer-events:auto; }
-  .cv-tab[data-drop-target]::before { content:""; position:absolute; left:-1px; top:0; bottom:0; width:2px;
-            background:var(--c-accent); z-index:3; }
-  .cv-tab[data-dragging] { opacity:.5; }
-  .cv-editor-actions { display:flex; align-items:center; padding-right:8px; opacity:.5; }
-  .cv-tabstrip[data-focused] .cv-editor-actions { opacity:1; }
+  .cv-tabstrip { position: relative; display: flex; align-items: stretch; height: var(--c-tabstrip-h);
+                 min-width: 0; overflow: hidden; background: var(--c-tabstrip); }
+  .cv-tabstrip-slot { display: flex; flex: none; align-items: center; padding-bottom: 1px; }
+  .cv-tabs { display: flex; align-items: flex-start; flex: 1 1 auto; min-width: 0;
+             overflow-x: auto; overflow-y: hidden; padding-top: var(--c-tab-gutter-top); scrollbar-width: none; }
+  /* Tabs shrink to fit as today; the label gives way first and a tab keeps its icon, dot and close whole. */
+  .cv-tab { position: relative; flex: 0 1 auto; min-width: var(--c-tab-min-w); display: flex; align-items: center;
+            gap: 6px; box-sizing: border-box; height: var(--c-tab-h); padding: 0 4px 0 8px;
+            font: 400 13px/18px var(--c-font-ui); color: var(--c-tab-fg); cursor: pointer; user-select: none; }
+  .cv-tab > * { flex: none; }
+  .cv-tab > .cv-tab-label, .cv-tab > .cv-tab-rename { flex: 0 1 auto; min-width: 0; max-width: 120px; }
+  .cv-tab > :not(.cv-tab-fill) { position: relative; z-index: 1; }
+  .cv-tab-fill { position: absolute; inset: 0; border-radius: var(--c-radius-sm); pointer-events: none; }
+  .cv-tab:not([data-active]):hover { color: var(--c-tab-fg-hover); }
+  .cv-tab:not([data-active]):hover > .cv-tab-fill { background: var(--c-tab-hover-bg); }
+  .cv-tab[data-active] { color: var(--c-tab-fg-active); z-index: 1; }
+  /* The active fill runs from the tab top to the strip bottom: -(33 - 4 - 24) = -5px. */
+  .cv-tab[data-active] > .cv-tab-fill {
+    bottom: calc(var(--c-tab-gutter-top) + var(--c-tab-h) - var(--c-tabstrip-h));
+    background: var(--c-tab-active-bg);
+    border-radius: var(--c-tab-cap-radius) var(--c-tab-cap-radius) 0 0; }
+  .cv-tab[data-active] > .cv-tab-fill::before,
+  .cv-tab[data-active] > .cv-tab-fill::after { content: ""; position: absolute; bottom: 0;
+    width: var(--c-tab-cap-radius); height: var(--c-tab-cap-radius); clip-path: inset(0); pointer-events: none; }
+  .cv-tab[data-active] > .cv-tab-fill::before { right: 100%; border-bottom-right-radius: var(--c-tab-cap-radius);
+    box-shadow: 2.5px 2.5px 0 2.5px var(--c-tab-active-bg); }
+  .cv-tab[data-active] > .cv-tab-fill::after { left: 100%; border-bottom-left-radius: var(--c-tab-cap-radius);
+    box-shadow: -2.5px 2.5px 0 2.5px var(--c-tab-active-bg); }
+  .cv-tab:first-child[data-active] > .cv-tab-fill::before { content: none; }
+  .cv-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Close buttons stay visible on every tab (D-3); IconButton tone="inherit" leaves the color to these rules. */
+  .cv-tab .cv-tab-close { color: var(--c-tab-fg); }
+  .cv-tab[data-active] .cv-tab-close, .cv-tab:hover .cv-tab-close { color: var(--c-tab-fg-active); }
+  .cv-tab[data-drop-target]::before { content: ""; position: absolute; left: -1px; top: 0; bottom: 0; width: 2px;
+    background: var(--c-accent); z-index: 2; }
+  .cv-tab[data-dragging] { opacity: .5; }
 }

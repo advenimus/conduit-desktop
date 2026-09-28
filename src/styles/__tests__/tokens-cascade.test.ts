@@ -16,14 +16,13 @@ import {
   type RootState,
   type TokenRule,
 } from "./cssTokens";
-import { COLOR_TOKENS, DENSITY_TOKENS, MODERN_VALUES, MODES, SCHEME_IDS, UNIVERSAL_SURFACES } from "./tokenContract";
+import { COLOR_TOKENS, LAYOUT_TOKENS, MODERN_VALUES, MODES, REMOVED_TOKENS, SCHEME_IDS, UNIVERSAL_SURFACES } from "./tokenContract";
 import { COLOR_SCHEMES } from "../../lib/schemes";
 
 const SCHEME_SELECTOR = /^:root\[data-scheme="(modern|ocean|ember|forest|amethyst|rose|midnight)"\]\.(dark|light)$/;
 const MODERN_FALLBACK = new Set([":root:not([data-scheme]).dark", ":root:not([data-scheme]).light"]);
 const MODE_BASE = new Set([":root", ":root.dark", ":root.light"]);
 const OS_SELECTOR = /^:root\[data-os="(macos|windows|linux)"\]$/;
-const DENSITY_SELECTOR = /^:root(\[data-density="compact"\])?$/;
 const RESCOPE_SELECTOR =
   ':where([role="option"][aria-selected="true"], [role="treeitem"][aria-selected="true"], [role="row"][aria-selected="true"], [role="gridcell"][aria-selected="true"], [data-selected])';
 const WHITE: Rgba = { r: 1, g: 1, b: 1, a: 1 };
@@ -42,10 +41,10 @@ beforeAll(async () => {
 }, 60_000);
 
 describe("token cascade (spec 2.1)", () => {
-  it("1. no selector mentions data-platform", () => {
+  it("1. no selector mentions data-platform or data-density", () => {
     const offenders: string[] = [];
     root.walkRules((rule) => {
-      if (rule.selector.includes("data-platform")) offenders.push(rule.selector);
+      if (/data-(platform|density)/.test(rule.selector)) offenders.push(rule.selector);
     });
     expect(offenders).toEqual([]);
   });
@@ -71,7 +70,7 @@ describe("token cascade (spec 2.1)", () => {
       }
       if (rule.selector === RESCOPE_SELECTOR) continue;
       for (const part of rule.parts) {
-        const known = MODE_BASE.has(part) || SCHEME_SELECTOR.test(part) || MODERN_FALLBACK.has(part) || OS_SELECTOR.test(part) || DENSITY_SELECTOR.test(part);
+        const known = MODE_BASE.has(part) || SCHEME_SELECTOR.test(part) || MODERN_FALLBACK.has(part) || OS_SELECTOR.test(part);
         expect(known, `unexpected token selector ${part}`).toBe(true);
       }
     }
@@ -83,18 +82,26 @@ describe("token cascade (spec 2.1)", () => {
     }
   });
 
-  it("3. density tokens are set only on :root and :root[data-density=compact]", () => {
-    const setters = rules.filter((r) => DENSITY_TOKENS.some((t) => r.decls.has(t)));
-    expect(setters.length).toBe(2);
-    for (const rule of setters) {
-      expect(rule.parts.length).toBe(1);
-      expect(rule.parts[0]).toMatch(DENSITY_SELECTOR);
+  it("3. the layout sizes are plain :root tokens with one value each (D-7)", () => {
+    const setters = rules.filter((r) => Object.keys(LAYOUT_TOKENS).some((t) => r.decls.has(t)));
+    expect(setters.map((r) => r.selector)).toEqual([":root"]);
+    for (const [token, value] of Object.entries(LAYOUT_TOKENS)) expect(setters[0].decls.get(token), token).toBe(value);
+  });
+
+  it("5. none of the removed tokens (spec 9.1) is defined anywhere", () => {
+    const defined = new Set<string>();
+    root.walkDecls((decl) => {
+      if (decl.prop.startsWith("--c-")) defined.add(decl.prop);
+    });
+    expect(REMOVED_TOKENS.filter((token) => defined.has(token))).toEqual([]);
+  });
+
+  it("the @theme block drops the removed sizes and the compact variant", () => {
+    const index = readRepoFile("src", "index.css");
+    for (const gone of ["--radius-card", "--spacing-titlebar", "--spacing-statusbar", "--spacing-activitybar", "@custom-variant compact", "density.css", "cards.css"]) {
+      expect(index, gone).not.toContain(gone);
     }
-    const compact = setters.find((r) => r.selector.includes("compact"))!;
-    for (const token of DENSITY_TOKENS) {
-      expect(compact.decls.has(token), token).toBe(true);
-      expect(setters.find((r) => r.selector === ":root")!.decls.has(token), token).toBe(true);
-    }
+    expect(index).toContain("--color-favorite: var(--c-favorite);");
   });
 
   it("the selector model covers every token selector", () => {
@@ -147,12 +154,6 @@ describe("token cascade (spec 2.1)", () => {
     }
   });
 
-  it("density: compact zeroes gaps, radii and card borders", () => {
-    const comfortable = cascade(rules, { mode: "dark", density: "comfortable" });
-    const compact = cascade(rules, { mode: "dark", density: "compact" });
-    expect([comfortable.get("--c-gap"), comfortable.get("--c-card-radius"), comfortable.get("--c-tabstrip-h")]).toEqual(["4px", "8px", "33px"]);
-    expect([compact.get("--c-gap"), compact.get("--c-outer"), compact.get("--c-card-radius"), compact.get("--c-card-border-w"), compact.get("--c-tabstrip-h")]).toEqual(["0", "0", "0", "0", "29px"]);
-  });
 });
 
 interface Gate {
@@ -176,11 +177,6 @@ function gatesFor(r: TokenResolver): Gate[] {
   add("tab-fg on tabstrip", c("tab-fg"), c("tabstrip"), 4.5);
   add("tab-fg-active on tab-active-bg", c("tab-fg-active"), c("tab-active-bg"), 4.5);
   add("tab-fg-hover on tab-hover-bg", c("tab-fg-hover"), c("tab-hover-bg"), 4.5);
-  add("titlebar-fg on shell", c("titlebar-fg"), c("shell"), 4.5);
-  add("statusbar-fg on shell", c("statusbar-fg"), c("shell"), 4.5);
-  add("statusbar-hover-fg on statusbar-hover", c("statusbar-hover-fg"), c("statusbar-hover"), 4.5);
-  add("statusbar-hover-fg on statusbar-active", c("statusbar-hover-fg"), c("statusbar-active"), 4.5);
-  add("cc-fg on cc-bg", c("cc-fg"), composite(c("cc-bg"), c("shell")), 4.5);
   // 3. tone text on its own tint
   add("danger on danger-bg", c("danger"), c("danger-bg"), 4.5);
   add("warning on warning-bg", c("warning"), c("warning-bg"), 4.5);
@@ -226,11 +222,13 @@ function gatesFor(r: TokenResolver): Gate[] {
   for (const entry of ["ssh", "rdp", "vnc", "web", "credential", "document", "command", "folder"]) {
     for (const s of ["sidebar", "editor", "tabstrip"]) add(`entry-${entry} on ${s}`, c(`entry-${entry}`), c(s), 3);
   }
-  add("activity-fg-active on the active pill", c("activity-fg-active"), composite(c("activity-active-bg"), c("sidebar")), 3);
+  // The favorite star in the side bar header and the tree (D-17)
+  add("favorite on sidebar", c("favorite"), c("sidebar"), 3);
+  add("favorite on selected over sidebar", c("favorite"), selectedRow, 3);
   return gates;
 }
 
-describe("contrast gates (spec 2.11)", () => {
+describe("contrast gates (spec 2.10)", () => {
   it.each(COMBOS)("$scheme $mode passes every gate", ({ scheme, mode }) => {
     const failures = gatesFor(resolverFor({ scheme, mode }))
       .map((g) => ({ ...g, ratio: contrast(g.fg, g.bg) }))
@@ -316,7 +314,7 @@ describe("scheme metadata and shell colors follow the resolved tokens", () => {
       accent: toHex(parseColorLiteral(preview.accent)),
     }).toEqual({ shell: hex("--c-shell"), editor: hex("--c-editor"), sidebar: hex("--c-sidebar"), accent: hex("--c-accent") });
     const boot = shellColors[scheme][mode];
-    expect({ shell: toHex(parseColorLiteral(boot.shell)), fg: toHex(parseColorLiteral(boot.fg)) }).toEqual({ shell: hex("--c-shell"), fg: hex("--c-titlebar-fg") });
+    expect({ shell: toHex(parseColorLiteral(boot.shell)), fg: toHex(parseColorLiteral(boot.fg)) }).toEqual({ shell: hex("--c-shell"), fg: hex("--c-ink-faint") });
   });
 
   it("shell-colors.json has exactly the 7 schemes", () => {
