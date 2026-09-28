@@ -3,6 +3,7 @@ import { invoke } from "../../../lib/electron";
 import {
   ArrowLeftIcon, ArrowRightIcon, CheckIcon, CloseIcon, HomeIcon, KeyIcon, LoaderIcon, LockIcon, LockOpenIcon, PlusIcon, RefreshIcon, TargetIcon
 } from "../../../lib/icons";
+import { Button, IconButton } from "../../ui";
 
 type AutofillStatus = "idle" | "filling" | "success" | "error";
 
@@ -101,64 +102,29 @@ export default function WebBrowserToolbar({
   const displayUrl = url.replace(/^https?:\/\//, "");
 
   return (
-    <div className="flex-none h-9 bg-panel border-b border-stroke flex items-center gap-1 px-2">
-      {/* Navigation buttons */}
-      <button
-        onClick={handleGoBack}
-        disabled={!canGoBack}
-        className={`p-1.5 rounded hover:bg-raised transition-colors ${
-          canGoBack ? "text-ink-muted" : "text-ink-faint opacity-40 cursor-default"
-        }`}
-        title="Back"
-      >
-        <ArrowLeftIcon size={16} />
-      </button>
-
-      <button
-        onClick={handleGoForward}
-        disabled={!canGoForward}
-        className={`p-1.5 rounded hover:bg-raised transition-colors ${
-          canGoForward ? "text-ink-muted" : "text-ink-faint opacity-40 cursor-default"
-        }`}
-        title="Forward"
-      >
-        <ArrowRightIcon size={16} />
-      </button>
-
-      <button
+    <div className="flex-none h-9 bg-editor border-b border-divider flex items-center gap-1 px-2">
+      <IconButton icon={ArrowLeftIcon} label="Back" onClick={handleGoBack} disabled={!canGoBack} />
+      <IconButton icon={ArrowRightIcon} label="Forward" onClick={handleGoForward} disabled={!canGoForward} />
+      <IconButton
+        icon={isLoading ? CloseIcon : RefreshIcon}
+        label={isLoading ? "Stop" : "Refresh"}
         onClick={handleRefreshOrStop}
-        className="p-1.5 rounded hover:bg-raised transition-colors text-ink-muted"
-        title={isLoading ? "Stop" : "Refresh"}
-      >
-        {isLoading ? (
-          <CloseIcon size={16} />
-        ) : (
-          <RefreshIcon size={16} />
-        )}
-      </button>
-
-      <button
-        onClick={handleHome}
-        className="p-1.5 rounded hover:bg-raised transition-colors text-ink-muted"
-        title="Home"
-      >
-        <HomeIcon size={16} />
-      </button>
+      />
+      <IconButton icon={HomeIcon} label="Home" onClick={handleHome} />
 
       {/* Address bar */}
-      <div className="flex-1 relative flex items-center min-w-0">
-        <div className="absolute left-2.5 z-10 pointer-events-none">
-          {isSecure ? (
-            <LockIcon size={13} className="text-green-500" />
-          ) : (
-            <LockOpenIcon size={13} className="text-ink-faint" />
-          )}
-        </div>
+      <div className="flex-1 min-w-0 flex items-center gap-1.5 h-control rounded border border-input-border bg-input px-2 focus-within:outline focus-within:outline-1 focus-within:outline-(--c-focus) focus-within:-outline-offset-1">
+        {isSecure ? (
+          <LockIcon size={16} className="shrink-0 text-ink-muted" />
+        ) : (
+          <LockOpenIcon size={16} className="shrink-0 text-ink-muted" />
+        )}
 
         {editingUrl ? (
           <input
             ref={inputRef}
             type="text"
+            data-bare=""
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={(e) => {
@@ -166,13 +132,13 @@ export default function WebBrowserToolbar({
               if (e.key === "Escape") setEditingUrl(false);
             }}
             onBlur={() => setEditingUrl(false)}
-            className="w-full h-7 rounded bg-raised border border-conduit-500 text-sm text-ink px-3 pl-8 outline-none"
+            className="h-full min-w-0 flex-1 bg-transparent text-body text-(--c-input-fg) outline-hidden"
             autoFocus
           />
         ) : (
           <div
             onClick={handleAddressBarClick}
-            className="w-full h-7 rounded bg-raised border border-stroke-dim text-sm text-ink-muted px-3 pl-8 flex items-center cursor-text truncate"
+            className="min-w-0 flex-1 truncate text-body text-ink-muted cursor-text"
           >
             {displayUrl || "about:blank"}
           </div>
@@ -180,13 +146,7 @@ export default function WebBrowserToolbar({
       </div>
 
       {/* New tab — opens session's home URL */}
-      <button
-        onClick={handleNewTab}
-        className="p-1.5 rounded hover:bg-raised transition-colors text-ink-muted"
-        title="New Tab"
-      >
-        <PlusIcon size={16} />
-      </button>
+      <IconButton icon={PlusIcon} label="New Tab" onClick={handleNewTab} />
 
       {/* Autofill button (only if entry) */}
       {entryId && (
@@ -199,51 +159,55 @@ export default function WebBrowserToolbar({
             }}
           >
             <div className="flex items-center gap-1 pr-1">
-              <button
+              <Button
+                size="sm"
+                icon={TargetIcon}
                 onClick={() => {
                   setActionsExpanded(false);
                   onStartPicker();
                 }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-raised hover:bg-stroke text-ink-muted whitespace-nowrap transition-colors"
                 title="Pick CSS selectors"
               >
-                <TargetIcon size={14} />
                 Pick
-              </button>
+              </Button>
               {autofillEnabled && (
-                <button
+                <Button
+                  size="sm"
+                  icon={KeyIcon}
                   onClick={() => {
                     setActionsExpanded(false);
                     onAutofill();
                   }}
                   disabled={autofillStatus === "filling"}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-raised hover:bg-stroke text-ink-muted whitespace-nowrap disabled:opacity-40 transition-colors"
                   title="Populate login fields"
                 >
-                  <KeyIcon size={14} />
                   Fill
-                </button>
+                </Button>
               )}
             </div>
           </div>
-          <button
-            onClick={() => setActionsExpanded((v) => !v)}
-            disabled={autofillStatus === "filling"}
-            className={`p-1.5 rounded transition-colors ${
-              autofillStatus === "success"
-                ? "text-green-400"
-                : autofillStatus === "filling"
-                  ? "text-conduit-400 cursor-wait"
-                  : "text-ink-muted hover:bg-raised"
-            }`}
-            title="Autofill"
-          >
-            {autofillStatus === "filling" && <LoaderIcon size={16} className="animate-spin" />}
-            {autofillStatus === "success" && <CheckIcon size={16} />}
-            {(autofillStatus === "idle" || autofillStatus === "error") && <KeyIcon size={16} />}
-          </button>
+          <AutofillToggle status={autofillStatus} onClick={() => setActionsExpanded((v) => !v)} />
         </div>
       )}
     </div>
   );
+}
+
+function AutofillToggle({ status, onClick }: { status: AutofillStatus; onClick: () => void }) {
+  if (status === "filling") {
+    return (
+      <IconButton
+        icon={LoaderIcon}
+        label="Autofill"
+        tone="inherit"
+        disabled
+        className="text-link cursor-wait [&_svg]:animate-spin motion-reduce:[&_svg]:animate-none"
+        onClick={onClick}
+      />
+    );
+  }
+  if (status === "success") {
+    return <IconButton icon={CheckIcon} label="Autofill" tone="inherit" className="text-success" onClick={onClick} />;
+  }
+  return <IconButton icon={KeyIcon} label="Autofill" onClick={onClick} />;
 }

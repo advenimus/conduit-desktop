@@ -104,7 +104,7 @@ export default function DropZoneOverlay({ paneId }: DropZoneOverlayProps) {
     >
       {activeZone && (
         <div
-          className={`absolute ${zoneStyles[activeZone]} bg-conduit-500/10 border-2 border-conduit-500/30 rounded-sm transition-all duration-100 pointer-events-none`}
+          className={`absolute ${zoneStyles[activeZone]} bg-(--c-drop-bg) outline outline-1 -outline-offset-1 outline-accent rounded transition-all duration-100 pointer-events-none`}
         />
       )}
     </div>
