@@ -13,6 +13,7 @@ import { getLocalNetworkStatus } from '../services/local-network.js';
 import type { EngineType } from '../services/ai/engines/engine.js';
 import { isKnownEngineType } from '../services/ai/cli-harnesses.js';
 import { clearRecentVaults, removeRecentVault, type RecentVaultDeps } from './recent-vaults.js';
+import { applyAppearanceMigration, migrateAppearance, type AppearanceSettings } from '../services/appearance-migration.js';
 
 // Session default types — mirrored from src/types/entry.ts to avoid cross-boundary imports
 interface RdpGlobalDefaults {
@@ -63,7 +64,11 @@ const HARDCODED_SSH_DEFAULTS: SshGlobalDefaults = {
 export interface AppSettings {
   theme: string;
   color_scheme: string;
-  platform_theme: string;
+  // Appearance (docs/VISUAL_REDESIGN.md 6.1); the migration in readSettings() fills them for older files
+  icon_pack: string;
+  ui_density: string;
+  title_bar_style: string;
+  appearance_version: number;
   default_shell: string;
   recent_vaults: string[];
   last_vault_path: string | null;
@@ -116,8 +121,11 @@ export interface AppSettings {
 
 const defaultSettings: AppSettings = {
   theme: 'system',
-  color_scheme: 'ocean',
-  platform_theme: 'default',
+  color_scheme: 'modern',
+  icon_pack: 'codicons',
+  ui_density: 'comfortable',
+  title_bar_style: 'custom',
+  appearance_version: 2,
   default_shell: 'default',
   recent_vaults: [],
   last_vault_path: null,
@@ -153,6 +161,19 @@ export function settingsPath(): string {
   return path.join(dataDir, 'settings.json');
 }
 
+let appearanceWriteBackFailed = false;
+
+/** Writes the migrated appearance keys into the file once, leaving every other stored key as it was. */
+function persistAppearanceMigration(filePath: string, raw: Record<string, unknown>, values: AppearanceSettings): void {
+  if (appearanceWriteBackFailed) return;
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(applyAppearanceMigration(raw, values), null, 2), 'utf-8');
+  } catch (err) {
+    appearanceWriteBackFailed = true;
+    console.warn('[settings] Could not save the migrated appearance settings; the migration will run again on each read:', err);
+  }
+}
+
 /** Read settings from disk (sync). Returns defaults if file doesn't exist. */
 export function readSettings(): AppSettings {
   const filePath = settingsPath();
@@ -162,7 +183,13 @@ export function readSettings(): AppSettings {
   try {
     const contents = fs.readFileSync(filePath, 'utf-8');
     const raw = JSON.parse(contents);
-    const parsed = { ...defaultSettings, ...raw };
+    const rawRecord: Record<string, unknown> | null = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? raw : null;
+    // The version check must read the raw file: the defaults already hold appearance_version 2.
+    const appearance = migrateAppearance(rawRecord);
+    const parsed = applyAppearanceMigration({ ...defaultSettings, ...raw }, appearance.values) as AppSettings;
+    if (appearance.changed && rawRecord) {
+      persistAppearanceMigration(filePath, rawRecord, appearance.values);
+    }
     // Migrate existing users: if file existed but had no onboarding_completed,
     // mark as completed so existing users don't see the wizard
     if (raw.onboarding_completed === undefined) {

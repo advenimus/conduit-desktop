@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "schemes": ["modern", "ocean", "ember", "forest", "amethyst", "rose", "midnight"],
+  "iconPacks": ["codicons", "lucide", "tabler", "phosphor", "fluent", "material"],
+  "densities": ["comfortable", "compact"],
+  "themes": ["dark", "light", "system"],
+  "titleBarStyles": ["custom", "native"],
+  "defaults": {
+    "color_scheme": "modern",
+    "icon_pack": "codicons",
+    "ui_density": "comfortable",
+    "theme": "system",
+    "title_bar_style": "custom"
+  },
+  "legacy": {
+    "platform_theme": "default",
+    "color_scheme": "ocean"
+  },
+  "packByPlatform": {
+    "macos": "phosphor",
+    "windows": "fluent",
+    "ubuntu": "tabler"
+  },
+  "retiredSchemes": {
+    "macos-blue": "modern",
+    "macos-graphite": "modern",
+    "win-blue": "modern",
+    "win-sun-valley": "modern",
+    "ubuntu-yaru": "ember",
+    "ubuntu-gnome": "modern"
+  }
+}

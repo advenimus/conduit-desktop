@@ -1,0 +1,30 @@
+/* Density (spec 2.9). Comfortable lives on :root, Compact overrides on :root[data-density="compact"]. */
+:root {
+  --c-gap: 4px;
+  --c-outer: 4px;
+  --c-card-radius: 8px;
+  --c-card-border-w: 1px;
+  --c-activitybar-lane: 8px;
+  --c-activitybar-w: 44px;
+  --c-activity-gap: 8px;
+  --c-tabstrip-h: 33px;
+  --c-tab-h: 24px;
+  --c-tab-gutter-top: 4px;
+  --c-statusbar-gutter: 6px;
+  --c-list-inset: 4px;
+}
+
+:root[data-density="compact"] {
+  --c-gap: 0;
+  --c-outer: 0;
+  --c-card-radius: 0;
+  --c-card-border-w: 0;
+  --c-activitybar-lane: 4px;
+  --c-activitybar-w: 40px;
+  --c-activity-gap: 4px;
+  --c-tabstrip-h: 29px;
+  --c-tab-h: 20px;
+  --c-tab-gutter-top: 4px;
+  --c-statusbar-gutter: 4px;
+  --c-list-inset: 2px;
+}

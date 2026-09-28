@@ -1,7 +1,5 @@
 import { useEffect } from "react";
-import { COLOR_SCHEMES } from "../../../lib/schemes";
-import { PLATFORM_THEMES, getSchemesForPlatform } from "../../../lib/themes";
-import type { PlatformTheme } from "../../../lib/themes";
+import { COLOR_SCHEMES, type SchemePreview } from "../../../lib/schemes";
 import type { TabProps } from "../SettingsHelpers";
 
 export default function AppearanceTab({ settings, setSettings }: TabProps) {
@@ -27,13 +25,10 @@ export default function AppearanceTab({ settings, setSettings }: TabProps) {
 
     return () => { unsub?.(); };
   }, []);
-  const activePlatform = (settings.platform_theme || "default") as PlatformTheme;
   const isDark =
     settings.theme === "dark" ||
     (settings.theme === "system" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  const { native, universal } = getSchemesForPlatform(activePlatform, COLOR_SCHEMES);
 
   function dispatchThemeChange(detail: Record<string, string>) {
     document.dispatchEvent(
@@ -43,124 +38,12 @@ export default function AppearanceTab({ settings, setSettings }: TabProps) {
 
   return (
     <div className="space-y-6">
-      {/* ── Section 1: Platform Theme ── */}
-      <div>
-        <label className="block text-sm font-medium mb-2">Platform Theme</label>
-        <div className="grid grid-cols-2 gap-2">
-          {PLATFORM_THEMES.map((pt) => {
-            const isActive = activePlatform === pt.id;
-            const p = isDark ? pt.preview.dark : pt.preview.light;
-            return (
-              <button
-                key={pt.id}
-                onClick={() => {
-                  setSettings({ ...settings, platform_theme: pt.id });
-                  dispatchThemeChange({ platformTheme: pt.id });
-                }}
-                className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition-all ${
-                  isActive
-                    ? "border-conduit-500 ring-2 ring-conduit-500/30 bg-well"
-                    : "border-stroke hover:border-ink-faint bg-transparent"
-                }`}
-              >
-                {/* Mini chrome preview */}
-                <div
-                  className="w-full h-12 rounded-md overflow-hidden border border-stroke-dim"
-                  style={{ background: p.canvas }}
-                >
-                  {/* Title bar */}
-                  <div
-                    className="h-3.5 flex items-center px-1.5 gap-1"
-                    style={{ background: p.panel }}
-                  >
-                    {pt.id === "macos" && (
-                      <div className="flex gap-[3px]">
-                        <div className="w-[5px] h-[5px] rounded-full bg-[#ff5f57]" />
-                        <div className="w-[5px] h-[5px] rounded-full bg-[#febc2e]" />
-                        <div className="w-[5px] h-[5px] rounded-full bg-[#28c840]" />
-                      </div>
-                    )}
-                    {pt.id === "windows" && (
-                      <div className="flex ml-auto gap-[2px]">
-                        <div className="w-2 h-2 flex items-center justify-center text-[4px] opacity-40">&#8212;</div>
-                        <div className="w-2 h-2 flex items-center justify-center text-[3px] opacity-40">&#9744;</div>
-                        <div className="w-2 h-2 flex items-center justify-center text-[4px] opacity-40">&#10005;</div>
-                      </div>
-                    )}
-                    {(pt.id === "default" || pt.id === "ubuntu") && (
-                      <div className="flex gap-[2px]">
-                        <div className="w-[8px] h-[1.5px] rounded-sm" style={{ background: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)" }} />
-                        <div className="w-[8px] h-[1.5px] rounded-sm" style={{ background: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)" }} />
-                        <div className="w-[8px] h-[1.5px] rounded-sm" style={{ background: isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)" }} />
-                      </div>
-                    )}
-                  </div>
-                  {/* Content area hint */}
-                  <div className="flex h-[calc(100%-14px)]">
-                    <div
-                      className="w-[40%] border-r"
-                      style={{
-                        background: p.panel,
-                        borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-                      }}
-                    />
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="w-3 h-1 rounded-sm" style={{ background: p.accent }} />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className={`text-xs font-medium ${isActive ? "text-conduit-400" : "text-ink"}`}>
-                    {pt.label}
-                  </div>
-                  <div className="text-[10px] text-ink-muted">{pt.subtitle}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Section 2: Color Scheme ── */}
+      {/* ── Color Scheme ── */}
       <div>
         <label className="block text-sm font-medium mb-2">Color Scheme</label>
 
-        {/* Native schemes (platform-specific) */}
-        {native.length > 0 && (
-          <div className="mb-3">
-            <div className="text-[10px] uppercase tracking-wider text-ink-faint font-medium mb-1.5">
-              {PLATFORM_THEMES.find((t) => t.id === activePlatform)?.label} Native
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {native.map((scheme) => {
-                const p = isDark ? scheme.preview.dark : scheme.preview.light;
-                const isActive = settings.color_scheme === scheme.id;
-                return (
-                  <SchemeCard
-                    key={scheme.id}
-                    label={scheme.label}
-                    preview={p}
-                    isDark={isDark}
-                    isActive={isActive}
-                    onClick={() => {
-                      setSettings({ ...settings, color_scheme: scheme.id });
-                      dispatchThemeChange({ colorScheme: scheme.id });
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Universal schemes */}
-        {native.length > 0 && (
-          <div className="text-[10px] uppercase tracking-wider text-ink-faint font-medium mb-1.5">
-            Universal
-          </div>
-        )}
         <div className="grid grid-cols-3 gap-2">
-          {universal.map((scheme) => {
+          {COLOR_SCHEMES.map((scheme) => {
             const p = isDark ? scheme.preview.dark : scheme.preview.light;
             const isActive = settings.color_scheme === scheme.id;
             return (
@@ -180,7 +63,7 @@ export default function AppearanceTab({ settings, setSettings }: TabProps) {
         </div>
       </div>
 
-      {/* ── Section 3: Display ── */}
+      {/* ── Display ── */}
       <div className="flex gap-4">
         {/* Brightness */}
         <div className="flex-1">
@@ -307,7 +190,7 @@ function SchemeCard({
   onClick,
 }: {
   label: string;
-  preview: { canvas: string; panel: string; accent: string };
+  preview: SchemePreview;
   isDark: boolean;
   isActive: boolean;
   onClick: () => void;
@@ -323,11 +206,11 @@ function SchemeCard({
     >
       <div
         className="w-full h-10 rounded-md overflow-hidden flex items-end"
-        style={{ background: preview.canvas }}
+        style={{ background: preview.shell }}
       >
         <div
           className="w-full h-6 rounded-t-sm flex items-center px-2 gap-1.5"
-          style={{ background: preview.panel }}
+          style={{ background: preview.editor }}
         >
           <div className="w-5 h-2 rounded-sm" style={{ background: preview.accent }} />
           <div

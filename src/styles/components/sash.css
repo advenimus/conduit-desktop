@@ -1,0 +1,93 @@
+/* Sashes (spec 3.3, 3.6): always 4px in the layout flow, because a native web view paints over anything that overlaps it. */
+@layer components {
+  .cv-sash {
+    position: relative;
+    flex: none;
+    width: 4px;
+    align-self: stretch;
+    border-radius: 2px;
+    cursor: ew-resize;
+    touch-action: none;
+    transition: background-color var(--c-motion-fast) var(--c-ease-out);
+  }
+  .cv-sash[data-orientation="horizontal"] {
+    width: auto;
+    height: 4px;
+    cursor: ns-resize;
+  }
+  [data-os="macos"] .cv-sash {
+    cursor: col-resize;
+  }
+  [data-os="macos"] .cv-sash[data-orientation="horizontal"] {
+    cursor: row-resize;
+  }
+  .cv-sash[data-at-min] {
+    cursor: e-resize;
+  }
+  .cv-sash[data-at-max] {
+    cursor: w-resize;
+  }
+
+  .cv-sash:hover {
+    background: var(--c-accent);
+    transition-delay: var(--c-sash-delay);
+  }
+  .cv-sash[data-dragging] {
+    background: var(--c-accent);
+    transition-delay: 0s;
+  }
+
+  /* Grip: three 2px dots between two cards, Comfortable only. */
+  .cv-sash::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 2px;
+    margin: -1px 0 0 -1px;
+    border-radius: 50%;
+    color: var(--c-sash-grip);
+    background: currentColor;
+    box-shadow: 0 -5px currentColor, 0 5px currentColor;
+    pointer-events: none;
+    transition: opacity var(--c-motion-fast) linear;
+  }
+  .cv-sash[data-orientation="horizontal"]::after {
+    box-shadow: -5px 0 currentColor, 5px 0 currentColor;
+  }
+  .cv-sash:hover::after,
+  .cv-sash[data-dragging]::after {
+    opacity: 0;
+  }
+  :root[data-density="compact"] .cv-sash::after,
+  .cv-split-sash::after {
+    content: none;
+  }
+
+  /* Compact: the sash paints its neighbours and a 1px divider at its center, so it reads as a plain line. */
+  :root[data-density="compact"] .cv-sash[data-cv-sash="sidebar"] {
+    background: linear-gradient(to right, var(--c-sidebar) 0 1.5px, var(--c-divider) 1.5px 2.5px, var(--c-editor) 2.5px);
+  }
+  :root[data-density="compact"] .cv-sash[data-cv-sash="ai"] {
+    background: linear-gradient(to right, var(--c-editor) 0 1.5px, var(--c-divider) 1.5px 2.5px, var(--c-sidebar) 2.5px);
+  }
+  :root[data-density="compact"] .cv-sash[data-cv-sash]:hover,
+  :root[data-density="compact"] .cv-sash[data-cv-sash][data-dragging] {
+    background: var(--c-accent);
+  }
+
+  /* Editor split lines: a centered 1px line on the editor background, no grip. */
+  .cv-split-sash {
+    background: linear-gradient(var(--c-editor-group-border), var(--c-editor-group-border)) center / 1px 100% no-repeat,
+      var(--c-editor);
+  }
+  .cv-split-sash[data-orientation="horizontal"] {
+    background: linear-gradient(var(--c-editor-group-border), var(--c-editor-group-border)) center / 100% 1px no-repeat,
+      var(--c-editor);
+  }
+  .cv-split-sash:hover,
+  .cv-split-sash[data-dragging] {
+    background: var(--c-accent);
+  }
+}
