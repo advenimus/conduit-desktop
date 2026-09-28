@@ -9,7 +9,7 @@
 
 import { ipcMain } from 'electron';
 import { AppState } from '../services/state.js';
-import type { SshAuth, SshConfig } from '../services/ssh/client.js';
+import type { SshAuth } from '../services/ssh/client.js';
 import { resolveSshAuth, resolveSshAuthSystem } from '../services/ssh/resolve-auth.js';
 import { readSettings } from './settings.js';
 import { getDataDir, getEnvConfig } from '../services/env-config.js';
