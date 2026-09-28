@@ -164,11 +164,22 @@ export function ruleG7(h) {
   const tops = [head, search, footer].filter(Boolean).map((el) => h.rect(el).top);
   const ordered = tops.every((t, i) => i === 0 || t >= tops[i - 1]);
   const atBottom = h.near(h.rect(footer).bottom, h.rect(panel).bottom);
+  // The accent line and the resize handle run beside the rows; the floating handle starts at the panel's top.
+  const notARow = (el) => el.hasAttribute('data-cv-accent-line') || el.closest('[data-cv-sidebar-resize]') !== null;
+  // A tree row scrolled out of view keeps its box above the header; only the part its scrolling ancestors show counts.
+  const shownTop = (el) => {
+    let top = h.rect(el).top;
+    for (let a = el.parentElement; a && a !== panel; a = a.parentElement) {
+      if (getComputedStyle(a).overflowY !== 'visible') top = Math.max(top, h.rect(a).top);
+    }
+    return top;
+  };
   const above = [...panel.querySelectorAll('*')].filter(h.visible)
-    .filter((el) => !el.hasAttribute('data-cv-accent-line') && !el.contains(head) && !head.contains(el) && h.rect(el).height > 0)
-    .some((el) => h.rect(el).top < h.rect(head).top - 0.5);
+    .filter((el) => !notARow(el) && !el.contains(head) && !head.contains(el) && h.rect(el).height > 0)
+    .find((el) => shownTop(el) < h.rect(head).top - 0.5 && shownTop(el) < h.rect(el).bottom);
   const ok = ordered && atBottom && !above;
-  return h.result('G7', ok ? 'pass' : 'fail', `order ${ordered ? 'ok' : 'wrong'}, footer at the bottom ${atBottom}, header first ${!above}`);
+  const first = above ? ` (${above.tagName.toLowerCase()}${above.className && typeof above.className === 'string' ? `.${above.className.trim().split(/\s+/).slice(0, 3).join('.')}` : ''} at ${h.px(h.rect(above).top)})` : '';
+  return h.result('G7', ok ? 'pass' : 'fail', `order ${ordered ? 'ok' : 'wrong'}, footer at the bottom ${atBottom}, header first ${!above}${first}`);
 }
 
 /** G8: while the AI panel is open, the 4px divider and the panel are the last two children of its row. */

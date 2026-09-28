@@ -992,7 +992,13 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         >
           <IndentGuides depth={depth} />
           {isExpandable ? (
-            <button type="button" className="flex size-4 shrink-0 items-center justify-center text-ink-muted">
+            <button
+              type="button"
+              data-cv-tree-twistie=""
+              aria-label={isExpanded ? "Collapse" : "Expand"}
+              title={isExpanded ? "Collapse" : "Expand"}
+              className="flex size-4 shrink-0 items-center justify-center text-ink-muted"
+            >
               {isExpanded ? (
                 <ChevronDownIcon size={16} />
               ) : (

@@ -78,16 +78,19 @@ describe("EntryTree rows", () => {
     }
   });
 
-  it("gives folders a 16px twistie button and leaves a 16px spacer on leaf rows", async () => {
-    setup();
+  it("gives folders a named 16px twistie button with the harness hook and leaves a 16px spacer on leaf rows", async () => {
+    setup({ expanded: ["f1"] });
     render(<EntryTree />);
-    await screen.findByText("db-01");
+    await screen.findByText("Databases");
     const twistie = rowOf("Production").querySelector("button") as HTMLButtonElement;
     expect(twistie.className).toContain("size-4");
-    // The harness finds the twistie as the row's only unnamed button (restyle-data.mjs expandFolderInPage).
-    expect(twistie.getAttribute("aria-label")).toBeNull();
-    expect(twistie.title).toBe("");
+    expect(twistie.hasAttribute("data-cv-tree-twistie")).toBe(true);
+    expect(twistie.getAttribute("aria-label")).toBe("Collapse");
+    expect(twistie.title).toBe("Collapse");
     expect(twistie.querySelector("svg")?.getAttribute("width")).toBe("16");
+    const closed = rowOf("Databases").querySelector("button") as HTMLButtonElement;
+    expect(closed.getAttribute("aria-label")).toBe("Expand");
+    expect(closed.title).toBe("Expand");
 
     const leaf = rowOf("Runbook");
     expect(leaf.querySelector("button")).toBeNull();

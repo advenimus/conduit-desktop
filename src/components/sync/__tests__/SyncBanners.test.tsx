@@ -69,6 +69,45 @@ describe("SyncBanners", () => {
   });
 });
 
+describe("SyncBanner markup (spec 3.8)", () => {
+  function bannerOf(text: string | RegExp): HTMLElement {
+    return screen.getByText(text).closest('[role="status"]') as HTMLElement;
+  }
+
+  it("keeps role=status, the text in span.flex-1 with data-cv-banner-text, and its actions as buttons", () => {
+    useSyncStore.setState({ state: { ...stateWith([]), status: { ...stateWith([]).status!, conflictCount: 1 } } });
+    render(<SyncBanners />);
+    const banner = bannerOf("1 change from your other devices needs review.");
+    expect(banner).not.toBeNull();
+    const text = banner.querySelector("span.flex-1") as HTMLElement;
+    expect(text.hasAttribute("data-cv-banner-text")).toBe(true);
+    expect(text.textContent).toBe("1 change from your other devices needs review.");
+    const buttons = [...banner.querySelectorAll("button")];
+    expect(buttons.map((b) => b.textContent)).toEqual(["Review", "Later"]);
+    expect(buttons.map((b) => b.getAttribute("type"))).toEqual(["button", "button"]);
+  });
+
+  it("draws the primary action filled and the others secondary", () => {
+    useSyncStore.setState({ state: { ...stateWith([]), status: { ...stateWith([]).status!, conflictCount: 2 } } });
+    render(<SyncBanners />);
+    const review = screen.getByRole("button", { name: "Review" });
+    const later = screen.getByRole("button", { name: "Later" });
+    expect(review.className).toContain("bg-btn-primary");
+    expect(later.className).not.toContain("bg-btn-primary");
+    expect(later.className).toContain("--c-btn-secondary-bg");
+    expect(bannerOf(/2 changes from your other devices need review/).className).toContain("bg-warning-bg");
+  });
+
+  it("keeps Use here instead as the primary action of the soft lock banner", () => {
+    useVaultStore.setState({ lockedReason: "open_elsewhere" });
+    render(<SyncBanners />);
+    const banner = bannerOf("This vault is open on another device. Your open connections keep running.");
+    expect([...banner.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Use here instead", "Close vault"]);
+    expect(screen.getByRole("button", { name: "Use here instead" }).className).toContain("bg-btn-primary");
+    expect(banner.className).toContain("bg-selected");
+  });
+});
+
 describe("heldChangesText", () => {
   it("names only the parts that happened", () => {
     expect(heldChangesText(2, 1)).toBe("deleted 2 items and changed 1 item back");

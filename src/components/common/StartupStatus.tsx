@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { listen } from "../../lib/electron";
-import { AlertTriangleIcon, CheckIcon, CloseIcon, HammerIcon } from "../../lib/icons";
+import { AlertTriangleIcon, CheckIcon, HammerIcon } from "../../lib/icons";
+import { IconButton } from "../ui";
 
 interface BuildTask {
   id: string;
@@ -11,10 +12,8 @@ interface BuildTask {
 }
 
 /**
- * Startup status bar — shows background build/setup tasks at the bottom of the app.
- *
- * Listens for `freerdp:build-progress` events and displays a compact status bar
- * while builds are in progress. Auto-dismisses after completion.
+ * The strip at the bottom of the window for background build and setup tasks (spec 3.9). It listens for
+ * `freerdp:build-progress` events and hides itself a while after the task completes.
  */
 export default function StartupStatus() {
   const [tasks, setTasks] = useState<Map<string, BuildTask>>(new Map());
@@ -82,50 +81,34 @@ export default function StartupStatus() {
   const isError = current.phase === "error";
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-panel border-t border-stroke text-xs flex-shrink-0">
-      {/* Icon */}
-      {isBuilding && (
-        <HammerIcon size={14} className="text-conduit-400 animate-pulse flex-shrink-0" />
-      )}
-      {isDone && (
-        <CheckIcon size={14} className="text-green-400 flex-shrink-0" />
-      )}
-      {isError && (
-        <AlertTriangleIcon size={14} className="text-red-400 flex-shrink-0" />
-      )}
+    <div
+      data-cv-startup-status=""
+      className="flex h-6 shrink-0 items-center gap-2 border-t border-divider bg-shell px-2 text-label"
+    >
+      {isBuilding && <HammerIcon size={16} className="shrink-0 animate-pulse text-info" />}
+      {isDone && <CheckIcon size={16} className="shrink-0 text-success" />}
+      {isError && <AlertTriangleIcon size={16} className="shrink-0 text-danger" />}
 
-      {/* Label */}
-      <span className="text-ink-muted flex-shrink-0">
-        {current.label}:
-      </span>
+      <span className="shrink-0 text-ink-muted">{current.label}:</span>
 
-      {/* Message */}
-      <span className={`truncate ${isError ? "text-red-400" : isDone ? "text-green-400" : "text-ink-secondary"}`}>
+      <span className={`truncate ${isError ? "text-danger" : isDone ? "text-success" : "text-ink-secondary"}`}>
         {current.message}
       </span>
 
       {/* Detail (build output line) */}
       {isBuilding && current.detail && (
-        <span className="text-ink-muted truncate hidden sm:inline">
+        <span className="hidden truncate text-ink-faint sm:inline">
           — {current.detail}
         </span>
       )}
 
-      {/* Indeterminate progress bar */}
       {isBuilding && (
-        <div className="flex-1 min-w-16 max-w-48 h-1 bg-raised rounded-full overflow-hidden ml-auto">
-          <div className="h-full w-1/3 bg-conduit-500 rounded-full animate-indeterminate" />
+        <div className="ml-auto h-1 w-48 min-w-16 overflow-hidden rounded-full bg-selected">
+          <div className="h-full w-1/3 rounded-full bg-(--c-progress) animate-indeterminate" />
         </div>
       )}
 
-      {/* Dismiss */}
-      <button
-        onClick={handleDismiss}
-        className="p-0.5 hover:bg-raised rounded flex-shrink-0 ml-auto text-ink-muted"
-        title="Dismiss"
-      >
-        <CloseIcon size={12} />
-      </button>
+      <IconButton icon="close" label="Dismiss" size="sm" className="ml-auto" onClick={handleDismiss} />
     </div>
   );
 }

@@ -10,9 +10,6 @@ interface SidebarPanelProps {
   children: ReactNode;
 }
 
-/** Height of the floating panel's accent line; the resize handle starts below it, so no row sits above the header. */
-const ACCENT_LINE_PX = 2;
-
 export default function SidebarPanel({
   docked,
   closing,
@@ -52,9 +49,10 @@ export default function SidebarPanel({
         {!docked && <div data-cv-accent-line className="h-[2px] shrink-0 bg-accent" />}
         {children}
         <div
+          data-cv-sidebar-resize=""
           onMouseDown={onResizeStart}
-          className={`absolute bottom-0 cursor-col-resize group ${docked ? "w-2" : "w-3"}`}
-          style={{ right: docked ? 0 : -6, top: docked ? 0 : ACCENT_LINE_PX }}
+          className={`absolute top-0 bottom-0 cursor-col-resize group ${docked ? "w-2" : "w-3"}`}
+          style={{ right: docked ? 0 : -6 }}
         >
           <div className={`absolute top-0 bottom-0 w-1 transition-[background-color] ${docked ? "right-0" : "right-1.5"} ${
             resizeActive
