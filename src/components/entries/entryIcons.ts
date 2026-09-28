@@ -20,7 +20,7 @@ export function getEntryIcon(
 ): IconComponent {
   if (customIcon) {
     const resolved = resolveIcon(customIcon);
-    if (resolved) return resolved as unknown as IconComponent;
+    if (resolved) return resolved;
   }
 
   switch (entryType) {

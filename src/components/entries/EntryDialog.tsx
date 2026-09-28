@@ -1,18 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  CloseIcon,
-  TerminalIcon,
-  DesktopIcon,
-  ServerAltIcon,
-  GlobeIcon,
-  KeyIcon,
-  UsersIcon,
-  LockIcon,
-  ShieldLockIcon,
-  FileTextIcon,
-  PlayerPlayIcon,
-} from "../../lib/icons";
-import type { IconComponent } from "../../lib/icons";
 import { useEntryStore } from "../../stores/entryStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useVaultStore } from "../../stores/vaultStore";
@@ -21,8 +7,11 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import type { EntryType, RdpEntryConfig, WebEntryConfig, WebAutofillConfig, CommandEntryConfig } from "../../types/entry";
 import { DEFAULT_COMMAND_CONFIG } from "../../types/entry";
 import type { CredentialType } from "../../types/credential";
+import { Button, Dialog, DialogFooter, DialogHeader } from "../ui";
 import CredentialPicker from "../vault/CredentialPicker";
 import EntryDialogSidebar from "./EntryDialogSidebar";
+import EntryTypeStep, { type TypeOption } from "./EntryTypeStep";
+import { VaultContextStrip, ViewOnlyNotice } from "./VaultContextStrip";
 import type { EntryTabId } from "./entryDialogTabs";
 import { getDefaultTabId } from "./entryDialogTabs";
 import GeneralTab from "./tabs/GeneralTab";
@@ -44,52 +33,6 @@ interface EntryDialogProps {
   editingEntryId?: string | null;
 }
 
-interface TypeOption {
-  type: EntryType;
-  label: string;
-  description: string;
-  icon: IconComponent;
-  color: string;
-  /** If set, triggers a special action instead of opening the normal entry form */
-  credentialType?: CredentialType;
-}
-
-interface TypeCategory {
-  label: string;
-  items: TypeOption[];
-}
-
-const ENTRY_TYPE_CATEGORIES: TypeCategory[] = [
-  {
-    label: "Connections",
-    items: [
-      { type: "ssh", label: "SSH", description: "Terminal", icon: TerminalIcon, color: "text-green-400 border-green-400/30 hover:bg-green-400/10" },
-      { type: "rdp", label: "RDP", description: "Remote Desktop", icon: DesktopIcon, color: "text-blue-400 border-blue-400/30 hover:bg-blue-400/10" },
-      { type: "vnc", label: "VNC", description: "Screen Share", icon: ServerAltIcon, color: "text-purple-400 border-purple-400/30 hover:bg-purple-400/10" },
-      { type: "web", label: "Web", description: "Browser Session", icon: GlobeIcon, color: "text-cyan-400 border-cyan-400/30 hover:bg-cyan-400/10" },
-    ],
-  },
-  {
-    label: "Documents",
-    items: [
-      { type: "document", label: "Document", description: "Markdown", icon: FileTextIcon, color: "text-teal-400 border-teal-400/30 hover:bg-teal-400/10" },
-    ],
-  },
-  {
-    label: "Automation",
-    items: [
-      { type: "command", label: "Command", description: "Run As User", icon: PlayerPlayIcon, color: "text-amber-400 border-amber-400/30 hover:bg-amber-400/10" },
-    ],
-  },
-  {
-    label: "Credentials",
-    items: [
-      { type: "credential", label: "Password", description: "Username & password", icon: KeyIcon, color: "text-yellow-400 border-yellow-400/30 hover:bg-yellow-400/10", credentialType: "generic" },
-      { type: "credential", label: "SSH Key", description: "Key pair & fingerprint", icon: ShieldLockIcon, color: "text-orange-400 border-orange-400/30 hover:bg-orange-400/10", credentialType: "ssh_key" },
-    ],
-  },
-];
-
 const DEFAULT_PORTS: Record<string, number> = {
   ssh: 22,
   rdp: 3389,
@@ -100,10 +43,6 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
   const { createEntry, getEntry, updateEntry } = useEntryStore();
   const { credentials, loadCredentials } = useVaultStore();
   const vaultType = useVaultStore((s) => s.vaultType);
-  const teamVaultId = useVaultStore((s) => s.teamVaultId);
-  const teamVaults = useTeamStore((s) => s.teamVaults);
-  const teamVaultName = teamVaults.find((v) => v.id === teamVaultId)?.name;
-  const currentVaultPath = useVaultStore((s) => s.currentVaultPath);
   const getEffectiveRole = useTeamStore((s) => s.getEffectiveRole);
   const entries = useEntryStore((s) => s.entries);
 
@@ -345,8 +284,7 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
     loadedFieldsRef.current = editorFields();
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!entryType || !name.trim()) return;
 
     // SSH entries require a username (unless a linked credential provides one)
@@ -419,13 +357,15 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
 
   if (isLoadingEntry) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-        <div data-dialog-content className="w-full max-w-md bg-panel rounded-lg shadow-xl p-8 text-center">
-          <p className="text-ink-muted">Loading entry...</p>
-        </div>
-      </div>
+      <Dialog open onClose={onClose} title="Edit Entry" width={448} hideClose closeOnEscape={false} layout="custom">
+        <p className="p-8 text-center text-ink-muted">Loading entry...</p>
+      </Dialog>
     );
   }
+
+  const typeLabel = credentialType === "ssh_key" ? "SSH Key" : entryType === "document" ? "Document" : entryType === "command" ? "Command" : entryType?.toUpperCase();
+  const title = step === "type" ? "New Entry" : `${isEditing ? "Edit" : "New"} ${typeLabel} Entry`;
+  const showForm = step === "form" && entryType != null;
 
   const renderActiveTab = () => {
     if (!entryType) return null;
@@ -551,134 +491,65 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
 
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-        <div data-dialog-content className={`w-full ${step === "form" ? "max-w-3xl min-h-[min(600px,80vh)]" : "max-w-md"} bg-panel rounded-lg shadow-xl max-h-[80vh] flex flex-col`}>
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-stroke">
-            <h2 className="text-lg font-semibold">
-              {step === "type"
-                ? "New Entry"
-                : isEditing
-                  ? `Edit ${credentialType === "ssh_key" ? "SSH Key" : entryType === "document" ? "Document" : entryType === "command" ? "Command" : entryType?.toUpperCase()} Entry`
-                  : `New ${credentialType === "ssh_key" ? "SSH Key" : entryType === "document" ? "Document" : entryType === "command" ? "Command" : entryType?.toUpperCase()} Entry`}
-            </h2>
-            <button onClick={onClose} className="p-1 rounded hover:bg-raised">
-              <CloseIcon size={18} />
-            </button>
-          </div>
+      <Dialog
+        open
+        onClose={onClose}
+        title={title}
+        width={showForm ? 768 : 448}
+        closeOnEscape={false}
+        layout="custom"
+        onSubmit={showForm ? () => void handleSubmit() : undefined}
+        className={showForm ? "min-h-[min(600px,80vh)]" : undefined}
+        style={{ maxHeight: "80vh" }}
+      >
+        <DialogHeader />
+        <VaultContextStrip />
 
-          {/* Vault context */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-stroke text-xs">
-            {vaultType === "team" ? (
-              <>
-                <UsersIcon size={14} className="text-conduit-400" />
-                <span className="text-ink-muted">Saving to:</span>
-                <span className="text-ink font-medium">{teamVaultName ?? "Team Vault"}</span>
-                <span className="px-1.5 py-0.5 bg-conduit-500/10 text-conduit-400 rounded text-[10px]">Team</span>
-              </>
-            ) : (
-              <>
-                <LockIcon size={14} className="text-ink-faint" />
-                <span className="text-ink-muted">Saving to:</span>
-                <span className="text-ink font-medium">{currentVaultPath?.split(/[/\\]/).pop() ?? "Personal Vault"}</span>
-              </>
+        {isEditing && editingEntryId && vaultType === "personal" && (
+          <EntryConflictInline entryId={editingEntryId} mode="editor" />
+        )}
+
+        {isViewerInTeamVault && <ViewOnlyNotice />}
+
+        {step === "type" && <EntryTypeStep onSelect={selectType} />}
+
+        {showForm && entryType && (
+          <div className="flex min-h-0 flex-1">
+            <EntryDialogSidebar
+              entryType={entryType}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              credentialType={credentialType}
+            />
+            <div className="min-w-0 flex-1 overflow-y-auto px-5 py-4">{renderActiveTab()}</div>
+          </div>
+        )}
+
+        {showForm && (
+          <DialogFooter className="items-center border-t border-divider">
+            {!presetType && !isEditing && (
+              <Button onClick={() => setStep("type")} className="mr-auto">
+                Back
+              </Button>
             )}
-          </div>
-
-          {isEditing && editingEntryId && vaultType === "personal" && (
-            <EntryConflictInline entryId={editingEntryId} mode="editor" />
-          )}
-
-          {/* Viewer warning */}
-          {isViewerInTeamVault && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-400">
-              <LockIcon size={14} />
-              <span>You have view-only access to this folder</span>
-            </div>
-          )}
-
-          {/* Step 1: Type selection */}
-          {step === "type" && (
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
-              {ENTRY_TYPE_CATEGORIES.map((category) => (
-                <div key={category.label}>
-                  <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wider mb-2 px-0.5">
-                    {category.label}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {category.items.map((option) => {
-                      const TypeIcon = option.icon;
-                      return (
-                        <button
-                          key={`${option.type}-${option.credentialType ?? ''}`}
-                          onClick={() => selectType(option)}
-                          className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors ${option.color}`}
-                        >
-                          <TypeIcon size={16} />
-                          <span className="text-xs font-medium whitespace-nowrap">{option.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Step 2: Sidebar + Tab Content */}
-          {step === "form" && entryType && (
-            <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-              <div className="flex flex-1 min-h-0">
-                <EntryDialogSidebar
-                  entryType={entryType}
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                  credentialType={credentialType}
-                />
-                <div className="flex-1 p-5 overflow-y-auto">
-                  {renderActiveTab()}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex justify-between px-4 py-3 border-t border-stroke flex-shrink-0">
-                <div>
-                  {!presetType && !isEditing && (
-                    <button
-                      type="button"
-                      onClick={() => setStep("type")}
-                      className="px-4 py-2 text-sm hover:bg-raised rounded"
-                    >
-                      Back
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {validationError && (
-                    <p className="text-xs text-red-400 mr-2">{validationError}</p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-4 py-2 text-sm hover:bg-raised rounded"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!name.trim() || isSubmitting || isViewerInTeamVault}
-                    className="px-4 py-2 text-sm text-white bg-conduit-600 hover:bg-conduit-700 disabled:opacity-50 disabled:cursor-not-allowed rounded"
-                  >
-                    {isSubmitting
-                      ? isEditing ? "Saving..." : "Creating..."
-                      : isEditing ? "Save" : "Create"}
-                  </button>
-                </div>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
+            {validationError && (
+              <p data-cv-error="" className="mr-2 text-meta text-danger">
+                {validationError}
+              </p>
+            )}
+            <Button onClick={onClose}>Cancel</Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!name.trim() || isViewerInTeamVault}
+              loading={isSubmitting}
+              loadingLabel={isEditing ? "Saving..." : "Creating..."}
+            >
+              {isEditing ? "Save" : "Create"}
+            </Button>
+          </DialogFooter>
+        )}
+      </Dialog>
       {showCredentialPicker && (
         <CredentialPicker
           selectedId={credentialId}
