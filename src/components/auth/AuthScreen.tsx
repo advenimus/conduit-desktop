@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useAppIcon } from '../../hooks/useAppIcon';
 import { useAuthStore } from '../../stores/authStore';
 import {
-  BoltIcon, ExternalLinkIcon, LoaderIcon, ServerIcon, ShieldLockIcon, SparklesIcon
+  BoltIcon, ExternalLinkIcon, ServerIcon, ShieldLockIcon, SparklesIcon
 } from "../../lib/icons";
+import { Button, Callout, Spinner } from '../ui';
 
 export default function AuthScreen() {
   const appIcon = useAppIcon();
@@ -21,99 +22,80 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-canvas">
+    <div className="flex items-center justify-center min-h-screen bg-editor">
       <div className="w-full max-w-md mx-4">
         {/* Branding */}
         <div className="text-center mb-8">
           <img src={appIcon} alt="Conduit" className="w-16 h-16 rounded-2xl mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-ink">Conduit</h1>
-          <p className="text-sm text-ink-muted mt-1">Remote Connection Manager</p>
+          <h1 className="text-display font-semibold text-ink">Conduit</h1>
+          <p className="text-body text-ink-muted mt-1">Remote Connection Manager</p>
         </div>
 
-        {/* Trial banner */}
-        <div className="mb-4 mx-auto max-w-md rounded-lg bg-conduit-500/5 border border-conduit-500/20 px-4 py-3 text-center">
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <SparklesIcon size={14} className="text-conduit-400" />
-            <span className="text-sm font-medium text-ink">30-day free trial of Pro</span>
-          </div>
-          <p className="text-xs text-ink-muted">
-            Use one vault on all your devices at once. No commitment.
-          </p>
-        </div>
+        <Callout tone="info" icon={SparklesIcon} title="30-day free trial of Pro" className="mb-4">
+          Use one vault on all your devices at once. No commitment.
+        </Callout>
 
-        {/* Auth Card */}
-        <div className="bg-panel border border-stroke rounded-lg p-6 shadow-xl">
+        <div className="rounded-lg border border-card-border bg-sidebar p-6">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md mb-4">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
+            <Callout tone="danger" className="mb-4">
+              {error}
+            </Callout>
           )}
 
           {waitingForBrowser ? (
             <div className="text-center py-4">
-              <LoaderIcon size={32} className="text-conduit-400 animate-spin mx-auto mb-4" />
-              <p className="text-sm text-ink mb-1">Complete sign-in in your browser...</p>
-              <p className="text-xs text-ink-muted mb-6">
+              <div className="flex justify-center mb-4">
+                <Spinner size={24} className="text-link" />
+              </div>
+              <p className="text-body text-ink mb-1">Complete sign-in in your browser...</p>
+              <p className="text-label text-ink-muted mb-6">
                 A browser window has been opened. Return here after signing in.
               </p>
-              <button
-                onClick={handleSignIn}
-                className="text-sm text-conduit-400 hover:text-conduit-300 transition-colors"
-              >
+              <Button variant="link" size="lg" onClick={handleSignIn}>
                 Open browser again
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="space-y-3">
-              <button
-                onClick={handleSignIn}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-conduit-600 hover:bg-conduit-500 text-white text-sm font-medium rounded-md transition-colors"
-              >
-                <ExternalLinkIcon size={16} />
+              <Button variant="primary" size="lg" icon={ExternalLinkIcon} fullWidth onClick={handleSignIn}>
                 Sign In
-              </button>
+              </Button>
 
-              <p className="text-center text-sm text-ink-muted">
+              <p className="text-center text-body text-ink-muted">
                 Don't have an account?{' '}
-                <button
-                  onClick={handleSignUp}
-                  className="text-conduit-400 hover:text-conduit-300 transition-colors"
-                >
+                <Button variant="link" size="lg" onClick={handleSignUp}>
                   Create Account
-                </button>
+                </Button>
               </p>
 
               <div className="relative pt-2">
-                <div className="absolute inset-x-0 top-1/2 h-px bg-stroke" />
-                <span className="relative mx-auto block w-fit bg-panel px-2 text-[11px] text-ink-faint uppercase tracking-wide">
+                <div className="absolute inset-x-0 top-1/2 h-px bg-divider" />
+                <span className="relative mx-auto block w-fit bg-sidebar px-2 text-meta text-ink-faint">
                   or
                 </span>
               </div>
 
-              <button
-                onClick={enterLocalMode}
-                className="w-full px-4 py-2.5 border border-stroke text-ink hover:bg-raised text-sm font-medium rounded-md transition-colors"
-              >
+              <Button variant="secondary" size="lg" fullWidth onClick={enterLocalMode}>
                 Continue without signing in
-              </button>
+              </Button>
             </div>
           )}
         </div>
 
         {/* Feature preview */}
         <div className="mt-6 text-center">
-          <p className="text-xs text-ink-faint mb-2">Free accounts include</p>
-          <div className="flex justify-center gap-6 text-xs text-ink-muted">
+          <p className="text-label text-ink-faint mb-2">Free accounts include</p>
+          <div className="flex justify-center gap-6 text-label text-ink-muted">
             <span className="flex items-center gap-1.5">
-              <ServerIcon size={13} className="text-conduit-400" />
+              <ServerIcon size={13} className="text-link" />
               SSH · RDP · VNC · Web
             </span>
             <span className="flex items-center gap-1.5">
-              <ShieldLockIcon size={13} className="text-conduit-400" />
+              <ShieldLockIcon size={13} className="text-link" />
               Encrypted Vault
             </span>
             <span className="flex items-center gap-1.5">
-              <BoltIcon size={13} className="text-conduit-400" />
+              <BoltIcon size={13} className="text-link" />
               Unlimited MCP Tools
             </span>
           </div>
@@ -121,7 +103,7 @@ export default function AuthScreen() {
 
         {/* Open-source footer */}
         <div className="text-center mt-8">
-          <p className="text-[11px] text-ink-faint/50">
+          <p className="text-meta text-ink-faint/50">
             Open source · Apache 2.0
           </p>
         </div>
