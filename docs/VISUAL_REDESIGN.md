@@ -3239,3 +3239,29 @@ Three adversarial reviews (fidelity against VS Code 1.139, native behavior again
 | P16 | low | No underline Tabs variant (OD-7) | Accepted. `Tabs variant="underline"` with `--c-tab-underline`; no screen uses it at launch | 2.2.3, 4.7 |
 | P17 | low | Menus icon-less at the wave-2 boundary | Accepted. W3-MENUS moved to wave 2 as W2-MENUS | 5.6, 7.7, 10.2 |
 | P18 | low | Electron code importing `src/` breaks its tsconfig | Accepted. Electron never imports from `src/`; cross-tree tests live in `scripts/__tests__` or read JSON with `fs` | 2.5, 6.3, 8.1 |
+
+## Wave 1 review (2026-09-28)
+
+Two adversarial reviews (conformance and bugs) of the merged wave 1 raised 19 issues and 2 notes. The integrator checked each against the code, the tests, Electron 44 and the token resolver before fixing it. All 19 were accepted; three had a suggested fix replaced by another one (noted below). Each fix is its own commit tagged "(wave 1 review)".
+
+| # | Sev. | Issue | Resolution | Where |
+|---|---|---|---|---|
+| R1 | high | The checked ChoiceCard showed no keyboard focus: the inset ring lay on its accent border | `[data-cv-choice]` takes the 2px outside ring; `ChoiceGroup` keeps 3px padding | 2.7, 4.13 |
+| R2 | medium | Muted description on the checked ChoiceCard failed AA | The checked card sets `data-selected`; new `selected-inactive` gates | 2.11, 4.13 |
+| R3 | medium | Menu typeahead and roving swallowed keys typed in a field inside a menu | Keys from editable targets pass through; Escape still closes the popover (documented) | 4.10 |
+| R4 | medium | Muted and faint text failed AA on `well`; danger failed on the active menu item in Ocean dark | Six light faint values and Ocean light muted moved; DOM danger items use `--c-menu-danger-hover-bg`, now 10%; new gates. The alternative of restyling SegmentedControl labels only was not taken, because cards and inputs have the same pair | 2.2.3, 2.3, 2.11, 4.10 |
+| R5 | low | Focus ring below 3:1 on selected items of roving controls | `--c-focus` overrides in five schemes; new gates | 2.3, 2.11 |
+| R6 | low | `resolveCssColor` never threw in Chromium for an undeclared token | Sentinel parent color; verified in Electron 44 | 2.12 |
+| R7 | low | A newer `appearance_version` was written back as 2 | Kept in all four writers; parity test covers version 3 | 6.3 |
+| R8 | low | Tab could leave a modal dialog through an open popover | Tab cycles the topmost trapping layer plus the layers above it. Closing the popover on Tab was not taken: non-menu popovers need Tab inside them | 4.8 |
+| R9 | low | The tab trap counted hidden elements and every radio | `checkVisibility` filter; one stop per radio group | 4.8 |
+| R10 | low | A popover's freeze ended before its exit animation | Held until the panel unmounts | 4.9 |
+| R11 | low | Custom-layout dialog without a header had no name; FormField put description and error inside the label | Hidden fallback `h2` (the suggested `aria-label` fallback was not taken: the harness reads `[role=dialog][aria-label]` as a sync dialog); FormField describes the control with `aria-describedby` and `aria-invalid` | 4.4, 4.8 |
+| R12 | low | FormField and Spinner did not forward ref and `data-*` | Both forward to one root | 4.4, 4.12 |
+| R13 | low | Selected-row re-scope matched selected tabs | Row roles only, plus `[data-selected]` | 2.11 |
+| R14 | low | Side bar scrollbar never reached the thumb token | The fade runs from 1 | 2.8 |
+| R15 | low | Gallery strips left out some focusable primitives | Spec exempts text Buttons md/lg, Textarea, Tabs and ChoiceCard from the strips | 2.7, 4.1, 10.1 |
+| R16 | low | Button sm loader size contradicted the spec | Loader at the icon size | 4.2 |
+| R17 | low | Codicons label | Plain pack name | 5.2 |
+| R18 | low | `data-cv-card` hook not in the spec | Named in 3.3 and Appendix B | 3.3, App. B |
+| R19 | low | `verify-sync-flows.test.ts` outside W1-HARNESS owns | Added to owns; unlock wait documented | 8.3, 10.1 |
