@@ -2,6 +2,8 @@ import { describe, it, expect, afterAll } from "vitest";
 import { ICON_PACKS, SEMANTIC_ICON_NAMES, iconToSvg, preloadAllIconPacks, setIconPack } from "..";
 
 const MAX_MENU_SVG_BYTES = 8 * 1024;
+// The first import of the five lazy packs takes about 2.5 s alone and passed 5 s in a loaded full run.
+const PRELOAD_TIMEOUT_MS = 30_000;
 
 afterAll(async () => {
   await setIconPack("codicons");
@@ -50,5 +52,5 @@ describe("iconToSvg", () => {
         expect(svg.length, where).toBeLessThanOrEqual(MAX_MENU_SVG_BYTES);
       }
     }
-  });
+  }, PRELOAD_TIMEOUT_MS);
 });

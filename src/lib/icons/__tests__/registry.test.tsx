@@ -21,6 +21,8 @@ import {
 import type { IconMapping, IconPackId } from "..";
 
 const LAZY_PACKS: IconPackId[] = ["lucide", "tabler", "phosphor", "fluent", "material"];
+// The first import of the five lazy packs takes about 2.5 s alone and passed 5 s in a loaded full run.
+const PRELOAD_TIMEOUT_MS = 30_000;
 const ALL_PACKS = ICON_PACKS.map((pack) => pack.id);
 
 function markup(Component: IconMapping[keyof IconMapping], props: Record<string, unknown> = {}): string {
@@ -45,7 +47,7 @@ describe("preloadAllIconPacks", () => {
     for (const id of LAZY_PACKS) expect(getPackMapping(id)).not.toBeNull();
     expect([...useIconPackStore.getState().loaded].sort()).toEqual([...ALL_PACKS].sort());
     expect(useIconPackStore.getState().pack).toBe("codicons");
-  });
+  }, PRELOAD_TIMEOUT_MS);
 
   it("renders <Icon pack> from the named pack, not the active one", () => {
     for (const id of LAZY_PACKS) {
