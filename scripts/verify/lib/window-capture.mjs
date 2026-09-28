@@ -2,7 +2,8 @@
 // window is captured with `screencapture -l <windowId>` (the native window frame and native web views
 // included) and child windows (popup menus, the toast overlay) are laid over the main window at their
 // screen offset, so nothing on the rest of the screen can get into the image. Elsewhere, and when
-// macOS refuses the capture, the page is screenshotted instead.
+// macOS refuses the capture (no screen recording permission), the page is screenshotted instead and
+// the child windows' own pages are laid over it the same way.
 
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -85,9 +86,42 @@ export async function captureWindow(device, file, { overlays = ['menu', 'overlay
   }
   // CSS pixels, so the crops (given in CSS pixels at scale 1) cut the right region on HiDPI screens.
   await withTimeout(device.page.screenshot({ path: file, scale: 'css' }), CAPTURE_TIMEOUT_MS, `${device.name}: page screenshot`);
-  const open = await listWindows(device).catch(() => []);
-  const missing = [...new Set(open.filter((w) => overlays.includes(w.role)).map((w) => w.role))];
+  const missing = await addChildPages(device, file, overlays);
   return { file, method: 'page', scale: 1, main: null, missing };
+}
+
+/**
+ * Lays the pages of the open child windows of `overlays` roles over a page screenshot of the main
+ * window, at their offset from its content area. Returns the roles it could not add.
+ */
+async function addChildPages(device, file, overlays) {
+  const open = await listWindows(device).catch(() => []);
+  const main = open.find((w) => w.role === 'main');
+  const children = open.filter((w) => overlays.includes(w.role));
+  if (children.length === 0) return [];
+  const img = await sharp();
+  const meta = await img(file).metadata();
+  const layers = [];
+  const missing = [];
+  for (const child of children) {
+    const layer = main ? await childPageLayer(device, img, child, main, meta).catch(() => null) : null;
+    if (layer) layers.push(layer);
+    else missing.push(child.role);
+  }
+  if (layers.length > 0) {
+    const composed = await img(file).composite(layers).png().toBuffer();
+    fs.writeFileSync(file, composed);
+  }
+  return [...new Set(missing)];
+}
+
+async function childPageLayer(device, img, child, main, meta) {
+  const origin = devOrigin(device);
+  const pages = device.app.windows();
+  const page = pages.find((p) => p.url() === child.url) ?? pages.find((p) => windowRole(p.url(), origin) === child.role);
+  if (!page) return null;
+  const shot = await withTimeout(page.screenshot({ scale: 'css', omitBackground: true }), CAPTURE_TIMEOUT_MS, `${device.name}: ${child.role} page screenshot`);
+  return clipLayer(img, shot, child.bounds.x - main.content.x, child.bounds.y - main.content.y, meta);
 }
 
 async function captureMacWindows(device, file, overlays) {
