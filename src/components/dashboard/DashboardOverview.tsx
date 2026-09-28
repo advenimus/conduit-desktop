@@ -189,7 +189,7 @@ function WelcomeBar({
       </div>
       <Button variant="primary" onClick={onQuickConnect} className="gap-2">
         Quick Connect
-        <Kbd className="!border-white/40 !text-white">{IS_MAC ? "⌘N" : "Ctrl+N"}</Kbd>
+        <Kbd onFilled>{IS_MAC ? "⌘N" : "Ctrl+N"}</Kbd>
       </Button>
     </div>
   );

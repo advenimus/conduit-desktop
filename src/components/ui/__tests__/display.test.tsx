@@ -100,6 +100,14 @@ describe("Kbd", () => {
     render(<Kbd>Ctrl+P</Kbd>);
     expect(screen.getByText("Ctrl+P").tagName).toBe("KBD");
   });
+
+  it("onFilled swaps the border and text for white, for a hint inside a filled button", () => {
+    render(<Kbd onFilled>Ctrl+N</Kbd>);
+    const cls = screen.getByText("Ctrl+N").className.split(" ");
+    expect(cls).toEqual(expect.arrayContaining(["border-white/40", "text-white"]));
+    expect(cls).not.toContain("border-control");
+    expect(cls).not.toContain("text-ink-muted");
+  });
 });
 
 describe("Callout", () => {
