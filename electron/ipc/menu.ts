@@ -11,7 +11,9 @@ import { AppState } from '../services/state.js';
 import { sanitizeSvg } from './menu-svg.js';
 
 export const MENU_METRICS = {
-  width: 220,
+  /** Panels are as wide as their longest label needs, within these bounds; longer labels ellipsize. */
+  minWidth: 220,
+  maxWidth: 320,
   row: 24,
   separator: 11,
   header: 24,
@@ -23,6 +25,10 @@ export const MENU_METRICS = {
 } as const;
 
 const PANEL_CHROME = 2 * MENU_METRICS.border + 2 * MENU_METRICS.padding;
+// Around an item label: the 1px borders, the row's 4px margins and 8px padding; 16 + 8 for an icon or chevron slot.
+const ITEM_CHROME = 2 * MENU_METRICS.border + 8 + 16;
+const SLOT = 16 + 8;
+const HEADER_CHROME = 2 * MENU_METRICS.border + 24;
 const MENU_ID = /^[A-Za-z0-9_:.-]{1,64}$/;
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 const ITEM_INDEX = /^(0|[1-9]\d{0,5})$/;
@@ -196,6 +202,39 @@ export function selectionFor(message: string, ids: readonly string[]): string | 
 
 // ── Geometry ──
 
+const NARROW = new Set("ijlIft.,:;|!'`() ");
+const WIDE = new Set("mwMW@%");
+
+// The window is sized before its page renders, so label widths are estimated. Per character at 13px, each
+// class is a little above the widest glyph of the macOS system font, so Segoe UI and Ubuntu fit too.
+function charWidth13(ch: string): number {
+  if (NARROW.has(ch)) return 4.5;
+  if (WIDE.has(ch)) return 13;
+  if (ch.charCodeAt(0) > 0x7f) return 13;
+  if (ch >= 'A' && ch <= 'Z') return 9.5;
+  return 7.5;
+}
+
+export function estimateTextWidth(text: string, fontPx: number): number {
+  return ([...text].reduce((sum, ch) => sum + charWidth13(ch), 0) * fontPx) / 13;
+}
+
+function rowWidth(row: MenuRow, reserveIcon: boolean): number {
+  if (row.kind === 'separator') return 0;
+  if (row.kind === 'header') return HEADER_CHROME + estimateTextWidth(row.label, 11);
+  return ITEM_CHROME + (reserveIcon ? SLOT : 0) + estimateTextWidth(row.label, 13) + (row.kind === 'submenu' ? SLOT : 0);
+}
+
+function hasIcons(rows: readonly MenuRow[]): boolean {
+  return rows.some((row) => (row.kind === 'item' || row.kind === 'submenu') && row.iconSvg !== null);
+}
+
+export function panelWidth(rows: readonly MenuRow[]): number {
+  const reserveIcon = hasIcons(rows);
+  const widest = rows.reduce((max, row) => Math.max(max, rowWidth(row, reserveIcon)), 0);
+  return Math.min(MENU_METRICS.maxWidth, Math.max(MENU_METRICS.minWidth, Math.ceil(widest)));
+}
+
 function rowHeight(row: MenuRow): number {
   if (row.kind === 'separator') return MENU_METRICS.separator;
   return row.kind === 'header' ? MENU_METRICS.header : MENU_METRICS.row;
@@ -227,7 +266,7 @@ function grow(rect: Rect, by: number): Rect {
  * submenu beside its parent row, and only then adds the shadow margin to get the window.
  */
 export function layoutMenu(model: MenuModel, at: { x: number; y: number; anchorRight: boolean; workArea: Rect }): MenuLayout {
-  const { width } = MENU_METRICS;
+  const width = panelWidth(model.rows);
   const area = at.workArea;
   const right = area.x + area.width;
   const bottom = area.y + area.height;
@@ -242,13 +281,15 @@ export function layoutMenu(model: MenuModel, at: { x: number; y: number; anchorR
   const main: Rect = { x, y, width, height };
 
   const overlap = MENU_METRICS.submenuOverlap;
-  const subX = x + 2 * width - overlap <= right ? x + width - overlap : x - width + overlap;
   const submenus: Rect[] = [];
   let offset = 0;
   for (const row of model.rows) {
     if (row.kind === 'submenu') {
-      const subHeight = panelHeight(model.submenus[row.submenu]);
-      submenus.push({ x: subX, y: clamp(y + offset, area.y, bottom - subHeight), width, height: subHeight });
+      const subRows = model.submenus[row.submenu];
+      const subWidth = panelWidth(subRows);
+      const subHeight = panelHeight(subRows);
+      const subX = x + width + subWidth - overlap <= right ? x + width - overlap : x - subWidth + overlap;
+      submenus.push({ x: subX, y: clamp(y + offset, area.y, bottom - subHeight), width: subWidth, height: subHeight });
     }
     offset += rowHeight(row);
   }
@@ -264,7 +305,7 @@ function menuCss(c: MenuColors, platform: NodeJS.Platform): string {
     `*{margin:0;padding:0;box-sizing:border-box${smoothing}}`,
     'html,body{width:100%;height:100%;background:transparent;overflow:hidden}',
     `body{position:relative;font-family:${FONT_STACK};cursor:default;user-select:none;-webkit-user-select:none}`,
-    `.m,.sm{position:absolute;width:${MENU_METRICS.width}px;padding:${MENU_METRICS.padding}px 0;background:${c.overlay};border:1px solid ${c.overlayBorder};border-radius:8px;box-shadow:0 0 12px rgba(0,0,0,.14)}`,
+    `.m,.sm{position:absolute;padding:${MENU_METRICS.padding}px 0;background:${c.overlay};border:1px solid ${c.overlayBorder};border-radius:8px;box-shadow:0 0 12px rgba(0,0,0,.14)}`,
     `.i{display:flex;align-items:center;height:24px;margin:0 4px;padding:0 8px;border-radius:6px;gap:8px;font-size:13px;line-height:24px;color:${c.inkSecondary};white-space:nowrap}`,
     `.i.o{background:${c.selectionBg}}`,
     `.i.a{background:${c.selectionBg};outline:1px solid ${c.selectionBorder};outline-offset:-1px}`,
@@ -291,7 +332,7 @@ function rowHtml(row: MenuRow, reserveIcon: boolean, chevronSvg: string | null):
 }
 
 function panelHtml(rows: readonly MenuRow[], chevronSvg: string | null): string {
-  const reserveIcon = rows.some((row) => (row.kind === 'item' || row.kind === 'submenu') && row.iconSvg !== null);
+  const reserveIcon = hasIcons(rows);
   return rows.map((row) => rowHtml(row, reserveIcon, chevronSvg)).join('');
 }
 
@@ -390,7 +431,7 @@ const CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-i
 
 export function buildMenuHtml(input: { model: MenuModel; layout: MenuLayout; colors: MenuColors; chevronSvg: string | null; platform: NodeJS.Platform }): string {
   const { model, layout, colors, chevronSvg, platform } = input;
-  const at = (rect: Rect) => `left:${rect.x - layout.window.x}px;top:${rect.y - layout.window.y}px`;
+  const at = (rect: Rect) => `left:${rect.x - layout.window.x}px;top:${rect.y - layout.window.y}px;width:${rect.width}px`;
   const submenus = model.submenus
     .map((rows, k) => `<div class="sm" id="s${k}" role="menu" style="${at(layout.submenus[k])};display:none">${panelHtml(rows, chevronSvg)}</div>`)
     .join('');

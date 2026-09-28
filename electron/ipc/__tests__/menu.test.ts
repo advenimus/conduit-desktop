@@ -81,7 +81,7 @@ import {
 
 const WORK_AREA = { x: 0, y: 0, width: 1920, height: 1080 };
 const M = MENU_METRICS.shadowMargin;
-const W = MENU_METRICS.width;
+const W = MENU_METRICS.minWidth;
 const ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M0 0h16v16H0z"></path></svg>';
 const CLEAN_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"><path d="M0 0h16v16H0z"></path></svg>';
 
@@ -319,6 +319,41 @@ describe('layoutMenu', () => {
   });
 });
 
+describe('menu width', () => {
+  const at = { x: 100, y: 100, anchorRight: false, workArea: WORK_AREA };
+  const width = (input: unknown[]) => layoutMenu(buildMenuModel(input), at).main.width;
+
+  it('keeps menus with short labels at the 220 minimum', () => {
+    expect(width(items(3))).toBe(220);
+    expect(width([{ id: 'r', label: 'Remove from Recents' }, { id: 'c', label: 'Copy Path', iconSvg: ICON }])).toBe(220);
+  });
+
+  it('widens a menu whose longest label would be cut off, like the local-mode Account menu', () => {
+    // The label measures 177px at 13px in the macOS system font; the row adds 2 + 8 + 16 + 16 + 8 around it.
+    const w = width([
+      { id: 'hd', label: 'Local mode', type: 'header' },
+      { id: 'signin', label: 'Sign in to start a free Pro trial', iconSvg: ICON },
+    ]);
+    expect(w).toBeGreaterThanOrEqual(177 + 50);
+    expect(w).toBeLessThanOrEqual(260);
+  });
+
+  it('measures headers and wide or non-Latin text, and stops at 320 so a long email ellipsizes', () => {
+    expect(width([{ id: 'hd', label: 'chris.vautour.long.address@example-company.com (Offline)', type: 'header' }, ...items(1)])).toBe(320);
+    expect(width([{ id: 'w', label: 'WWWWWWWWWWWWWWWW' }])).toBeGreaterThan(220);
+    expect(width([{ id: 'cjk', label: '连接到远程桌面服务器并打开会话窗口' }])).toBeGreaterThan(220);
+  });
+
+  it('places a wider submenu beside its parent by its own width', () => {
+    const model = buildMenuModel([{ id: 'p', label: 'P', children: [{ id: 'c', label: 'Copy the connection string to the clipboard' }] }]);
+    const layout = layoutMenu(model, { ...at, x: 1920 - 220 - 100 });
+    const sub = layout.submenus[0];
+    expect(sub.width).toBeGreaterThan(220);
+    // No room on the right for the wider panel, so it opens to the left of the main menu.
+    expect(sub.x).toBe(layout.main.x - sub.width + MENU_METRICS.submenuOverlap);
+  });
+});
+
 describe('buildMenuHtml', () => {
   const render = (input: unknown[], chevronSvg: string | null = null) => {
     const model = buildMenuModel(input);
@@ -343,6 +378,7 @@ describe('buildMenuHtml', () => {
     const c = MODERN_MENU_COLORS.dark;
     const html = render(items(2));
     expect(html).toContain(`width:${W}px`);
+    expect(html).not.toMatch(/\.m,\.sm\{[^}]*width:/);
     expect(html).toMatch(/\.i\{[^}]*height:24px;margin:0 4px;padding:0 8px;border-radius:6px;gap:8px;font-size:13px;line-height:24px/);
     expect(html).toMatch(/\.sep\{height:1px;margin:5px 0;background:#2a2b2c\}/i);
     expect(html).toMatch(/\.hd\{[^}]*height:24px;[^}]*font-size:11px;font-weight:600;[^}]*color:#9d9d9d/i);
@@ -357,8 +393,14 @@ describe('buildMenuHtml', () => {
     expect(html).toContain(`.ic{display:flex;flex-shrink:0;width:16px;height:16px;color:${c.inkMuted}}`);
   });
 
-  it('places the main menu at the shadow margin inside the window', () => {
-    expect(render(items(1))).toContain(`class="m" role="menu" style="left:${M}px;top:${M}px"`);
+  it('places the main menu at the shadow margin inside the window, at its own width', () => {
+    expect(render(items(1))).toContain(`class="m" role="menu" style="left:${M}px;top:${M}px;width:${W}px"`);
+  });
+
+  it('gives a submenu its own width', () => {
+    const html = render([{ id: 'p', label: 'P', children: [{ id: 'c', label: 'Copy the connection string to the clipboard' }] }]);
+    expect(html).toMatch(/class="m" role="menu" style="left:\d+px;top:\d+px;width:220px"/);
+    expect(html).toMatch(/class="sm" id="s0" role="menu" style="left:\d+px;top:\d+px;width:(2[3-9]\d|3[01]\d|320)px;display:none"/);
   });
 
   it('embeds sanitized icons and the submenu chevron', () => {
