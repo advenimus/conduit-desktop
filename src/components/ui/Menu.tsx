@@ -101,8 +101,8 @@ export function MenuItem({ onSelect, icon, danger = false, keepOpen = false, end
       }}
       className={cx(
         "mx-1 flex h-6 w-[calc(100%-8px)] items-center gap-2 rounded-md px-2 text-left text-body disabled:opacity-40",
-        "focus:bg-(--c-menu-selection-bg) focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-(--c-menu-selection-border)",
-        danger ? "text-danger" : "text-ink-secondary",
+        "focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-(--c-menu-selection-border)",
+        danger ? "text-danger focus:bg-(--c-menu-danger-hover-bg)" : "text-ink-secondary focus:bg-(--c-menu-selection-bg)",
         className,
       )}
       {...rest}

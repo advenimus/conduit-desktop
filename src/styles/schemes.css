@@ -187,8 +187,8 @@
   --c-well: #f1f5f9;
   --c-ink: #0f172a;
   --c-ink-secondary: #334155;
-  --c-ink-muted: #64748b;
-  --c-ink-faint: #677388;
+  --c-ink-muted: #617188;
+  --c-ink-faint: #647185;
   --c-ink-disabled: #94a3b8;
   --c-stroke: #cbd5e1;
   --c-stroke-dim: #e2e8f0;
@@ -204,6 +204,7 @@
   --c-accent-900: #0c4a6e;
   --c-accent-950: #082f49;
   --c-tab-fg: #5c6c82;
+  --c-focus: var(--c-accent-700);
 }
 
 /* Ember: orange accent, true-black dark, warm-white light */
@@ -240,7 +241,7 @@
   --c-ink: #1a1005;
   --c-ink-secondary: #3b3226;
   --c-ink-muted: #6b6054;
-  --c-ink-faint: #7d7367;
+  --c-ink-faint: #7a7064;
   --c-ink-disabled: #9c9286;
   --c-stroke: #d4c4b0;
   --c-stroke-dim: #e8dcd0;
@@ -255,6 +256,7 @@
   --c-accent-800: #9a3412;
   --c-accent-900: #7c2d12;
   --c-accent-950: #431407;
+  --c-focus: var(--c-accent-700);
 }
 
 /* Forest: emerald accent, green-tinted surfaces */
@@ -291,7 +293,7 @@
   --c-ink: #0c1c14;
   --c-ink-secondary: #2c3e32;
   --c-ink-muted: #566e60;
-  --c-ink-faint: #60776b;
+  --c-ink-faint: #5d7367;
   --c-ink-disabled: #8aa496;
   --c-stroke: #b4cec0;
   --c-stroke-dim: #d0e6d8;
@@ -306,6 +308,7 @@
   --c-accent-800: #065f46;
   --c-accent-900: #064e3b;
   --c-accent-950: #022c22;
+  --c-focus: var(--c-accent-700);
 }
 
 /* Amethyst: violet accent, purple-tinted surfaces */
@@ -334,6 +337,7 @@
   --c-accent-950: #2e1065;
   --c-btn-primary-bg: var(--c-accent-600);
   --c-btn-primary-hover: var(--c-accent-700);
+  --c-focus: var(--c-accent-400);
 }
 
 :root[data-scheme="amethyst"].light {
@@ -344,7 +348,7 @@
   --c-ink: #14102a;
   --c-ink-secondary: #352c4e;
   --c-ink-muted: #5e5678;
-  --c-ink-faint: #736e8b;
+  --c-ink-faint: #6d6885;
   --c-ink-disabled: #908aa8;
   --c-stroke: #c4bada;
   --c-stroke-dim: #dcd4ec;
@@ -399,7 +403,7 @@
   --c-ink: #2a0e14;
   --c-ink-secondary: #46222e;
   --c-ink-muted: #6e4e58;
-  --c-ink-faint: #856b74;
+  --c-ink-faint: #81666f;
   --c-ink-disabled: #9c828c;
   --c-stroke: #d8b4be;
   --c-stroke-dim: #ecd0d6;
@@ -452,7 +456,7 @@
   --c-ink: #0c1a22;
   --c-ink-secondary: #263a46;
   --c-ink-muted: #506a76;
-  --c-ink-faint: #5f7681;
+  --c-ink-faint: #5b727d;
   --c-ink-disabled: #84a0ac;
   --c-stroke: #b0c8d4;
   --c-stroke-dim: #cce0e8;
@@ -467,4 +471,5 @@
   --c-accent-800: #155e75;
   --c-accent-900: #164e63;
   --c-accent-950: #083344;
+  --c-focus: var(--c-accent-700);
 }

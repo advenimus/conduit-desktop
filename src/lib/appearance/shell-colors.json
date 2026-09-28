@@ -1,9 +1,9 @@
 {
   "modern": { "dark": { "shell": "#191A1B", "fg": "#8C8C8C" }, "light": { "shell": "#FAFAFD", "fg": "#606060" } },
-  "ocean": { "dark": { "shell": "#1e293b", "fg": "#8B98AA" }, "light": { "shell": "#f8fafc", "fg": "#677388" } },
-  "ember": { "dark": { "shell": "#1a1210", "fg": "#888078" }, "light": { "shell": "#fffbf5", "fg": "#7D7367" } },
-  "forest": { "dark": { "shell": "#12231a", "fg": "#7F9089" }, "light": { "shell": "#f2faf5", "fg": "#60776B" } },
-  "amethyst": { "dark": { "shell": "#1a1430", "fg": "#878296" }, "light": { "shell": "#f8f5ff", "fg": "#736E8B" } },
-  "rose": { "dark": { "shell": "#221418", "fg": "#8E8087" }, "light": { "shell": "#fef5f6", "fg": "#856B74" } },
-  "midnight": { "dark": { "shell": "#0a1418", "fg": "#748289" }, "light": { "shell": "#f4fafc", "fg": "#5F7681" } }
+  "ocean": { "dark": { "shell": "#1e293b", "fg": "#8B98AA" }, "light": { "shell": "#f8fafc", "fg": "#647185" } },
+  "ember": { "dark": { "shell": "#1a1210", "fg": "#888078" }, "light": { "shell": "#fffbf5", "fg": "#7A7064" } },
+  "forest": { "dark": { "shell": "#12231a", "fg": "#7F9089" }, "light": { "shell": "#f2faf5", "fg": "#5D7367" } },
+  "amethyst": { "dark": { "shell": "#1a1430", "fg": "#878296" }, "light": { "shell": "#f8f5ff", "fg": "#6D6885" } },
+  "rose": { "dark": { "shell": "#221418", "fg": "#8E8087" }, "light": { "shell": "#fef5f6", "fg": "#81666F" } },
+  "midnight": { "dark": { "shell": "#0a1418", "fg": "#748289" }, "light": { "shell": "#f4fafc", "fg": "#5B727D" } }
 }

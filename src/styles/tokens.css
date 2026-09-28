@@ -201,7 +201,7 @@
   --c-scrollbar-thumb-active: color-mix(in srgb, var(--c-ink-muted) 61%, transparent);
   --c-drop-bg: color-mix(in srgb, var(--c-accent) 18%, transparent);
   --c-code-bg: color-mix(in srgb, var(--c-ink) 6%, var(--c-editor));
-  --c-menu-danger-hover-bg: color-mix(in srgb, var(--c-danger) 15%, transparent);
+  --c-menu-danger-hover-bg: color-mix(in srgb, var(--c-danger) 10%, transparent);
   --c-sash-grip: color-mix(in srgb, var(--c-ink-secondary) 40%, transparent);
   --c-indent-guide: color-mix(in srgb, var(--c-ink) 30%, var(--c-sidebar));
 
@@ -320,7 +320,7 @@
   --c-scrollbar-thumb-active: color-mix(in srgb, var(--c-ink-muted) 88%, transparent);
   --c-drop-bg: color-mix(in srgb, var(--c-accent) 18%, transparent);
   --c-code-bg: color-mix(in srgb, var(--c-ink) 6%, var(--c-editor));
-  --c-menu-danger-hover-bg: color-mix(in srgb, var(--c-danger) 15%, transparent);
+  --c-menu-danger-hover-bg: color-mix(in srgb, var(--c-danger) 10%, transparent);
   --c-sash-grip: color-mix(in srgb, var(--c-ink-secondary) 40%, transparent);
   --c-indent-guide: color-mix(in srgb, var(--c-ink) 37%, var(--c-sidebar));
 

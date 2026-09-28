@@ -196,6 +196,16 @@ function gatesFor(r: TokenResolver): Gate[] {
     add(`ink on selected-inactive over ${s}`, c("ink"), inactiveRow, 4.5);
     add(`ink-secondary on selected-inactive over ${s}`, c("ink-secondary"), inactiveRow, 4.5);
   }
+  // 4b. text on inner surfaces: cards, inputs and segmented controls (well), and the active menu item
+  for (const s of ["shell", "editor", "overlay", "sidebar"]) {
+    const well = composite(c("well"), c(s));
+    add(`ink-muted on well over ${s}`, c("ink-muted"), well, 4.5);
+    add(`ink-faint on well over ${s}`, c("ink-faint"), well, 4.5);
+  }
+  const menuActive = composite(c("menu-selection-bg"), c("overlay"));
+  add("ink-secondary on menu-selection-bg", c("ink-secondary"), menuActive, 4.5);
+  add("ink-muted (menu icons) on menu-selection-bg", c("ink-muted"), menuActive, 3);
+  add("danger on menu-danger-hover-bg", c("danger"), composite(c("menu-danger-hover-bg"), c("overlay")), 4.5);
   // 5. white on filled buttons and badges
   for (const bg of ["btn-primary-bg", "btn-primary-hover", "badge-bg", "btn-danger-bg", "btn-danger-hover"]) add(`white on ${bg}`, WHITE, c(bg), 4.5);
   // 6. non-text
@@ -204,6 +214,12 @@ function gatesFor(r: TokenResolver): Gate[] {
     add(`checkbox-border on ${s}`, c("checkbox-border"), c(s), 3);
   }
   add("checkbox-border on checkbox-bg", c("checkbox-border"), composite(c("checkbox-bg"), c("overlay")), 3);
+  // Roving controls (Tabs, NavList, SegmentedControl, ListRow) put the focus ring on the selected item.
+  for (const s of ["overlay", "sidebar"]) {
+    add(`focus on selected over ${s}`, c("focus"), composite(c("selected"), c(s)), 3);
+    add(`focus on selected-inactive over ${s}`, c("focus"), composite(c("selected-inactive"), c(s)), 3);
+  }
+  add("focus on selected over well (SegmentedControl)", c("focus"), composite(c("selected"), composite(c("well"), c("overlay"))), 3);
   for (const state of ["state-connected", "state-connecting", "state-error"]) {
     for (const s of ["shell", "tabstrip", "tab-active-bg"]) add(`${state} on ${s}`, c(state), c(s), 3);
   }

@@ -54,7 +54,12 @@ describe("Menu", () => {
     expect(items.every((i) => i.getAttribute("type") === "button")).toBe(true);
     expect(document.querySelector("[role=separator]")).not.toBeNull();
     expect(screen.getByText("Recent").closest("[role=menuitem]")).toBeNull();
-    expect(screen.getByRole("menuitem", { name: "Delete" }).className).toContain("text-danger");
+    const del = screen.getByRole("menuitem", { name: "Delete" });
+    expect(del.className).toContain("text-danger");
+    // The active danger item sits on the danger tint, as in the native popup menu (spec 7.7), not the accent one.
+    expect(del.className).toContain("focus:bg-(--c-menu-danger-hover-bg)");
+    expect(del.className).not.toContain("focus:bg-(--c-menu-selection-bg)");
+    expect(screen.getByRole("menuitem", { name: "New Vault" }).className).toContain("focus:bg-(--c-menu-selection-bg)");
     expect(document.querySelector("[data-context-menu]")).not.toBeNull();
   });
 

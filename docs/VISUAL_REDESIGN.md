@@ -266,7 +266,7 @@ Tailwind exposes these as `conduit-*` (`index.css:10-20`). Semantic uses: 300 = 
 | `--c-scrollbar-thumb-active` | `… 61%` | `… 88%` | `#A8A9AA9C` | `#646464E0` | `scrollbarSlider.activeBackground` |
 | `--c-drop-bg` | `color-mix(in srgb, var(--c-accent) 18%, transparent)` | same | `#3994BC1A` | `#0069CC15` | `list.dropBackground` (2026 theme) [V] |
 | `--c-code-bg` | `color-mix(in srgb, var(--c-ink) 6%, var(--c-editor))` | same | `#242526` | `#EAEAEA` | `textCodeBlock.background` (2026 theme) [V]; code blocks and prose `pre`/`code` |
-| `--c-menu-danger-hover-bg` | `color-mix(in srgb, var(--c-danger) 15%, transparent)` | same | same formula | same formula | none in VS Code; the popup menu's `dangerHover` (7.7) |
+| `--c-menu-danger-hover-bg` | `color-mix(in srgb, var(--c-danger) 10%, transparent)` | same | same formula | same formula | none in VS Code; the popup menu's `dangerHover` (7.7) and the DOM `Menu` (4.10). 10%, like the tone tints: at 15% Ocean dark `danger` measured 4.25 on it [wave 1 review] |
 | `--c-sash-grip` | `color-mix(in srgb, var(--c-ink-secondary) 40%, transparent)` | same | `#BFBFBF66` | `#20202066` | `modernSash.gripForeground` = `foreground` at 40% alpha [V] |
 | `--c-indent-guide` | `color-mix(in srgb, var(--c-ink) 30%, var(--c-sidebar))` | `… 37%` | `#585858` | `#A9A9A9` | `tree.indentGuidesStroke` (registry default; the 2026 themes do not set it) [V] |
 | `--c-scrim` | `rgb(0 0 0 / 0.5)` | same | same | same | [ADAPT] unchanged from today's `bg-black/50` |
@@ -318,19 +318,21 @@ The six universal schemes keep their primitives exactly as today (`src/index.css
 | Scheme | Mode | `--c-ink-faint` (new, AA) | `--c-ink-disabled` (= old faint) | `--c-ink-muted` | `--c-accent-300` / `--c-accent-400` | `--c-btn-primary-bg` / `-hover` |
 |---|---|---|---|---|---|---|
 | ocean | dark | `#8B98AA` | `#64748b` | unchanged | ramp (`#7dd3fc` / `#38bdf8`) | 700 `#0369a1` / 800 `#075985` |
-| ocean | light | `#677388` | `#94a3b8` | unchanged | 800 `#075985` / 700 `#0369a1` | 700 / 800 |
+| ocean | light | `#647185` | `#94a3b8` | `#617188` | 800 `#075985` / 700 `#0369a1` | 700 / 800 |
 | ember | dark | `#888078` | `#615850` | unchanged | ramp | 700 `#c2410c` / 800 `#9a3412` |
-| ember | light | `#7D7367` | `#9c9286` | unchanged | 800 `#9a3412` / 700 `#c2410c` | 700 / 800 |
+| ember | light | `#7A7064` | `#9c9286` | unchanged | 800 `#9a3412` / 700 `#c2410c` | 700 / 800 |
 | forest | dark | `#7F9089` | `#546860` | `#7B9189` | ramp | 700 `#047857` / 800 `#065f46` |
-| forest | light | `#60776B` | `#8aa496` | unchanged | 800 `#065f46` / 700 `#047857` | 700 / 800 |
+| forest | light | `#5D7367` | `#8aa496` | unchanged | 800 `#065f46` / 700 `#047857` | 700 / 800 |
 | amethyst | dark | `#878296` | `#5e5870` | `#88809C` | ramp | 600 `#7c3aed` / 700 `#6d28d9` |
-| amethyst | light | `#736E8B` | `#908aa8` | unchanged | 700 `#6d28d9` / 600 `#7c3aed` | 600 / 700 |
+| amethyst | light | `#6D6885` | `#908aa8` | unchanged | 700 `#6d28d9` / 600 `#7c3aed` | 600 / 700 |
 | rose | dark | `#8E8087` | `#685860` | `#957D83` | ramp | 600 `#e11d48` / 700 `#be123c` |
-| rose | light | `#856B74` | `#9c828c` | unchanged | 800 `#9f1239` / 700 `#be123c` | 600 / 700 |
+| rose | light | `#81666F` | `#9c828c` | unchanged | 800 `#9f1239` / 700 `#be123c` | 600 / 700 |
 | midnight | dark | `#748289` | `#506068` | unchanged | ramp | 700 `#0e7490` / 800 `#155e75` |
-| midnight | light | `#5F7681` | `#84a0ac` | unchanged | 800 `#155e75` / 700 `#0e7490` | 700 / 800 |
+| midnight | light | `#5B727D` | `#84a0ac` | unchanged | 800 `#155e75` / 700 `#0e7490` | 700 / 800 |
 
-The new faint values are the old faint mixed toward `--c-ink` in 1% steps until the minimum contrast on shell, editor and overlay reaches 4.5:1 [V computed, `scratchpad/spec/palette.py`]. The check uses the exact `color-mix()` result for the overlay, not a rounded hex: rounded, Forest dark passed at 4.50, but exactly its faint and muted measured 4.49, so both moved one step (`#7F9089`, `#7B9189`, now 4.55) [V computed, review pass]. Buttons use the first ramp step whose contrast with white text is ≥ 4.5:1.
+The new faint values are the old faint mixed toward `--c-ink` in 1% steps until the minimum contrast on shell, editor and overlay reaches 4.5:1 [V computed, `scratchpad/spec/palette.py`]. The check uses the exact `color-mix()` result for the overlay, not a rounded hex: rounded, Forest dark passed at 4.50, but exactly its faint and muted measured 4.49, so both moved one step (`#7F9089`, `#7B9189`, now 4.55) [V computed, review pass]. The wave 1 review added `well` (composited on shell, editor, overlay and sidebar) to those surfaces, because cards, inputs and segmented controls put muted and faint text on it: the six light faint values moved further (Ocean 36%, Ember 26%, Forest 36%, Amethyst 28%, Rose 24%, Midnight 34% from the old faint), and Ocean light `ink-muted` moved 3% toward `ink` (`#64748b` was 4.34:1 on its `#f1f5f9` well) [V computed]. Buttons use the first ramp step whose contrast with white text is ≥ 4.5:1.
+
+Focus overrides [wave 1 review]: Ocean, Ember, Forest and Midnight light set `--c-focus: var(--c-accent-700)`, and Amethyst dark sets `--c-focus: var(--c-accent-400)`. With the default step the ring fell below 3:1 on a selected row (2.48 to 2.98), which is where roving focus sits in Tabs, NavList and SegmentedControl (2.11 gate 6).
 
 One more per-scheme override: Ocean light sets `--c-tab-fg: #5C6C82`. Its `ink-muted` (`#64748b`) measures 4.02:1 on the Ocean light tab strip (`#EAECEF`); `#5C6C82` measures 4.54:1 there [V computed].
 
@@ -642,29 +644,29 @@ Minimum contrast of each text token against the shell, editor and overlay surfac
 | modern dark | 13.78 | 8.77 | 5.95 | 2.16 → 4.80 | 5.47 | 4.79 / 4.60 | 4.71 |
 | modern light | 15.64 | 15.64 (equals ink) | 6.04 | 2.73 → 5.12 | 5.18 | 5.39 / 5.91 | 5.18 |
 | ocean dark | 12.14 | 8.96 | 5.19 | 2.79 → 4.54 | 6.21 | 5.93 / 7.56 | 4.80 |
-| ocean light | 17.06 | 9.90 | 4.55 | 2.45 → 4.58 | 5.67 | 5.93 / 7.56 | 3.91 |
+| ocean light | 17.06 | 9.90 | 4.75 (was 4.55) | 2.45 → 4.73 | 5.67 | 5.93 / 7.56 | 5.67 |
 | ember dark | 14.85 | 9.04 | 4.80 | 2.53 → 4.53 | 7.78 | 5.18 / 7.31 | 6.28 |
-| ember light | 18.18 | 12.20 | 5.94 | 2.97 → 4.51 | 5.02 | 5.18 / 7.31 | 3.45 |
+| ember light | 18.18 | 12.20 | 5.94 | 2.97 → 4.71 | 5.02 | 5.18 / 7.31 | 5.02 |
 | forest dark | 13.00 | 8.35 | 4.55 (was 4.49 exact) | 2.57 → 4.55 | 7.97 | 5.48 / 7.68 | 6.04 |
-| forest light | 16.59 | 10.73 | 5.21 | 2.52 → 4.55 | 5.16 | 5.48 / 7.68 | 3.55 |
-| amethyst dark | 14.13 | 8.19 | 4.56 (was 4.32) | 2.52 → 4.60 | 6.27 | 5.70 / 7.10 | 4.03 |
-| amethyst light | 17.14 | 12.02 | 6.33 | 3.05 → 4.50 | 5.29 | 5.70 / 7.10 | 5.29 |
+| forest light | 16.59 | 10.73 | 5.21 | 2.52 → 4.81 | 5.16 | 5.48 / 7.68 | 5.16 |
+| amethyst dark | 14.13 | 8.19 | 4.56 (was 4.32) | 2.52 → 4.60 | 6.27 | 5.70 / 7.10 | 6.27 |
+| amethyst light | 17.14 | 12.02 | 6.33 | 3.05 → 4.91 | 5.29 | 5.70 / 7.10 | 5.29 |
 | rose dark | 14.23 | 8.72 | 4.52 (was 4.46) | 2.57 → 4.56 | 6.37 | 4.70 / 6.29 | 4.67 |
-| rose light | 16.74 | 12.83 | 6.78 | 3.28 → 4.50 | 5.87 | 4.70 / 6.29 | 4.39 |
+| rose light | 16.74 | 12.83 | 6.78 | 3.28 → 4.82 | 5.87 | 4.70 / 6.29 | 4.39 |
 | midnight dark | 15.06 | 9.16 | 5.09 | 2.76 → 4.54 | 9.97 | 5.36 / 7.27 | 7.42 |
-| midnight light | 16.79 | 11.22 | 5.44 | 2.62 → 4.53 | 5.08 | 5.36 / 7.27 | 3.49 |
+| midnight light | 16.79 | 11.22 | 5.44 | 2.62 → 4.80 | 5.08 | 5.36 / 7.27 | 5.08 |
 
 Rules the gates enforce (section 2.1 test). The resolver evaluates `color-mix()` exactly (floating point, no rounding between steps) and composites alpha on the surface named in the pair:
 
 1. `ink`, `ink-secondary`, `ink-muted`, `ink-faint`, `accent-text`, `danger`, `warning`, `success`, `info` ≥ 4.5:1 on `shell`, `editor`, `overlay`.
 2. Chrome text on its own surface ≥ 4.5:1: `tab-fg` on `tabstrip`; `tab-fg-active` on `tab-active-bg`; `tab-fg-hover` on `tab-hover-bg`; `titlebar-fg` and `statusbar-fg` on `shell`; `statusbar-hover-fg` on `statusbar-hover` and on `statusbar-active`; `cc-fg` on `cc-bg`.
 3. Tone text on its own tint ≥ 4.5:1: `danger` on `danger-bg`, `warning` on `warning-bg`, `success` on `success-bg` (Badge, 4.12). `info` on `info-bg` ≥ 3:1, because info text never sits on it (Callout and Banner put text in `ink`, only the icon in `info`).
-4. Text inside a selected row ≥ 4.5:1 on `selected` composited over `sidebar`: `ink` and `ink-secondary`. Inside a selected row `ink-muted`, `ink-faint` and link colors are re-scoped (rule below), so they are not gated there.
+4. Text inside a selected row ≥ 4.5:1 on `selected` composited over `sidebar`: `ink` and `ink-secondary`; the same two on `selected-inactive` over `overlay` and `sidebar`. Inside a selected row `ink-muted`, `ink-faint` and link colors are re-scoped (rule below), so they are not gated there. Text on inner surfaces [wave 1 review]: `ink-muted` and `ink-faint` ≥ 4.5:1 on `well` over `shell`, `editor`, `overlay` and `sidebar` (cards, inputs, segmented controls); `ink-secondary` ≥ 4.5:1 and the `ink-muted` menu icons ≥ 3:1 on `menu-selection-bg` over `overlay`; `danger` ≥ 4.5:1 on `menu-danger-hover-bg` over `overlay`.
 5. White on `btn-primary-bg`, `btn-primary-hover`, `badge-bg`, `btn-danger-bg`, `btn-danger-hover` ≥ 4.5:1.
-6. Non-text ≥ 3:1 (WCAG 1.4.11): `focus`, `checkbox-border` (on `shell`, `editor`, `overlay` and on `checkbox-bg`), `state-*` and `entry-*` against the surfaces they sit on, `activity-fg-active` on the active pill, `info` on `info-bg`.
+6. Non-text ≥ 3:1 (WCAG 1.4.11): `focus` (also on `selected` and `selected-inactive` over `overlay` and `sidebar`, and on `selected` over `well`, where roving focus sits), `checkbox-border` (on `shell`, `editor`, `overlay` and on `checkbox-bg`), `state-*` and `entry-*` against the surfaces they sit on, `activity-fg-active` on the active pill, `info` on `info-bg`.
 7. `ink-disabled` is exempt (disabled controls), and no component may use it for enabled text.
 
-With the values in this section every gate passes in all 14 scheme and mode combinations [V computed, review pass]. The lowest results: `tab-fg` on `tabstrip` 4.53 (Ocean dark), `danger` on `danger-bg` 4.63 (Ocean dark), `tab-fg-hover` on `tab-hover-bg` 7.39, `statusbar-hover-fg` on `statusbar-active` 7.22, `ink-secondary` on `selected` 6.09, `checkbox-border` on `checkbox-bg` 3.03 (Modern light), `info` on `info-bg` 3.51 (Modern dark).
+With the values in this section every gate passes in all 14 scheme and mode combinations [V computed, review pass]. The lowest results: `tab-fg` on `tabstrip` 4.53 (Ocean dark), `danger` on `danger-bg` 4.63 (Ocean dark), `tab-fg-hover` on `tab-hover-bg` 7.39, `statusbar-hover-fg` on `statusbar-active` 7.22, `ink-secondary` on `selected` 6.09, `checkbox-border` on `checkbox-bg` 3.03 (Modern light), `info` on `info-bg` 3.51 (Modern dark). Gates added in the wave 1 review, lowest: `ink-faint` on `well` 4.52 and `ink-muted` on `well` 4.54 (Ocean light), `focus` on `selected` over `well` 3.08 (Rose light) and over `overlay` 3.10 (Modern dark), `danger` on `menu-danger-hover-bg` 4.62 (Ocean dark).
 
 **Selected rows.** Faint text, muted text and links fail on a selected row in almost every scheme (`ink-faint` on `selected`: 3.34 to 3.67 in all 14 combinations; Modern light link `#0069CC` on `#D6D6D8`: 3.72) [V computed]. So a selected row re-scopes those tokens for everything inside it, instead of each component swapping classes:
 
@@ -1257,7 +1259,7 @@ export function freezeHolders(): ReadonlyArray<{ reason: FreezeReason; label?: s
 | Container | `role="menu"`, `min-w-[160px] py-1` | [V] min-width 160, `padding: 4px 0` |
 | Item | `<button type="button" role="menuitem">`, `flex w-[calc(100%-8px)] items-center gap-2 h-6 mx-1 px-2 rounded-md text-body text-ink-secondary`, icon 16 in `--c-ink-muted` | [V] item 24 tall, `margin: 0 4px`, radius 6; text `menu.foreground` (`#BFBFBF` / `#202020`). A `<button>` because the harness clicks `Lock Current Vault` with selector `button` (B43) |
 | Active item (hover or keyboard) | `bg-(--c-menu-selection-bg) outline outline-1 -outline-offset-1 outline-(--c-menu-selection-border)` | [V] 2026 `menu.selectionBackground` + `selectionBorder` |
-| Danger item | `text-danger`, icon `text-danger` | |
+| Danger item | `text-danger`, icon `text-danger`; active background `bg-(--c-menu-danger-hover-bg)` instead of the selection tint, as the popup menu (7.7) | `danger` on the accent tint measured 4.29 in Ocean dark [wave 1 review] |
 | Separator | `role="separator"`, `h-px my-[5px] bg-divider` | [V] `margin: 5px 0` |
 | Header | `h-6 px-3 text-meta font-semibold text-ink-muted` (no uppercase) | [ADAPT] VS Code menus have no headers; Conduit's do (`PaneTabBar.tsx:84`) |
 | Keyboard | Up, Down, Home, End, Enter, Space, Escape, typeahead. Keys typed in a field inside the menu (ModelPicker's custom model id) stay with the field: no typeahead, no roving. Escape in that field still closes the popover, because the layer stack takes Escape before any element handler (4.8) | none today |
