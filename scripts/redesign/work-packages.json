@@ -178,7 +178,8 @@
         "scripts/redesign/check-owns.mjs",
         "scripts/redesign/lint-count.mjs",
         "scripts/redesign/work-packages.json",
-        "scripts/__tests__/check-owns.test.ts"
+        "scripts/__tests__/check-owns.test.ts",
+        "scripts/__tests__/verify-sync-flows.test.ts"
       ],
       "deliverables": [
         "selectors.mjs with every selector pair in Appendix B (Union column, B35 to B46 included) resolved by a scope-level pickSelector(scope, hook, legacy); no comma union is passed to querySelector or closest (spec 8.2)",

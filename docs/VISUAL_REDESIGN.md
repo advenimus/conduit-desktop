@@ -1719,7 +1719,8 @@ Fix, in wave 1:
 
 - both functions query `[role=dialog][aria-label]`;
 - the `Dialog` primitive names ordinary dialogs with `aria-labelledby` and sets `aria-label` only when `harnessLabel` is passed, which only the sync-style shells do (4.8);
-- the scoped clicks at `sync-flows.mjs:72,88,98` narrow the same way (B10).
+- the scoped clicks at `sync-flows.mjs:72,88,98` narrow the same way (B10);
+- `waitForUnlockOutcome()` reports `{outcome: 'unlocked'}` only once `sync_get_state().vault` names the vault, not as soon as `vault_is_unlocked` is true: that turns true when the working copy opens, before the unlock cycle and the device lease finish (`flows.mjs:93-96`, tested in `scripts/__tests__/verify-sync-flows.test.ts`).
 
 ### 8.4 Text rules for permanent chrome
 
@@ -1932,7 +1933,7 @@ There are 30 packages in 4 waves. The same list is in machine-readable form at `
 
 #### W1-HARNESS: Harness selector pairs, dialog detection and the ownership check
 
-**Owns:** `scripts/verify/lib/selectors.mjs`, `scripts/verify/lib/flows.mjs`, `scripts/verify/lib/team-flows.mjs`, `scripts/verify/lib/settings-flows.mjs`, `scripts/verify/lib/backup-flows.mjs`, `scripts/verify/lib/sync-flows.mjs`, `scripts/verify/lib/sync-panels.mjs`, `scripts/verify/lib/sync-dialogs.mjs`, `scripts/verify/lib/password-flows.mjs`, `scripts/verify/lib/ui-forms.mjs`, `scripts/verify/suites/mcp.mjs`, `scripts/verify/README.md`, `scripts/__tests__/verify-selectors.test.ts`, `scripts/redesign/check-owns.mjs`, `scripts/redesign/lint-count.mjs`, `scripts/redesign/work-packages.json`, `scripts/__tests__/check-owns.test.ts`
+**Owns:** `scripts/verify/lib/selectors.mjs`, `scripts/verify/lib/flows.mjs`, `scripts/verify/lib/team-flows.mjs`, `scripts/verify/lib/settings-flows.mjs`, `scripts/verify/lib/backup-flows.mjs`, `scripts/verify/lib/sync-flows.mjs`, `scripts/verify/lib/sync-panels.mjs`, `scripts/verify/lib/sync-dialogs.mjs`, `scripts/verify/lib/password-flows.mjs`, `scripts/verify/lib/ui-forms.mjs`, `scripts/verify/suites/mcp.mjs`, `scripts/verify/README.md`, `scripts/__tests__/verify-selectors.test.ts`, `scripts/redesign/check-owns.mjs`, `scripts/redesign/lint-count.mjs`, `scripts/redesign/work-packages.json`, `scripts/__tests__/check-owns.test.ts`, `scripts/__tests__/verify-sync-flows.test.ts`
 
 **Deliverables:**
 
