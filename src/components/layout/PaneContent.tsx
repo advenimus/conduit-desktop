@@ -13,6 +13,7 @@ import {
 import EntryDashboard from "../dashboard/EntryDashboard";
 import FolderDashboard from "../dashboard/FolderDashboard";
 import DashboardOverview from "../dashboard/DashboardOverview";
+import { Button, Spinner } from "../ui";
 
 interface PaneContentProps {
   paneId: string;
@@ -51,9 +52,9 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
       session.type !== "dashboard"
     ) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center bg-canvas text-ink-muted">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ink-muted mb-4" />
-          <p className="text-sm">
+        <div className="flex-1 flex flex-col items-center justify-center bg-editor text-ink-muted">
+          <Spinner size={24} className="mb-4" />
+          <p className="text-body">
             {session.metadata?.reconnecting
               ? `Reconnecting to ${session.title}...`
               : `Connecting to ${session.title}...`}
@@ -163,8 +164,8 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
   // Empty pane — show dashboard only if this is the only pane
   if (!isOnlyPane) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-canvas text-ink-faint">
-        <p className="text-sm">Drag a tab here or open a new session</p>
+      <div className="flex-1 flex items-center justify-center bg-editor text-ink-muted">
+        <p className="text-body">Drag a tab here or open a new session</p>
       </div>
     );
   }
@@ -183,25 +184,25 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center bg-canvas h-full">
+    <div className="flex-1 flex items-center justify-center bg-editor h-full">
       <div className="text-center max-w-md">
-        <h2 className="text-2xl font-semibold text-ink-secondary mb-2">Welcome to Conduit</h2>
-        <p className="text-ink-faint mb-6">
+        <h2 className="text-title text-ink mb-2">Welcome to Conduit</h2>
+        <p className="text-body text-ink-muted mb-6">
           Get started by creating your first entry or connecting to a remote host.
         </p>
         <div className="flex gap-3 justify-center">
-          <button
+          <Button
+            variant="primary"
             onClick={() => document.dispatchEvent(new CustomEvent("conduit:new-entry"))}
-            className="px-4 py-2 bg-conduit-600 hover:bg-conduit-700 text-white rounded-md text-sm font-medium transition-colors"
           >
             New Entry
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => document.dispatchEvent(new CustomEvent("conduit:quick-connect"))}
-            className="px-4 py-2 bg-raised hover:bg-stroke-dim rounded-md text-sm font-medium transition-colors"
           >
             Quick Connect
-          </button>
+          </Button>
         </div>
       </div>
     </div>

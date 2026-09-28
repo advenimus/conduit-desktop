@@ -3,6 +3,11 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import { useLayoutStore, type LayoutNode, type LayoutBranch } from "../../stores/layoutStore";
 import Pane from "./Pane";
 
+/** The separator's own direction: panes side by side are divided by a vertical bar. */
+function sashOrientation(direction: LayoutBranch["direction"]): "vertical" | "horizontal" {
+  return direction === "horizontal" ? "vertical" : "horizontal";
+}
+
 interface LayoutRendererProps {
   node: LayoutNode;
   rightSlot?: React.ReactNode;
@@ -42,11 +47,8 @@ function BranchRenderer({ node, rightSlot }: { node: LayoutBranch; rightSlot?: R
         <LayoutRenderer node={node.children[0]} rightSlot={rightSlot} />
       </Panel>
       <Separator
-        className={`flex-shrink-0 ${
-          node.direction === "horizontal"
-            ? "w-1 cursor-col-resize"
-            : "h-1 cursor-row-resize"
-        } bg-stroke hover:bg-conduit-500 active:bg-conduit-500 transition-colors`}
+        className={`cv-split-sash ${node.direction === "horizontal" ? "w-1" : "h-1"}`}
+        data-orientation={sashOrientation(node.direction)}
       />
       <Panel
         id={childId1}

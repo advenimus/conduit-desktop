@@ -24,6 +24,7 @@ export default function Pane({ paneId, rightSlot }: PaneProps) {
       <PaneTabBar paneId={paneId} isFocused={isFocused} rightSlot={isFocused ? rightSlot : undefined} />
       <div
         className="flex flex-col flex-1 min-h-0 min-w-0 relative overflow-hidden"
+        data-cv-session-area=""
         data-content-area={isFocused ? "" : undefined}
       >
         <PaneContent paneId={paneId} isFocused={isFocused} />

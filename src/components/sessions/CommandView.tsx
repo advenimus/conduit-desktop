@@ -7,8 +7,9 @@ import { getTerminalTheme } from "../../lib/terminalTheme";
 import { useSessionStore } from "../../stores/sessionStore";
 import "@xterm/xterm/css/xterm.css";
 import {
-  CheckIcon, ClockIcon, CloseIcon, PlayerPlayIcon, PlayerStopIcon, RefreshIcon
+  CheckIcon, CircleFilledIcon, ClockIcon, CloseIcon, PlayerPlayIcon, PlayerStopIcon, RefreshIcon
 } from "../../lib/icons";
+import { Button } from "../ui";
 
 // Global registry to preserve Terminal instances across component unmount/remount.
 interface CommandEntry {
@@ -258,69 +259,23 @@ export default function CommandView({
     }
   };
 
-  const statusIcon = () => {
-    switch (status) {
-      case "running":
-        return (
-          <span className="flex items-center gap-1.5 text-green-400">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            Running
-          </span>
-        );
-      case "exited":
-        return exitCode === 0 ? (
-          <span className="flex items-center gap-1 text-green-400">
-            <CheckIcon size={14} />
-            Exited (0)
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-red-400">
-            <CloseIcon size={14} />
-            Exited ({exitCode})
-          </span>
-        );
-      case "timeout":
-        return (
-          <span className="flex items-center gap-1 text-amber-400">
-            <ClockIcon size={14} />
-            Timed Out
-          </span>
-        );
-      case "error":
-        return (
-          <span className="flex items-center gap-1 text-red-400">
-            <CloseIcon size={14} />
-            Error
-          </span>
-        );
-    }
-  };
-
   return (
-    <div className="flex-1 flex flex-col bg-canvas h-full">
+    <div className="flex-1 flex flex-col bg-editor h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-3 py-1.5 border-b border-stroke bg-panel">
-        <div className="flex items-center gap-2 text-xs font-medium">
-          <PlayerPlayIcon size={14} className="text-amber-400" />
-          {statusIcon()}
+      <div className="flex items-center gap-3 px-3 py-1.5 border-b border-divider bg-editor">
+        <div className="flex items-center gap-2 text-label font-semibold">
+          <PlayerPlayIcon size={16} className="text-entry-command" />
+          <CommandStatusLabel status={status} exitCode={exitCode} />
         </div>
         <div className="flex-1" />
         {status === "running" ? (
-          <button
-            onClick={handleStop}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-          >
-            <PlayerStopIcon size={14} />
+          <Button size="sm" variant="danger" icon={PlayerStopIcon} onClick={handleStop}>
             Stop
-          </button>
+          </Button>
         ) : (
-          <button
-            onClick={handleRerun}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-conduit-500/10 text-conduit-400 hover:bg-conduit-500/20 transition-colors"
-          >
-            <RefreshIcon size={14} />
+          <Button size="sm" variant="secondary" icon={RefreshIcon} onClick={handleRerun}>
             Re-run
-          </button>
+          </Button>
         )}
       </div>
 
@@ -334,4 +289,42 @@ export default function CommandView({
       </div>
     </div>
   );
+}
+
+function CommandStatusLabel({ status, exitCode }: { status: CommandStatus; exitCode: number | null }) {
+  switch (status) {
+    case "running":
+      return (
+        <span className="flex items-center gap-1.5 text-success">
+          <CircleFilledIcon size={12} className="animate-pulse motion-reduce:animate-none" />
+          Running
+        </span>
+      );
+    case "exited":
+      return exitCode === 0 ? (
+        <span className="flex items-center gap-1 text-success">
+          <CheckIcon size={16} />
+          Exited (0)
+        </span>
+      ) : (
+        <span className="flex items-center gap-1 text-danger">
+          <CloseIcon size={16} />
+          Exited ({exitCode})
+        </span>
+      );
+    case "timeout":
+      return (
+        <span className="flex items-center gap-1 text-warning">
+          <ClockIcon size={16} />
+          Timed Out
+        </span>
+      );
+    case "error":
+      return (
+        <span className="flex items-center gap-1 text-danger">
+          <CloseIcon size={16} />
+          Error
+        </span>
+      );
+  }
 }

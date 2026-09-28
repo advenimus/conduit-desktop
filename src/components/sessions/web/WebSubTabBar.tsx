@@ -3,6 +3,7 @@ import { invoke } from "../../../lib/electron";
 import { useSessionStore } from "../../../stores/sessionStore";
 import type { WebTabInfo } from "../../../stores/webTabStore";
 import { CloseIcon, GlobeIcon, PlusIcon } from "../../../lib/icons";
+import { IconButton, cx } from "../../ui";
 
 interface WebSubTabBarProps {
   sessionId: string;
@@ -84,7 +85,7 @@ export default function WebSubTabBar({ sessionId, tabs, activeTabId }: WebSubTab
   };
 
   return (
-    <div className="flex-none h-8 bg-panel border-b border-stroke flex items-center overflow-x-auto scrollbar-none">
+    <div className="flex-none h-8 bg-editor border-b border-divider flex items-center gap-0.5 px-1 overflow-x-auto scrollbar-none">
       {tabs.map((tab, index) => {
         const isActive = tab.id === activeTabId;
         const isDragging = dragIndex === index;
@@ -100,53 +101,50 @@ export default function WebSubTabBar({ sessionId, tabs, activeTabId }: WebSubTab
             onDrop={(e) => handleDrop(e, index)}
             onDragEnd={handleDragEnd}
             onClick={() => handleSwitchTab(tab.id)}
-            className={`group flex items-center gap-1.5 px-3 h-full border-r border-stroke cursor-pointer min-w-0 max-w-[200px] transition-colors ${
-              isActive
-                ? "bg-[color-mix(in_srgb,var(--c-accent-500)_10%,var(--c-panel))] text-ink font-medium"
-                : "text-ink-muted hover:bg-raised hover:text-ink-secondary"
-            }${isDragging ? " opacity-50" : ""}${
-              isDropTarget ? " border-l-2 border-l-conduit-500" : ""
-            }`}
+            data-active={isActive ? "" : undefined}
+            data-drop-target={isDropTarget ? "" : undefined}
+            data-dragging={isDragging ? "" : undefined}
+            className={cx(
+              "group flex items-center gap-1.5 h-6 px-2 rounded text-label cursor-pointer min-w-0 max-w-[200px] transition-colors",
+              isActive ? "bg-selected text-ink" : "text-ink-muted hover:bg-hover",
+              isDragging && "opacity-50",
+              // An inset bar marks the drop position without shifting the row.
+              isDropTarget && "shadow-[inset_2px_0_0_var(--c-accent)]",
+            )}
           >
             {/* Favicon */}
             {tab.favicon ? (
               <img
                 src={tab.favicon}
                 alt=""
-                className="w-3.5 h-3.5 flex-shrink-0"
+                className="w-4 h-4 flex-shrink-0"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = "none";
                 }}
               />
             ) : (
-              <GlobeIcon size={14} className="flex-shrink-0 text-ink-faint" />
+              <GlobeIcon size={16} className="flex-shrink-0 text-ink-faint" />
             )}
 
             {/* Title */}
-            <span className="text-xs truncate flex-1">
+            <span className="truncate flex-1">
               {tab.title || safeHostname(tab.url)}
             </span>
 
-            {/* Close button */}
-            <button
+            {/* Close button, shown on hover as today */}
+            <IconButton
+              size="sm"
+              icon={CloseIcon}
+              label="Close tab"
               onClick={(e) => handleCloseTab(e, tab.id)}
-              className="flex-shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-stroke transition-opacity"
-              title="Close tab"
-            >
-              <CloseIcon size={12} />
-            </button>
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            />
           </div>
         );
       })}
 
       {/* New tab button */}
-      <button
-        onClick={handleNewTab}
-        className="flex items-center justify-center w-8 h-full hover:bg-raised flex-shrink-0 text-ink-muted"
-        title="New Tab"
-      >
-        <PlusIcon size={14} />
-      </button>
+      <IconButton icon={PlusIcon} label="New Tab" onClick={handleNewTab} />
     </div>
   );
 }
