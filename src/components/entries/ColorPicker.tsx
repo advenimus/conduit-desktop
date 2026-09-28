@@ -1,7 +1,8 @@
 import { useRef, useEffect, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { usePopoverPosition } from "../../hooks/usePopoverPosition";
-import { CloseIcon } from "../../lib/icons";
+import { IconButton, cx, useLayer } from "../ui";
+import { PICKER_PANEL, PICKER_TITLE, defaultRowClass } from "./pickerChrome";
 
 const PRESET_COLORS = [
   "#ef4444", "#f97316", "#f59e0b", "#eab308",
@@ -22,6 +23,8 @@ const PICKER_SIZE = { width: 220, height: 160 };
 export default function ColorPicker({ value, onSelect, onClose, anchorRef }: ColorPickerProps) {
   const ref = useRef<HTMLDivElement>(null);
   const pos = usePopoverPosition(anchorRef, PICKER_SIZE);
+  // Above the dialog that opened it, so Tab reaches the picker; Escape does nothing here, as before.
+  useLayer({ ref });
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -35,28 +38,23 @@ export default function ColorPicker({ value, onSelect, onClose, anchorRef }: Col
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose, anchorRef]);
 
+  const pick = (color: string | null) => {
+    onSelect(color);
+    onClose();
+  };
+
   return createPortal(
-    <div
-      ref={ref}
-      data-popover
-      className="fixed z-[60] bg-panel border border-stroke rounded-lg shadow-xl p-3 w-[220px]"
-      style={{ top: pos.top, left: pos.left }}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-ink-muted">Color</span>
-        <button
-          onClick={onClose}
-          className="p-0.5 rounded hover:bg-raised"
-        >
-          <CloseIcon size={12} />
-        </button>
+    <div ref={ref} data-popover className={cx(PICKER_PANEL, "w-[220px] p-3")} style={{ top: pos.top, left: pos.left }}>
+      <div className="mb-2 flex items-center justify-between">
+        <span className={PICKER_TITLE}>Color</span>
+        <IconButton size="sm" icon="close" label="Close" onClick={onClose} />
       </div>
 
       <button
-        onClick={() => { onSelect(null); onClose(); }}
-        className={`w-full text-left text-xs px-2 py-1.5 rounded mb-2 transition-colors ${
-          value === null ? "bg-conduit-600/20 text-conduit-400" : "text-ink-secondary hover:bg-raised"
-        }`}
+        type="button"
+        onClick={() => pick(null)}
+        {...(value === null ? { "data-selected": "" } : {})}
+        className={cx(defaultRowClass(value === null), "mb-2")}
       >
         Use Default
       </button>
@@ -65,10 +63,13 @@ export default function ColorPicker({ value, onSelect, onClose, anchorRef }: Col
         {PRESET_COLORS.map((color) => (
           <button
             key={color}
-            onClick={() => { onSelect(color); onClose(); }}
-            className={`w-6 h-6 rounded-full transition-all ${
-              value === color ? "ring-2 ring-conduit-500 ring-offset-1 ring-offset-panel" : "hover:scale-110"
-            }`}
+            type="button"
+            onClick={() => pick(color)}
+            {...(value === color ? { "data-selected": "" } : {})}
+            className={cx(
+              "size-6 rounded-full transition-transform duration-100",
+              value === color ? "ring-2 ring-(--c-accent) ring-offset-1 ring-offset-(--c-overlay)" : "hover:scale-110",
+            )}
             style={{ backgroundColor: color }}
             title={color}
           />
