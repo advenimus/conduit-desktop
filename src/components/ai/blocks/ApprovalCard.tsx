@@ -1,4 +1,6 @@
 import { CheckIcon, CloseIcon, ShieldCheckIcon } from "../../../lib/icons";
+import { cx } from "../../ui";
+
 interface ApprovalCardProps {
   id: string;
   description: string;
@@ -7,49 +9,39 @@ interface ApprovalCardProps {
   onRespond?: (approvalId: string, approved: boolean) => void;
 }
 
+const TONE: Readonly<Record<ApprovalCardProps["status"], { box: string; icon: string }>> = {
+  pending: { box: "bg-warning-bg border-warning-border", icon: "text-warning" },
+  approved: { box: "bg-success-bg border-success-border", icon: "text-success" },
+  denied: { box: "bg-danger-bg border-danger-border", icon: "text-danger" },
+};
+
+const STATUS_LABEL = { approved: "Approved", denied: "Denied" } as const;
+
+const CHOICE = "flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 hover:bg-hover transition-[color,background-color] duration-100";
+
 export default function ApprovalCard({ id, description, command, status, onRespond }: ApprovalCardProps) {
+  const tone = TONE[status];
   return (
-    <div
-      className={`my-1.5 rounded-md border text-xs overflow-hidden ${
-        status === "pending"
-          ? "bg-amber-500/10 dark:bg-amber-500/15 border-amber-500/30"
-          : status === "approved"
-            ? "bg-green-500/10 dark:bg-green-500/15 border-green-500/30"
-            : "bg-red-500/10 dark:bg-red-500/15 border-red-500/30"
-      }`}
-    >
+    <div className={cx("my-1.5 overflow-hidden rounded-md border text-label", tone.box)}>
       <div className="flex items-start gap-2 px-3 py-2">
-        <ShieldCheckIcon
-          size={14}
-          className={`flex-shrink-0 mt-0.5 ${
-            status === "pending" ? "text-amber-500" : status === "approved" ? "text-green-500" : "text-red-500"
-          }`}
-        />
-        <div className="flex-1 min-w-0">
-          <p className="text-ink text-xs">{description}</p>
+        <ShieldCheckIcon size={16} className={cx("mt-px shrink-0", tone.icon)} />
+        <div className="min-w-0 flex-1">
+          <p className="text-ink">{description}</p>
           {command && (
-            <code className="block mt-1 text-[11px] text-ink-muted font-mono bg-well rounded px-1.5 py-0.5">
-              {command}
-            </code>
+            <code className="mt-1 block rounded bg-code px-1.5 py-0.5 font-mono text-meta text-ink-muted">{command}</code>
           )}
         </div>
       </div>
 
       {status === "pending" && onRespond && (
-        <div className="flex border-t border-amber-500/20">
-          <button
-            onClick={() => onRespond(id, true)}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-green-600 dark:text-green-400 hover:bg-green-500/10 transition-colors"
-          >
-            <CheckIcon size={12} />
+        <div className="flex border-t border-warning-border">
+          <button type="button" onClick={() => onRespond(id, true)} className={cx(CHOICE, "text-success")}>
+            <CheckIcon size={12} compact />
             Approve
           </button>
-          <div className="w-px bg-amber-500/20" />
-          <button
-            onClick={() => onRespond(id, false)}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
-          >
-            <CloseIcon size={12} />
+          <div className="w-px bg-warning-border" />
+          <button type="button" onClick={() => onRespond(id, false)} className={cx(CHOICE, "text-danger")}>
+            <CloseIcon size={12} compact />
             Deny
           </button>
         </div>
@@ -57,14 +49,13 @@ export default function ApprovalCard({ id, description, command, status, onRespo
 
       {status !== "pending" && (
         <div
-          className={`flex items-center justify-center gap-1.5 px-3 py-1 border-t text-[10px] uppercase tracking-wider ${
-            status === "approved"
-              ? "border-green-500/20 text-green-600 dark:text-green-400"
-              : "border-red-500/20 text-red-600 dark:text-red-400"
-          }`}
+          className={cx(
+            "flex items-center justify-center gap-1.5 border-t px-3 py-1 text-meta font-semibold",
+            status === "approved" ? "border-success-border text-success" : "border-danger-border text-danger",
+          )}
         >
-          {status === "approved" ? <CheckIcon size={10} /> : <CloseIcon size={10} />}
-          {status}
+          {status === "approved" ? <CheckIcon size={12} compact /> : <CloseIcon size={12} compact />}
+          {STATUS_LABEL[status]}
         </div>
       )}
     </div>

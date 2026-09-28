@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useAiStore } from "../../stores/aiStore";
-import { CheckIcon, CloseIcon, LoaderIcon } from "../../lib/icons";
+import { CheckIcon } from "../../lib/icons";
+import { Button, IconButton, ListRow, Spinner, TextInput } from "../ui";
+
+// In the flow of the chat body with the overlay look (spec 3.16), not a floating popover.
+const CARD = "mx-4 mb-4 overflow-hidden rounded-lg border border-overlay-border bg-overlay";
 
 export default function ModelPicker() {
   const models = useAiStore((s) => s.engineModelOptions);
@@ -62,67 +66,43 @@ export default function ModelPicker() {
 
   if (models.length === 0) {
     return (
-      <div ref={containerRef} data-popover className="mx-4 mb-4 bg-panel border border-stroke rounded-lg shadow-lg overflow-hidden">
-        <div className="p-4 flex items-center justify-center gap-2 text-ink-muted text-sm">
-          <LoaderIcon size={16} className="animate-spin" />
-          <span>Loading models...</span>
+      <div ref={containerRef} data-popover className={CARD}>
+        <div className="flex items-center justify-center p-4 text-body text-ink-muted">
+          <Spinner size={16} text="Loading models..." />
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} data-popover className="mx-4 mb-4 bg-panel border border-stroke rounded-lg shadow-lg overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-        <span className="text-sm font-medium text-ink">Select a model</span>
-        <button
-          onClick={closePicker}
-          className="p-1 hover:bg-raised rounded text-ink-faint hover:text-ink"
-        >
-          <CloseIcon size={14} />
-        </button>
+    <div ref={containerRef} data-popover className={CARD}>
+      <div className="flex items-center justify-between border-b border-divider px-4 py-3">
+        <span className="text-body font-semibold text-ink">Select a model</span>
+        <IconButton size="sm" icon="close" label="Close" onClick={closePicker} />
       </div>
 
-      {/* Model list */}
-      <div className="max-h-64 overflow-y-auto">
+      <div className="max-h-64 overflow-y-auto p-1">
         {models.map((model) => {
           const isCurrent = model.id === currentModel || (model.isDefault && !currentModel);
           return (
-            <button
+            <ListRow
               key={model.id}
               onClick={() => handleSelect(model.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-stroke/50 last:border-0 ${
-                isCurrent
-                  ? "bg-conduit-600/10"
-                  : "hover:bg-raised"
-              }`}
+              selected={isCurrent}
+              description={model.description || undefined}
+              meta={isCurrent ? <CheckIcon size={16} className="text-ink" /> : undefined}
             >
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-ink truncate">
-                  {model.name}
-                </div>
-                {model.description && (
-                  <div className="text-xs text-ink-faint truncate mt-0.5">
-                    {model.description}
-                  </div>
-                )}
-              </div>
-              {isCurrent && (
-                <CheckIcon size={16} className="text-conduit-400 flex-shrink-0" />
-              )}
-            </button>
+              {model.name}
+            </ListRow>
           );
         })}
       </div>
 
-      {/* Custom model input */}
-      <div className="border-t border-stroke">
+      <div className="border-t border-divider">
         {showCustom ? (
           <div className="flex items-center gap-2 px-4 py-3">
-            <input
+            <TextInput
               ref={customRef}
-              type="text"
               value={customInput}
               onChange={(e) => setCustomInput(e.target.value)}
               onKeyDown={(e) => {
@@ -133,23 +113,18 @@ export default function ModelPicker() {
                 }
               }}
               placeholder="Enter model ID..."
-              className="flex-1 px-3 py-1.5 bg-well border border-stroke rounded text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-1 focus:ring-conduit-500"
+              className="flex-1"
             />
-            <button
-              onClick={handleCustomSubmit}
-              disabled={!customInput.trim()}
-              className="px-3 py-1.5 bg-conduit-600 hover:bg-conduit-700 text-white rounded text-sm disabled:opacity-50"
-            >
+            <Button variant="primary" onClick={handleCustomSubmit} disabled={!customInput.trim()}>
               Apply
-            </button>
+            </Button>
           </div>
         ) : (
-          <button
-            onClick={() => setShowCustom(true)}
-            className="w-full px-4 py-3 text-left text-sm text-ink-muted hover:bg-raised transition-colors"
-          >
-            Use custom model ID...
-          </button>
+          <div className="p-1">
+            <ListRow onClick={() => setShowCustom(true)}>
+              Use custom model ID...
+            </ListRow>
+          </div>
         )}
       </div>
     </div>

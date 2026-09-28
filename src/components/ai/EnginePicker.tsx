@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAiStore, type EngineType } from "../../stores/aiStore";
 import { invoke } from "../../lib/electron";
 import EngineLogo from "./EngineLogo";
-import { RefreshIcon } from "../../lib/icons";
+import { Badge, Button } from "../ui";
 import { AI_HARNESSES } from "../../lib/ai-harnesses";
 
 interface Props {
@@ -49,22 +49,22 @@ export default function EnginePicker({ onPick }: Props) {
   const handleInstall = async (type: EngineType) => {
     try {
       await invoke("engine_open_install_docs", { engineType: type });
-    } catch {
-      /* non-critical */
+    } catch (err) {
+      console.error("Failed to open the install instructions:", err);
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-full px-4 overflow-y-auto">
+    <div className="flex h-full items-center justify-center overflow-y-auto px-4">
       <div className="w-full max-w-sm py-4">
-        <div className="text-center mb-5">
-          <p className="text-ink font-medium mb-1">Choose your AI agent</p>
-          <p className="text-xs text-ink-faint">
+        <div className="mb-5 text-center">
+          <p className="mb-1 text-body font-semibold text-ink">Choose your AI agent</p>
+          <p className="text-label text-ink-muted">
             Conduit uses your local CLI agent. Pick which one to use — you can change this any time in Settings &gt; AI &gt; Agent.
           </p>
         </div>
 
-        <div className="space-y-2 mb-4">
+        <div className="mb-4 space-y-2">
           {AI_HARNESSES.map((opt) => {
             const available = engineAvailability?.[opt.id] ?? false;
             const isLast = lastChosen === opt.id;
@@ -73,43 +73,32 @@ export default function EnginePicker({ onPick }: Props) {
             return (
               <div
                 key={opt.id}
-                className={`bg-well border rounded-lg p-3 transition-colors ${
-                  isLast ? "border-conduit-500/60" : "border-stroke"
-                }`}
+                className={`rounded-md border bg-well p-3 ${isLast ? "border-accent" : "border-card-border"}`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-md bg-panel flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-selected">
                     <EngineLogo type={opt.id} size={18} className="text-ink" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-medium text-ink">{opt.name}</span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          available
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : "bg-amber-500/15 text-amber-400"
-                        }`}
-                      >
-                        {available ? "Installed" : "Not installed"}
-                      </span>
+                    <div className="mb-0.5 flex items-center gap-2">
+                      <span className="text-body font-semibold text-ink">{opt.name}</span>
+                      <Badge tone={available ? "success" : "warning"}>{available ? "Installed" : "Not installed"}</Badge>
                     </div>
-                    <p className="text-xs text-ink-muted mb-2">{opt.description}</p>
+                    <p className="mb-2 text-label text-ink-muted">{opt.description}</p>
                     {available ? (
-                      <button
+                      <Button
+                        variant="primary"
                         onClick={() => handlePick(opt.id)}
-                        disabled={isBusy || busy !== null}
-                        className="px-3 py-1.5 bg-conduit-600 hover:bg-conduit-700 disabled:opacity-50 text-white rounded text-xs font-medium"
+                        disabled={busy !== null}
+                        loading={isBusy}
+                        loadingLabel="Starting…"
                       >
-                        {isBusy ? "Starting…" : `Use ${opt.name}`}
-                      </button>
+                        {`Use ${opt.name}`}
+                      </Button>
                     ) : (
-                      <button
-                        onClick={() => handleInstall(opt.id)}
-                        className="px-3 py-1.5 bg-panel hover:bg-raised border border-stroke text-ink-muted hover:text-ink rounded text-xs font-medium"
-                      >
+                      <Button variant="secondary" onClick={() => handleInstall(opt.id)}>
                         Install instructions
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -118,18 +107,12 @@ export default function EnginePicker({ onPick }: Props) {
           })}
         </div>
 
-        {error && (
-          <p className="text-xs text-red-400 mb-3 text-center">{error}</p>
-        )}
+        {error && <p className="mb-3 text-center text-label text-danger">{error}</p>}
 
         <div className="flex justify-center">
-          <button
-            onClick={() => checkEngineAvailability()}
-            className="flex items-center gap-1.5 text-xs text-ink-faint hover:text-ink-muted"
-          >
-            <RefreshIcon size={12} />
+          <Button variant="ghost" size="sm" icon="refresh" onClick={() => checkEngineAvailability()}>
             Re-check availability
-          </button>
+          </Button>
         </div>
       </div>
     </div>

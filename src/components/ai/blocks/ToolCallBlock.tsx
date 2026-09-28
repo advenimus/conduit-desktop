@@ -1,7 +1,7 @@
 import { useState } from "react";
-import {
-  AlertTriangleIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, LoaderIcon, ToolIcon
-} from "../../../lib/icons";
+import { ToolIcon } from "../../../lib/icons";
+import { BlockBody, BlockChevron, BlockFrame, BlockHeader, BlockLabel, StatusGlyph } from "./BlockParts";
+
 interface ToolCallBlockProps {
   name: string;
   input?: unknown;
@@ -9,52 +9,39 @@ interface ToolCallBlockProps {
   status: "running" | "success" | "error";
 }
 
+const DETAIL = "mt-0.5 max-h-40 overflow-y-auto whitespace-pre-wrap break-all text-meta text-ink-muted";
+
 export default function ToolCallBlock({ name, input, output, status }: ToolCallBlockProps) {
   const [expanded, setExpanded] = useState(false);
   const hasDetails = input !== undefined || output !== undefined;
 
   return (
-    <div className="my-1.5 rounded-md bg-well border border-stroke text-xs overflow-hidden">
-      <button
-        onClick={() => hasDetails && setExpanded(!expanded)}
-        className={`flex items-center gap-2 w-full px-3 py-1.5 text-left ${
-          hasDetails ? "cursor-pointer hover:bg-panel" : "cursor-default"
-        }`}
-      >
-        <ToolIcon size={14} className="text-ink-faint flex-shrink-0" />
-        <span className="text-ink-muted font-mono truncate">{name}</span>
+    <BlockFrame>
+      <BlockHeader onClick={hasDetails ? () => setExpanded(!expanded) : undefined}>
+        <ToolIcon size={16} className="shrink-0 text-ink-faint" />
+        <span className="truncate font-mono text-ink-muted">{name}</span>
         <span className="ml-auto flex items-center gap-1.5">
-          {status === "running" && <LoaderIcon size={12} className="animate-spin text-conduit-400" />}
-          {status === "success" && <CheckIcon size={12} className="text-green-400" />}
-          {status === "error" && <AlertTriangleIcon size={12} className="text-red-400" />}
-          {hasDetails && (
-            expanded
-              ? <ChevronDownIcon size={12} className="text-ink-faint" />
-              : <ChevronRightIcon size={12} className="text-ink-faint" />
-          )}
+          <StatusGlyph status={status} />
+          {hasDetails && <BlockChevron expanded={expanded} />}
         </span>
-      </button>
+      </BlockHeader>
 
       {expanded && hasDetails && (
-        <div className="border-t border-stroke px-3 py-2 space-y-2">
+        <BlockBody className="space-y-2">
           {input !== undefined && (
             <div>
-              <span className="text-ink-faint text-[10px] uppercase tracking-wider">Input</span>
-              <pre className="mt-0.5 text-[11px] text-ink-muted whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-                {typeof input === "string" ? input : JSON.stringify(input, null, 2)}
-              </pre>
+              <BlockLabel>Input</BlockLabel>
+              <pre className={DETAIL}>{typeof input === "string" ? input : JSON.stringify(input, null, 2)}</pre>
             </div>
           )}
           {output !== undefined && (
             <div>
-              <span className="text-ink-faint text-[10px] uppercase tracking-wider">Output</span>
-              <pre className="mt-0.5 text-[11px] text-ink-muted whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-                {output}
-              </pre>
+              <BlockLabel>Output</BlockLabel>
+              <pre className={DETAIL}>{output}</pre>
             </div>
           )}
-        </div>
+        </BlockBody>
       )}
-    </div>
+    </BlockFrame>
   );
 }
