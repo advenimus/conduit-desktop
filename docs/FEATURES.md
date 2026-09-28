@@ -242,6 +242,7 @@ Full design: `docs/MULTI_DEVICE_SYNC.md`. Code: `electron/services/sync/` (merge
   - "Delete all permanently" is off when every listed item is already erased
 - **Safety nets**: pre-merge snapshots with a targeted undo for large changes, a preview before restoring a backup into a synced vault, and a preview before merging any copy that could revert or delete data
   - Undo reports what it restored: one change per item brought back plus one per field set back ("Undid 13 changes." for a folder and its 12 entries)
+  - A large delete that arrives together with a master password change (entering the new password, a change found at unlock, a change by an older app, or picking between two changes) is snapshotted the same way, so Undo works for it too
   - A backup rollback counts the same way, as its preview lists it: one per item deleted or brought back and one per value replaced ("Rolled back 2 changes." for one entry and one password)
   - The merge preview says what Merge will do: for a copy with sync history it applies the copy's edits and deletions, and only items your vault also changed come back for review
 - **Other copies**: cloud "conflicted copy" files and duplicates are found and merged only when that is safe; everything else is offered for review. No file is moved or deleted without a click

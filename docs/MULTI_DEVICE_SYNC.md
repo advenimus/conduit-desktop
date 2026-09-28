@@ -547,7 +547,7 @@ A deterministic function, run after every merge or capture that changed anything
   |---|---|
   | Same current epoch | Proceed |
   | S's epoch is an ancestor of W's (S is older) | Unwrap S's key through W's wraps. Absorb S's legacy edits under S's own epoch, then re-encrypt S's secrets in memory up to W's epoch. No new dots. |
-  | W's epoch is an ancestor of S's (S is newer) | Pause merge and publish; keep working locally. Banner: "Your master password was changed on MacBook. Enter the new password to keep syncing." On entry: derive K2 from S's salt, check the key check value, unwrap K1 and confirm it, re-encrypt W up to S's epoch, merge. Pending edits survive. |
+  | W's epoch is an ancestor of S's (S is newer) | Pause merge and publish; keep working locally. Banner: "Your master password was changed on MacBook. Enter the new password to keep syncing." On entry: derive K2 from S's salt, check the key check value, unwrap K1 and confirm it, re-encrypt W up to S's epoch, merge (with the 5.10 pre-merge snapshot). Pending edits survive. |
   | S's `vault_meta` salt/verification don't match S's recorded epoch | Legacy password change (below) |
   | Neither is an ancestor | Concurrent change (below) |
 
@@ -751,6 +751,7 @@ commitMerge(M, gen0):   // red team #8: never overwrite a local edit committed d
 
   A plain file overwrite is never used; the merge would undo it.
 - **Pre-merge snapshots.** Before applying a merge that deletes 10 or more live rows or changes 25% or more of them (minimum 10), `VACUUM INTO` a copy in `snapshots/` and write `diff.json`: the rows this merge deleted (with values) and the fields it changed (before and after). Keep the last 5 for 30 days.
+- **Password flows take the same snapshot.** Entering the new password (S newer, while running or at unlock), adopting a password change made by an older app, and resolving concurrent changes all merge S into W, so a mass delete can arrive together with a password change. Each flow takes the pre-merge snapshot and records the 'mass-change' notice before it commits, like a cycle does. The diff compares W already moved into the new epoch with the merged state, so re-encrypting every secret is never a mass change on its own, and the snapshot's `epochId` is the new epoch. If a local edit lands while the snapshot is written, the flow rebuilds its merge from W as it is then (as `commitMerge` does).
 - **Targeted undo (red team #5).** Notice: "MacBook deleted 42 items." [Review] [Undo]. Undo shows a preview of only the rows this merge deleted and, optionally, the fields it changed. On confirm it re-creates exactly those rows (interactive `live` plus the snapshot's values) and, for changed fields, writes the old value only where the field still holds the merged value. Nothing else changes. Rows the user has since erased with "Delete permanently" (redacted grave, 4.7) are left out of the preview and never re-created.
 - **Shared-file merges are never blocked,** because a real mass delete must propagate. Candidate merges ask first (4.9).
 - **"Recently deleted"** restores from graves (4.7).

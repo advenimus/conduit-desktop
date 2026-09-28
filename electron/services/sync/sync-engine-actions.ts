@@ -18,6 +18,7 @@ import {
   adoptPresyncLegacyChange,
   enterNewPassword,
   resolveConcurrentEpoch,
+  type EpochSnapshotPorts,
   type SharedForEpoch,
 } from './sync-epoch.js';
 import type { SyncEngineDeps } from './sync-engine-types.js';
@@ -184,6 +185,11 @@ function holdNow(deps: SyncEngineDeps): { sideFilesPresent: boolean; serverSideF
   };
 }
 
+/** 5.10: a password flow's merge is snapshotted into snapshots/ like a cycle's, notice included. */
+function epochPorts(deps: SyncEngineDeps): EpochSnapshotPorts {
+  return { snapshots: deps.snapshots, notices: deps.notices };
+}
+
 /** The freshest synced S (enter the new password, concurrent changes). */
 export async function readSharedForEpoch(deps: SyncEngineDeps, memory: CycleMemory): Promise<SharedForEpoch> {
   const read = await readSharedForPassword(deps, memory);
@@ -194,7 +200,7 @@ export async function readSharedForEpoch(deps: SyncEngineDeps, memory: CycleMemo
 /** 4.8 S newer, "Enter the new password": decides on the freshest S; the prompt clears on success. */
 export async function enterNewPasswordAction(deps: SyncEngineDeps, memory: CycleMemory, password: string): Promise<UnlockDecision> {
   const shared = await readSharedForEpoch(deps, memory);
-  const decision = enterNewPassword(deps.replica, shared, password, deps.host, deps.notices, holdNow(deps));
+  const decision = await enterNewPassword(deps.replica, shared, password, deps.host, epochPorts(deps), holdNow(deps));
   if (decision.ok) deps.status.clearPrompt('epoch-newer');
   return decision;
 }
@@ -211,14 +217,14 @@ export async function adoptLegacyChangeAction(
   const out =
     read.kind === 'presync'
       ? adoptPresyncLegacyChange(replica, read, newPassword, previousPassword, host, notices)
-      : adoptLegacyPasswordChange(
+      : await adoptLegacyPasswordChange(
           {
             replica,
             shared: read.shared,
             newPassword,
             previousPassword,
             ...holdNow(deps),
-            notices,
+            ports: epochPorts(deps),
           },
           host,
         );
@@ -234,7 +240,8 @@ export async function resolveConcurrentAction(
   winnerEpochId: string,
 ): Promise<CommitOutcome> {
   const shared = await readSharedForEpoch(deps, memory);
-  const out = resolveConcurrentEpoch({ replica: deps.replica, shared, otherPassword, winnerEpochId, hold: holdNow(deps) }, deps.host);
+  const input = { replica: deps.replica, shared, otherPassword, winnerEpochId, ports: epochPorts(deps), hold: holdNow(deps) };
+  const out = await resolveConcurrentEpoch(input, deps.host);
   deps.status.clearPrompt('epoch-concurrent');
   return out;
 }

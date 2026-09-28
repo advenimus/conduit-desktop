@@ -7,11 +7,12 @@
  * notice and takes the missing snapshot.
  */
 
+import { makeImplicitProvider } from './hashing.js';
 import type { NoticesPort } from './notices.js';
 import type { ReplicaPort } from './replica.js';
 import { diffMerge, isMassChange, type SnapshotStorePort } from './snapshots.js';
 import { SYNC_LOG_PREFIX, type SyncHost } from './host.js';
-import type { LocalNotice, SyncState } from './types.js';
+import type { EpochKeys, LocalNotice, SyncState } from './types.js';
 
 export interface MassSnapshotDeps {
   readonly replica: Pick<ReplicaPort, 'implicit' | 'database' | 'ring'>;
@@ -31,15 +32,22 @@ async function hasSnapshotFor(deps: MassSnapshotDeps, noticeId: string): Promise
 /**
  * Takes the snapshot of W (its connection, outside any transaction) when merging `w` into `m`
  * is a mass change, then records the notice. Returns true for a mass change. A failed take
- * throws and records nothing, so the merge must not be committed.
+ * throws and records nothing, so the merge must not be committed. `under`: the epoch `w` and
+ * `m` are both in when it is not W's current one (a password flow moves W before its merge).
  */
-export async function takeMassSnapshot(deps: MassSnapshotDeps, w: SyncState, m: SyncState, sourceSha256: string): Promise<boolean> {
-  const diff = diffMerge(w, m, deps.replica.implicit());
+export async function takeMassSnapshot(
+  deps: MassSnapshotDeps,
+  w: SyncState,
+  m: SyncState,
+  sourceSha256: string,
+  under?: EpochKeys,
+): Promise<boolean> {
+  const diff = diffMerge(w, m, under === undefined ? deps.replica.implicit() : makeImplicitProvider(under.kSync));
   if (!isMassChange(diff)) return false;
   const existing = storedNotice(deps, sourceSha256);
   const noticeId = existing?.id ?? deps.host.random.uuid();
   if (existing !== undefined && (await hasSnapshotFor(deps, noticeId))) return true;
-  const epochId = deps.replica.ring().current.epochId;
+  const epochId = under?.epochId ?? deps.replica.ring().current.epochId;
   await deps.snapshots.take({ db: deps.replica.database(), diff, sourceSha256, noticeId, epochId });
   if (existing !== undefined) {
     deps.host.logger.info(`${SYNC_LOG_PREFIX} took the pre-merge snapshot a failed attempt left missing`, { sha8: sourceSha256.slice(0, 8) });

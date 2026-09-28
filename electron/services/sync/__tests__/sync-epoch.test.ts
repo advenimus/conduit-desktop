@@ -99,7 +99,8 @@ describe('resolveConcurrentEpoch guards', () => {
     const s = loadVault(a.sharedPath, path.join(a.root, 'peek'));
     const shared: SharedForEpoch = { file: s, meta: { salt: s.content.meta.get('salt') ?? null, verification: s.content.meta.get('verification') ?? null }, sha256: 'a'.repeat(64), mtimeMs: 0 };
     const host = a.d.t.host;
-    expect(() => resolveConcurrentEpoch({ replica: a.replica, shared, otherPassword: 'pw2', winnerEpochId: 'f'.repeat(32) }, host)).toThrow(SyncCoreError);
-    expect(() => resolveConcurrentEpoch({ replica: a.replica, shared, otherPassword: 'wrong', winnerEpochId: a.replica.ring().current.epochId }, host)).toThrow(SyncCoreError);
+    const ports = { snapshots: a.engine.parts().snapshots, notices: a.engine.parts().notices };
+    await expect(resolveConcurrentEpoch({ replica: a.replica, shared, otherPassword: 'pw2', winnerEpochId: 'f'.repeat(32), ports }, host)).rejects.toThrow(SyncCoreError);
+    await expect(resolveConcurrentEpoch({ replica: a.replica, shared, otherPassword: 'wrong', winnerEpochId: a.replica.ring().current.epochId, ports }, host)).rejects.toThrow(SyncCoreError);
   });
 });

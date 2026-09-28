@@ -5,7 +5,8 @@
  * change happened before this device's first publish, G2 key check), W itself joins the new
  * epoch (epoch_id = KCV(new key), parent = W's epoch, the wrap when the old key is known) and
  * the next cycle absorbs S's content as G2 under that epoch. Held changes and notices go to
- * local.json. Import through sync-epoch.ts.
+ * local.json. The synced flow returns a plan that sync-epoch-commit.ts commits after the
+ * pre-merge snapshot. Import through sync-epoch.ts.
  */
 
 import { epochRegKey } from './catalog.js';
@@ -31,6 +32,7 @@ import { isUndecryptable } from './sibling.js';
 import { regKeyStr } from './state-view.js';
 import { captureSkippedWrites, type CommitOutcome, type ReplicaPort } from './replica.js';
 import { commitUnderRing } from './ring-commit.js';
+import type { EpochPlan } from './sync-epoch-commit.js';
 import type { SharedForEpoch, EpochHost } from './sync-epoch.js';
 import { SYNC_LOG_PREFIX } from './host.js';
 import { SyncCoreError, type EpochKeys, type HeldLegacyChange, type KeyRing, type LocalNotice, type SyncState } from './types.js';
@@ -41,7 +43,7 @@ export interface HoldInputs {
 }
 
 /** Where epoch flows put their notices: the engine's notices port, or local.json directly at open. */
-export type NoticeSink = Pick<NoticesPort, 'addFromCapture'>;
+export type NoticeSink = Pick<NoticesPort, 'addFromCapture' | 'list'>;
 
 function heldId(h: HeldLegacyChange): string {
   const s = h.sibling;
@@ -59,15 +61,13 @@ export function recordHeld(replica: ReplicaPort, held: readonly HeldLegacyChange
 }
 
 /** Persists notices through `sink`, or straight into local.json (same dedupe and cap) when there is none yet. */
-export function recordNotices(replica: ReplicaPort, notices: readonly LocalNotice[], sink: NoticeSink | undefined): void {
-  if (notices.length === 0) return;
-  if (sink !== undefined) {
-    sink.addFromCapture(notices);
-    return;
-  }
+export function recordNotices(replica: ReplicaPort, notices: readonly LocalNotice[], sink: NoticeSink | undefined): readonly LocalNotice[] {
+  if (notices.length === 0) return [];
+  if (sink !== undefined) return sink.addFromCapture(notices);
+  let fresh: readonly LocalNotice[] = [];
   replica.updateLocal((l) => {
     const seen = new Set(l.notices.map(noticeDedupeKey));
-    const fresh = notices.filter((n) => {
+    fresh = notices.filter((n) => {
       const key = noticeDedupeKey(n);
       if (seen.has(key)) return false;
       seen.add(key);
@@ -75,6 +75,15 @@ export function recordNotices(replica: ReplicaPort, notices: readonly LocalNotic
     });
     return fresh.length === 0 ? l : { ...l, notices: capNewest([...l.notices, ...fresh]) };
   });
+  return fresh;
+}
+
+/** local.json as a notice sink, before the engine (and its notices port) exists. */
+export function localNoticeLog(replica: ReplicaPort): NoticeSink {
+  return {
+    list: () => replica.local().notices,
+    addFromCapture: (notices) => recordNotices(replica, notices, undefined),
+  };
 }
 
 export interface LegacyAdoptInput {
@@ -88,8 +97,8 @@ export interface LegacyAdoptInput {
   readonly notices?: NoticeSink;
 }
 
-/** 4.8 legacy change on a synced S: absorb under the new epoch, merge with W moved to it, commit. */
-export function adoptLegacyChange(input: LegacyAdoptInput, host: EpochHost): CommitOutcome {
+/** 4.8 legacy change on a synced S: absorb under the new epoch and merge with W moved to it. */
+export function planLegacyChange(input: LegacyAdoptInput, host: EpochHost): EpochPlan {
   const { replica, shared, newKey, previousKey, hold } = input;
   const lineage = replica.lineageId;
   captureSkippedWrites(replica);
@@ -108,15 +117,17 @@ export function adoptLegacyChange(input: LegacyAdoptInput, host: EpochHost): Com
     },
     replica.context(),
   );
-  const out = commitUnderRing(replica, res.ring, newKey, merge(res.w, res.s1, makeImplicitProvider(res.ring.current.kSync)).state);
-  recordHeld(replica, res.capture.held);
-  const count = res.undecryptable > 0 ? [makeNotice('undecryptable-secrets', null, res.undecryptable, shared.sha256, host.clock.now())] : [];
-  recordNotices(replica, [...count, ...res.capture.notices], input.notices);
-  host.logger.info(`${SYNC_LOG_PREFIX} adopted a password change made by an older Conduit`, {
-    withOldKey: previousKey !== null,
-    undecryptable: res.undecryptable,
-  });
-  return out;
+  const after = (): void => {
+    recordHeld(replica, res.capture.held);
+    const count = res.undecryptable > 0 ? [makeNotice('undecryptable-secrets', null, res.undecryptable, shared.sha256, host.clock.now())] : [];
+    recordNotices(replica, [...count, ...res.capture.notices], input.notices);
+    host.logger.info(`${SYNC_LOG_PREFIX} adopted a password change made by an older Conduit`, {
+      withOldKey: previousKey !== null,
+      undecryptable: res.undecryptable,
+    });
+  };
+  const next = merge(res.w, res.s1, makeImplicitProvider(res.ring.current.kSync)).state;
+  return { before: res.w, next, ring: res.ring, key: newKey, after };
 }
 
 /** W's key checked against its current epoch record (the typed previous password). */
