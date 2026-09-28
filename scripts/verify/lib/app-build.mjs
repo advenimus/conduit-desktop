@@ -52,6 +52,8 @@ export async function buildForRun(run) {
   return mainJs;
 }
 
+// The dependency scan runs on every run (optimizeDeps.force): a kept cache skips it, so an import added
+// since the last run is first met mid-scenario, and Vite then reloads the page and drops the app's state.
 function writeViteConfig(run, port) {
   const file = path.join(run.runDir, 'vite.config.mjs');
   const cacheDir = path.join(VERIFY_DIR, 'vite-cache');
@@ -60,6 +62,7 @@ import base from ${JSON.stringify(path.join(REPO, 'vite.config.ts'))};
 
 export default mergeConfig(base, {
   cacheDir: ${JSON.stringify(cacheDir)},
+  optimizeDeps: { force: true },
   server: { port: ${port}, strictPort: true, watch: { ignored: ['**/.verify/**'] } },
 });
 `);
