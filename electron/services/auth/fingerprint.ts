@@ -7,9 +7,14 @@
  */
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import os from 'node:os';
 import { execSync } from 'node:child_process';
 import { app } from 'electron';
+
+/** systemd first, then the older D-Bus location (same format: 32 hex characters). */
+export const LINUX_MACHINE_ID_PATHS = ['/etc/machine-id', '/var/lib/dbus/machine-id'] as const;
+const MACHINE_ID_RE = /^[0-9a-f]{32}$/i;
 
 export interface DeviceFingerprint {
   fingerprint_hash: string;  // full hash of all signals
@@ -66,6 +71,25 @@ function collectWindowsSignals(): { machineId: string; serial: string } {
   return { machineId, serial };
 }
 
+export type ReadTextFile = (filePath: string) => string;
+
+function readTextOrEmpty(read: ReadTextFile, filePath: string): string {
+  try {
+    return read(filePath).trim();
+  } catch {
+    return '';
+  }
+}
+
+/** The Linux machine id, or '' when neither file holds a valid one. */
+export function readLinuxMachineId(read: ReadTextFile = (p) => fs.readFileSync(p, 'utf-8')): string {
+  for (const filePath of LINUX_MACHINE_ID_PATHS) {
+    const id = readTextOrEmpty(read, filePath).toLowerCase();
+    if (MACHINE_ID_RE.test(id)) return id;
+  }
+  return '';
+}
+
 function sha256(input: string): string {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
@@ -80,6 +104,8 @@ export function collectFingerprint(): DeviceFingerprint {
     hwSignals = collectDarwinSignals();
   } else if (platform === 'win32') {
     hwSignals = collectWindowsSignals();
+  } else if (platform === 'linux') {
+    hwSignals = { machineId: readLinuxMachineId(), serial: '' };
   } else {
     hwSignals = { machineId: '', serial: '' };
   }

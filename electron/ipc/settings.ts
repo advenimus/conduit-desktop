@@ -12,6 +12,7 @@ import { getDataDir } from '../services/env-config.js';
 import { getLocalNetworkStatus } from '../services/local-network.js';
 import type { EngineType } from '../services/ai/engines/engine.js';
 import { isKnownEngineType } from '../services/ai/cli-harnesses.js';
+import { clearRecentVaults, removeRecentVault, type RecentVaultDeps } from './recent-vaults.js';
 
 // Session default types — mirrored from src/types/entry.ts to avoid cross-boundary imports
 interface RdpGlobalDefaults {
@@ -108,6 +109,10 @@ export interface AppSettings {
   // Has the user explicitly picked an AI engine via the first-launch picker?
   // False = picker shows on next agent panel open. True = use default_engine silently.
   engine_picker_completed: boolean;
+  // Personal-vault multi-device sync; no UI, kept for support (docs/MULTI_DEVICE_SYNC.md 5.11)
+  personal_sync_enabled: boolean;
+  // Idle auto-lock of the personal vault in minutes; 0 = off
+  vault_idle_lock_minutes: number;
 }
 
 const defaultSettings: AppSettings = {
@@ -140,6 +145,8 @@ const defaultSettings: AppSettings = {
   biometric_dismissed_vaults: [],
   analytics_opt_out: false,
   engine_picker_completed: false,
+  personal_sync_enabled: true,
+  vault_idle_lock_minutes: 0,
 };
 
 export function settingsPath(): string {
@@ -209,6 +216,19 @@ export function updateRecentVaults(vaultPath: string): void {
   writeSettings(settings);
 }
 
+async function recentVaultDeps(): Promise<RecentVaultDeps<AppSettings>> {
+  const [{ removeBiometricForPath }, { getBiometricService }] = await Promise.all([
+    import('./biometric-lineage.js'),
+    import('../services/vault/biometric.js'),
+  ]);
+  return {
+    read: readSettings,
+    write: writeSettings,
+    removeBiometric: (vaultPath) => removeBiometricForPath(AppState.getInstance(), vaultPath),
+    removeAllBiometric: () => getBiometricService().removeAll(),
+  };
+}
+
 /** Update the last-used vault context for Vault Hub auto-connect. */
 export function updateLastVaultContext(type: 'personal' | 'team', teamVaultId?: string): void {
   const settings = readSettings();
@@ -231,42 +251,14 @@ export function registerSettingsHandlers(): void {
     writeSettings(args.settings);
   });
 
-  // ── settings_remove_recent_vault ──────────────────────────────────
+  // ── settings_remove_recent_vault / settings_clear_recent_vaults ────
   ipcMain.handle('settings_remove_recent_vault', async (_e, args: { vaultPath: string }) => {
-    const settings = readSettings();
-    settings.recent_vaults = settings.recent_vaults.filter((p) => p !== args.vaultPath);
-    if (settings.last_vault_path === args.vaultPath) {
-      settings.last_vault_path = settings.recent_vaults[0] ?? null;
-    }
-    writeSettings(settings);
-
-    // Clean up biometric data for the removed vault
-    try {
-      const { getBiometricService, vaultPathToKey } = await import('../services/vault/biometric.js');
-      getBiometricService().removePassword(vaultPathToKey(args.vaultPath));
-    } catch {
-      // Best-effort cleanup
-    }
-
-    return settings.recent_vaults;
+    if (typeof args?.vaultPath !== 'string') throw new Error('Invalid vault path');
+    return removeRecentVault(await recentVaultDeps(), args.vaultPath);
   });
 
-  // ── settings_clear_recent_vaults ────────────────────────────────────
   ipcMain.handle('settings_clear_recent_vaults', async () => {
-    const settings = readSettings();
-    settings.recent_vaults = [];
-    settings.last_vault_path = null;
-    writeSettings(settings);
-
-    // Clean up all biometric data
-    try {
-      const { getBiometricService } = await import('../services/vault/biometric.js');
-      getBiometricService().removeAll();
-    } catch {
-      // Best-effort cleanup
-    }
-
-    return settings.recent_vaults;
+    return clearRecentVaults(await recentVaultDeps());
   });
 
   // ── app_relaunch ──────────────────────────────────────────────────

@@ -1,0 +1,1424 @@
+{
+  "format": 1,
+  "module": "hashing",
+  "notes": [
+    "The file is pure ASCII: \\uXXXX escapes in strings stand for the decoded characters, which are what the functions see.",
+    "Byte layouts of spec 3.1 and 3.6 (hashing.ts). Separator 0x1f; tbl as ASCII decimal; strings UTF-8; trunc16 = first 16 bytes; hex lowercase.",
+    "kSync/kPid inputs are the HKDF outputs of the epochKeys case for kEpoch 000102..1f and the lineage in these vectors.",
+    "baseRef input w: null (none), {dev, ms, c} (app: 0x01, dev 6 bytes BE, ms 8 bytes BE, c 2 bytes BE) or {pid} (pseudo: 0x02, pid 16 bytes).",
+    "rawHash cells: null NULL, string TEXT, {\"int\": decimal} INTEGER (8-byte BE two's complement), {\"real\": number} REAL (8-byte IEEE-754 BE), {\"hex\"} BLOB. Missing columns are NULL. id and updated_at are not hashed.",
+    "rawHash column order, tbl 1: name, entry_type, folder_id, parent_entry_id, sort_order, host, port, credential_id, username, password_encrypted, domain, private_key_encrypted, totp_secret_encrypted, icon, color, credential_type, config, tags, is_favorite, notes, created_at",
+    "rawHash column order, tbl 2: name, parent_id, sort_order, icon, color, created_at",
+    "rawHash column order, tbl 3: entry_id, username, password_encrypted, changed_at, changed_by",
+    "Desktop reads SQLite REAL values with an integral value as JS integers, so it hashes them as INTEGER; a Swift reader that keeps REAL would differ for such cells, which costs only a re-compare (spec 3.6).",
+    "rawHashReencrypt: two AES-256-GCM ciphertexts (nonce12 | ct | tag16 under kEpoch) of one secret: raw_hash differs, the keyed vhash of the decrypted plaintext is equal. No plaintext is an input.",
+    "dev and devSyn outputs are JSON numbers below 2^48."
+  ],
+  "cases": [
+    {
+      "name": "vhashOfValue: host",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": "db.example.com"
+      },
+      "output": {
+        "canon": "0264622e6578616d706c652e636f6d",
+        "vhash": "75981bfdaebb625e78a7b393034ddb0e"
+      }
+    },
+    {
+      "name": "vhashOfValue: host empty string equals null",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": ""
+      },
+      "output": {
+        "canon": "00",
+        "vhash": "af4bf58674d9adc9f1356ba005c5ef53"
+      }
+    },
+    {
+      "name": "vhashOfValue: host null",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": null
+      },
+      "output": {
+        "canon": "00",
+        "vhash": "af4bf58674d9adc9f1356ba005c5ef53"
+      }
+    },
+    {
+      "name": "vhashOfValue: same host, other row",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e2",
+        "reg": "host",
+        "value": "db.example.com"
+      },
+      "output": {
+        "canon": "0264622e6578616d706c652e636f6d",
+        "vhash": "3bba1c989186e96bc75bfd8d0c9b6794"
+      }
+    },
+    {
+      "name": "vhashOfValue: port integer",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": 22
+      },
+      "output": {
+        "canon": "013232",
+        "vhash": "b142ea188d3433cd8be29e248446263b"
+      }
+    },
+    {
+      "name": "vhashOfValue: port integer text equals integer",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": "22"
+      },
+      "output": {
+        "canon": "013232",
+        "vhash": "b142ea188d3433cd8be29e248446263b"
+      }
+    },
+    {
+      "name": "vhashOfValue: name empty string",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "name",
+        "value": ""
+      },
+      "output": {
+        "canon": "02",
+        "vhash": "1c58e85f35e26ad5693841a454427514"
+      }
+    },
+    {
+      "name": "vhashOfValue: _life live",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "_life",
+        "value": "live"
+      },
+      "output": {
+        "canon": "026c697665",
+        "vhash": "d77318396c118cf301a5ec26d5d7840f"
+      }
+    },
+    {
+      "name": "vhashOfValue: _life dead",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "_life",
+        "value": "dead"
+      },
+      "output": {
+        "canon": "0264656164",
+        "vhash": "782a4b38d198a3689eafbba80c044225"
+      }
+    },
+    {
+      "name": "vhashOfValue: container",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "container",
+        "value": "f:f1"
+      },
+      "output": {
+        "canon": "05663a6631",
+        "vhash": "3f23203b146a2a32b1e1b4d642f25acf"
+      }
+    },
+    {
+      "name": "vhashOfValue: config JSON",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.rdp",
+        "value": "{\"b\":2,\"a\":1}"
+      },
+      "output": {
+        "canon": "047b2261223a312c2262223a327d",
+        "vhash": "6a7a11b9c7b4c7da7299696b91412473"
+      }
+    },
+    {
+      "name": "vhashOfValue: tag",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "tag:prod",
+        "value": 1
+      },
+      "output": {
+        "canon": "0131",
+        "vhash": "e39e4ab9a6253de3370524abfae15c52"
+      }
+    },
+    {
+      "name": "vhashOfValue: created_at GRDB",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": "2025-01-02 03:04:05.678"
+      },
+      "output": {
+        "canon": "07323032352d30312d30325430333a30343a30352e3637385a",
+        "vhash": "8c0504eb1ab4b0b1e00b2c14db0359ff"
+      }
+    },
+    {
+      "name": "vhashOfValue: created_at ISO equals GRDB",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": "2025-01-02T03:04:05.678Z"
+      },
+      "output": {
+        "canon": "07323032352d30312d30325430333a30343a30352e3637385a",
+        "vhash": "8c0504eb1ab4b0b1e00b2c14db0359ff"
+      }
+    },
+    {
+      "name": "vhashOfValue: unicode row id",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "\u00e9-row",
+        "reg": "name",
+        "value": "x"
+      },
+      "output": {
+        "canon": "0278",
+        "vhash": "b3a078d0d8002d1bfd0323ba5468148c"
+      }
+    },
+    {
+      "name": "vhashOfValue: folder name",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 2,
+        "rowId": "f1",
+        "reg": "name",
+        "value": "Servers"
+      },
+      "output": {
+        "canon": "0253657276657273",
+        "vhash": "a1480eaa29d565dd1ba986af62ab1544"
+      }
+    },
+    {
+      "name": "vhashOfValue: history changed_by",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 3,
+        "rowId": "h1",
+        "reg": "changed_by",
+        "value": "conflict"
+      },
+      "output": {
+        "canon": "02636f6e666c696374",
+        "vhash": "6536fe848bd63833a8d4b63f02fe0dc7"
+      }
+    },
+    {
+      "name": "vhashOfValue: meta vault_id",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 4,
+        "rowId": "meta",
+        "reg": "vault_id",
+        "value": "0d9f7c2e-5b1a-4c3d-8e9f-a0b1c2d3e4f5"
+      },
+      "output": {
+        "canon": "0230643966376332652d356231612d346333642d386539662d613062316332643365346635",
+        "vhash": "b7eaa3f7f02671d9af117167b7478acf"
+      }
+    },
+    {
+      "name": "vhashOfValue: _sync epoch",
+      "fn": "vhashOfValue",
+      "input": {
+        "tbl": 9,
+        "rowId": "key",
+        "reg": "epoch",
+        "value": "e2d55b5055a878b569369ff63ecab01a"
+      },
+      "output": {
+        "canon": "026532643535623530353561383738623536393336396666363365636162303161",
+        "vhash": "c7b4634c4df5e156380a1fc45245572f"
+      }
+    },
+    {
+      "name": "vhashOfSecret: password",
+      "fn": "vhashOfSecret",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "password",
+        "plaintext": "hunter2",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "canon": "0368756e74657232",
+        "vhash": "b4352c99f3db9cff3b016bb4539ec331"
+      }
+    },
+    {
+      "name": "vhashOfSecret: password null",
+      "fn": "vhashOfSecret",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "password",
+        "plaintext": null,
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "canon": "00",
+        "vhash": "b085595456f54755a1bc0306b39e004b"
+      }
+    },
+    {
+      "name": "vhashOfSecret: password empty equals null",
+      "fn": "vhashOfSecret",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "password",
+        "plaintext": "",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "canon": "00",
+        "vhash": "b085595456f54755a1bc0306b39e004b"
+      }
+    },
+    {
+      "name": "vhashOfSecret: same password, other row",
+      "fn": "vhashOfSecret",
+      "input": {
+        "tbl": 1,
+        "rowId": "e2",
+        "reg": "password",
+        "plaintext": "hunter2",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "canon": "0368756e74657232",
+        "vhash": "412118b62d0afa058551530f4195507e"
+      }
+    },
+    {
+      "name": "vhashOfSecret: private key",
+      "fn": "vhashOfSecret",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "private_key",
+        "plaintext": "-----BEGIN KEY-----\nabc\n-----END KEY-----\n",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "canon": "032d2d2d2d2d424547494e204b45592d2d2d2d2d0a6162630a2d2d2d2d2d454e44204b45592d2d2d2d2d0a",
+        "vhash": "e61745ad844ba382ac2128fc32cb221b"
+      }
+    },
+    {
+      "name": "vhashOfSecret: history password",
+      "fn": "vhashOfSecret",
+      "input": {
+        "tbl": 3,
+        "rowId": "h1",
+        "reg": "password",
+        "plaintext": "hunter2",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "canon": "0368756e74657232",
+        "vhash": "fb1d17af50ded33d31e2ad7c38943a88"
+      }
+    },
+    {
+      "name": "vhashUndecryptable: ciphertext",
+      "fn": "vhashUndecryptable",
+      "input": {
+        "ciphertext": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+      },
+      "output": "bf51dad5ee2edab5170a7ee38f5d4adc"
+    },
+    {
+      "name": "prevOf: first 8 bytes",
+      "fn": "prevOf",
+      "input": {
+        "vhash": "0123456789abcdeffedcba9876543210"
+      },
+      "output": "0123456789abcdef"
+    },
+    {
+      "name": "vrefPlain: host",
+      "fn": "vrefPlain",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": "db.example.com"
+      },
+      "output": "75981bfdaebb625e78a7b393034ddb0e"
+    },
+    {
+      "name": "vrefSecret: ciphertext",
+      "fn": "vrefSecret",
+      "input": {
+        "ciphertext": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+      },
+      "output": "ccbf0efbc9656fea26d945c431a3a686decdc2400336e868efc37410007e5d3c"
+    },
+    {
+      "name": "vrefSecret: null hashes the empty string",
+      "fn": "vrefSecret",
+      "input": {
+        "ciphertext": null
+      },
+      "output": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "baseRef: none",
+      "fn": "baseRef",
+      "input": {
+        "w": null
+      },
+      "output": "00"
+    },
+    {
+      "name": "baseRef: app",
+      "fn": "baseRef",
+      "input": {
+        "w": {
+          "dev": 4328719365,
+          "ms": 73588229205,
+          "c": 2571
+        }
+      },
+      "output": "0100010203040500000011223344550a0b"
+    },
+    {
+      "name": "baseRef: app maxima",
+      "fn": "baseRef",
+      "input": {
+        "w": {
+          "dev": 281474976710655,
+          "ms": 1759000000000,
+          "c": 65535
+        }
+      },
+      "output": "01ffffffffffff000001998c91f600ffff"
+    },
+    {
+      "name": "baseRef: pseudo",
+      "fn": "baseRef",
+      "input": {
+        "w": {
+          "pid": "ffffffffffffffffffffffffffffffff"
+        }
+      },
+      "output": "02ffffffffffffffffffffffffffffffff"
+    },
+    {
+      "name": "baseRef: implicit sibling (zero pid)",
+      "fn": "baseRef",
+      "input": {
+        "w": {
+          "pid": "00000000000000000000000000000000"
+        }
+      },
+      "output": "0200000000000000000000000000000000"
+    },
+    {
+      "name": "pid: raw inputs",
+      "fn": "pid",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "vref": "00000000000000000000000000000000",
+        "baseRef": "00",
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": "4e6f25c71dba2ead841b5040864a577e"
+    },
+    {
+      "name": "pidOfValue: genesis (no base)",
+      "fn": "pidOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": "db.example.com",
+        "w": null,
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": {
+        "vref": "75981bfdaebb625e78a7b393034ddb0e",
+        "baseRef": "00",
+        "pid": "f89670e1099af9460f764a0d0770ece3"
+      }
+    },
+    {
+      "name": "pidOfValue: replacing an app sibling",
+      "fn": "pidOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": "db.example.com",
+        "w": {
+          "dev": 4328719365,
+          "ms": 73588229205,
+          "c": 2571
+        },
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": {
+        "vref": "75981bfdaebb625e78a7b393034ddb0e",
+        "baseRef": "0100010203040500000011223344550a0b",
+        "pid": "5cdd6b2730398a91d6f1898a7516e0e0"
+      }
+    },
+    {
+      "name": "pidOfValue: replacing a pseudo sibling",
+      "fn": "pidOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": "db.example.com",
+        "w": {
+          "pid": "ffffffffffffffffffffffffffffffff"
+        },
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": {
+        "vref": "75981bfdaebb625e78a7b393034ddb0e",
+        "baseRef": "02ffffffffffffffffffffffffffffffff",
+        "pid": "c250f1d568773e06b73f477dedad97f4"
+      }
+    },
+    {
+      "name": "pidOfValue: replacing the implicit sibling",
+      "fn": "pidOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": "db.example.com",
+        "w": {
+          "pid": "00000000000000000000000000000000"
+        },
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": {
+        "vref": "75981bfdaebb625e78a7b393034ddb0e",
+        "baseRef": "0200000000000000000000000000000000",
+        "pid": "9cae4f708b95469fa6269dd41b3fe7c3"
+      }
+    },
+    {
+      "name": "pidOfValue: null value",
+      "fn": "pidOfValue",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": null,
+        "w": null,
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": {
+        "vref": "af4bf58674d9adc9f1356ba005c5ef53",
+        "baseRef": "00",
+        "pid": "0226125b1ca56410540a7e965f2dc38f"
+      }
+    },
+    {
+      "name": "pidOfSecret: ciphertext-based vref",
+      "fn": "pidOfSecret",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "password",
+        "ciphertext": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b",
+        "w": null,
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": {
+        "vref": "ccbf0efbc9656fea26d945c431a3a686decdc2400336e868efc37410007e5d3c",
+        "baseRef": "00",
+        "pid": "a5515bd1c5ca71ea0727ab3a529dd123"
+      }
+    },
+    {
+      "name": "pidOfSecret: other nonce, other pid",
+      "fn": "pidOfSecret",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "password",
+        "ciphertext": "222222222222222222222222156150b20b82a889f563be4dbf74917296a4305fe11695",
+        "w": null,
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": {
+        "vref": "122a90a59b0f1bb645040bb1f6310a1da42dbd55ec66c257101029dc8986e81b",
+        "baseRef": "00",
+        "pid": "96e29edd6e012255da36bfeb6e5b1e78"
+      }
+    },
+    {
+      "name": "pidOfSecret: null secret",
+      "fn": "pidOfSecret",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "password",
+        "ciphertext": null,
+        "w": {
+          "dev": 4328719365,
+          "ms": 73588229205,
+          "c": 2571
+        },
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      },
+      "output": {
+        "vref": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "baseRef": "0100010203040500000011223344550a0b",
+        "pid": "329f91fc36831ef462fe1ebf3471c4ec"
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/_life",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "_life",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "d77318396c118cf301a5ec26d5d7840f",
+        "value": "live"
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/name",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "name",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "1c58e85f35e26ad5693841a454427514",
+        "value": ""
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/host",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "af4bf58674d9adc9f1356ba005c5ef53",
+        "value": null
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/port",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "a5c063a378bf505397bafb584df6aac8",
+        "value": null
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/sort_order",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "sort_order",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "d3b10801e90e4eafad3e1a1e6b2b8ec2",
+        "value": 0
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/container",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "container",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "4335518887db8df8ccc90d686090e913",
+        "value": "r"
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/config.rdp",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.rdp",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "d5e868e28dff4e721ac86884b9fbcbdf",
+        "value": null
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/tag:prod",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "tag:prod",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "e5567f4a09038b7155365c84c7f92112",
+        "value": null
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/created_at",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "abcf60cc1e454b2ffc6084e8b076f6e6",
+        "value": null
+      }
+    },
+    {
+      "name": "implicitSibling: 1/e1/password",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "password",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "b085595456f54755a1bc0306b39e004b",
+        "value": null
+      }
+    },
+    {
+      "name": "implicitSibling: 2/f1/container",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 2,
+        "rowId": "f1",
+        "reg": "container",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "43dca26ac89f87d6be512b9dddd0aeab",
+        "value": "r"
+      }
+    },
+    {
+      "name": "implicitSibling: 3/h1/password",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 3,
+        "rowId": "h1",
+        "reg": "password",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "d1b08dd9f62caad5903f4c24b715669f",
+        "value": null
+      }
+    },
+    {
+      "name": "implicitSibling: 4/meta/vault_id",
+      "fn": "implicitSibling",
+      "input": {
+        "tbl": 4,
+        "rowId": "meta",
+        "reg": "vault_id",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+      },
+      "output": {
+        "dev": 0,
+        "ms": 0,
+        "c": 0,
+        "pid": "00000000000000000000000000000000",
+        "lt": 0,
+        "vhash": "e4fee901ac56c1f1cefbc151aebd8ccd",
+        "value": null
+      }
+    },
+    {
+      "name": "rawHash: entry",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 1,
+        "row": {
+          "id": "e1",
+          "name": "Prod database",
+          "entry_type": "ssh",
+          "folder_id": "f1",
+          "parent_entry_id": null,
+          "sort_order": {
+            "int": "3"
+          },
+          "host": "db.example.com",
+          "port": {
+            "int": "22"
+          },
+          "credential_id": null,
+          "username": "root",
+          "password_encrypted": {
+            "hex": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+          },
+          "domain": "",
+          "private_key_encrypted": null,
+          "totp_secret_encrypted": null,
+          "icon": null,
+          "color": "#ff0000",
+          "credential_type": null,
+          "config": "{\"a\":1}",
+          "tags": "[\"prod\"]",
+          "is_favorite": {
+            "int": "1"
+          },
+          "notes": "caf\u00e9 \ud83d\udd11",
+          "created_at": "2025-01-02T03:04:05.678Z",
+          "updated_at": "2025-01-03T00:00:00.000Z"
+        }
+      },
+      "output": "2af48524a9dff008500f78b8e7d894ac"
+    },
+    {
+      "name": "rawHash: entry: updated_at and id not hashed",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 1,
+        "row": {
+          "id": "other",
+          "name": "Prod database",
+          "entry_type": "ssh",
+          "folder_id": "f1",
+          "parent_entry_id": null,
+          "sort_order": {
+            "int": "3"
+          },
+          "host": "db.example.com",
+          "port": {
+            "int": "22"
+          },
+          "credential_id": null,
+          "username": "root",
+          "password_encrypted": {
+            "hex": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+          },
+          "domain": "",
+          "private_key_encrypted": null,
+          "totp_secret_encrypted": null,
+          "icon": null,
+          "color": "#ff0000",
+          "credential_type": null,
+          "config": "{\"a\":1}",
+          "tags": "[\"prod\"]",
+          "is_favorite": {
+            "int": "1"
+          },
+          "notes": "caf\u00e9 \ud83d\udd11",
+          "created_at": "2025-01-02T03:04:05.678Z",
+          "updated_at": "x"
+        }
+      },
+      "output": "2af48524a9dff008500f78b8e7d894ac"
+    },
+    {
+      "name": "rawHash: entry: TEXT port differs from INTEGER",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 1,
+        "row": {
+          "id": "e1",
+          "name": "Prod database",
+          "entry_type": "ssh",
+          "folder_id": "f1",
+          "parent_entry_id": null,
+          "sort_order": {
+            "int": "3"
+          },
+          "host": "db.example.com",
+          "port": "22",
+          "credential_id": null,
+          "username": "root",
+          "password_encrypted": {
+            "hex": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+          },
+          "domain": "",
+          "private_key_encrypted": null,
+          "totp_secret_encrypted": null,
+          "icon": null,
+          "color": "#ff0000",
+          "credential_type": null,
+          "config": "{\"a\":1}",
+          "tags": "[\"prod\"]",
+          "is_favorite": {
+            "int": "1"
+          },
+          "notes": "caf\u00e9 \ud83d\udd11",
+          "created_at": "2025-01-02T03:04:05.678Z",
+          "updated_at": "2025-01-03T00:00:00.000Z"
+        }
+      },
+      "output": "a5ff4431274b5be37f03d1f5d8b6266f"
+    },
+    {
+      "name": "rawHash: entry: REAL port",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 1,
+        "row": {
+          "id": "e1",
+          "name": "Prod database",
+          "entry_type": "ssh",
+          "folder_id": "f1",
+          "parent_entry_id": null,
+          "sort_order": {
+            "int": "3"
+          },
+          "host": "db.example.com",
+          "port": {
+            "real": 22.5
+          },
+          "credential_id": null,
+          "username": "root",
+          "password_encrypted": {
+            "hex": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+          },
+          "domain": "",
+          "private_key_encrypted": null,
+          "totp_secret_encrypted": null,
+          "icon": null,
+          "color": "#ff0000",
+          "credential_type": null,
+          "config": "{\"a\":1}",
+          "tags": "[\"prod\"]",
+          "is_favorite": {
+            "int": "1"
+          },
+          "notes": "caf\u00e9 \ud83d\udd11",
+          "created_at": "2025-01-02T03:04:05.678Z",
+          "updated_at": "2025-01-03T00:00:00.000Z"
+        }
+      },
+      "output": "d199dd766a7cda29d06ef9bd8c5cd075"
+    },
+    {
+      "name": "rawHash: entry: 64-bit integer",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 1,
+        "row": {
+          "id": "e1",
+          "name": "Prod database",
+          "entry_type": "ssh",
+          "folder_id": "f1",
+          "parent_entry_id": null,
+          "sort_order": {
+            "int": "-9223372036854775808"
+          },
+          "host": "db.example.com",
+          "port": {
+            "int": "22"
+          },
+          "credential_id": null,
+          "username": "root",
+          "password_encrypted": {
+            "hex": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+          },
+          "domain": "",
+          "private_key_encrypted": null,
+          "totp_secret_encrypted": null,
+          "icon": null,
+          "color": "#ff0000",
+          "credential_type": null,
+          "config": "{\"a\":1}",
+          "tags": "[\"prod\"]",
+          "is_favorite": {
+            "int": "1"
+          },
+          "notes": "caf\u00e9 \ud83d\udd11",
+          "created_at": "2025-01-02T03:04:05.678Z",
+          "updated_at": "2025-01-03T00:00:00.000Z"
+        }
+      },
+      "output": "4823ce035647cf52772fbefabd31cf30"
+    },
+    {
+      "name": "rawHash: entry: empty string differs from NULL",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 1,
+        "row": {
+          "id": "e1",
+          "name": "Prod database",
+          "entry_type": "ssh",
+          "folder_id": "f1",
+          "parent_entry_id": null,
+          "sort_order": {
+            "int": "3"
+          },
+          "host": "db.example.com",
+          "port": {
+            "int": "22"
+          },
+          "credential_id": null,
+          "username": "root",
+          "password_encrypted": {
+            "hex": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+          },
+          "domain": null,
+          "private_key_encrypted": null,
+          "totp_secret_encrypted": null,
+          "icon": null,
+          "color": "#ff0000",
+          "credential_type": null,
+          "config": "{\"a\":1}",
+          "tags": "[\"prod\"]",
+          "is_favorite": {
+            "int": "1"
+          },
+          "notes": "caf\u00e9 \ud83d\udd11",
+          "created_at": "2025-01-02T03:04:05.678Z",
+          "updated_at": "2025-01-03T00:00:00.000Z"
+        }
+      },
+      "output": "85e76464bfb5d255a173cc27a3666d7c"
+    },
+    {
+      "name": "rawHash: folder",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 2,
+        "row": {
+          "id": "f1",
+          "name": "Servers",
+          "parent_id": null,
+          "sort_order": {
+            "int": "0"
+          },
+          "icon": "",
+          "color": null,
+          "created_at": "2025-01-02 03:04:05",
+          "updated_at": "ignored"
+        }
+      },
+      "output": "1403c57327b9011a19ecf2602d590c61"
+    },
+    {
+      "name": "rawHash: history",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 3,
+        "row": {
+          "id": "h1",
+          "entry_id": "e1",
+          "username": "root",
+          "password_encrypted": {
+            "hex": "222222222222222222222222156150b20b82a889f563be4dbf74917296a4305fe11695"
+          },
+          "changed_at": "2025-01-02T03:04:05.678Z",
+          "changed_by": null
+        }
+      },
+      "output": "de84ebf92e6cdebd4fdfb5b9805875fa"
+    },
+    {
+      "name": "rawHash: history: missing columns are NULL",
+      "fn": "rawHash",
+      "input": {
+        "tbl": 3,
+        "row": {
+          "id": "h1",
+          "entry_id": "e1"
+        }
+      },
+      "output": "142b884cc9a7f5e5bf4b0d942384906b"
+    },
+    {
+      "name": "rawHashReencrypt: re-encrypted password",
+      "fn": "rawHashReencrypt",
+      "input": {
+        "kEpoch": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962",
+        "row": {
+          "id": "e1",
+          "name": "Prod database",
+          "entry_type": "ssh",
+          "folder_id": "f1",
+          "parent_entry_id": null,
+          "sort_order": {
+            "int": "3"
+          },
+          "host": "db.example.com",
+          "port": {
+            "int": "22"
+          },
+          "credential_id": null,
+          "username": "root",
+          "password_encrypted": {
+            "hex": "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b"
+          },
+          "domain": "",
+          "private_key_encrypted": null,
+          "totp_secret_encrypted": null,
+          "icon": null,
+          "color": "#ff0000",
+          "credential_type": null,
+          "config": "{\"a\":1}",
+          "tags": "[\"prod\"]",
+          "is_favorite": {
+            "int": "1"
+          },
+          "notes": "caf\u00e9 \ud83d\udd11",
+          "created_at": "2025-01-02T03:04:05.678Z",
+          "updated_at": "2025-01-03T00:00:00.000Z"
+        },
+        "ciphertexts": [
+          "111111111111111111111111e815facbdd721d4e07ef4a02ccd71f1ef9464508791f0b",
+          "222222222222222222222222156150b20b82a889f563be4dbf74917296a4305fe11695"
+        ]
+      },
+      "output": [
+        {
+          "rawHash": "2af48524a9dff008500f78b8e7d894ac",
+          "vhash": "b4352c99f3db9cff3b016bb4539ec331"
+        },
+        {
+          "rawHash": "db4364d9ef192b86d7b93525c79a9d7e",
+          "vhash": "b4352c99f3db9cff3b016bb4539ec331"
+        }
+      ]
+    },
+    {
+      "name": "hkdf: RFC 5869 case 3 (first 32 bytes)",
+      "fn": "hkdf",
+      "input": {
+        "ikm": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "lineageId": "",
+        "info": ""
+      },
+      "output": "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d"
+    },
+    {
+      "name": "hkdf: vhash key",
+      "fn": "hkdf",
+      "input": {
+        "ikm": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962",
+        "info": "conduit-sync-vhash-v1"
+      },
+      "output": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6"
+    },
+    {
+      "name": "hkdf: pid key",
+      "fn": "hkdf",
+      "input": {
+        "ikm": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962",
+        "info": "conduit-sync-pid-v1"
+      },
+      "output": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+    },
+    {
+      "name": "epochKeys: kEpoch 00..1f",
+      "fn": "epochKeys",
+      "input": {
+        "kEpoch": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962"
+      },
+      "output": {
+        "epochId": "e2d55b5055a878b569369ff63ecab01a",
+        "kSync": "f6d6efe77d6b5d3e4e1c851e7898233061455b700767dd0c04c5a5d77f56bae6",
+        "kPid": "08477937c9f850131e3e0dc6a9e8c1bd714cc3ddc8f60df6131fa745510026fa"
+      }
+    },
+    {
+      "name": "epochKeys: kEpoch a5..a5",
+      "fn": "epochKeys",
+      "input": {
+        "kEpoch": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962"
+      },
+      "output": {
+        "epochId": "82c63f71be85059e10c8b065bcdec528",
+        "kSync": "40265793eeceef6ab1802d5a0b8d98dfc99bf26ea27f06d578c2c6e1d2ef116a",
+        "kPid": "cf9892d9c9dbdf9de6e6c3439bdef14cb34ccd05e64dddce4a5f02fc5707a8b5"
+      }
+    },
+    {
+      "name": "uuidV5: RFC 4122 DNS example",
+      "fn": "uuidV5",
+      "input": {
+        "namespace": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+        "name": "www.example.com"
+      },
+      "output": "2ed6657d-e927-568b-95e1-2665a8aea6a2"
+    },
+    {
+      "name": "uuidV5: uppercase namespace",
+      "fn": "uuidV5",
+      "input": {
+        "namespace": "6BA7B810-9DAD-11D1-80B4-00C04FD430C8",
+        "name": "www.example.com"
+      },
+      "output": "2ed6657d-e927-568b-95e1-2665a8aea6a2"
+    },
+    {
+      "name": "uuidV5: NS_CONDUIT unicode name",
+      "fn": "uuidV5",
+      "input": {
+        "namespace": "da5aafb2-40e7-4b0e-b2d4-cc828d8d30b7",
+        "name": "n\u00e4me \ud83d\udd11"
+      },
+      "output": "648707c6-d56b-5bcf-bd90-4de15a9c2caa"
+    },
+    {
+      "name": "lineageIdFromSalt: base64 salt",
+      "fn": "lineageIdFromSalt",
+      "input": {
+        "salt": "c2FsdHNhbHRzYWx0c2FsdA=="
+      },
+      "output": "6b4d71a9-2201-5fcb-b907-37813107a911"
+    },
+    {
+      "name": "lineageIdFromSalt: empty salt",
+      "fn": "lineageIdFromSalt",
+      "input": {
+        "salt": ""
+      },
+      "output": "6b0c2ae0-8296-550a-aee4-afe1c05300e3"
+    },
+    {
+      "name": "vaultIdFor: lineage",
+      "fn": "vaultIdFor",
+      "input": {
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962"
+      },
+      "output": "bd741733-eff2-5de9-8f43-089210b8397a"
+    },
+    {
+      "name": "genesisId: empty file",
+      "fn": "genesisId",
+      "input": {
+        "bytes": ""
+      },
+      "output": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "genesisId: abc",
+      "fn": "genesisId",
+      "input": {
+        "bytes": "616263"
+      },
+      "output": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    },
+    {
+      "name": "genesisId: SQLite header",
+      "fn": "genesisId",
+      "input": {
+        "bytes": "53514c69746520666f726d6174203300"
+      },
+      "output": "3f8434aff012ffcb594ad7527d6042841ce94f499887f86ab828f84a9a275f91"
+    },
+    {
+      "name": "accountHint: signed in",
+      "fn": "accountHint",
+      "input": {
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962",
+        "userId": "b5e7c1d2-3a4f-4e5d-9c8b-7a6f5e4d3c2b"
+      },
+      "output": "526f1dbc098ebca5a3bba847fdddcf25"
+    },
+    {
+      "name": "accountHint: empty user id",
+      "fn": "accountHint",
+      "input": {
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962",
+        "userId": ""
+      },
+      "output": "c3cea673d8f2a44c218b9f25afc9a7cf"
+    },
+    {
+      "name": "dev: incarnation 1",
+      "fn": "dev",
+      "input": {
+        "deviceUuid": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962",
+        "incarnation": "00112233445566778899aabbccddeeff"
+      },
+      "output": 234058779383808
+    },
+    {
+      "name": "dev: incarnation 2",
+      "fn": "dev",
+      "input": {
+        "deviceUuid": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962",
+        "incarnation": "ffeeddccbbaa99887766554433221100"
+      },
+      "output": 77798564333492
+    },
+    {
+      "name": "dev: other device",
+      "fn": "dev",
+      "input": {
+        "deviceUuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
+        "lineageId": "3b241101-e2bb-4255-8caf-4136c566a962",
+        "incarnation": "00112233445566778899aabbccddeeff"
+      },
+      "output": 279576323904013
+    },
+    {
+      "name": "devSyn: random 1",
+      "fn": "devSyn",
+      "input": {
+        "deviceUuid": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+        "random16": "00112233445566778899aabbccddeeff"
+      },
+      "output": 131301455155381
+    },
+    {
+      "name": "devSyn: random 2",
+      "fn": "devSyn",
+      "input": {
+        "deviceUuid": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+        "random16": "ffeeddccbbaa99887766554433221100"
+      },
+      "output": 132005882100170
+    }
+  ]
+}

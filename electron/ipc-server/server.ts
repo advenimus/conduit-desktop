@@ -31,6 +31,7 @@ import {
   parseReadScreenRequest,
   parseSendKeysRequest,
 } from './terminal-requests.js';
+import { hasConflict, lockedResponse, vaultFailure } from './vault-guard.js';
 
 // ---------- IPC Protocol Types ----------
 
@@ -146,23 +147,21 @@ export async function handleRequest(
 ): Promise<IpcResponse> {
   const authState = state.authService?.getAuthState();
 
-  // GetTierInfo is unauthenticated so the MCP server can always learn its
-  // per-user quota (local-mode users have no profile but still get Free-tier
-  // treatment with a daily quota enforced in the MCP server).
+  // GetTierInfo is unauthenticated so the MCP server can always label its
+  // analytics with the plan, even for local-mode users who have no profile.
   if (request.type === 'GetTierInfo') {
     const profile = authState?.profile;
-    const features = (profile?.tier?.features ?? {}) as Record<string, unknown>;
-    const mcpDailyQuota = typeof features.mcp_daily_quota === 'number' ? features.mcp_daily_quota : 50;
     return successResponse({
       tier_name: profile?.tier?.name ?? 'free',
-      mcp_daily_quota: mcpDailyQuota,
+      // MCP builds before the quota removal treat a missing value as a 50/day cap.
+      mcp_daily_quota: -1,
       authenticated: !!authState?.user,
     });
   }
 
   // Defense-in-depth: block MCP tool calls for tiers without mcp_enabled.
   // Free/Pro/Team all have mcp_enabled=true; local-mode users have no profile
-  // so we allow them through here and rely on the MCP-side daily quota to cap usage.
+  // so we allow them through here.
   if (authState?.profile && !authState.profile.tier?.features?.mcp_enabled) {
     return errorResponse('TIER_RESTRICTED', 'MCP access is not available on your plan');
   }
@@ -263,7 +262,7 @@ export async function handleRequest(
 
       case 'CredentialList': {
         if (!state.getActiveVault().isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
         try {
           const credentials = state.getActiveVault().listCredentials();
@@ -281,14 +280,14 @@ export async function handleRequest(
           }));
           return successResponse(list);
         } catch (e) {
-          return errorResponse('VAULT_ERROR', String(e));
+          return vaultFailure('VAULT_ERROR', e);
         }
       }
 
       case 'CredentialGet': {
         const { id } = request.payload as { id: string };
         if (!state.getActiveVault().isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
         try {
           const cred = state.getActiveVault().getCredential(id);
@@ -311,9 +310,10 @@ export async function handleRequest(
             totp_period: cred.totp_period ?? null,
             created_at: cred.created_at,
             updated_at: cred.updated_at,
+            has_conflict: hasConflict(state, cred.id),
           });
         } catch (e) {
-          return errorResponse('VAULT_ERROR', String(e));
+          return vaultFailure('VAULT_ERROR', e);
         }
       }
 
@@ -337,7 +337,7 @@ export async function handleRequest(
           ssh_auth_method?: string | null;
         };
         if (!state.getActiveVault().isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
         try {
           const config: Record<string, unknown> = {};
@@ -350,7 +350,8 @@ export async function handleRequest(
           if (totp_period) config.totp_period = totp_period;
           if (ssh_auth_method) config.ssh_auth_method = ssh_auth_method;
 
-          const cred = state.getActiveVault().createCredential({
+          const vault = state.getActiveVault();
+          const cred = vault.runNonInteractive(() => vault.createCredential({
             name,
             username,
             password,
@@ -360,7 +361,7 @@ export async function handleRequest(
             tags,
             credential_type: credential_type ?? null,
             config: Object.keys(config).length > 0 ? config : undefined,
-          });
+          }));
           return successResponse({
             id: cred.id,
             name: cred.name,
@@ -368,20 +369,21 @@ export async function handleRequest(
             created_at: cred.created_at,
           });
         } catch (e) {
-          return errorResponse('VAULT_ERROR', String(e));
+          return vaultFailure('VAULT_ERROR', e);
         }
       }
 
       case 'CredentialDelete': {
         const { id } = request.payload as { id: string };
         if (!state.getActiveVault().isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
         try {
-          state.getActiveVault().deleteCredential(id);
+          const vault = state.getActiveVault();
+          vault.runNonInteractive(() => vault.deleteCredential(id));
           return successResponse({ success: true });
         } catch (e) {
-          return errorResponse('VAULT_ERROR', String(e));
+          return vaultFailure('VAULT_ERROR', e);
         }
       }
 
@@ -391,7 +393,7 @@ export async function handleRequest(
           purpose: string;
         };
         if (!state.getActiveVault().isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         // Get credential name for display
@@ -554,7 +556,7 @@ export async function handleRequest(
             if (credential_id) {
               // Resolve credential from vault
               if (!state.getActiveVault().isUnlocked()) {
-                return errorResponse('VAULT_LOCKED', 'Vault is locked — unlock it in the Conduit app first');
+                return lockedResponse(state, 'Vault is locked. Unlock it in the Conduit app first.');
               }
               const cred = state.getActiveVault().getCredential(credential_id);
               if (!cred) {
@@ -591,7 +593,7 @@ export async function handleRequest(
 
             if (credential_id) {
               if (!state.getActiveVault().isUnlocked()) {
-                return errorResponse('VAULT_LOCKED', 'Vault is locked — unlock it in the Conduit app first');
+                return lockedResponse(state, 'Vault is locked. Unlock it in the Conduit app first.');
               }
               const cred = state.getActiveVault().getCredential(credential_id);
               if (!cred) {
@@ -631,7 +633,7 @@ export async function handleRequest(
 
             if (credential_id) {
               if (!state.getActiveVault().isUnlocked()) {
-                return errorResponse('VAULT_LOCKED', 'Vault is locked — unlock it in the Conduit app first');
+                return lockedResponse(state, 'Vault is locked. Unlock it in the Conduit app first.');
               }
               const cred = state.getActiveVault().getCredential(credential_id);
               if (!cred) {
@@ -674,7 +676,7 @@ export async function handleRequest(
 
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked — unlock it in the Conduit app first');
+          return lockedResponse(state, 'Vault is locked. Unlock it in the Conduit app first.');
         }
 
         // Look up the saved entry. getEntry throws when the id is unknown.
@@ -1506,7 +1508,7 @@ export async function handleRequest(
         const { entry_id, timeout_ms } = request.payload as { entry_id: string; timeout_ms: number };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
@@ -1600,7 +1602,7 @@ export async function handleRequest(
         const { id, include_notes } = request.payload as { id: string; include_notes?: boolean };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
@@ -1620,6 +1622,7 @@ export async function handleRequest(
             domain: entry.domain ?? null,
             created_at: entry.created_at,
             updated_at: entry.updated_at,
+            has_conflict: hasConflict(state, entry.id),
           };
           // Only include notes when explicitly requested — and redact !!secret!! values
           if (include_notes) {
@@ -1628,7 +1631,7 @@ export async function handleRequest(
           }
           return successResponse(result);
         } catch (e) {
-          return errorResponse('ENTRY_ERROR', String(e));
+          return vaultFailure('ENTRY_ERROR', e);
         }
       }
 
@@ -1636,7 +1639,7 @@ export async function handleRequest(
         const { id } = request.payload as { id: string };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
@@ -1656,7 +1659,7 @@ export async function handleRequest(
             updated_at: entry.updated_at,
           });
         } catch (e) {
-          return errorResponse('ENTRY_ERROR', String(e));
+          return vaultFailure('ENTRY_ERROR', e);
         }
       }
 
@@ -1664,12 +1667,12 @@ export async function handleRequest(
         const { id, notes } = request.payload as { id: string; notes: string };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
           const resolvedId = resolveEntryId(id, state);
-          const updated = vault.updateEntry(resolvedId, { notes });
+          const updated = vault.runNonInteractive(() => vault.updateEntry(resolvedId, { notes }));
           notifyRendererEntryChanged();
           return successResponse({
             id: updated.id,
@@ -1677,7 +1680,7 @@ export async function handleRequest(
             updated_at: updated.updated_at,
           });
         } catch (e) {
-          return errorResponse('ENTRY_ERROR', String(e));
+          return vaultFailure('ENTRY_ERROR', e);
         }
       }
 
@@ -1690,17 +1693,17 @@ export async function handleRequest(
         };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
-          const entry = vault.createEntry({
+          const entry = vault.runNonInteractive(() => vault.createEntry({
             name,
             entry_type: 'document',
             folder_id: folder_id ?? undefined,
             config: { content },
             tags,
-          });
+          }));
           notifyRendererEntryChanged();
           return successResponse({
             id: entry.id,
@@ -1708,7 +1711,7 @@ export async function handleRequest(
             created_at: entry.created_at,
           });
         } catch (e) {
-          return errorResponse('ENTRY_ERROR', String(e));
+          return vaultFailure('ENTRY_ERROR', e);
         }
       }
 
@@ -1720,7 +1723,7 @@ export async function handleRequest(
         };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
@@ -1737,7 +1740,7 @@ export async function handleRequest(
             updateInput.name = newName;
           }
 
-          const updated = vault.updateEntry(resolvedId, updateInput);
+          const updated = vault.runNonInteractive(() => vault.updateEntry(resolvedId, updateInput));
           notifyRendererEntryChanged();
           return successResponse({
             id: updated.id,
@@ -1745,7 +1748,7 @@ export async function handleRequest(
             updated_at: updated.updated_at,
           });
         } catch (e) {
-          return errorResponse('ENTRY_ERROR', String(e));
+          return vaultFailure('ENTRY_ERROR', e);
         }
       }
 
@@ -1758,7 +1761,7 @@ export async function handleRequest(
         };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
@@ -1794,7 +1797,7 @@ export async function handleRequest(
             })),
           });
         } catch (e) {
-          return errorResponse('ENTRY_ERROR', String(e));
+          return vaultFailure('ENTRY_ERROR', e);
         }
       }
 
@@ -1806,7 +1809,7 @@ export async function handleRequest(
         };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
@@ -1840,7 +1843,7 @@ export async function handleRequest(
             })),
           });
         } catch (e) {
-          return errorResponse('ENTRY_ERROR', String(e));
+          return vaultFailure('ENTRY_ERROR', e);
         }
       }
 
@@ -1855,7 +1858,7 @@ export async function handleRequest(
         };
         const vault = state.getActiveVault();
         if (!vault.isUnlocked()) {
-          return errorResponse('VAULT_LOCKED', 'Vault is locked');
+          return lockedResponse(state, 'Vault is locked');
         }
 
         try {
@@ -1881,7 +1884,7 @@ export async function handleRequest(
 
           // Store as a credential. private_key is passed at top level so the
           // vault encrypts it at rest; public_key + fingerprint go in config (clear).
-          const credential = vault.createEntry({
+          const credential = vault.runNonInteractive(() => vault.createEntry({
             name,
             entry_type: 'credential',
             credential_type: 'ssh_key',
@@ -1891,7 +1894,7 @@ export async function handleRequest(
               fingerprint,
             },
             tags: tags ?? [],
-          });
+          }));
           notifyRendererEntryChanged();
 
           return successResponse({

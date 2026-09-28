@@ -57,13 +57,14 @@ export function detectDuplicates(
 }
 
 /**
- * Execute the import of parsed RDM entries into the vault.
+ * Execute the import of parsed RDM entries into the vault. Imported writes are not
+ * interactive edits, so an open sync conflict stays open (docs/MULTI_DEVICE_SYNC.md 4.2 step 5).
  */
-export function executeImport(
-  vault: ConduitVault,
-  entries: ImportPreviewEntry[],
-  options: ImportOptions,
-): ImportResult {
+export function executeImport(vault: ConduitVault, entries: ImportPreviewEntry[], options: ImportOptions): ImportResult {
+  return vault.runNonInteractive(() => importEntries(vault, entries, options));
+}
+
+function importEntries(vault: ConduitVault, entries: ImportPreviewEntry[], options: ImportOptions): ImportResult {
   const results: ImportEntryResult[] = [];
   let imported = 0;
   let skipped = 0;

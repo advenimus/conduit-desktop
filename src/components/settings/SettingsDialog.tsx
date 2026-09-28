@@ -14,6 +14,7 @@ import AiTab from "./tabs/AiTab";
 import BackupTab from "./tabs/BackupTab";
 import MobileTab from "./tabs/MobileTab";
 import SecurityTab from "./tabs/SecurityTab";
+import SyncTab from "./tabs/SyncTab";
 import TeamSettingsTab from "./TeamSettingsTab";
 import AccountTab from "./tabs/AccountTab";
 import type { Settings, SettingsTab } from "./SettingsHelpers";
@@ -22,12 +23,18 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { CloseIcon } from "../../lib/icons";
+import { mergeChangedSettings } from "./settings-merge";
 
 export type { SettingsTab } from "./SettingsHelpers";
 
 interface SettingsDialogProps {
   onClose: () => void;
   initialTab?: SettingsTab;
+}
+
+async function saveChangedSettings(edited: Settings, original: Settings | null): Promise<void> {
+  const fresh = await invoke<Settings>("settings_get");
+  await invoke("settings_save", { settings: mergeChangedSettings(fresh, original, edited) });
 }
 
 export default function SettingsDialog({ onClose, initialTab }: SettingsDialogProps) {
@@ -49,6 +56,8 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
     session_defaults_web: { ...HARDCODED_WEB_DEFAULTS },
     session_defaults_terminal: { ...HARDCODED_TERMINAL_DEFAULTS },
     session_defaults_ssh: { ...HARDCODED_SSH_DEFAULTS },
+    personal_sync_enabled: true,
+    vault_idle_lock_minutes: 0,
   });
   const originalSettingsRef = useRef<Settings | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -72,7 +81,7 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
     setError(null);
 
     try {
-      await invoke("settings_save", { settings });
+      await saveChangedSettings(settings, originalSettingsRef.current);
 
       // Refresh the cached session defaults store
       await useSettingsStore.getState().refresh();
@@ -119,7 +128,7 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
   const handleApplyDisplayScale = useCallback(async (updatedSettings: Settings) => {
     setSettings(updatedSettings);
     try {
-      await invoke("settings_save", { settings: updatedSettings });
+      await saveChangedSettings(updatedSettings, originalSettingsRef.current);
       await useSettingsStore.getState().refresh();
       // Reconnect all active RDP sessions in the background
       const rdpSessions = useSessionStore.getState().sessions.filter(
@@ -144,7 +153,7 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
       case "appearance":
         return <AppearanceTab settings={settings} setSettings={setSettings} onClose={onClose} />;
       case "security":
-        return <SecurityTab />;
+        return <SecurityTab settings={settings} setSettings={setSettings} onClose={onClose} />;
       case "sessions/terminal":
         return <SessionTerminalTab settings={settings} setSettings={setSettings} onClose={onClose} />;
       case "sessions/ssh":
@@ -160,6 +169,8 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
         return <AiTab settings={settings} setSettings={setSettings} onClose={onClose} />;
       case "backup":
         return <BackupTab />;
+      case "sync":
+        return <SyncTab />;
       case "mobile":
         return <MobileTab />;
       case "team":

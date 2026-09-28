@@ -6,7 +6,10 @@
  * every 3s) and fs.watch() for local paths with a polling fallback.
  *
  * When a change is detected and we don't hold the write lock,
- * the callback fires so the vault can be reloaded.
+ * the callback fires so the vault can be reloaded. A change is any difference in
+ * (mtime, size, inode), so a file replaced by rename or set back to an older mtime by a
+ * cloud drive counts too (spec 5.4 / 11.4). Vaults the sync engine manages never use this
+ * watcher (sync/file-watch.ts watches their shared file).
  */
 
 import fs from 'node:fs';
@@ -20,7 +23,7 @@ const LOCAL_POLL_MS = 5_000;
 
 export class NetworkVaultWatcher {
   private filePath: string;
-  private lastMtime: number = 0;
+  private lastSignature: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private fsWatcher: fs.FSWatcher | null = null;
   private onChange: () => void;
@@ -38,33 +41,26 @@ export class NetworkVaultWatcher {
   start(): void {
     this.stop();
 
-    // Read initial mtime
-    try {
-      const stat = fs.statSync(this.filePath);
-      this.lastMtime = stat.mtimeMs;
-    } catch {
-      this.lastMtime = 0;
-    }
+    this.lastSignature = this.readSignature();
 
     if (this.isNetworkPath) {
       // Network paths: poll-based (fs.watch unreliable on SMB/NFS)
-      this.pollTimer = setInterval(() => this.checkMtime(), NETWORK_POLL_MS);
+      this.pollTimer = setInterval(() => this.checkForChange(), NETWORK_POLL_MS);
       if (this.pollTimer.unref) this.pollTimer.unref();
     } else {
       // Local paths: use fs.watch with fallback to polling
       try {
         this.fsWatcher = fs.watch(this.filePath, { persistent: false }, (eventType) => {
           if (eventType === 'change') {
-            this.handlePotentialChange();
+            this.checkForChange();
+          } else if (eventType === 'rename') {
+            // The watched inode is gone (replaced by rename): poll the path from now on.
+            this.fallBackToPolling();
+            this.checkForChange();
           }
         });
 
-        this.fsWatcher.on('error', () => {
-          // Fallback to polling
-          this.fsWatcher?.close();
-          this.fsWatcher = null;
-          this.startPolling(LOCAL_POLL_MS);
-        });
+        this.fsWatcher.on('error', () => this.fallBackToPolling());
       } catch {
         // fs.watch not available, fall back to polling
         this.startPolling(LOCAL_POLL_MS);
@@ -88,13 +84,8 @@ export class NetworkVaultWatcher {
   setWriteLock(held: boolean): void {
     this.writeLockHeld = held;
     if (!held) {
-      // Refresh mtime after our own write
-      try {
-        const stat = fs.statSync(this.filePath);
-        this.lastMtime = stat.mtimeMs;
-      } catch {
-        // ignore
-      }
+      // Our own write changed the file: take its new signature as the baseline.
+      this.lastSignature = this.readSignature();
     }
   }
 
@@ -102,36 +93,32 @@ export class NetworkVaultWatcher {
 
   private startPolling(intervalMs: number): void {
     if (this.pollTimer) return;
-    this.pollTimer = setInterval(() => this.checkMtime(), intervalMs);
+    this.pollTimer = setInterval(() => this.checkForChange(), intervalMs);
     if (this.pollTimer.unref) this.pollTimer.unref();
   }
 
-  private checkMtime(): void {
-    if (this.writeLockHeld) return;
+  private fallBackToPolling(): void {
+    this.fsWatcher?.close();
+    this.fsWatcher = null;
+    this.startPolling(LOCAL_POLL_MS);
+  }
 
+  /** (mtime, size, inode) of the file, or null when it is missing or unreadable. */
+  private readSignature(): string | null {
     try {
       const stat = fs.statSync(this.filePath);
-      if (stat.mtimeMs > this.lastMtime) {
-        this.lastMtime = stat.mtimeMs;
-        this.onChange();
-      }
+      return `${stat.mtimeMs}:${stat.size}:${stat.ino}`;
     } catch {
-      // File may have been deleted or is inaccessible — ignore
+      return null;
     }
   }
 
-  private handlePotentialChange(): void {
+  private checkForChange(): void {
     if (this.writeLockHeld) return;
-
-    // Debounce by checking actual mtime change
-    try {
-      const stat = fs.statSync(this.filePath);
-      if (stat.mtimeMs > this.lastMtime) {
-        this.lastMtime = stat.mtimeMs;
-        this.onChange();
-      }
-    } catch {
-      // ignore
-    }
+    const signature = this.readSignature();
+    // Missing or inaccessible (mid-replace): keep the old baseline and look again later.
+    if (signature === null || signature === this.lastSignature) return;
+    this.lastSignature = signature;
+    this.onChange();
   }
 }

@@ -83,9 +83,10 @@ coverage/
 *.key
 .security-key
 
-# Local Claude Code state (skills + commands with internal paths, runtime state)
+# Local Claude Code state (machine-specific settings and runtime locks).
+# Commands and skills under .claude/ are tracked; keep secrets and personal paths out of them.
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
-.claude/commands/featureadd.md
-.claude/commands/pushupdates.md
-.claude/skills/
+
+# /verify live-test runs (builds, app data, screenshots, logs)
+.verify/

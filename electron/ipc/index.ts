@@ -31,6 +31,8 @@ import { registerCommandHandlers } from './command.js';
 import { registerPasswordHistoryHandlers } from './password-history.js';
 import { registerAutotypeHandlers } from './autotype.js';
 import { registerBiometricHandlers } from './biometric.js';
+import { registerSyncHandlers } from './sync.js';
+import { registerSyncReviewHandlers } from './sync-review.js';
 
 export function registerIpcHandlers(): void {
   const state = AppState.getInstance();
@@ -88,6 +90,10 @@ export function registerIpcHandlers(): void {
 
   // ── Local backup commands ──────────────────────────────────────────
   registerLocalBackupHandlers();
+
+  // ── Personal vault sync and review commands ────────────────────────
+  registerSyncHandlers();
+  registerSyncReviewHandlers();
 
   // ── Engine commands (unified AI engine abstraction) ────────────────
   registerEngineHandlers(state);

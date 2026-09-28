@@ -1,0 +1,221 @@
+{
+  "format": 1,
+  "name": "genesis",
+  "description": "The working copy of one device right after G1 genesis (sync tables, no app dots).",
+  "inputs": {
+    "files": {
+      "vault.conduit": {
+        "keyHex": "398166b9f60d727a5e76711d9d72b03a5df81f81568fd71e866ced0b3f2c52a0",
+        "password": "correct horse battery staple"
+      }
+    },
+    "merges": []
+  },
+  "outputs": {
+    "files": {
+      "vault.conduit": {
+        "sha256": "35e06cb357b69491d02a10e733b4d778852cbef88b3824b9b29a0e8f091c65e5",
+        "syncFormat": 1,
+        "hasSyncTables": true,
+        "content": {
+          "entries": [
+            {
+              "id": "697ad422-93db-4016-a702-81b52240a714",
+              "name": "desk",
+              "entry_type": "rdp",
+              "folder_id": "15860374-9751-4411-9264-1dc6b076101a",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "desk.local",
+              "port": null,
+              "credential_id": null,
+              "username": null,
+              "password_encrypted": null,
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{\"resolution\":\"1080p\"}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "99bd3eba-8c06-41e9-9871-e48ac36c1394",
+              "name": "Shared admin",
+              "entry_type": "credential",
+              "folder_id": null,
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": null,
+              "port": null,
+              "credential_id": null,
+              "username": "admin",
+              "password_encrypted": {
+                "hex": "a3c6eb06b7f989713fdaac83fea6b6194fccfa4d8da0699ba3a4c0b8285040ed817893"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "a4f61ae1-c838-4792-9e1c-69165c70654c",
+              "name": "web",
+              "entry_type": "ssh",
+              "folder_id": "0018b878-85ca-4145-acd5-f5094c764c89",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "10.0.0.1",
+              "port": 22,
+              "credential_id": null,
+              "username": "root",
+              "password_encrypted": {
+                "hex": "0742bc15019ad9a1141bb0881ef785dd88acfbb6c2ac28953d69d70ddb26ce6df9d3"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{\"keepalive\":30}",
+              "tags": "[\"prod\"]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "df72e7d7-b327-45c2-bb1c-71b503249f75",
+              "name": "db",
+              "entry_type": "ssh",
+              "folder_id": "0018b878-85ca-4145-acd5-f5094c764c89",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "10.0.0.5",
+              "port": 5432,
+              "credential_id": "99bd3eba-8c06-41e9-9871-e48ac36c1394",
+              "username": null,
+              "password_encrypted": {
+                "hex": "a2760295160b4a0b1260a69c40a5db786f4e497dcc32ce39546b19ff5a0a08cf97"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "folders": [
+            {
+              "id": "0018b878-85ca-4145-acd5-f5094c764c89",
+              "name": "Servers",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "15860374-9751-4411-9264-1dc6b076101a",
+              "name": "Clients",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "history": [
+            {
+              "id": "32a44de8-18d3-4611-ae34-8d145127b777",
+              "entry_id": "a4f61ae1-c838-4792-9e1c-69165c70654c",
+              "username": "root",
+              "password_encrypted": {
+                "hex": "ecb9558c79f67bec452b0363a12bdf11a45efefc06e7db30a92dce8b9a5e95ed9c686b96236f"
+              },
+              "changed_at": "2026-09-20T08:00:00.000Z",
+              "changed_by": "user"
+            }
+          ],
+          "meta": {
+            "key_source": "password",
+            "salt": "7hHjcVilq8wR1eSvqvdMTJObNa4AxSYHMaFf9jfKwoU=",
+            "schema_version": "10",
+            "sync_format": "1",
+            "vault_id": "a6980e2f-f08b-4721-b85a-6ae439a5fbe2",
+            "verification": "p4/Uw3fBnRmPwPd6gWKAUKviAdiO5Lk2+Wf1xq+kWCECkGAJO0KuiojLNyg="
+          }
+        },
+        "load": {
+          "lineageId": "f23d0b84-cbd2-55fa-9175-90f70a1a64df",
+          "genesisId": "5d2ece2418899dc3856f6d9ec41974a076b537b59bb5f700ca146dc9eae5e99a",
+          "createdMs": 0,
+          "fileId": null,
+          "currentEpochId": "3618038ea23337bb8d58c7345e3eefc2",
+          "ringEpochs": [
+            "3618038ea23337bb8d58c7345e3eefc2"
+          ],
+          "digest": "0d65f96ce305cae44b92720e8de3a4fca88cb95e23c442a091e083d8f99727cb",
+          "canonicalDump": "{\"devs\":[[275204631718956,\"d957460d-707c-4e22-9619-8219f277138e\",1790326800000]],\"epochs\":[[\"3618038ea23337bb8d58c7345e3eefc2\",null,\"7hHjcVilq8wR1eSvqvdMTJObNa4AxSYHMaFf9jfKwoU=\",\"p4/Uw3fBnRmPwPd6gWKAUKviAdiO5Lk2+Wf1xq+kWCECkGAJO0KuiojLNyg=\",0]],\"h\":[\"f23d0b84-cbd2-55fa-9175-90f70a1a64df\",\"5d2ece2418899dc3856f6d9ec41974a076b537b59bb5f700ca146dc9eae5e99a\",0],\"rows\":[[\"1:697ad422-93db-4016-a702-81b52240a714\",null,[[\"config.resolution\",[0,[\"20322360eb5f9d3ec1f82a561c5e4e0e\"]],[[\"p:0:20322360eb5f9d3ec1f82a561c5e4e0e\",1789891200000,\"ec1405db5139627d002e9f3b10314061\",0]]],[\"container\",[0,[\"d9561fd35f72178e2d1dfdf804491d48\"]],[[\"p:0:d9561fd35f72178e2d1dfdf804491d48\",1789891200000,\"e5705b4346adc1a96389af0b4bd8d8aa\",0]]],[\"created_at\",[0,[\"77df090249f75a454d88c89bceb14a2b\"]],[[\"p:0:77df090249f75a454d88c89bceb14a2b\",1789891200000,\"cba88b892fdc1955eff5cacd37361c36\",0]]],[\"entry_type\",[0,[\"61f984458d0e6b3323526bfdc360c90b\"]],[[\"p:0:61f984458d0e6b3323526bfdc360c90b\",1789891200000,\"f96a69637cb6ad5c331e4ba131ac0e70\",0]]],[\"host\",[0,[\"1f1eaae7946b7cfcca729af4d9abeb4d\"]],[[\"p:0:1f1eaae7946b7cfcca729af4d9abeb4d\",1789891200000,\"a6b28e1a517ef1a4025f6621f8f5f5d9\",0]]],[\"name\",[0,[\"ac8b5131d21e818aa383087714a9f1e5\"]],[[\"p:0:ac8b5131d21e818aa383087714a9f1e5\",1789891200000,\"bea29101db68e9ecf241daa5234f6245\",0]]]]],[\"1:99bd3eba-8c06-41e9-9871-e48ac36c1394\",null,[[\"created_at\",[0,[\"24f4d5a6b59e5a06b0629fdeee73dc76\"]],[[\"p:0:24f4d5a6b59e5a06b0629fdeee73dc76\",1789891200000,\"9fdc8b3622f35634c731b7053afe8cd1\",0]]],[\"entry_type\",[0,[\"4e2a1cc76a443be9e655b48c5f90f524\"]],[[\"p:0:4e2a1cc76a443be9e655b48c5f90f524\",1789891200000,\"8e9070b86f0f499d994dd1d7017d8f8a\",0]]],[\"name\",[0,[\"2690571a6a7f8616cb98a5bf864f3f91\"]],[[\"p:0:2690571a6a7f8616cb98a5bf864f3f91\",1789891200000,\"b9d0c94ae7dd447ed57f5b2f20e6caa8\",0]]],[\"password\",[0,[\"d50a90d2b7cd2b8afa798a853672f467\"]],[[\"p:0:d50a90d2b7cd2b8afa798a853672f467\",1789891200000,\"0d201179575e7b50030677d28677c922\",0]]],[\"username\",[0,[\"c1237f91a1045158e243e300943d4078\"]],[[\"p:0:c1237f91a1045158e243e300943d4078\",1789891200000,\"f912504bc6fa9b746d1db0ce29cdefe7\",0]]]]],[\"1:a4f61ae1-c838-4792-9e1c-69165c70654c\",null,[[\"config.keepalive\",[0,[\"57143ee768ecf2fae05ba9811a406636\"]],[[\"p:0:57143ee768ecf2fae05ba9811a406636\",1789891200000,\"a0c4408caf5e6fcb323977df400728f6\",0]]],[\"container\",[0,[\"56af4040e760fabdc5e0e8783b3f41af\"]],[[\"p:0:56af4040e760fabdc5e0e8783b3f41af\",1789891200000,\"fd0ae813b29e5d25aa433d49a41c9eee\",0]]],[\"created_at\",[0,[\"1a64a3b5310309ed27554bf666674499\"]],[[\"p:0:1a64a3b5310309ed27554bf666674499\",1789891200000,\"08627b821740b7d099d0072a9e376ad6\",0]]],[\"entry_type\",[0,[\"96bc8d601c6415934bb2420ca8196357\"]],[[\"p:0:96bc8d601c6415934bb2420ca8196357\",1789891200000,\"ec1db79142802d7e84357c2bcd22cc20\",0]]],[\"host\",[0,[\"b8eb46281592eee63c9bd50dfd7e3062\"]],[[\"p:0:b8eb46281592eee63c9bd50dfd7e3062\",1789891200000,\"37e31d0c6bbb867b611d66bfcfd56af9\",0]]],[\"name\",[0,[\"b45475c715cc0a747b03edc80908c46e\"]],[[\"p:0:b45475c715cc0a747b03edc80908c46e\",1789891200000,\"5be2ca74baf43bdd691f148d6d5e3d7c\",0]]],[\"password\",[0,[\"f33a131f7e2d29d8428a14cc92434f12\"]],[[\"p:0:f33a131f7e2d29d8428a14cc92434f12\",1789891200000,\"c865af5c4b38d2381c606391e4796f32\",0]]],[\"port\",[0,[\"295ae86b84e1d170bdbe2506fb14d113\"]],[[\"p:0:295ae86b84e1d170bdbe2506fb14d113\",1789891200000,\"6a98f13bd6d255c45b3bb19d0644c6d4\",0]]],[\"tag:prod\",[0,[\"3bd7be29a84f4e47d5b73a8b76acdafe\"]],[[\"p:0:3bd7be29a84f4e47d5b73a8b76acdafe\",1789891200000,\"fa0baba7e91f883949f531f00bcab19e\",0]]],[\"username\",[0,[\"a0699adb9811ff6f7015776adfc60a1f\"]],[[\"p:0:a0699adb9811ff6f7015776adfc60a1f\",1789891200000,\"d1085cf4e4055fb0c8606f3ad16c43d0\",0]]]]],[\"1:df72e7d7-b327-45c2-bb1c-71b503249f75\",null,[[\"container\",[0,[\"8fba6ebe48be4b334b14ea767dd3a643\"]],[[\"p:0:8fba6ebe48be4b334b14ea767dd3a643\",1789891200000,\"4415b0912dfe353e4a8c8f6984cc0a92\",0]]],[\"created_at\",[0,[\"5e326f534392861638a6ca425d5a71a1\"]],[[\"p:0:5e326f534392861638a6ca425d5a71a1\",1789891200000,\"78b567ed24622d3389d6e8c74960c239\",0]]],[\"credential_id\",[0,[\"3325753909fb0daf9520d96ba93bacee\"]],[[\"p:0:3325753909fb0daf9520d96ba93bacee\",1789891200000,\"1a6c6a04bcd3944f2c752dce1f2dae0d\",0]]],[\"entry_type\",[0,[\"018d27e95c2edb1a5aeb2209eeca7e1d\"]],[[\"p:0:018d27e95c2edb1a5aeb2209eeca7e1d\",1789891200000,\"011e601a1d3c07442df82d4e074d8e68\",0]]],[\"host\",[0,[\"7372a6f378c73cbe3ff30e140bc52ffc\"]],[[\"p:0:7372a6f378c73cbe3ff30e140bc52ffc\",1789891200000,\"fc739d4f8e86397b8eacc99d229d07d0\",0]]],[\"name\",[0,[\"bda0101dbd28d442d33169c08a60cfa9\"]],[[\"p:0:bda0101dbd28d442d33169c08a60cfa9\",1789891200000,\"16bd00c70dc33062aebffaeee50194c1\",0]]],[\"password\",[0,[\"e6b02d4944d7d6d54949b1835dab5910\"]],[[\"p:0:e6b02d4944d7d6d54949b1835dab5910\",1789891200000,\"f20624f1cde598c4fcbd2370a42c5dcc\",0]]],[\"port\",[0,[\"1e88527970643e037e93f4ec91bc1d25\"]],[[\"p:0:1e88527970643e037e93f4ec91bc1d25\",1789891200000,\"4e0400f54b12c30d8c949c592f54e56d\",0]]]]],[\"2:0018b878-85ca-4145-acd5-f5094c764c89\",null,[[\"created_at\",[0,[\"12bfa8732d82d9f8fd8f7ce73198ad0c\"]],[[\"p:0:12bfa8732d82d9f8fd8f7ce73198ad0c\",1789891200000,\"61499d72a9eefd7e9dab652a4aa9b1d8\",0]]],[\"name\",[0,[\"582e9cb5f11711a177ffc06ea1dfb3bb\"]],[[\"p:0:582e9cb5f11711a177ffc06ea1dfb3bb\",1789891200000,\"fc7142b4238da1f95fbb27959f8a56e9\",0]]]]],[\"2:15860374-9751-4411-9264-1dc6b076101a\",null,[[\"created_at\",[0,[\"4a65829f934ec5e57ab9ea981dcea6c7\"]],[[\"p:0:4a65829f934ec5e57ab9ea981dcea6c7\",1789891200000,\"13537604049b299513fef5055a5e0677\",0]]],[\"name\",[0,[\"a6accc3816f80ea9163aefce69c09696\"]],[[\"p:0:a6accc3816f80ea9163aefce69c09696\",1789891200000,\"7bdef44ffc7be0edb60ce6240cd1e89c\",0]]]]],[\"3:32a44de8-18d3-4611-ae34-8d145127b777\",null,[[\"changed_at\",[0,[\"c64f4eaa7d2c7bbbede504e5f653b3e1\"]],[[\"p:0:c64f4eaa7d2c7bbbede504e5f653b3e1\",1789891200000,\"4d8c6faaa6fa5e3d42b053d97afa7547\",0]]],[\"changed_by\",[0,[\"160477dc1fb4b7983f7cb1f01d161e98\"]],[[\"p:0:160477dc1fb4b7983f7cb1f01d161e98\",1789891200000,\"734e1a43f6d4b598e47d105823a38e32\",0]]],[\"entry_id\",[0,[\"1f103dee3722256454ac0d4986da1fd4\"]],[[\"p:0:1f103dee3722256454ac0d4986da1fd4\",1789891200000,\"2a85e5c9898a1d26f01986e9d668c4e0\",0]]],[\"password\",[0,[\"ae806875c94fd6c5dc180da6b0ec7c2b\"]],[[\"p:0:ae806875c94fd6c5dc180da6b0ec7c2b\",1789891200000,\"92c5bf67b76955081cad4f749febf95e\",0]]],[\"username\",[0,[\"c4f20f3de78d478b30457056460bc577\"]],[[\"p:0:c4f20f3de78d478b30457056460bc577\",1789891200000,\"2191f1ac3ee27d0b9778d4c1dad5aa6c\",0]]]]],[\"4:meta\",null,[[\"vault_id\",[0,[\"b76638affc9709458d770331f39ce646\"]],[[\"p:0:b76638affc9709458d770331f39ce646\",0,\"722cda9b50fa4e703fc5e63e79115842\",0]]]]],[\"9:key\",null,[[\"epoch\",[0,[\"5fca3661705eb97f63d9ef13db3db4c1\"]],[[\"p:0:5fca3661705eb97f63d9ef13db3db4c1\",0,\"2725f77cace5b849e0c05803ea2a6f03\",0]]]]]],\"vv\":[],\"wraps\":[]}",
+          "cache": {
+            "1:697ad422-93db-4016-a702-81b52240a714": [
+              true,
+              "e93a6e65e220f23d78199460e44b9b20"
+            ],
+            "1:99bd3eba-8c06-41e9-9871-e48ac36c1394": [
+              true,
+              "dca9bd88d2f979fa00dba98be8e8e1c3"
+            ],
+            "1:a4f61ae1-c838-4792-9e1c-69165c70654c": [
+              true,
+              "221488c0df6501cb4ba9539719f6035e"
+            ],
+            "1:df72e7d7-b327-45c2-bb1c-71b503249f75": [
+              true,
+              "5b0b9486b7b5604e3cece371d7f40809"
+            ],
+            "2:0018b878-85ca-4145-acd5-f5094c764c89": [
+              true,
+              "8875ed298ce57195fc87ec147003d384"
+            ],
+            "2:15860374-9751-4411-9264-1dc6b076101a": [
+              true,
+              "d3d6d67e7ee155d8f9bdb34566dfc395"
+            ],
+            "3:32a44de8-18d3-4611-ae34-8d145127b777": [
+              true,
+              "fad54153569ef41d2384d458a11167bf"
+            ]
+          },
+          "planEmpty": true,
+          "structural": [],
+          "conflicts": []
+        }
+      }
+    },
+    "merges": []
+  }
+}

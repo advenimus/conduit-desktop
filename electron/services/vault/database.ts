@@ -8,6 +8,26 @@
 import Database from 'better-sqlite3';
 import { CREATE_SCHEMA, SCHEMA_VERSION } from './schema.js';
 import { MIGRATIONS } from './migrations.js';
+import { ensurePasswordHistory } from '../sync/schema.js';
+import { markWalJournalMode } from './wal-header.js';
+
+export interface ConduitDatabaseOptions {
+  /** 'delete' for a working copy whose sync root is on a network path. Default 'wal'. */
+  journalMode?: 'wal' | 'delete';
+  /** false: the file must already exist. */
+  create?: boolean;
+}
+
+/** What deleteFolderRecursive removed, collected before the delete (the FK cascades). */
+export interface FolderDeleteResult {
+  foldersDeleted: number;
+  entriesDeleted: number;
+  folderIds: string[];
+  entryIds: string[];
+  historyIds: string[];
+}
+
+const VACUUM_IN_TRANSACTION_MESSAGE = 'VACUUM INTO cannot run inside a transaction';
 
 // -- Row types --
 
@@ -62,9 +82,9 @@ export interface PasswordHistoryRow {
 export class ConduitDatabase {
   private db: Database.Database;
 
-  constructor(dbPath: string) {
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
+  constructor(dbPath: string, opts: ConduitDatabaseOptions = {}) {
+    this.db = new Database(dbPath, opts.create === false ? { fileMustExist: true } : undefined);
+    this.db.pragma(opts.journalMode === 'delete' ? 'journal_mode = DELETE' : 'journal_mode = WAL');
     this.db.pragma('busy_timeout = 5000');
     this.db.pragma('foreign_keys = ON');
 
@@ -87,6 +107,20 @@ export class ConduitDatabase {
       this.runMigrations();
       this.db.exec(CREATE_SCHEMA);
     }
+    // Fresh schema-10 files never got password_history (it lives in migration v3).
+    ensurePasswordHistory(this.db);
+  }
+
+  /** The raw connection (a working copy's only connection, shared with the sync layer). */
+  raw(): Database.Database {
+    return this.db;
+  }
+
+  /** Writes a compact WAL-mode copy of this database to `target` (outside any transaction). */
+  vacuumInto(target: string): void {
+    if (this.db.inTransaction) throw new Error(VACUUM_IN_TRANSACTION_MESSAGE);
+    this.db.prepare('VACUUM INTO ?').run(target);
+    markWalJournalMode(target);
   }
 
   /**
@@ -184,7 +218,7 @@ export class ConduitDatabase {
    * Uses a CTE to collect all descendant folder IDs, then deletes entries and folders
    * in a single transaction.
    */
-  deleteFolderRecursive(id: string): { foldersDeleted: number; entriesDeleted: number } {
+  deleteFolderRecursive(id: string): FolderDeleteResult {
     const collectDescendantIds = this.db.prepare(`
       WITH RECURSIVE descendants(id) AS (
         SELECT id FROM folders WHERE id = ?
@@ -196,7 +230,7 @@ export class ConduitDatabase {
 
     // Walk both folder hierarchy AND entry hierarchy: an entry rooted in this folder
     // (or nested under another entry that's rooted in this folder) is a descendant.
-    const deleteEntriesInFolders = this.db.prepare(`
+    const entryDescendantsCte = `
       WITH RECURSIVE
         folder_descendants(id) AS (
           SELECT id FROM folders WHERE id = ?
@@ -207,9 +241,14 @@ export class ConduitDatabase {
           SELECT id FROM entries WHERE folder_id IN (SELECT id FROM folder_descendants)
           UNION ALL
           SELECT e.id FROM entries e JOIN entry_descendants ed ON e.parent_entry_id = ed.id
-        )
-      DELETE FROM entries WHERE id IN (SELECT id FROM entry_descendants)
-    `);
+        )`;
+    const collectEntryIds = this.db.prepare(`${entryDescendantsCte} SELECT DISTINCT id FROM entry_descendants`);
+    const collectHistoryIds = this.db.prepare(
+      `${entryDescendantsCte} SELECT id FROM password_history WHERE entry_id IN (SELECT id FROM entry_descendants)`,
+    );
+    const deleteEntriesInFolders = this.db.prepare(
+      `${entryDescendantsCte} DELETE FROM entries WHERE id IN (SELECT id FROM entry_descendants)`,
+    );
 
     const deleteFoldersRecursive = this.db.prepare(`
       WITH RECURSIVE descendants(id) AS (
@@ -220,22 +259,21 @@ export class ConduitDatabase {
       DELETE FROM folders WHERE id IN (SELECT id FROM descendants)
     `);
 
-    let foldersDeleted = 0;
-    let entriesDeleted = 0;
+    const ids = (stmt: Database.Statement): string[] => (stmt.all(id) as Array<{ id: string }>).map((r) => r.id);
 
-    const transaction = this.db.transaction(() => {
-      // Collect descendant IDs before deletion (for return value)
-      const folderIds = collectDescendantIds.all(id) as Array<{ id: string }>;
+    const transaction = this.db.transaction((): FolderDeleteResult => {
+      // Collect ids before deletion: password_history rows go with their entries (FK cascade).
+      const folderIds = ids(collectDescendantIds);
+      const entryIds = ids(collectEntryIds);
+      const historyIds = ids(collectHistoryIds);
       // Delete entries first (FK references folders)
-      const entryResult = deleteEntriesInFolders.run(id);
-      entriesDeleted = entryResult.changes;
+      const entriesDeleted = deleteEntriesInFolders.run(id).changes;
       // Delete all folders (target + descendants)
-      const folderResult = deleteFoldersRecursive.run(id);
-      foldersDeleted = folderResult.changes;
+      const foldersDeleted = deleteFoldersRecursive.run(id).changes;
+      return { foldersDeleted, entriesDeleted, folderIds, entryIds, historyIds };
     });
 
-    transaction();
-    return { foldersDeleted, entriesDeleted };
+    return transaction();
   }
 
   // -- Entry CRUD --

@@ -4,9 +4,10 @@
  * Holds references to all service managers and the unified vault.
  */
 
-import { BrowserWindow } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { getDataDir as resolveDataDir } from './env-config.js';
 import { ChatStore } from './chat/chat-store.js';
 import { ConduitVault } from './vault/vault.js';
@@ -16,8 +17,13 @@ import { TerminalManager } from './terminal/manager.js';
 import { WebSessionManager } from './web/manager.js';
 import { RdpSessionManager } from './rdp/session.js';
 import { VncSessionManager } from './vnc/session.js';
-import { readSettings } from '../ipc/settings.js';
-import { AuthService } from './auth/supabase.js';
+import { readSettings, writeSettings, type AppSettings } from '../ipc/settings.js';
+import { AuthService, type AuthState } from './auth/supabase.js';
+import { AppSyncManager } from './sync/app-sync-manager.js';
+import { VAULT_PATH_CHANGED_EVENT, type SharedPathChange } from './sync/app-sync-binding.js';
+import { withMovedRecentVault } from '../ipc/recent-vaults.js';
+import { VaultAccessProxy } from './vault/vault-access-proxy.js';
+import type { LockedReason } from './vault-session/host.js';
 import { EngineManager } from './ai/engines/engine-manager.js';
 import { ClaudeCodeEngine } from './ai/engines/claude-code-engine.js';
 import { CodexEngine } from './ai/engines/codex-engine.js';
@@ -115,6 +121,12 @@ export class AppState {
   mcpGatekeeper: McpGatekeeper;
   commandExecutor: CommandExecutor;
   currentVaultPath: string;
+  /** Soft lock, open-in-place and create-in-place handlers (installed by the vault IPC module). */
+  readonly vaultAccess = new VaultAccessProxy();
+  /** Personal-vault sync: leases, working copies and the merge engine (team vaults never use it). */
+  readonly appSync: AppSyncManager;
+  /** Why the personal vault is locked when another device took it over (MCP and IPC errors). */
+  personalLockReason: LockedReason | null = null;
   /** Master password held in memory while vault is unlocked (for cloud sync re-encryption). */
   private _masterPasswordBuf: Buffer | null = null;
 
@@ -194,9 +206,71 @@ export class AppState {
       this.mcpGatekeeper.evaluateAccess(authState);
     });
 
+    this.appSync = this.createAppSync();
+    this.watchSignOut();
+
     // Ensure data directory exists
     const dataDir = this.getDataDir();
     fs.mkdirSync(dataDir, { recursive: true });
+  }
+
+  /** No IO until start() (main.ts, after app ready). */
+  private createAppSync(): AppSyncManager {
+    return new AppSyncManager({
+      isPackaged: app.isPackaged,
+      appVersion: app.getVersion(),
+      dataDir: this.getDataDir(),
+      home: os.homedir(),
+      env: process.env,
+      vault: () => this.vault,
+      auth: this.authService,
+      settings: {
+        read: () => readSettings() as unknown as Record<string, unknown>,
+        update: (patch) => writeSettings({ ...readSettings(), ...patch } as AppSettings),
+      },
+      busy: {
+        terminals: () => this.terminalManager.countSessions().connections,
+        rdp: () => this.rdpManager.list().length,
+        vnc: () => this.vncManager.list().length,
+        web: () => this.webManager.listSessions().length,
+        commands: () => this.commandExecutor.runningCount(),
+        agentJobs: () => this.engineManager.runningTurns() + this.terminalManager.countSessions().agents,
+        mcpJobs: () => this.mcpConnections.size,
+      },
+      access: this.vaultAccess,
+      onSharedPathChanged: (change) => this.followSharedFile(change),
+    });
+  }
+
+  /** The sync engine moved the open vault to another file (spec 5.9): vault, settings and renderer follow. */
+  private followSharedFile({ from, to }: SharedPathChange): void {
+    this.vault.rebindSharedPath(to);
+    this.currentVaultPath = to;
+    try {
+      writeSettings(withMovedRecentVault(readSettings(), from, to));
+    } catch (err) {
+      console.error('[vault] could not record the moved vault file in settings', { name: err instanceof Error ? err.name : 'Error' });
+    }
+    const win = this.getMainWindow();
+    if (win && !win.isDestroyed()) win.webContents.send(VAULT_PATH_CHANGED_EVENT, { path: to });
+  }
+
+  /**
+   * Signed in -> signed out while a vault is open: owner claims apply. auth_sign_out already
+   * released the lease before signing out; the runtime runs that release once, so this call only
+   * covers forced sign-outs (MFA required, suspension) and refreshes the badge.
+   */
+  private watchSignOut(): void {
+    let previousUserId = this.authService.getAuthState().user?.id ?? null;
+    this.authService.onStateChange((authState: AuthState) => {
+      const userId = authState.user?.id ?? null;
+      if (previousUserId !== null && userId === null) {
+        this.appSync.signedOut().catch((err: unknown) => {
+          console.error('[vault-session] sign-out release failed', { name: err instanceof Error ? err.name : 'Error' });
+        });
+      }
+      previousUserId = userId;
+    });
   }
 
   /** Singleton accessor */
@@ -236,8 +310,11 @@ export class AppState {
     this.sessions.clear();
   }
 
-  /** Switch to a different vault file */
+  /** Switch to a different vault file (callers lock the open vault first: lockVaultFromMain). */
   switchVault(filePath: string): void {
+    if (this.appSync.isOpen() || this.appSync.isOpening()) {
+      throw new Error('Lock the open vault before switching');
+    }
     // Lock current vault if open
     this.vault.lock();
     this.currentVaultPath = filePath;

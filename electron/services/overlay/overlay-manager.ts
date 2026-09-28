@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { devServerUrl } from '../env-config.js';
 
 // Duplicated from src/types/toast.ts to avoid cross-rootDir imports.
 // Keep in sync with the frontend type definitions.
@@ -107,7 +108,7 @@ export class OverlayManager {
     this.windowReady = false;
 
     if (isDev) {
-      this.overlayWindow.loadURL('http://localhost:1420/overlay.html');
+      this.overlayWindow.loadURL(devServerUrl('overlay.html'));
     } else {
       this.overlayWindow.loadFile(path.join(__dirname, '../../../dist/overlay.html'));
     }

@@ -1,0 +1,25 @@
+const path=require('path'),fs=require('fs');
+const Database=require('better-sqlite3');
+const d=fs.mkdtempSync(path.join(require('os').tmpdir(),'conduit-probe-'));
+const W=path.join(d,'w.conduit');const db=new Database(W);db.pragma('journal_mode = WAL');
+console.log('sqlite', db.prepare('select sqlite_version() v').get().v);
+// size model: one register row per field
+db.exec(`CREATE TABLE sync_reg(tbl INTEGER NOT NULL,row_id TEXT NOT NULL,reg TEXT NOT NULL,dev INTEGER NOT NULL,hlc_ms INTEGER NOT NULL,hlc_c INTEGER NOT NULL,pid BLOB,vhash BLOB NOT NULL,pmem_ms INTEGER,pmem_ids BLOB,lval TEXT,PRIMARY KEY(tbl,row_id,reg)) WITHOUT ROWID;
+CREATE TABLE entries(id TEXT PRIMARY KEY,name TEXT,host TEXT,username TEXT,notes TEXT,config TEXT,password_encrypted BLOB,updated_at TEXT);`);
+const crypto=require('crypto');
+const regs=['_life','name','entry_type','container','sort_order','host','port','credential_id','username','password','private_key','totp_secret','icon','color','credential_type','config.a','config.b','notes','is_favorite','domain','created_at','tag:x'];
+const ins=db.prepare('INSERT INTO sync_reg VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+const ie=db.prepare('INSERT INTO entries VALUES (?,?,?,?,?,?,?,?)');
+const N=2000;
+db.transaction(()=>{for(let i=0;i<N;i++){const id=crypto.randomUUID();ie.run(id,'Server '+i,'10.0.0.'+(i%255),'admin','some notes here','{"a":1,"b":"x"}',crypto.randomBytes(60),new Date().toISOString());
+ const dev=Math.floor(Math.random()*2**47), ms=Date.now()-Math.floor(Math.random()*1e9);
+ for(const r of regs) ins.run(1,id,r,dev,ms,0,null,crypto.randomBytes(16),null,null,null);}})();
+db.pragma('wal_checkpoint(TRUNCATE)');
+const out=path.join(d,'out.conduit');db.prepare('VACUUM INTO ?').run(out);
+const b=fs.readFileSync(out);console.log('vacuum-into header bytes 18/19:',b[18],b[19],'size MB',(b.length/1e6).toFixed(2));
+console.log('side files after VACUUM INTO:',fs.readdirSync(d).join(','));
+const db2=new Database(path.join(d,'c.conduit'));db2.exec(`CREATE TABLE entries(id TEXT PRIMARY KEY,name TEXT,host TEXT,username TEXT,notes TEXT,config TEXT,password_encrypted BLOB,updated_at TEXT);`);
+const ie2=db2.prepare('INSERT INTO entries VALUES (?,?,?,?,?,?,?,?)');
+db2.transaction(()=>{for(let i=0;i<N;i++)ie2.run(crypto.randomUUID(),'Server '+i,'10.0.0.'+(i%255),'admin','some notes here','{"a":1,"b":"x"}',crypto.randomBytes(60),new Date().toISOString());})();
+db2.close();console.log('content-only size MB',(fs.statSync(path.join(d,'c.conduit')).size/1e6).toFixed(2));
+const zlib=require('zlib');console.log('deflated sync file MB',(zlib.deflateRawSync(b).length/1e6).toFixed(2));

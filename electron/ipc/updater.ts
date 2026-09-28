@@ -10,6 +10,8 @@ import { ipcMain, app, shell } from 'electron';
 import { getEnvConfig } from '../services/env-config.js';
 import { AppState } from '../services/state.js';
 import { setIsQuitting } from '../services/app-lifecycle.js';
+import { appQuitFlush } from '../services/vault/app-quit-flush.js';
+import { installAfterVaultFlush } from './update-install.js';
 
 let autoUpdater: typeof import('electron-updater').autoUpdater | null = null;
 
@@ -138,28 +140,34 @@ export function registerUpdaterHandlers(): void {
       throw new Error('No update has been downloaded');
     }
 
-    try {
-      // Signal that the app is intentionally quitting so the window close handler
-      // doesn't preventDefault() and hide the window (close-to-tray behavior).
-      setIsQuitting(true);
-      updater.quitAndInstall(false, true);
-
+    // Signal that the app is intentionally quitting so the window close handler
+    // doesn't preventDefault() and hide the window (close-to-tray behavior).
+    setIsQuitting(true);
+    await installAfterVaultFlush({
+      flushVault: () => appQuitFlush().flushNow(),
+      quitAndInstall: () => updater.quitAndInstall(false, true),
       // Safety net: quitAndInstall() calls app.quit() via setImmediate internally,
       // but on macOS the process can survive if the tray icon or the empty
       // window-all-closed handler keeps it alive. Force-quit after a short delay
       // to ensure the update actually installs and the app relaunches.
-      setTimeout(() => {
-        app.quit();
-      }, 1500);
-    } catch (err) {
-      setIsQuitting(false);
-      const win = AppState.getInstance().getMainWindow();
-      win?.webContents.send('update:error', {
-        message: 'Installation failed — please download the update manually.',
-      });
-      const config = getEnvConfig();
-      shell.openExternal(`${config.websiteUrl}/download`);
-    }
+      scheduleForceQuit: () => {
+        setTimeout(() => {
+          app.quit();
+        }, 1500);
+      },
+      onFailed: (vaultFlushed, err) => {
+        console.error('[updater] quitAndInstall failed:', err instanceof Error ? err.message : err);
+        setIsQuitting(false);
+        appQuitFlush().reset();
+        const win = AppState.getInstance().getMainWindow();
+        if (vaultFlushed) win?.webContents.send('vault-locked-by-system');
+        win?.webContents.send('update:error', {
+          message: 'Installation failed. Please download the update manually.',
+        });
+        const config = getEnvConfig();
+        shell.openExternal(`${config.websiteUrl}/download`);
+      },
+    });
   });
 }
 

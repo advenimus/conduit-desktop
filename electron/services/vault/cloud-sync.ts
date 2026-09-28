@@ -6,13 +6,13 @@
  * to the renderer.
  */
 
-import fs from 'node:fs';
-import { encryptForCloud, decryptFromCloud } from './cloud-crypto.js';
+import { packVaultForCloud, decryptFromCloud } from './cloud-crypto.js';
+import { readBackupBytes, type SnapshotWriter } from './backup-snapshot.js';
+import { cloudBackupPlanAllows, CLOUD_BACKUP_PLAN_MESSAGE } from './cloud-backup-plan.js';
+import { snapshotFileName } from './cloud-backup-name.js';
 import { AppState } from '../state.js';
 import type { AuthService } from '../auth/supabase.js';
-
-/** Maximum vault file size for cloud upload (10 MB). */
-const MAX_VAULT_SIZE = 10 * 1024 * 1024;
+import { readSettings } from '../../ipc/settings.js';
 
 /** Debounce delay after last mutation before uploading (ms). */
 const DEBOUNCE_MS = 5_000;
@@ -61,6 +61,7 @@ export class CloudSyncService {
   private vaultId: string | null = null;
   private masterPasswordBuf: Buffer | null = null;
   private vaultPath: string | null = null;
+  private snapshot: SnapshotWriter | null = null;
   private enabled = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private uploading = false;
@@ -80,6 +81,8 @@ export class CloudSyncService {
   /**
    * Configure the sync service after vault unlock.
    * If enabled=true, starts watching for mutations and hydrates last sync time.
+   * `snapshot` (vaults the sync engine manages) backs up a snapshot of the working copy
+   * instead of reading `vaultPath`. A plan without cloud backup leaves the service off.
    */
   configure(opts: {
     userId: string;
@@ -87,6 +90,7 @@ export class CloudSyncService {
     masterPassword: string;
     vaultPath: string;
     enabled: boolean;
+    snapshot?: SnapshotWriter | null;
   }): void {
     this.userId = opts.userId;
     this.vaultId = opts.vaultId;
@@ -94,10 +98,15 @@ export class CloudSyncService {
     if (this.masterPasswordBuf) this.masterPasswordBuf.fill(0);
     this.masterPasswordBuf = Buffer.from(opts.masterPassword, 'utf-8');
     this.vaultPath = opts.vaultPath;
-    this.enabled = opts.enabled;
+    this.snapshot = opts.snapshot ?? null;
+    this.enabled = opts.enabled && this.planAllowsBackup();
 
-    if (opts.enabled) {
+    if (opts.enabled && !this.enabled) {
+      console.warn('[cloud-sync] Not started: the plan does not include cloud backup');
+      this.updateState({ status: 'disabled', enabled: false, error: CLOUD_BACKUP_PLAN_MESSAGE });
+    } else if (opts.enabled) {
       this.updateState({ status: 'idle', enabled: true, error: null });
+      this.confirmPlanInBackground();
       // Fire-and-forget: hydrate lastSyncedAt from cloud metadata
       this.hydrateLastSyncedAt().catch(() => {});
     } else {
@@ -119,6 +128,7 @@ export class CloudSyncService {
     this.userId = null;
     this.vaultId = null;
     this.vaultPath = null;
+    this.snapshot = null;
     this.updateState({ status: 'disabled', enabled: false, error: null });
   }
 
@@ -151,6 +161,10 @@ export class CloudSyncService {
   async syncNow(): Promise<void> {
     if (!this.enabled) {
       throw new Error('Cloud sync is not enabled');
+    }
+    if (!(await this.planStillAllowsBackup())) {
+      this.stopForPlan();
+      throw new Error(CLOUD_BACKUP_PLAN_MESSAGE);
     }
     this.clearDebounce();
     await this.doUpload();
@@ -608,9 +622,7 @@ export class CloudSyncService {
    * Uses per-vault path: {userId}/{vaultId}/backups/
    */
   private async uploadVersionedSnapshot(userId: string, vaultId: string, blob: Buffer): Promise<void> {
-    const now = new Date();
-    const ts = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
-    const filename = `vault_${ts}.enc`;
+    const filename = snapshotFileName(new Date());
     const storagePath = `${userId}/${vaultId}/${BACKUPS_FOLDER}/${filename}`;
 
     const supabase = this.authService.getSupabaseClient();
@@ -656,12 +668,52 @@ export class CloudSyncService {
     }
   }
 
+  /** The plan may have changed since unlock (downgrade): re-checked before every upload. */
+  private planAllowsBackup(): boolean {
+    try {
+      return cloudBackupPlanAllows(this.authService.getAuthState(), readSettings(), Date.now());
+    } catch (err) {
+      console.warn('[cloud-sync] Plan check failed, cloud backup paused:', (err as Error)?.message ?? err);
+      return false;
+    }
+  }
+
+  /**
+   * The plan as Supabase has it now: the auth state's profile is read at sign-in, so a downgrade
+   * since then is only seen after reloadProfile. A failed read (offline) leaves the last known plan.
+   */
+  private async planStillAllowsBackup(): Promise<boolean> {
+    try {
+      await this.authService.reloadProfile();
+    } catch (err) {
+      console.warn('[cloud-sync] Could not re-read the plan; using the last known one:', (err as Error)?.message ?? err);
+    }
+    return this.planAllowsBackup();
+  }
+
+  /** Unlock configures from the profile read at sign-in; a plan changed since then turns backup off. */
+  private confirmPlanInBackground(): void {
+    this.planStillAllowsBackup()
+      .then((allowed) => {
+        if (!allowed && this.enabled) this.stopForPlan();
+      })
+      .catch(() => {});
+  }
+
+  private stopForPlan(): void {
+    console.warn('[cloud-sync] Upload skipped: the plan no longer includes cloud backup');
+    this.clearDebounce();
+    this.enabled = false;
+    this.updateState({ status: 'disabled', enabled: false, error: CLOUD_BACKUP_PLAN_MESSAGE });
+  }
+
   private async doUpload(): Promise<void> {
     // Snapshot values at call time to avoid races with disable()
     const userId = this.userId;
     const vaultId = this.vaultId;
     const masterPasswordBuf = this.masterPasswordBuf;
     const vaultPath = this.vaultPath;
+    const snapshot = this.snapshot;
 
     if (!userId || !vaultId || !masterPasswordBuf || !vaultPath) {
       return;
@@ -669,18 +721,21 @@ export class CloudSyncService {
 
     this.uploading = true;
     this.pendingMutation = false;
-    this.updateState({ status: 'syncing', error: null });
 
     try {
-      // Read the vault file
-      const fileBuffer = fs.readFileSync(vaultPath);
-
-      if (fileBuffer.length > MAX_VAULT_SIZE) {
-        throw new Error('Vault exceeds 10MB cloud limit');
+      if (!(await this.planStillAllowsBackup())) {
+        this.stopForPlan();
+        return;
       }
-
-      // Encrypt for cloud (pass password as string for PBKDF2)
-      const blob = encryptForCloud(fileBuffer, masterPasswordBuf.toString('utf-8'));
+      this.updateState({ status: 'syncing', error: null });
+      const fileBuffer = await readBackupBytes({ vaultPath, snapshot });
+      // A lock or password change during the waits above zeroed this buffer.
+      if (this.masterPasswordBuf !== masterPasswordBuf) {
+        console.warn('[cloud-sync] Upload skipped: the vault locked or its password changed');
+        return;
+      }
+      // 0x01, or 0x02 (deflated) when a 0x01 blob would not fit the bucket
+      const blob = packVaultForCloud(fileBuffer, masterPasswordBuf.toString('utf-8'));
 
       // Upload to Supabase Storage at per-vault path: {userId}/{vaultId}/vault.enc
       const supabase = this.authService.getSupabaseClient();

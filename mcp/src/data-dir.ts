@@ -1,5 +1,5 @@
 /**
- * Resolve the Conduit data directory for MCP-local state (quota counter, etc).
+ * Resolve the Conduit data directory for MCP-local state (analytics id, etc).
  *
  * Must match the main app's env-config.ts logic: preview vs production, platform-specific.
  */

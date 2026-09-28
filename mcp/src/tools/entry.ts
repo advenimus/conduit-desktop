@@ -15,7 +15,9 @@ export function entryInfoDefinition() {
     name: 'entry_info',
     description:
       'Get metadata for any vault entry (connection, document, command). ' +
-      'Optionally include notes with !!secret!! values redacted.',
+      'Optionally include notes with !!secret!! values redacted. ' +
+      'has_conflict is true when devices saved different values and the conflict is not resolved yet; ' +
+      'the values shown are the provisional ones.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -51,6 +53,7 @@ export async function entryInfo(
     domain: entry.domain ?? null,
     created_at: entry.created_at ?? '',
     updated_at: entry.updated_at ?? '',
+    has_conflict: entry.has_conflict === true,
   };
 
   if (args.include_notes) {

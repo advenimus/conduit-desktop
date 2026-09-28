@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useVaultStore } from "../../../stores/vaultStore";
 import { FingerprintIcon, AlertCircleIcon } from "../../../lib/icons";
+import IdleLockSetting from "../../sync/IdleLockSetting";
+import type { TabProps } from "../SettingsHelpers";
 
-export default function SecurityTab() {
+export default function SecurityTab({ settings, setSettings }: TabProps) {
   const {
     biometricAvailable,
     biometricEnabled,
@@ -124,15 +126,13 @@ export default function SecurityTab() {
         </div>
       )}
 
-      {/* Non-macOS placeholder */}
-      {!isMac && (
-        <div>
-          <h3 className="text-sm font-semibold text-ink mb-3">Security</h3>
-          <p className="text-sm text-ink-muted">
-            No additional security settings are available for this platform yet.
-          </p>
-        </div>
-      )}
+      <div>
+        <h3 className="text-sm font-semibold text-ink mb-3">Auto-lock</h3>
+        <IdleLockSetting
+          minutes={settings.vault_idle_lock_minutes}
+          onChange={(minutes) => setSettings((prev) => ({ ...prev, vault_idle_lock_minutes: minutes }))}
+        />
+      </div>
     </div>
   );
 }

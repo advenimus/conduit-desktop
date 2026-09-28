@@ -26,8 +26,8 @@ function formatLockTime(iso: string): string {
 }
 
 /**
- * Dialog shown when a Pro user tries to open a vault that is already
- * locked by another user. Offers retry, upgrade to Team, or cancel.
+ * Shown when someone without the Teams plan opens a team vault that another person has open.
+ * Personal vaults use the take-over dialog instead (components/sync/TakeoverDialog).
  */
 export default function ProVaultLockDialog({
   lockedByEmail,
@@ -47,13 +47,13 @@ export default function ProVaultLockDialog({
               <LockIcon size={20} className="text-amber-400" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-ink">Vault In Use</h2>
+              <h2 className="text-lg font-semibold text-ink">Team Vault In Use</h2>
             </div>
           </div>
 
           {/* Description */}
           <p className="text-sm text-ink-secondary mb-4">
-            This vault is currently in use by another user.
+            Another person has this team vault open. Without the Teams plan, one person can use it at a time.
           </p>
 
           {/* Lock info */}
@@ -93,7 +93,7 @@ export default function ProVaultLockDialog({
           </span>
 
           <ul className="space-y-2.5 mb-5">
-            {["Concurrent vault access", "Shared team vaults", "Audit log"].map((benefit) => (
+            {["Everyone on the team at once", "Shared team vaults", "Audit log"].map((benefit) => (
               <li key={benefit} className="flex items-center gap-2 text-xs text-ink-secondary">
                 <CheckIcon size={12} className="text-conduit-400 flex-shrink-0" />
                 {benefit}

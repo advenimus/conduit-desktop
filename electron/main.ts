@@ -11,10 +11,12 @@ import { logger } from './services/logger.js';
 import { AppState } from './services/state.js';
 import { writeAgentInstructions } from './services/agent-instructions.js';
 import { ensureLocalNetworkAccess, localNetworkAppName } from './services/local-network.js';
-import { resetMcpQuotaForDevLaunch } from './services/mcp-quota.js';
 import { readAll, writeAll } from './ipc/ui-state.js';
 import { readSettings } from './ipc/settings.js';
 import { lockVaultFromMain } from './ipc/vault.js';
+import { startVaultIdleLock } from './ipc/vault-idle.js';
+import { appQuitFlush } from './services/vault/app-quit-flush.js';
+import { devServerUrl } from './services/env-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -221,6 +223,7 @@ let tray: Tray | null = null;
 let pickerWindow: BrowserWindow | null = null;
 let overlayManager: OverlayManager | null = null;
 let mainWindowRef: BrowserWindow | null = null;
+let stopIdleLock: (() => void) | null = null;
 
 function getTrayIcon(): Electron.NativeImage {
   const base = isDev
@@ -307,7 +310,7 @@ function createPickerWindow() {
   }
 
   if (isDev) {
-    pickerWindow.loadURL('http://localhost:1420/picker.html');
+    pickerWindow.loadURL(devServerUrl('picker.html'));
   } else {
     pickerWindow.loadFile(path.join(__dirname, '../dist/picker.html'));
   }
@@ -769,7 +772,7 @@ function createWindow(): BrowserWindow {
   });
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:1420');
+    mainWindow.loadURL(devServerUrl());
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
@@ -784,13 +787,11 @@ app.whenReady().then(async () => {
     console.log(`[main] Logging to: ${logFile}`);
   }
 
-  // Dev launches start with a fresh MCP daily quota; packaged builds keep theirs.
+  // Personal-vault sync needs app 'ready' (powerMonitor, window focus) and must exist before IPC.
   try {
-    if (resetMcpQuotaForDevLaunch(app.isPackaged)) {
-      console.log('[main] Dev build: MCP daily quota reset');
-    }
+    AppState.getInstance().appSync.start();
   } catch (err) {
-    console.warn('[main] Failed to reset MCP daily quota:', err);
+    console.error('[main] Personal vault sync failed to start:', err);
   }
 
   registerIpcHandlers();
@@ -867,6 +868,7 @@ app.whenReady().then(async () => {
   mainWindowRef = mainWindow;
   AppState.getInstance().setMainWindow(mainWindow);
   createTray(mainWindow);
+  stopIdleLock = startVaultIdleLock(() => mainWindowRef);
 
   // ── Notification overlay (transparent BrowserWindow) ──
   // Floats above native WebContentsViews and WebView2 popups.
@@ -998,8 +1000,12 @@ app.on('window-all-closed', () => {
   // App stays running in tray/dock. Quit via app.quit() (Cmd+Q, tray menu).
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   setIsQuitting(true);
+  // The first quit with a personal vault open waits for one bounded flush and lease release.
+  if (appQuitFlush().beforeQuit(event)) return;
+  stopIdleLock?.();
+  stopIdleLock = null;
   stopPeriodicUpdateChecks();
   globalShortcut.unregisterAll();
 

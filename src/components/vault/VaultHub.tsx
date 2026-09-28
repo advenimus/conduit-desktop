@@ -5,6 +5,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { useAppIcon } from "../../hooks/useAppIcon";
 import { invoke } from "../../lib/electron";
 import { showContextMenu } from "../../utils/contextMenu";
+import PendingVaultsWarning, { PendingBadge } from "../sync/PendingVaultsWarning";
 import {
   AlertCircleIcon, CheckIcon, ChevronRightIcon, FingerprintIcon, FolderOpenIcon, LoaderIcon, LockIcon, PlusIcon, RefreshIcon, UsersIcon, WifiOffIcon
 } from "../../lib/icons";
@@ -160,6 +161,8 @@ export default function VaultHub() {
           </div>
         )}
 
+        <PendingVaultsWarning />
+
         <div className={`flex ${hasContent ? "min-h-[400px]" : ""}`}>
           {/* ── Left Panel: Branding + Actions ── */}
           <div
@@ -283,7 +286,7 @@ export default function VaultHub() {
                       {/* Left: feature list */}
                       <div className="flex-1 bg-well px-4 py-4">
                         <ul className="space-y-2">
-                          {["Zero-knowledge sharing", "Concurrent vault access", "Folder permissions", "Audit log"].map((f) => (
+                          {["Shared vaults for your team", "Zero-knowledge sharing", "Folder permissions", "Audit log"].map((f) => (
                             <li key={f} className="flex items-center gap-2 text-xs text-ink-secondary">
                               <CheckIcon size={12} className="text-conduit-400 flex-shrink-0" />
                               {f}
@@ -358,6 +361,7 @@ export default function VaultHub() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <PendingBadge vaultPath={vaultPath} />
                               {biometricVaults.has(vaultPath) && (
                                 <FingerprintIcon
                                   size={14}

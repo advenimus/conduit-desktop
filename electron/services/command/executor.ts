@@ -455,6 +455,15 @@ export class CommandExecutor {
     return this.sessions.get(id);
   }
 
+  /** Commands that have not finished yet (busy count reported to other devices). */
+  runningCount(): number {
+    let running = 0;
+    for (const session of this.sessions.values()) {
+      if (session.isRunning) running++;
+    }
+    return running;
+  }
+
   cancel(id: string): boolean {
     const session = this.sessions.get(id);
     if (!session) return false;

@@ -370,6 +370,9 @@ export function decryptAndPreview(filePath: string, passphrase: string): ImportP
  * For full-vault exports: everything is imported into the vault root.
  * For folder exports: root-level folders (parent not in export) are matched
  * by name to existing root-level folders in the vault, or created if no match.
+ *
+ * Imported writes are not interactive edits, so an open sync conflict stays
+ * open (docs/MULTI_DEVICE_SYNC.md 4.2 step 5).
  */
 export function importIntoVault(
   vault: ConduitVault,
@@ -377,6 +380,10 @@ export function importIntoVault(
   passphrase: string,
   _options: ImportOptions = {},
 ): ImportResult {
+  return vault.runNonInteractive(() => importExportFile(vault, filePath, passphrase));
+}
+
+function importExportFile(vault: ConduitVault, filePath: string, passphrase: string): ImportResult {
   if (!vault.isUnlocked()) {
     throw new Error('Vault must be unlocked to import');
   }

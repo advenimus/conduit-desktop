@@ -13,6 +13,7 @@ import { readSettings } from '../../ipc/settings.js';
 import { SUPPORT_EMAIL } from '../constants.js';
 import { getEnvConfig, getDataDir } from '../env-config.js';
 import { AppState } from '../state.js';
+import { checkCachedTier } from './tier-cache.js';
 
 export interface AuthUser {
   id: string;
@@ -453,6 +454,20 @@ export class AuthService {
   }
 
   /**
+   * Reads the profile (plan) again into the auth state, without notifying listeners. The profile
+   * is otherwise read only at sign-in, start-up and token refresh (hourly), so checks that must see
+   * a plan change (cloud backup, spec 8.2) call this first. A failed read keeps the old profile.
+   */
+  async reloadProfile(): Promise<UserProfile | null> {
+    const userId = this.currentState.user?.id;
+    if (!userId) return null;
+    const profile = await this.getUserProfile();
+    if (profile === null || profile.id !== userId || this.currentState.user?.id !== userId) return null;
+    this.currentState = { ...this.currentState, profile };
+    return profile;
+  }
+
+  /**
    * Force refresh the current session.
    */
   async refreshSession(): Promise<AuthState> {
@@ -700,22 +715,17 @@ export class AuthService {
   }
 
   /**
-   * Load cached tier capabilities from settings. Returns null if stale (>7 days).
+   * Load cached tier capabilities from settings. Null when missing, older than 7 days, or
+   * dated more than 5 minutes in the future (spec 6.8).
    */
   private loadCachedTierCapabilities(): Record<string, unknown> | null {
     try {
-      const settings = readSettings();
-      const caps = settings.cached_tier_capabilities;
-      const timestamp = settings.cached_tier_timestamp;
-      if (!caps || !timestamp) return null;
-      const age = Date.now() - new Date(timestamp).getTime();
-      const sevenDays = 7 * 24 * 60 * 60 * 1000;
-      if (age > sevenDays) {
-        console.log('[auth] Cached tier is stale (>7 days), ignoring');
-        return null;
-      }
-      return caps as Record<string, unknown>;
-    } catch {
+      const verdict = checkCachedTier(readSettings(), Date.now());
+      if (verdict.ok) return { ...verdict.capabilities };
+      if (verdict.reason !== 'missing') console.log(`[auth] Cached tier ignored (${verdict.reason})`);
+      return null;
+    } catch (err) {
+      console.warn('[auth] Cached tier unreadable:', (err as Error)?.message ?? err);
       return null;
     }
   }

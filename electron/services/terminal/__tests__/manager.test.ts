@@ -61,7 +61,7 @@ vi.mock('../pty.js', () => ({
 }));
 vi.mock('../../ssh/client.js', () => ({ SshSession: fakes.FakeSshSession }));
 
-const { TerminalManager } = await import('../manager.js');
+const { AGENT_ACTIVE_WINDOW_MS, TerminalManager } = await import('../manager.js');
 type Manager = InstanceType<typeof TerminalManager>;
 type FakePtyT = InstanceType<typeof fakes.FakePty>;
 
@@ -258,5 +258,60 @@ describe('TerminalManager agent operations', () => {
   it('throws SESSION_NOT_FOUND for unknown sessions', async () => {
     await expect(manager.execute('nope', { command: 'ls', timeoutMs: 1_000, shell: 'auto' }))
       .rejects.toMatchObject({ code: 'SESSION_NOT_FOUND' });
+  });
+});
+
+describe('TerminalManager session counts', () => {
+  const typed = (manager: Manager, id: string, text: string) => manager.write(id, new TextEncoder().encode(text));
+
+  it('counts CLI agent terminals separately from connections, and forgets closed ones', () => {
+    const manager = new TerminalManager(() => null);
+    try {
+      manager.createLocalShell(null, null);
+      const agent = manager.createAgentTerminal({ command: 'claude' });
+      typed(manager, agent, 'fix the tests\r');
+      expect(manager.countSessions()).toEqual({ connections: 1, agents: 1 });
+
+      manager.close(agent);
+      expect(manager.countSessions()).toEqual({ connections: 1, agents: 0 });
+    } finally {
+      manager.dispose();
+    }
+  });
+
+  it('an idle agent terminal is no AI task: not before any input, and not 2 minutes after the last activity', () => {
+    const manager = new TerminalManager(() => null);
+    try {
+      const agent = manager.createAgentTerminal({ command: 'claude' });
+      const pty = fakes.state.lastPty!;
+      pty.emit('Welcome to Claude Code\r\n> ');
+      expect(manager.countSessions()).toEqual({ connections: 0, agents: 0 });
+      typed(manager, agent, '\x1b[I');
+      expect(manager.countSessions().agents).toBe(0);
+
+      const start = Date.now();
+      typed(manager, agent, 'explain this repo\r');
+      expect(manager.countSessions(start + AGENT_ACTIVE_WINDOW_MS).agents).toBe(1);
+      expect(manager.countSessions(start + AGENT_ACTIVE_WINDOW_MS + 1_000).agents).toBe(0);
+    } finally {
+      manager.dispose();
+    }
+  });
+
+  it('output after the user\'s prompt keeps the task running', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const manager = new TerminalManager(() => null);
+    try {
+      vi.setSystemTime(1_000_000);
+      const agent = manager.createAgentTerminal({ command: 'claude' });
+      typed(manager, agent, 'refactor everything\r');
+      vi.setSystemTime(1_000_000 + 90_000);
+      fakes.state.lastPty!.emit('still working...\r\n');
+      expect(manager.countSessions(1_000_000 + 90_000 + AGENT_ACTIVE_WINDOW_MS).agents).toBe(1);
+      expect(manager.countSessions(1_000_000 + 90_001 + AGENT_ACTIVE_WINDOW_MS).agents).toBe(0);
+    } finally {
+      manager.dispose();
+      vi.useRealTimers();
+    }
   });
 });

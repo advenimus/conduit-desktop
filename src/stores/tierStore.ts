@@ -4,6 +4,17 @@ import { useEntryStore } from './entryStore';
 import { useSessionStore } from './sessionStore';
 import { canAccessFeature, getFeatureLimit, getTrialDaysRemaining } from '../lib/tier';
 import { toast } from '../components/common/Toast';
+import type { UserProfile } from '../types/auth';
+
+/** Free, signed-out and local mode: one device at a time (spec 6.1). */
+const DEFAULT_MAX_OPEN_DEVICES = 1;
+
+/** `vault_max_open_devices` from the tier (-1 unlimited); display only, the server decides. */
+function maxOpenDevicesOf(profile: UserProfile): number {
+  const raw = profile.tier?.features?.vault_max_open_devices;
+  if (profile.is_team_member) return -1;
+  return typeof raw === 'number' ? raw : DEFAULT_MAX_OPEN_DEVICES;
+}
 
 interface TierStoreState {
   accessibleEntryIds: Set<string>;
@@ -13,9 +24,13 @@ interface TierStoreState {
   // Feature flags
   cliAgentsEnabled: boolean;
   mcpEnabled: boolean;
-  mcpDailyQuota: number; // -1 = unlimited
+  /** Whole-file cloud backup (tier key cloud_sync_enabled). */
   cloudSyncEnabled: boolean;
   sharedVaults: boolean;
+  /** Devices a personal vault can be open on at once; -1 = unlimited. */
+  maxOpenDevices: number;
+  /** Server kill switch `personal_sync = 'paused'`. */
+  personalSyncPaused: boolean;
 
   // Trial state
   isTrialing: boolean;
@@ -39,10 +54,11 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
   maxConnections: -1,
 
   cliAgentsEnabled: true, // free tier runs Claude Code / Codex under the user's own subscription
-  mcpEnabled: true, // free tier has MCP with daily quota
-  mcpDailyQuota: 50,
-  cloudSyncEnabled: false, // Team-only
-  sharedVaults: false, // Team-only
+  mcpEnabled: true,
+  cloudSyncEnabled: false,
+  sharedVaults: false,
+  maxOpenDevices: DEFAULT_MAX_OPEN_DEVICES,
+  personalSyncPaused: false,
 
   isTrialing: false,
   trialDaysRemaining: -1,
@@ -53,7 +69,7 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
     const { profile, authMode } = useAuthStore.getState();
     const { entries } = useEntryStore.getState();
 
-    // Local mode or no profile → unlimited connections, no AI/MCP/cloud features
+    // Local mode or no profile: unlimited connections, no cloud backup, one open device per vault
     if (authMode === 'local' || !profile) {
       const allIds = new Set(
         entries.filter((e) => e.entry_type !== 'credential' && e.entry_type !== 'document').map((e) => e.id)
@@ -65,9 +81,10 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
         maxConnections: -1,
         cliAgentsEnabled: true,
         mcpEnabled: true,
-        mcpDailyQuota: 50,
         cloudSyncEnabled: false,
         sharedVaults: false,
+        maxOpenDevices: DEFAULT_MAX_OPEN_DEVICES,
+        personalSyncPaused: false,
         isTrialing: false,
         trialDaysRemaining: -1,
         trialEligible: false,
@@ -104,9 +121,10 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
     // Derive feature flags
     const cliAgentsEnabled = canAccessFeature(profile, 'cli_agents_enabled');
     const mcpEnabled = canAccessFeature(profile, 'mcp_enabled');
-    const mcpDailyQuota = getFeatureLimit(profile, 'mcp_daily_quota') || 50;
     const cloudSyncEnabled = canAccessFeature(profile, 'cloud_sync_enabled');
     const sharedVaults = canAccessFeature(profile, 'shared_vaults');
+    const maxOpenDevices = maxOpenDevicesOf(profile);
+    const personalSyncPaused = profile.tier?.features?.personal_sync === 'paused';
 
     // Trial state
     const isTrialing = profile.subscription_status === 'trialing';
@@ -155,9 +173,10 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
       maxConnections,
       cliAgentsEnabled,
       mcpEnabled,
-      mcpDailyQuota,
       cloudSyncEnabled,
       sharedVaults,
+      maxOpenDevices,
+      personalSyncPaused,
       isTrialing,
       trialDaysRemaining,
       trialEligible,

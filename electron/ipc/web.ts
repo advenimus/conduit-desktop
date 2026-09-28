@@ -8,6 +8,7 @@
 
 import { ipcMain, dialog, shell } from 'electron';
 import { AppState } from '../services/state.js';
+import { saveAutofillSelectors } from './web-autofill.js';
 
 export function registerWebHandlers(): void {
   const state = AppState.getInstance();
@@ -232,26 +233,7 @@ export function registerWebHandlers(): void {
 
   ipcMain.handle('web_session_save_autofill_selectors', async (_e, args) => {
     const { entryId, selectors } = args ?? {};
-    const { usernameSelector, passwordSelector, submitSelector } = selectors ?? {};
-
-    const vault = state.getActiveVault();
-    const entry = vault.getEntryMeta(entryId);
-    const existingConfig = (entry.config ?? {}) as Record<string, unknown>;
-    const existingAutofill = (existingConfig.autofill ?? {}) as Record<string, unknown>;
-
-    const newAutofill = {
-      ...existingAutofill,
-      enabled: true,
-      ...(usernameSelector !== undefined && { usernameSelector }),
-      ...(passwordSelector !== undefined && { passwordSelector }),
-      ...(submitSelector !== undefined && { submitSelector }),
-    };
-
-    vault.updateEntry(entryId, {
-      config: { ...existingConfig, autofill: newAutofill },
-    });
-
-    return newAutofill;
+    return saveAutofillSelectors(state.getActiveVault(), entryId, selectors);
   });
 
   ipcMain.handle('web_session_get_autofill_config', async (_e, args) => {

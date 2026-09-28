@@ -6,6 +6,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import type { EntryMeta } from "../../types/entry";
 import { SearchIcon } from "../../lib/icons";
+import { useDeviceSyncRow } from "../sync/useDeviceSyncRow";
 
 const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 
@@ -414,14 +415,17 @@ function VaultStatusSection({
   isTrialing: boolean;
   trialDaysRemaining: number;
 }) {
+  const deviceSync = useDeviceSyncRow();
   return (
     <div className="bg-panel rounded-lg border border-stroke p-4">
       <h3 className="text-sm font-medium text-ink-muted mb-3">Vault Status</h3>
       <div className="space-y-2.5">
-        {/* Cloud Sync */}
+        {deviceSync && <StatusRow label="Device Sync" status={deviceSync.status} detail={deviceSync.detail} />}
+
+        {/* Cloud backup */}
         {authMode !== "local" && (
           <StatusRow
-            label="Cloud Sync"
+            label="Cloud Backup"
             status={
               !cloudSyncState?.enabled
                 ? "disabled"

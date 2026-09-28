@@ -36,6 +36,8 @@ const LOCAL_BACKUP_KDF_CONTEXT = Buffer.from('conduit-local-backup-v1');
 /** Minimum blob size: version + salt + nonce + tag (no ciphertext) */
 const MIN_BLOB_SIZE = 1 + SALT_LEN + NONCE_LEN + TAG_LEN;
 
+export const LOCAL_BACKUP_WRONG_PASSWORD_MESSAGE = 'Invalid master password. The local backup could not be decrypted.';
+
 /**
  * Encrypt a raw file buffer for local backup storage.
  *
@@ -108,7 +110,7 @@ export function decryptFromLocalBackup(blob: Buffer, masterPassword: string): Bu
     try {
       return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     } catch {
-      throw new Error('Invalid master password. The local backup could not be decrypted.');
+      throw new Error(LOCAL_BACKUP_WRONG_PASSWORD_MESSAGE);
     }
   } finally {
     key.fill(0);

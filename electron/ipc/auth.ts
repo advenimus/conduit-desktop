@@ -7,6 +7,7 @@ import dns from 'node:dns/promises';
 import { AppState } from '../services/state.js';
 import { getEnvConfig } from '../services/env-config.js';
 import { readSettings, writeSettings } from './settings.js';
+import { signOutReleasingVault } from './sign-out-flow.js';
 
 export function registerAuthHandlers(): void {
   const state = AppState.getInstance();
@@ -94,10 +95,11 @@ export function registerAuthHandlers(): void {
   });
 
   ipcMain.handle('auth_sign_out', async () => {
-    await state.authService.signOut();
-    const settings = readSettings();
-    settings.local_mode_accepted_version = null;
-    writeSettings(settings);
+    await signOutReleasingVault({
+      releaseVault: () => state.appSync.signedOut(),
+      signOut: () => state.authService.signOut(),
+    });
+    writeSettings({ ...readSettings(), local_mode_accepted_version: null });
   });
 
   ipcMain.handle('auth_set_local_mode', () => {

@@ -1,0 +1,213 @@
+{
+  "format": 1,
+  "name": "presync",
+  "description": "A pre-sync vault written by desktop 0.17 (ConduitVault): content only. Expect G1 genesis output.",
+  "inputs": {
+    "files": {
+      "vault.conduit": {
+        "keyHex": "e4e6f262b96e78a3112077c2cc9a8468353c71924dffdad20ef3d7a8b9f67601",
+        "password": "correct horse battery staple"
+      }
+    },
+    "merges": []
+  },
+  "outputs": {
+    "files": {
+      "vault.conduit": {
+        "sha256": "1ffe3795e8a1e2d9478c694cc91c301f0f360b5b750490303e025dd85603db9e",
+        "syncFormat": null,
+        "hasSyncTables": false,
+        "content": {
+          "entries": [
+            {
+              "id": "03cd7668-2ecf-46a1-8657-e83af47c886c",
+              "name": "web",
+              "entry_type": "ssh",
+              "folder_id": "eb21fbc8-f8ff-4622-9c1a-d059d2bfb145",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "10.0.0.1",
+              "port": 22,
+              "credential_id": null,
+              "username": "root",
+              "password_encrypted": {
+                "hex": "1cc91bd2f2cd78543e952da6df5a335d8cd08955a7a5915ca36b8a10b0df4c72fc2c"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{\"keepalive\":30}",
+              "tags": "[\"prod\"]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "06df335a-c4ed-4b51-9a79-d439fbe5943e",
+              "name": "desk",
+              "entry_type": "rdp",
+              "folder_id": "b4ecb2f2-2f6c-441a-ac16-70bec52b3af7",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "desk.local",
+              "port": null,
+              "credential_id": null,
+              "username": null,
+              "password_encrypted": null,
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{\"resolution\":\"1080p\"}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "1b9f8234-f22f-45da-a499-c7aa00a8df5f",
+              "name": "Shared admin",
+              "entry_type": "credential",
+              "folder_id": null,
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": null,
+              "port": null,
+              "credential_id": null,
+              "username": "admin",
+              "password_encrypted": {
+                "hex": "0d27131d7c5249e344102cba015a3207ac6af65fd4f8f2864b67d70ed2514026c0dfbf"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "65accdbd-a59f-4184-b051-7136758300d5",
+              "name": "db",
+              "entry_type": "ssh",
+              "folder_id": "eb21fbc8-f8ff-4622-9c1a-d059d2bfb145",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "10.0.0.5",
+              "port": 5432,
+              "credential_id": "1b9f8234-f22f-45da-a499-c7aa00a8df5f",
+              "username": null,
+              "password_encrypted": {
+                "hex": "4205ac3f5f7cbb37a730dfb89e12c66d2f3fbc3d6fe1d801de7ed193e2510ce4e4"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "folders": [
+            {
+              "id": "b4ecb2f2-2f6c-441a-ac16-70bec52b3af7",
+              "name": "Clients",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "eb21fbc8-f8ff-4622-9c1a-d059d2bfb145",
+              "name": "Servers",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "history": [
+            {
+              "id": "95758a98-2eea-4bca-a892-a52f1aa51eea",
+              "entry_id": "03cd7668-2ecf-46a1-8657-e83af47c886c",
+              "username": "root",
+              "password_encrypted": {
+                "hex": "588b5df35403e2cc139b98b4e24c9f72e7fc59a9aeae0b9f886d8822e1a92b132c3320375cc4"
+              },
+              "changed_at": "2026-09-20T08:00:00.000Z",
+              "changed_by": "user"
+            }
+          ],
+          "meta": {
+            "salt": "6uQiKSgbUUEnr7lw68EpA0+FeVUKBIyio+ClkfkPa3M=",
+            "schema_version": "10",
+            "vault_id": "0f3940c1-666f-4d8b-bdbc-09280f23a861",
+            "verification": "ScchSDsq3LGvhE255uWWRivdMc886M1X+sZWI0jS32+xYkDQNJbNsvfXZh8="
+          }
+        },
+        "genesis": {
+          "lineageId": "c48b08db-bd6e-5dc3-89bc-2416d7563a8b",
+          "genesisId": "1ffe3795e8a1e2d9478c694cc91c301f0f360b5b750490303e025dd85603db9e",
+          "epochId": "9b0bc2457fc739e6ca6aee9ad6e7c184",
+          "undecryptable": 0,
+          "digest": "e067e2bbb408b42d2b284047ea97898c1095a4126853f25712c0ccf8077c5e88",
+          "canonicalDump": "{\"devs\":[],\"epochs\":[[\"9b0bc2457fc739e6ca6aee9ad6e7c184\",null,\"6uQiKSgbUUEnr7lw68EpA0+FeVUKBIyio+ClkfkPa3M=\",\"ScchSDsq3LGvhE255uWWRivdMc886M1X+sZWI0jS32+xYkDQNJbNsvfXZh8=\",0]],\"h\":[\"c48b08db-bd6e-5dc3-89bc-2416d7563a8b\",\"1ffe3795e8a1e2d9478c694cc91c301f0f360b5b750490303e025dd85603db9e\",0],\"rows\":[[\"1:03cd7668-2ecf-46a1-8657-e83af47c886c\",null,[[\"config.keepalive\",[0,[\"ef1f9f30a63abf380f7b6fbceb3a5b6f\"]],[[\"p:0:ef1f9f30a63abf380f7b6fbceb3a5b6f\",1789891200000,\"73d251933b637b2c9fa8a6db761d4de1\",0]]],[\"container\",[0,[\"e3c28495239102ec716bc178d5231ed3\"]],[[\"p:0:e3c28495239102ec716bc178d5231ed3\",1789891200000,\"b86e293df0296ab31a9fa487bf09ef16\",0]]],[\"created_at\",[0,[\"5eee8b45a5cb5d73d8ea9e331ddf0827\"]],[[\"p:0:5eee8b45a5cb5d73d8ea9e331ddf0827\",1789891200000,\"5423dad7b7c693efb72594ef90d81e45\",0]]],[\"entry_type\",[0,[\"ad8224da7a3824974d730fed52e0ebcd\"]],[[\"p:0:ad8224da7a3824974d730fed52e0ebcd\",1789891200000,\"dddc4aea05f42f96f9fd998af9ce8e64\",0]]],[\"host\",[0,[\"dbbb4868049dcced69a22db75c47482d\"]],[[\"p:0:dbbb4868049dcced69a22db75c47482d\",1789891200000,\"722a97dd4466c5bb19327f759d2fad3e\",0]]],[\"name\",[0,[\"b32873b8044bd2884594b20d23a21ae0\"]],[[\"p:0:b32873b8044bd2884594b20d23a21ae0\",1789891200000,\"6b1287de3e2c1cbcfdd3f9a749c01d81\",0]]],[\"password\",[0,[\"e59870a7cc9220e57bf24d9dad598f56\"]],[[\"p:0:e59870a7cc9220e57bf24d9dad598f56\",1789891200000,\"800640c919394c6a7dd5613b1cdfb80b\",0]]],[\"port\",[0,[\"083bb5c3f8a65f87f5161f7fd3492cf9\"]],[[\"p:0:083bb5c3f8a65f87f5161f7fd3492cf9\",1789891200000,\"f2dc21224de170a0729b5a477e30593b\",0]]],[\"tag:prod\",[0,[\"c99a03c03313b2fd485dba4d816e7239\"]],[[\"p:0:c99a03c03313b2fd485dba4d816e7239\",1789891200000,\"c44077f09d2ceeb05c8c01d66a88284c\",0]]],[\"username\",[0,[\"1c783e22df00c90861d8e08588df2d26\"]],[[\"p:0:1c783e22df00c90861d8e08588df2d26\",1789891200000,\"5878db27993d5e9cb1187cd8f3db9b67\",0]]]]],[\"1:06df335a-c4ed-4b51-9a79-d439fbe5943e\",null,[[\"config.resolution\",[0,[\"9c6b3dfaa551c8a54992564a864ff790\"]],[[\"p:0:9c6b3dfaa551c8a54992564a864ff790\",1789891200000,\"6d7bb51d1c693e912f28764fbaaf525e\",0]]],[\"container\",[0,[\"c83df2721bc345881714ade190ed5491\"]],[[\"p:0:c83df2721bc345881714ade190ed5491\",1789891200000,\"cd80727d66c1bc8566eff0cff905d523\",0]]],[\"created_at\",[0,[\"23adc20de48c182c794c0cca1dfde40d\"]],[[\"p:0:23adc20de48c182c794c0cca1dfde40d\",1789891200000,\"244e3eee9f0918ebce44bd0e9c2b2401\",0]]],[\"entry_type\",[0,[\"07d61c829077bf5429cc941ae8fd8e1e\"]],[[\"p:0:07d61c829077bf5429cc941ae8fd8e1e\",1789891200000,\"71759306f04ef7c618e796cfb3f26a4a\",0]]],[\"host\",[0,[\"3291478fd957f3229d969ed9e080561c\"]],[[\"p:0:3291478fd957f3229d969ed9e080561c\",1789891200000,\"bc1a05358e0a09a66b7ca6ff4154b97d\",0]]],[\"name\",[0,[\"b590a77d76d9c7142ea3d3884728f0c6\"]],[[\"p:0:b590a77d76d9c7142ea3d3884728f0c6\",1789891200000,\"c3d7135e05809df9faaf12c7494c459e\",0]]]]],[\"1:1b9f8234-f22f-45da-a499-c7aa00a8df5f\",null,[[\"created_at\",[0,[\"6952ecf35cb78d2807841ab0bcd0778b\"]],[[\"p:0:6952ecf35cb78d2807841ab0bcd0778b\",1789891200000,\"a2526c5a55360595069d8f339b1eb675\",0]]],[\"entry_type\",[0,[\"c938af8cefdd4b6a112c007a3ae9d324\"]],[[\"p:0:c938af8cefdd4b6a112c007a3ae9d324\",1789891200000,\"4149bee42ad2ea45d4fcc0f15c37eb7d\",0]]],[\"name\",[0,[\"bdbcbaf1a7c1a579d0bc01f710e18656\"]],[[\"p:0:bdbcbaf1a7c1a579d0bc01f710e18656\",1789891200000,\"1b94d5395b4c2768a7988e7e0e613c6d\",0]]],[\"password\",[0,[\"a87dde2d061221e7d776d85f8fc0f5c7\"]],[[\"p:0:a87dde2d061221e7d776d85f8fc0f5c7\",1789891200000,\"d7dfeb8122e488a547118a7b21e86f66\",0]]],[\"username\",[0,[\"430cad8081808aaf71d1f162a2dd132d\"]],[[\"p:0:430cad8081808aaf71d1f162a2dd132d\",1789891200000,\"03971346e9d2574e9074b9eab4b2443d\",0]]]]],[\"1:65accdbd-a59f-4184-b051-7136758300d5\",null,[[\"container\",[0,[\"d979eed8ddd7c600ddaf73ada43c790b\"]],[[\"p:0:d979eed8ddd7c600ddaf73ada43c790b\",1789891200000,\"cf0e28df2f9a1f34e1d7fec6ea3f7311\",0]]],[\"created_at\",[0,[\"e92b4ea175c3c3c99bba762d3e71dd22\"]],[[\"p:0:e92b4ea175c3c3c99bba762d3e71dd22\",1789891200000,\"5e22f9bab4f19a3e86d8e019bd77608b\",0]]],[\"credential_id\",[0,[\"3bf4947a2261fa23d265fda9f92ec535\"]],[[\"p:0:3bf4947a2261fa23d265fda9f92ec535\",1789891200000,\"7b27c2e5a8f828dc97935f78598e4a55\",0]]],[\"entry_type\",[0,[\"6c510b97a04a1fc87b0f1a66e98f0965\"]],[[\"p:0:6c510b97a04a1fc87b0f1a66e98f0965\",1789891200000,\"b8f89079cec05cc451fd566eb0910d32\",0]]],[\"host\",[0,[\"3fcf64be5ff024234cc1b7a94815e279\"]],[[\"p:0:3fcf64be5ff024234cc1b7a94815e279\",1789891200000,\"a0ed0c9a9b4eddd7853ca50e8aac565c\",0]]],[\"name\",[0,[\"140b8cc92dbf7fae4f35ff5c14808872\"]],[[\"p:0:140b8cc92dbf7fae4f35ff5c14808872\",1789891200000,\"ccc42965e72fe8278a33ee6a17ba2540\",0]]],[\"password\",[0,[\"6c1d49d86b302e17d9a9abbe1a3bccbc\"]],[[\"p:0:6c1d49d86b302e17d9a9abbe1a3bccbc\",1789891200000,\"21969b675ab8732ad73a2a1aa4d8098e\",0]]],[\"port\",[0,[\"ee8a6d8fd0cb929ad4803173802954c3\"]],[[\"p:0:ee8a6d8fd0cb929ad4803173802954c3\",1789891200000,\"6dffd045783f429b45117f72d2657652\",0]]]]],[\"2:b4ecb2f2-2f6c-441a-ac16-70bec52b3af7\",null,[[\"created_at\",[0,[\"0d4928c6a4372e2fd9ed1fb850ca718b\"]],[[\"p:0:0d4928c6a4372e2fd9ed1fb850ca718b\",1789891200000,\"e3e4e7cf0d41da90d22f4a652d953611\",0]]],[\"name\",[0,[\"1651cf8cd3eb9a7de71b331a42142e5f\"]],[[\"p:0:1651cf8cd3eb9a7de71b331a42142e5f\",1789891200000,\"a4a0b5f98c13ba346b5ac0d572d04db6\",0]]]]],[\"2:eb21fbc8-f8ff-4622-9c1a-d059d2bfb145\",null,[[\"created_at\",[0,[\"a6f8b6b650386863b67d79c51814d6cd\"]],[[\"p:0:a6f8b6b650386863b67d79c51814d6cd\",1789891200000,\"3644ae94e98e89173c4cc15789cc7819\",0]]],[\"name\",[0,[\"7e3aa6e8268fa5c86e219e4b08373fea\"]],[[\"p:0:7e3aa6e8268fa5c86e219e4b08373fea\",1789891200000,\"6186bf83cd5131ed7d6e4a1838910b25\",0]]]]],[\"3:95758a98-2eea-4bca-a892-a52f1aa51eea\",null,[[\"changed_at\",[0,[\"91cfbbff57ff50b8d9e4a053a15210d3\"]],[[\"p:0:91cfbbff57ff50b8d9e4a053a15210d3\",1789891200000,\"6f095ee71eb9e68dfa459243aa4f958d\",0]]],[\"changed_by\",[0,[\"64edafe3bd306d0206036dff59ebcdbc\"]],[[\"p:0:64edafe3bd306d0206036dff59ebcdbc\",1789891200000,\"4f73f92825c7188768ef1bab2e24d992\",0]]],[\"entry_id\",[0,[\"2abb1dbb0aea785e3d0818ccb00400f3\"]],[[\"p:0:2abb1dbb0aea785e3d0818ccb00400f3\",1789891200000,\"5e9d7628a9d72adffb58008759daf27c\",0]]],[\"password\",[0,[\"8b67da518ab43427347cc06a9c43ddd0\"]],[[\"p:0:8b67da518ab43427347cc06a9c43ddd0\",1789891200000,\"31d62e88803c1863526e4b9ea795a186\",0]]],[\"username\",[0,[\"dc35b5cb089d2a6b3a1df9460eb57c33\"]],[[\"p:0:dc35b5cb089d2a6b3a1df9460eb57c33\",1789891200000,\"2533b7faf8568766a9b2360b565e98df\",0]]]]],[\"4:meta\",null,[[\"vault_id\",[0,[\"e20c94d4915ee88bae3e636cd311db59\"]],[[\"p:0:e20c94d4915ee88bae3e636cd311db59\",0,\"8670f09fb365108b51f82716d37a0421\",0]]]]],[\"9:key\",null,[[\"epoch\",[0,[\"6f8b8775bfe2ec555d1bbeacf6e234bf\"]],[[\"p:0:6f8b8775bfe2ec555d1bbeacf6e234bf\",0,\"1760e4c0dad92cc0934ef40599eda1b5\",0]]]]]],\"vv\":[],\"wraps\":[]}",
+          "cache": {
+            "1:03cd7668-2ecf-46a1-8657-e83af47c886c": [
+              true,
+              "5a13a0742faa61a5c8c78a1ae824c485"
+            ],
+            "1:06df335a-c4ed-4b51-9a79-d439fbe5943e": [
+              true,
+              "51cc1f09031183e4617af32fc26021d4"
+            ],
+            "1:1b9f8234-f22f-45da-a499-c7aa00a8df5f": [
+              true,
+              "64bb0a0c4925a9a89b0d47094e673d36"
+            ],
+            "1:65accdbd-a59f-4184-b051-7136758300d5": [
+              true,
+              "b77a66fc4ab22ba0482bc634eb766610"
+            ],
+            "2:b4ecb2f2-2f6c-441a-ac16-70bec52b3af7": [
+              true,
+              "d3d6d67e7ee155d8f9bdb34566dfc395"
+            ],
+            "2:eb21fbc8-f8ff-4622-9c1a-d059d2bfb145": [
+              true,
+              "8875ed298ce57195fc87ec147003d384"
+            ],
+            "3:95758a98-2eea-4bca-a892-a52f1aa51eea": [
+              true,
+              "ec46ec233a12ab7572516b282980326d"
+            ]
+          },
+          "conflicts": []
+        }
+      }
+    },
+    "merges": []
+  }
+}

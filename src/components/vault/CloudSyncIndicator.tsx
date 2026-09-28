@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useVaultStore, type CloudSyncState } from "../../stores/vaultStore";
+import { useVaultStore } from "../../stores/vaultStore";
 import { AlertTriangleIcon, CloudIcon, CloudOffIcon } from "../../lib/icons";
 
 function formatTime(iso: string): string {
@@ -13,21 +12,9 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/** Reads vaultStore.cloudSyncState, which useBackupStates keeps current. */
 export default function CloudSyncIndicator() {
-  const { cloudSyncState, setCloudSyncState, fetchCloudSyncState } = useVaultStore();
-
-  // Listen for state-changed events from main process
-  useEffect(() => {
-    const unlisten = window.electron.on(
-      "cloud-sync:state-changed",
-      (state: unknown) => {
-        setCloudSyncState(state as CloudSyncState);
-      }
-    );
-    // Fetch initial state
-    fetchCloudSyncState();
-    return () => { unlisten(); };
-  }, [setCloudSyncState, fetchCloudSyncState]);
+  const cloudSyncState = useVaultStore((s) => s.cloudSyncState);
 
   if (!cloudSyncState || cloudSyncState.status === "disabled") {
     return null;

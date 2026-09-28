@@ -1,0 +1,10 @@
+create schema auth;
+create table auth.users (id uuid primary key);
+create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.sub', true),'')::uuid $$;
+create role authenticated nologin; create role anon nologin;
+create publication supabase_realtime;
+create table public.tiers (id uuid primary key, name text unique, features jsonb not null default '{}', updated_at timestamptz);
+insert into tiers values ('00000000-0000-0000-0000-00000000000f','free','{"vault_max_open_devices":1}'),('00000000-0000-0000-0000-0000000000a0','pro','{"vault_max_open_devices":-1}');
+create table public.user_profiles (id uuid primary key, display_name text, tier_id uuid references tiers(id), is_team_member boolean not null default false, abuse_score int, is_suspended boolean, suspended_reason text, registration_ip inet, registration_fingerprint text, stripe_customer_id text, stripe_subscription_id text, subscription_status text, subscription_period_end timestamptz, cancel_at_period_end boolean, primary_team_id uuid, has_used_trial boolean, trial_ends_at timestamptz);
+insert into auth.users values ('aaaaaaaa-0000-0000-0000-000000000000');
+insert into user_profiles(id,tier_id,is_team_member) values ('aaaaaaaa-0000-0000-0000-000000000000','00000000-0000-0000-0000-00000000000f',false);

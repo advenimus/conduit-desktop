@@ -45,6 +45,9 @@ import TeamVaultUnlock from "./components/vault/TeamVaultUnlock";
 import DeviceAuthApprovalDialog from "./components/vault/DeviceAuthApprovalDialog";
 import VaultSettingsDialog from "./components/vault/VaultSettingsDialog";
 import FeedbackDialog from "./components/feedback/FeedbackDialog";
+import SyncLayer from "./components/sync/SyncLayer";
+import SyncBanners from "./components/sync/SyncBanners";
+import { useBackupStates } from "./hooks/useBackupStates";
 import type { TeamVaultSummary } from "./stores/teamStore";
 import { RobotIcon, WifiOffIcon } from "./lib/icons";
 
@@ -136,6 +139,7 @@ function App() {
   // Initialize hooks
   useKeyboardShortcuts();
   useTheme();
+  useBackupStates();
 
   // Remove splash screen once React has mounted
   useEffect(() => {
@@ -1044,6 +1048,7 @@ function App() {
             onSkip={() => setShowDeviceSetup(false)}
           />
         )}
+        <SyncLayer />
         <NotificationStack />
       </div>
     );
@@ -1066,6 +1071,7 @@ function App() {
           </button>
         </div>
       )}
+      <SyncBanners />
       {/* Sidebar — pure overlay, no inline space */}
       <Sidebar />
 
@@ -1288,6 +1294,7 @@ function App() {
         />
       )}
 
+      <SyncLayer />
       <NotificationStack />
     </div>
   );

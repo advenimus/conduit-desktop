@@ -44,7 +44,6 @@ conduit-desktop/
 │   │   ├── index.ts           # MCP server entry point
 │   │   ├── tools/             # Tool implementations
 │   │   ├── rate-limiter.ts    # Token bucket rate limiting
-│   │   ├── daily-quota.ts     # Local daily MCP quota enforcement
 │   │   ├── audit.ts           # Audit logging
 │   │   └── ipc-client.ts      # IPC client to the main app
 │   └── package.json
@@ -119,7 +118,7 @@ The MCP server (`mcp/`) runs as a separate Node.js process. It communicates with
 Relevant code:
 - `mcp/src/index.ts` — server entry
 - `mcp/src/tools/` — tool implementations
-- `mcp/src/daily-quota.ts` — local quota enforcement (Free tier: 50 tool calls / day; Pro/Team: unlimited). Unpackaged dev builds clear the counter on every launch (`electron/services/mcp-quota.ts`); packaged builds never do.
+- MCP tool calls are unlimited on every plan. The retired `mcp_daily_quota` tier key stays `-1` so older MCP builds stay uncapped.
 
 ### Supabase
 Production runs on cloud Supabase. Preview runs on a local Supabase stack via Docker (see `docs/LOCAL_SUPABASE.md`). Start the local stack with `supabase start` before `npm run dev:electron`.
@@ -129,6 +128,8 @@ The local anon key is a well-known public development key baked into `env-config
 ## Documentation
 
 - `docs/FEATURES.md` — Feature list
+- `docs/MULTI_DEVICE_SYNC.md`: personal vault multi-device sync and device limits (merge engine in `electron/services/sync/`, device leases in `electron/services/vault-session/`)
+- `scripts/verify/README.md`: live end-to-end harness (`npm run verify`); agents run it with the `/verify`, `/verify-sync` and `/verify-mcp` skills in `.claude/skills/`
 - `docs/SUPABASE.md` — Supabase integration architecture
 - `docs/LOCAL_SUPABASE.md` — Local Supabase setup for development
 - `docs/ADDING_ENTRY_TYPES.md` — How to add new entry / credential types
