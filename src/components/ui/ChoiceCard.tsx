@@ -20,7 +20,7 @@ export interface ChoiceGroupProps<T extends string> extends Omit<ComponentPropsW
 
 const COLUMNS = { 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4" } as const;
 
-/** A grid of ChoiceCards with radio semantics: arrows move and select (spec 4.13). */
+/** A grid of ChoiceCards with radio semantics: arrows move and select (spec 4.13). The 3px padding holds the cards' outside focus ring. */
 export function ChoiceGroup<T extends string>({ value, onChange, columns = 3, className, children, ref, ...rest }: ChoiceGroupProps<T>) {
   const groupRef = useRef<HTMLDivElement>(null);
   const setRef = useMergedRef(groupRef, ref);
@@ -43,7 +43,7 @@ export function ChoiceGroup<T extends string>({ value, onChange, columns = 3, cl
 
   const context: ChoiceGroupContextValue = { value, anyChecked, onChange: (next) => onChange(next as T) };
   return (
-    <div ref={setRef} role="radiogroup" onKeyDown={onKeyDown} className={cx("grid gap-2", COLUMNS[columns], className)} {...rest}>
+    <div ref={setRef} role="radiogroup" onKeyDown={onKeyDown} className={cx("grid gap-2 p-[3px]", COLUMNS[columns], className)} {...rest}>
       <ChoiceGroupContext.Provider value={context}>{children}</ChoiceGroupContext.Provider>
     </div>
   );

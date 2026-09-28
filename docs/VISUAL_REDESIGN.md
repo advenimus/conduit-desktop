@@ -481,12 +481,12 @@ One rule set in `base.css`, zero specificity so components can refine it:
   outline: 1px solid var(--c-focus);
   outline-offset: -1px;                  /* VS Code default: drawn inside [V] */
 }
-:where([data-cv-text-button], input[type="checkbox"], input[type="radio"]):focus-visible {
-  outline-offset: 2px;                   /* VS Code text buttons and checkboxes only [V] */
+:where([data-cv-text-button], input[type="checkbox"], input[type="radio"], [data-cv-choice]):focus-visible {
+  outline-offset: 2px;                   /* VS Code text buttons and checkboxes [V]; choice cards [ADAPT] */
 }
 ```
 
-VS Code draws the default ring inside the element: `.monaco-workbench [tabindex="0"]:focus, … button:focus, … input[type=checkbox]:focus {outline-width:1px; outline-style:solid; outline-offset:-1px}`, then moves it 2px outside only for `input[type=checkbox]:focus` and `.monaco-text-button:focus` [V]. An outside ring would be clipped by `.cv-card {overflow:hidden}`, `.cv-tabs {overflow-y:hidden}` and the 22px status bar. The `Button` primitive (text buttons) sets `data-cv-text-button`; `IconButton`, status bar items, title bar controls, tab close buttons and activity items keep the inset ring. The `Checkbox` and `Radio` inputs get the 2px ring because of the second rule, which beats the `input` part of the first (same zero specificity, later in the file).
+VS Code draws the default ring inside the element: `.monaco-workbench [tabindex="0"]:focus, … button:focus, … input[type=checkbox]:focus {outline-width:1px; outline-style:solid; outline-offset:-1px}`, then moves it 2px outside only for `input[type=checkbox]:focus` and `.monaco-text-button:focus` [V]. An outside ring would be clipped by `.cv-card {overflow:hidden}`, `.cv-tabs {overflow-y:hidden}` and the 22px status bar. The `Button` primitive (text buttons) sets `data-cv-text-button`; `IconButton`, status bar items, title bar controls, tab close buttons and activity items keep the inset ring. The `Checkbox` and `Radio` inputs get the 2px ring because of the second rule, which beats the `input` part of the first (same zero specificity, later in the file). `ChoiceCard` (`data-cv-choice`) also takes the 2px ring [ADAPT, wave 1 review]: the checked card's 1px border is the accent, and `--c-focus` equals `--c-accent` in all seven dark schemes and in Modern light, so an inset ring would lie exactly on that border and show nothing (roving focus always lands on the checked card). `ChoiceGroup` keeps `p-[3px]` so a scrolling parent cannot clip the ring.
 
 This replaces `index.css:418-430`, which removed button focus outlines entirely (1 of 452 buttons re-added one [V research]). `:focus-visible` does not match mouse clicks on buttons, so pointer users see no ring. Composite fields whose wrapper shows focus keep `data-bare` on the inner input and put `focus-within:outline …` on the wrapper. The gallery (4.1) shows every focusable primitive focused inside a Card and inside a tab strip, so a clipped ring is visible in review.
 

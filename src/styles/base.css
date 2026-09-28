@@ -52,7 +52,8 @@
     outline: 1px solid var(--c-focus);
     outline-offset: -1px;
   }
-  :where([data-cv-text-button], input[type="checkbox"], input[type="radio"]):focus-visible {
+  /* Choice cards too: the checked card's border is the accent, which the inset ring would cover exactly. */
+  :where([data-cv-text-button], input[type="checkbox"], input[type="radio"], [data-cv-choice]):focus-visible {
     outline-offset: 2px;
   }
 

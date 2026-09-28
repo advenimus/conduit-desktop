@@ -311,9 +311,9 @@ describe("scheme metadata and shell colors follow the resolved tokens", () => {
 describe("global rules (spec 2.7, 2.8)", () => {
   const base = readRepoFile("src", "styles", "base.css");
 
-  it("focus ring is inset by default and 2px outside for text buttons, checkboxes and radios", () => {
+  it("focus ring is inset by default and 2px outside for text buttons, checkboxes, radios and choice cards", () => {
     expect(base).toMatch(/:where\(button,[^{]*\[tabindex\],[^{]*input:not\(\[data-bare\]\), select, textarea\):focus-visible\s*\{\s*outline: 1px solid var\(--c-focus\);\s*outline-offset: -1px;/s);
-    expect(base).toMatch(/:where\(\[data-cv-text-button\], input\[type="checkbox"\], input\[type="radio"\]\):focus-visible\s*\{\s*outline-offset: 2px;/s);
+    expect(base).toMatch(/:where\(\[data-cv-text-button\], input\[type="checkbox"\], input\[type="radio"\], \[data-cv-choice\]\):focus-visible\s*\{\s*outline-offset: 2px;/s);
     expect(base).not.toMatch(/outline:\s*none/);
   });
 

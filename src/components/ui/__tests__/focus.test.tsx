@@ -87,6 +87,18 @@ describe("focus ring offsets (spec 2.7)", () => {
     expect(focusOffset(screen.getByRole("radio"))).toBe("2px");
   });
 
+  it("choice cards get the 2px outside ring: an inset ring would lie exactly on the checked card's accent border", () => {
+    render(
+      <ChoiceGroup aria-label="Pack" value="x" onChange={() => {}}>
+        <ChoiceCard value="x" label="Checked" />
+        <ChoiceCard value="y" label="Other" />
+      </ChoiceGroup>,
+    );
+    for (const card of screen.getAllByRole("radio")) expect(focusOffset(card)).toBe("2px");
+    // The group keeps 3px of room (2px offset + 1px ring), so a scrolling parent cannot clip the ring.
+    expect(screen.getByRole("radiogroup").className).toContain("p-[3px]");
+  });
+
   it("every other focusable primitive keeps the inset ring", () => {
     render(
       <>
@@ -98,9 +110,6 @@ describe("focus ring offsets (spec 2.7)", () => {
         <Switch checked={false} onChange={() => {}} label="Toggle" />
         <Tabs aria-label="Views" items={[{ value: "a", label: "A" }]} value="a" onChange={() => {}} />
         <SegmentedControl aria-label="Mode" options={[{ value: "dark", label: "Dark" }]} value="dark" onChange={() => {}} />
-        <ChoiceGroup aria-label="Pack" value="x" onChange={() => {}}>
-          <ChoiceCard value="x" label="X" />
-        </ChoiceGroup>
         <ListRow onClick={() => {}}>Row</ListRow>
       </>,
     );
@@ -110,8 +119,7 @@ describe("focus ring offsets (spec 2.7)", () => {
       screen.getByRole("combobox", { name: "Pick" }),
       screen.getByRole("switch"),
       screen.getByRole("tab"),
-      screen.getAllByRole("radio")[0],
-      screen.getAllByRole("radio")[1],
+      screen.getByRole("radio"),
       screen.getByRole("button", { name: "Row" }),
     ];
     for (const el of inset) expect([el.outerHTML.slice(0, 60), focusOffset(el)]).toEqual([el.outerHTML.slice(0, 60), "-1px"]);
