@@ -1,5 +1,5 @@
 /**
- * Allowlist sanitizer for the icon markup the renderer sends with popup menu items (spec 7.7). The menu page
+ * Allowlist sanitizer for the icon markup the renderer sends with popup menu items (spec 7.1). The menu page
  * is built as an HTML string, so an icon is re-serialized from what this parser accepted, never passed through.
  */
 

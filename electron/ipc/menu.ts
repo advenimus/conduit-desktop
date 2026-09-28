@@ -1,5 +1,5 @@
 /**
- * IPC handler for showing styled popup context menus (spec 7.7).
+ * IPC handler for showing styled popup context menus (spec 7.1).
  *
  * Uses a child BrowserWindow (separate OS window) to render the menu.
  * This renders above everything, including native WebContentsViews,
@@ -55,8 +55,8 @@ export const MODERN_MENU_COLORS: Readonly<Record<'dark' | 'light', Readonly<Menu
     overlayBorder: '#2a2b2c',
     inkSecondary: '#bfbfbf',
     inkMuted: '#9d9d9d',
-    selectionBg: '#243239',
-    selectionBorder: '#3994bc',
+    selectionBg: '#1d3540',
+    selectionBorder: '#0ea5e9',
     danger: '#f48771',
     dangerHover: '#352b2a',
     divider: '#2a2b2c',
@@ -66,8 +66,8 @@ export const MODERN_MENU_COLORS: Readonly<Record<'dark' | 'light', Readonly<Menu
     overlayBorder: '#e4e5e6',
     inkSecondary: '#202020',
     inkMuted: '#606060',
-    selectionBg: '#e1ecf8',
-    selectionBorder: '#0069cc',
+    selectionBg: '#e2f2fb',
+    selectionBorder: '#0ea5e9',
     danger: '#ad0707',
     dangerHover: '#f2e2e4',
     divider: '#f0f1f2',

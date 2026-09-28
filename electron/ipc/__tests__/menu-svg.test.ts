@@ -24,7 +24,7 @@ describe('sanitizeSvg', () => {
     expect(sanitizeSvg(input)).toBe(`<svg ${NS} width="16" height="16" fill="currentColor" viewBox="0 0 256 256" transform="scale(-1, 1)"><path d="M216,40H40Z"></path></svg>`);
   });
 
-  it('keeps fill rules, opacities and groups (Codicons, Material)', () => {
+  it('keeps fill rules, opacities and groups (Material, Hugeicons)', () => {
     const input =
       '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><g opacity=".5" fill-opacity="1" stroke-opacity="0.2">' +
       '<path fill-rule="evenodd" clip-rule="evenodd" d="M1 1h14v14H1z"></path></g></svg>';

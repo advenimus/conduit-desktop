@@ -224,6 +224,31 @@ describe('menuColors', () => {
     expect(menuColors('x', 'sepia')).toEqual(MODERN_MENU_COLORS.dark);
   });
 
+  it("falls back to Modern's overlay colors with Conduit's sky accent (spec 7.1, D-25)", () => {
+    expect(MODERN_MENU_COLORS.dark).toEqual({
+      overlay: '#202122',
+      overlayBorder: '#2a2b2c',
+      inkSecondary: '#bfbfbf',
+      inkMuted: '#9d9d9d',
+      selectionBg: '#1d3540',
+      selectionBorder: '#0ea5e9',
+      danger: '#f48771',
+      dangerHover: '#352b2a',
+      divider: '#2a2b2c',
+    });
+    expect(MODERN_MENU_COLORS.light).toEqual({
+      overlay: '#fafafd',
+      overlayBorder: '#e4e5e6',
+      inkSecondary: '#202020',
+      inkMuted: '#606060',
+      selectionBg: '#e2f2fb',
+      selectionBorder: '#0ea5e9',
+      danger: '#ad0707',
+      dangerHover: '#f2e2e4',
+      divider: '#f0f1f2',
+    });
+  });
+
   it('holds only #rrggbb values in the built-in sets', () => {
     for (const set of [MODERN_MENU_COLORS.dark, MODERN_MENU_COLORS.light]) {
       expect(Object.keys(set).sort()).toEqual(Object.keys(valid).sort());
@@ -328,7 +353,7 @@ describe('menu width', () => {
     expect(width([{ id: 'r', label: 'Remove from Recents' }, { id: 'c', label: 'Copy Path', iconSvg: ICON }])).toBe(220);
   });
 
-  it('widens a menu whose longest label would be cut off, like the local-mode Account menu', () => {
+  it('widens a menu whose longest label would be cut off at 220', () => {
     // The label measures 177px at 13px in the macOS system font; the row adds 2 + 8 + 16 + 16 + 8 around it.
     const w = width([
       { id: 'hd', label: 'Local mode', type: 'header' },

@@ -3,7 +3,7 @@
  *
  * Shows a styled context menu via a child BrowserWindow (separate OS window)
  * that renders above native WebContentsViews without needing to hide them.
- * The main process renders it (electron/ipc/menu.ts, spec 7.7).
+ * The main process renders it (electron/ipc/menu.ts, spec 7.1).
  */
 
 import { invoke } from "../lib/electron";
@@ -11,8 +11,8 @@ import { iconToSvg, SEMANTIC_ICON_NAMES, type SemanticIconName } from "../lib/ic
 import { resolveCssColor, type ColorToken } from "../lib/appearance/resolveCssColor";
 
 /**
- * @deprecated Menu-local icon keys from before the icon registry (spec 5.6). Call sites may pass them
- * until W4-CLEANUP converts the rest to semantic names and removes this map.
+ * @deprecated Menu-local icon keys from before the icon registry (spec 5.7). Call sites may pass them
+ * until R4-CLEANUP converts the rest to semantic names and removes this map.
  */
 export const LEGACY_MENU_ICON_KEYS = {
   play: "playerPlay",
