@@ -440,13 +440,13 @@ export default function Sidebar() {
         onScroll={(e) => {
           scrollTopRef.current = e.currentTarget.scrollTop;
           const el = e.currentTarget;
-          // Fade scrollbar in
-          el.style.setProperty("--sb-opacity", "0.35");
+          // base.css scales the thumb token by --sb-opacity, so 1 shows the token color itself
+          el.style.setProperty("--sb-opacity", "1");
           if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current);
           scrollIdleTimer.current = setTimeout(() => {
             // Fade scrollbar out over 1000ms, time-based for smooth animation
             const duration = 1000;
-            const startOpacity = 0.35;
+            const startOpacity = 1;
             const startTime = performance.now();
             const step = (now: number) => {
               const progress = Math.min((now - startTime) / duration, 1);
