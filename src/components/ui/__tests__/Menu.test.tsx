@@ -87,6 +87,24 @@ describe("Menu", () => {
     expect(document.activeElement).toBe(newVault);
   });
 
+  it("leaves keys typed into a field inside the menu alone (a custom model id input)", () => {
+    render(
+      <Menu aria-label="Models" autoFocus={false}>
+        <MenuItem onSelect={() => {}}>Claude Opus</MenuItem>
+        <MenuItem onSelect={() => {}}>Claude Sonnet</MenuItem>
+        <input aria-label="Custom model" />
+        <textarea aria-label="Notes" />
+      </Menu>,
+    );
+    for (const field of [screen.getByRole("textbox", { name: "Custom model" }), screen.getByRole("textbox", { name: "Notes" })]) {
+      field.focus();
+      for (const key of ["a", "c", "Home", "End", "ArrowUp", "ArrowDown"]) {
+        expect(fireEvent.keyDown(field, { key }), key).toBe(true);
+        expect(document.activeElement, key).toBe(field);
+      }
+    }
+  });
+
   it("Escape closes the menu only and returns focus to the anchor, even inside a dialog", () => {
     const onDialogClose = vi.fn();
     render(

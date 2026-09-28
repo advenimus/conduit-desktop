@@ -11,6 +11,7 @@ interface MenuContextValue {
 const MenuContext = createContext<MenuContextValue | null>(null);
 
 const ITEM_SELECTOR = "[role=menuitem]";
+const EDITABLE_SELECTOR = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
 const TYPEAHEAD_RESET_MS = 500;
 
 export interface MenuProps extends ComponentPropsWithRef<"div"> {
@@ -47,6 +48,8 @@ export function Menu({ onClose, autoFocus = true, className, children, onKeyDown
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     onKeyDown?.(e);
     if (e.defaultPrevented) return;
+    // A field inside the menu (a custom model id) keeps its own keys: typeahead would swallow the text.
+    if ((e.target as Element).closest(EDITABLE_SELECTOR)) return;
     const items = enabledItems(menuRef.current, ITEM_SELECTOR);
     const current = items.indexOf(document.activeElement as HTMLElement);
     const next = rovingIndex(e.key, current, items.length, "vertical");

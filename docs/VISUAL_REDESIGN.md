@@ -1259,7 +1259,7 @@ export function freezeHolders(): ReadonlyArray<{ reason: FreezeReason; label?: s
 | Danger item | `text-danger`, icon `text-danger` | |
 | Separator | `role="separator"`, `h-px my-[5px] bg-divider` | [V] `margin: 5px 0` |
 | Header | `h-6 px-3 text-meta font-semibold text-ink-muted` (no uppercase) | [ADAPT] VS Code menus have no headers; Conduit's do (`PaneTabBar.tsx:84`) |
-| Keyboard | Up, Down, Home, End, Enter, Space, Escape, typeahead | none today |
+| Keyboard | Up, Down, Home, End, Enter, Space, Escape, typeahead. Keys typed in a field inside the menu (ModelPicker's custom model id) stay with the field: no typeahead, no roving. Escape in that field still closes the popover, because the layer stack takes Escape before any element handler (4.8) | none today |
 
 Users: `VaultSwitcherMenu.tsx:111` (keeps `data-context-menu`), `ChatPanel.tsx:242,510`, `ModelPicker.tsx:65` (keeps `data-popover`), `ColorPicker.tsx:39`, `IconPicker.tsx:51`.
 
