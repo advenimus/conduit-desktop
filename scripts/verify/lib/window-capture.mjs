@@ -71,7 +71,8 @@ async function screencapture(cg, file) {
 
 /**
  * Captures the main window with the given child window roles laid over it, into `file`.
- * Returns {file, method: 'window' | 'page', scale, main}.
+ * Returns {file, method: 'window' | 'page', scale, main, missing}: `missing` lists the open child
+ * windows of those roles that a page screenshot leaves out.
  */
 export async function captureWindow(device, file, { overlays = ['menu', 'overlay'] } = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -82,8 +83,11 @@ export async function captureWindow(device, file, { overlays = ['menu', 'overlay
       device.captureWarning = `window capture failed (${err.message}); page screenshot instead`;
     }
   }
-  await withTimeout(device.page.screenshot({ path: file }), CAPTURE_TIMEOUT_MS, `${device.name}: page screenshot`);
-  return { file, method: 'page', scale: 1, main: null };
+  // CSS pixels, so the crops (given in CSS pixels at scale 1) cut the right region on HiDPI screens.
+  await withTimeout(device.page.screenshot({ path: file, scale: 'css' }), CAPTURE_TIMEOUT_MS, `${device.name}: page screenshot`);
+  const open = await listWindows(device).catch(() => []);
+  const missing = [...new Set(open.filter((w) => overlays.includes(w.role)).map((w) => w.role))];
+  return { file, method: 'page', scale: 1, main: null, missing };
 }
 
 async function captureMacWindows(device, file, overlays) {
@@ -107,7 +111,7 @@ async function captureMacWindows(device, file, overlays) {
       if (f.startsWith(`${path.basename(file)}.`) && f.endsWith('.tmp.png')) fs.rmSync(path.join(path.dirname(file), f), { force: true });
     }
   }
-  return { file, method: 'window', scale, main };
+  return { file, method: 'window', scale, main, missing: [] };
 }
 
 const near = (a, b) => Math.abs(a - b) <= 2;

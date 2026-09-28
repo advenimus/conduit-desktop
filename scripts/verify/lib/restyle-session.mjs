@@ -33,6 +33,7 @@ export function createRestyleSession(ctx, scenarioId, { shots = [] } = {}) {
   const rules = [];
   const composites = new Set();
   const problems = [];
+  const notes = [];
   const hasReference = (mode, name) => Object.hasOwn(manifest.files, `${mode}-${name}.png`);
   // A declared shot with no reference in either mode is new: it is captured in both modes so it can
   // be added to the reference folder, and the scenario fails until it is.
@@ -54,6 +55,7 @@ export function createRestyleSession(ctx, scenarioId, { shots = [] } = {}) {
       problems.push(`${mode}-${name}: ${device.captureWarning}`);
       device.captureWarning = null;
     }
+    if (capture.missing?.length > 0) notes.push(`${mode}-${name}: page screenshot without the ${capture.missing.join(' and ')} window(s); this composite does not show them`);
     if (crop) {
       const region = await crop(capture);
       await cropCapture(capture, region, file, { zoom: region.zoom ?? 1 });
@@ -126,6 +128,7 @@ export function createRestyleSession(ctx, scenarioId, { shots = [] } = {}) {
     lines.push('', 'GEOMETRY RULES', ...summary.lines, '', `pending: ${summary.pending}${ctx.options.strict ? ' (failures under --strict)' : ''}`);
     if (missing.length > 0) lines.push('', 'MISSING COMPOSITES', ...missing.map((m) => `  ${m}`));
     if (problems.length > 0) lines.push('', 'PROBLEMS', ...problems.map((p) => `  ${p}`));
+    if (notes.length > 0) lines.push('', 'NOTES', ...notes.map((n) => `  ${n}`));
     fs.writeFileSync(path.join(out.scenario, 'inventory.json'), `${JSON.stringify({ scenario: scenarioId, captures }, null, 2)}\n`);
     fs.writeFileSync(path.join(out.scenario, 'inventory-diff.txt'), `${lines.join('\n')}\n`);
     ctx.step(`${inventories.length - badInventories.length}/${inventories.length} inventories match, ${summary.failed} rule failure(s), ${summary.pending} pending, ${composites.size} composite(s)`);
