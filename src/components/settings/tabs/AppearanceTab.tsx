@@ -135,7 +135,10 @@ export default function AppearanceTab({ settings, setSettings }: TabProps) {
   );
 }
 
-/** Settings > Appearance > Icon pack (spec 5.8): every card previews its own pack, so all packs load on mount. */
+/**
+ * Settings > Appearance > Icon pack (spec 5.8): every card previews its own pack, so all packs load on mount.
+ * Two columns: eight 16px icons with 8px gaps need 200px, and a third of today's 768px dialog leaves 148px.
+ */
 function IconPackSection({ value, onChange }: { value: IconPackId; onChange: (pack: IconPackId) => void }) {
   useEffect(() => {
     void preloadAllIconPacks();
@@ -144,7 +147,7 @@ function IconPackSection({ value, onChange }: { value: IconPackId; onChange: (pa
   return (
     <div data-cv-appearance="icon-pack">
       <label id="appearance-icon-pack-label" className="block text-sm font-medium mb-2">Icon pack</label>
-      <ChoiceGroup aria-labelledby="appearance-icon-pack-label" value={value} onChange={onChange} columns={3}>
+      <ChoiceGroup aria-labelledby="appearance-icon-pack-label" value={value} onChange={onChange} columns={2}>
         {ICON_PACKS.map((pack) => (
           <ChoiceCard
             key={pack.id}
@@ -159,7 +162,7 @@ function IconPackSection({ value, onChange }: { value: IconPackId; onChange: (pa
           >
             <span className="flex h-8 items-center gap-2 rounded bg-well px-2 text-ink-secondary">
               {PACK_PREVIEW.map((name) => (
-                <Icon key={name} name={name} pack={pack.id} size={16} />
+                <Icon key={name} name={name} pack={pack.id} size={16} className="shrink-0" />
               ))}
             </span>
           </ChoiceCard>

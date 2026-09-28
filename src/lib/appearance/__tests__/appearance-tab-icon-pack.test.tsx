@@ -41,7 +41,7 @@ describe("Appearance tab: Icon pack section", () => {
 
     const group = within(section()).getByRole("radiogroup");
     expect(group).toHaveAttribute("aria-labelledby", label?.id);
-    expect(group.className).toContain("grid-cols-3");
+    expect(group.className).toContain("grid-cols-2");
     const cards = within(group).getAllByRole("radio");
     expect(cards.map((c) => c.getAttribute("data-cv-choice"))).toEqual(["lucide", "phosphor", "hugeicons", "material", "fluent", "tabler"]);
     ICON_PACKS.forEach((pack, i) => {
@@ -69,11 +69,14 @@ describe("Appearance tab: Icon pack section", () => {
       const cards = within(section()).getAllByRole("radio");
       const previews = cards.map((card) => card.querySelector("span.bg-well") as HTMLElement);
       for (const [i, preview] of previews.entries()) {
-        expect(preview.querySelectorAll("svg"), ICON_PACKS[i].id).toHaveLength(8);
+        const icons = [...preview.querySelectorAll("svg")];
+        expect(icons, ICON_PACKS[i].id).toHaveLength(8);
+        // The strip never squeezes its icons below 16px.
+        for (const icon of icons) expect(icon.getAttribute("class") ?? "", ICON_PACKS[i].id).toContain("shrink-0");
       }
       ICON_PACKS.forEach((pack, i) => {
         const Folder = getPackMapping(pack.id)!.folder;
-        const expected = render(<Folder size={16} />).container.innerHTML;
+        const expected = render(<Folder size={16} className="shrink-0" />).container.innerHTML;
         expect(previews[i].querySelector("svg")!.outerHTML, pack.id).toBe(expected);
       });
     },
