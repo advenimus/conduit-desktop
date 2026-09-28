@@ -38,6 +38,10 @@ function Badges() {
         <CountBadge count={250} max={99} />
         <Kbd>Ctrl+P</Kbd>
         <Kbd>⌘,</Kbd>
+        <Button variant="primary" className="gap-2">
+          Quick Connect
+          <Kbd onFilled>⌘N</Kbd>
+        </Button>
       </Demo>
       <Demo label="Spinner 12, 16, 24, with text">
         <Spinner size={12} />
@@ -120,6 +124,7 @@ function Containers() {
       <Card>
         <SectionHeader title="Multi-device sync" description="Keep this vault on every device you use." />
         <SettingsRow title="Local Backup" description="Keep copies of the vault on this device." toggle={<Switch checked={local} onChange={setLocal} data-cv-toggle="local" />} />
+        <SettingsRow title="Cloud Backup" titleAside={<Badge tone="accent">Pro and Team</Badge>} toggle={<Switch checked={false} onChange={() => {}} />} />
         <SettingsRow title="Keep backups for" description="Older backups are removed.">
           <span className="text-body text-ink-secondary">30 days</span>
         </SettingsRow>
