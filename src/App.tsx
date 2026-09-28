@@ -50,7 +50,7 @@ import SyncBanners from "./components/sync/SyncBanners";
 import { useBackupStates } from "./hooks/useBackupStates";
 import { useFreeze } from "./lib/native-freeze";
 import type { TeamVaultSummary } from "./stores/teamStore";
-import { RobotIcon, WifiOffIcon } from "./lib/icons";
+import { Banner, IconButton, Spinner } from "./components/ui";
 
 /**
  * Notification controllers — manage toast + update state and push to overlay window.
@@ -94,10 +94,38 @@ function NotificationStack() {
 
 const AI_PANEL_DIVIDER_WIDTH = 4;
 
+/** Cached auth: the centered strip under the accent line (spec 3.8). It has no role="status": the harness reads only sync banners by role. */
+function OfflineBanner() {
+  return (
+    <Banner
+      tone="warn"
+      icon="wifiOff"
+      status={false}
+      align="center"
+      className="shrink-0"
+      actions={[{ label: "Reconnect", onClick: () => void useAuthStore.getState().tryReauthenticate() }]}
+    >
+      Working offline — using cached features
+    </Banner>
+  );
+}
+
+function FullScreenSpinner({ text }: { text: string }) {
+  return (
+    <div className="flex items-center justify-center h-screen bg-editor text-ink">
+      <div className="flex flex-col items-center gap-3">
+        <Spinner size={24} className="text-(--c-progress)" />
+        <span className="text-body text-ink-muted">{text}</span>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [aiPanelWidth, setAiPanelWidth] = useState(400);
   const aiResizing = useRef(false);
+  const [aiDragging, setAiDragging] = useState(false);
   const [showQuickConnect, setShowQuickConnect] = useState(false);
   const [showSettings, setShowSettings] = useState<SettingsTab | false>(false);
   const [showCredentials, setShowCredentials] = useState(false);
@@ -507,6 +535,7 @@ function App() {
   const handleAiResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     aiResizing.current = true;
+    setAiDragging(true);
     const startX = e.clientX;
     const startWidth = aiPanelWidth;
 
@@ -524,6 +553,7 @@ function App() {
 
     const onMouseUp = () => {
       aiResizing.current = false;
+      setAiDragging(false);
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
       document.body.style.cursor = "";
@@ -951,14 +981,7 @@ function App() {
 
   // Auth loading state
   if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-canvas">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-ink-muted">Loading...</span>
-        </div>
-      </div>
-    );
+    return <FullScreenSpinner text="Loading..." />;
   }
 
   // Auth gate — allow local and cached modes to bypass sign-in
@@ -973,33 +996,14 @@ function App() {
 
   // Full-screen auto-connect spinner (team vault auto-connect in progress)
   if (autoConnectInProgress) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-canvas">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-ink-muted">Connecting to team vault...</span>
-        </div>
-      </div>
-    );
+    return <FullScreenSpinner text="Connecting to team vault..." />;
   }
 
   // Vault Hub — full-screen landing page (stays until explicitly dismissed)
   if (showVaultHub) {
     return (
-      <div className="flex flex-col h-screen bg-canvas text-ink">
-        {/* Offline banner */}
-        {authMode === 'cached' && (
-          <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-amber-600/20 border-b border-amber-600/30 text-amber-300 text-xs flex-shrink-0">
-            <WifiOffIcon size={14} />
-            <span>Working offline — using cached features</span>
-            <button
-              onClick={() => useAuthStore.getState().tryReauthenticate()}
-              className="ml-2 px-2 py-0.5 bg-amber-600/30 hover:bg-amber-600/50 rounded text-amber-200 transition-colors"
-            >
-              Reconnect
-            </button>
-          </div>
-        )}
+      <div className="flex flex-col h-screen bg-editor text-ink">
+        {authMode === 'cached' && <OfflineBanner />}
         <VaultHub />
         {/* Overlay dialogs that can appear on top of hub */}
         {showUnlockDialog && (
@@ -1056,22 +1060,9 @@ function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-canvas text-ink">
-      {/* Theme accent bar */}
-      <div className="h-[2px] bg-conduit-500 flex-shrink-0" />
-      {/* Offline banner for cached mode */}
-      {authMode === 'cached' && (
-        <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-amber-600/20 border-b border-amber-600/30 text-amber-300 text-xs flex-shrink-0">
-          <WifiOffIcon size={14} />
-          <span>Working offline — using cached features</span>
-          <button
-            onClick={() => useAuthStore.getState().tryReauthenticate()}
-            className="ml-2 px-2 py-0.5 bg-amber-600/30 hover:bg-amber-600/50 rounded text-amber-200 transition-colors"
-          >
-            Reconnect
-          </button>
-        </div>
-      )}
+    <div className="flex flex-col h-screen bg-editor text-ink">
+      <div data-cv-accent-line className="h-[2px] shrink-0 bg-accent" />
+      {authMode === 'cached' && <OfflineBanner />}
       <SyncBanners />
       <div className="flex flex-1 min-h-0">
       {/* Sidebar — docked in this row when pinned, otherwise a fixed overlay */}
@@ -1082,28 +1073,28 @@ function App() {
         <div className="flex flex-1 min-h-0">
           <SplitContainer
             rightSlot={
-              <>
-                <button
-                  onClick={() => setShowAiPanel(!showAiPanel)}
-                  className={`flex-shrink-0 p-2 mx-1 rounded hover:bg-raised ${
-                    showAiPanel ? "bg-raised text-conduit-400" : "text-ink-muted hover:text-ink"
-                  }`}
-                  title="Toggle AI Panel"
-                >
-                  <RobotIcon size={18} />
-                </button>
-              </>
+              <IconButton
+                data-cv-ai-toggle=""
+                icon="robot"
+                label="Toggle AI Panel"
+                pressed={showAiPanel}
+                className="mr-1"
+                onClick={() => setShowAiPanel(!showAiPanel)}
+              />
             }
           />
           {/* AI side panel */}
           <>
             <div
+              data-cv-ai-divider=""
+              data-dragging={aiDragging ? "" : undefined}
               onMouseDown={handleAiResizeStart}
-              className="w-1 cursor-col-resize bg-stroke hover:bg-conduit-500 transition-colors flex-shrink-0"
+              className="cv-sash cv-sash-ai"
               style={{ display: showAiPanel ? undefined : 'none' }}
             />
             <div
-              className="flex-shrink-0 overflow-hidden"
+              data-cv-ai-panel=""
+              className="shrink-0 overflow-hidden"
               style={{
                 width: aiPanelWidth,
                 display: showAiPanel ? undefined : 'none',
