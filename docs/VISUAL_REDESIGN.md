@@ -313,9 +313,12 @@ Entry-type identity colors (unchanged from wave 1): dark keeps Tailwind 400 shad
 | `--c-entry-vnc` | `#C084FC` | `#7E22CE` |
 | `--c-entry-web` | `#22D3EE` | `#0E7490` |
 | `--c-entry-credential` | `#FACC15` | `#A16207` |
+| `--c-entry-sshkey` (restyle) | `#FB923C` | `#C2410C` |
 | `--c-entry-document` | `#2DD4BF` | `#0F766E` |
 | `--c-entry-command` | `#FBBF24` | `#B45309` |
 | `--c-entry-folder` | `var(--c-ink-muted)` | `var(--c-ink-muted)` |
+
+**(restyle, wave 3)** `--c-entry-sshkey` (Tailwind `text-entry-sshkey`) keeps the SSH Key credential type in today's orange (`text-orange-400`) in the entry type step and the entry dialog's side bar.
 
 Kept as they are: the team tokens `--c-team-bg`, `--c-team-border`, `--c-team-border-strong` (mixes of `--c-accent-500`) and their Tailwind names `team`, `team-border`, `team-border-strong`.
 
@@ -918,7 +921,7 @@ The primitives in `src/components/ui/` landed in wave 1 and are only used by the
 
 ### 4.1 Conventions
 
-- One small file per primitive, a barrel `src/components/ui/index.ts` and a local `cx()`. No new runtime dependency.
+- One small file per primitive, a barrel `src/components/ui/index.ts` and a local `cx()`. No new runtime dependency. `cx()` only joins class strings; it does not merge conflicting utilities, so a `className` that must beat a primitive's own class of the same property uses Tailwind's important suffix (`h-auto!`), or better a primitive prop or variant for the case.
 - Primitives take `className` (appended last) and forward `ref` and `data-*` props. They never set `outline: none`.
 - Utilities come from the `@theme` block (2.9); tokens without a theme name use Tailwind v4's shorthand, for example `bg-(--c-btn-secondary-bg)`.
 - Harness-bound markup the primitives keep (Appendix B): dialog panels carry `data-dialog-content` and an `h2` title; labeled fields render `<label><span>{label}</span>…control…</label>`; checkboxes and radios are `<label>` elements wrapping the input and the exact text; inline errors are `<p data-cv-error>`; a dialog with a form wraps header, body and footer in one `<form>`; DOM menu items are `<button type="button" role="menuitem">`; clickable `ListRow`s are `<button>`s; actions revealed on hover hide with `opacity: 0` only; busy text stays visible text.
@@ -938,6 +941,7 @@ The primitives in `src/components/ui/` landed in wave 1 and are only used by the
 | `primary` | `bg-btn-primary hover:bg-btn-primary-hover text-white border-transparent` | [V] |
 | `secondary` | `bg-(--c-btn-secondary-bg) text-(--c-btn-secondary-fg) border-(--c-btn-secondary-border) hover:bg-(--c-btn-secondary-hover)` | [V] |
 | `ghost` | `bg-transparent border-transparent text-ink-secondary hover:bg-hover hover:text-ink` | |
+| `ghost-danger` (restyle, wave 3) | `bg-transparent border-transparent text-danger hover:bg-hover` | Sign Out and Delete Cloud Backup |
 | `danger` | `bg-btn-danger hover:bg-btn-danger-hover text-white border-transparent` | |
 | `link` | `h-auto px-0 border-0 bg-transparent text-link hover:text-link-hover hover:underline` | [V] |
 | Icon | 16px (`sm`: 12px), 4px gap | [V] |
@@ -1006,7 +1010,7 @@ The pane tab bars are not `Tabs`: they keep their own markup with `tabs.css` (3.
 | Width | `size`: `sm` 400, `md` 520, `lg` 720, `xl` 880. **(restyle)** `width` (px) overrides the step with an inline `max-width`, so a dialog keeps today's width (D-18): a dialog with `max-w-md` passes `width={448}`, `max-w-lg` 512, `max-w-xl` 576, `max-w-2xl` 672, `max-w-3xl` 768, `max-w-4xl` 896, an arbitrary `max-w-[Npx]` or a fixed `w-[Npx]` (the vault and team dialogs) passes N; a dialog whose width changes by step (the entry dialog: `max-w-md`, then `max-w-3xl` for the form) passes the step's value |
 | Form | with `onSubmit`, one `<form data-cv-dialog-form>` wraps header, body and footer (B31) |
 | `harnessLabel` | also sets `aria-label`; only sync-style dialogs pass it (B9) |
-| Header | `flex items-center gap-2 px-4 pt-4 pb-3`; optional tone tile `size-7 rounded-md`; `<h2 class="flex-1 text-heading text-ink">` (13px/600); close `IconButton md` `close` `label="Close"`, left out with `hideClose` |
+| Header | `flex items-center gap-2 px-4 pt-4 pb-3`; optional tone tile `size-7 rounded-md`; `<h2 class="flex-1 text-heading text-ink">` (13px/600); close `IconButton md` `close` `label="Close"`, left out with `hideClose`. **(restyle, wave 3)** `subtitle` (on `Dialog` and `DialogHeader`) sits right after the title on its line, `text-label text-ink-faint` + `data-cv-dialog-subtitle` (the vault name of Vault Settings, the Credentials vault badge and count); `description` is a line under the title, `text-label text-ink-muted` + `data-cv-dialog-description` (today's header subtitles, such as Change Password's). `DialogHeader`'s children still go between the title group and the close button |
 | Body | `min-h-0 flex-1 overflow-y-auto px-4 py-2 text-body text-ink-secondary`; message boxes show their message in `text-ink-muted` |
 | Footer | the last child: `flex flex-wrap justify-end gap-2 px-4 pt-2 pb-4` + `data-cv-dialog-footer` |
 | Motion | none |
@@ -1042,7 +1046,7 @@ Native `title` only: a native tooltip cannot be covered by a native web view. Ev
 |---|---|
 | `Badge` | `inline-flex items-center h-4 px-1 rounded text-badge font-semibold`; tones neutral `bg-selected text-ink-secondary`, accent `bg-badge text-white`, warning, danger, success on their tints |
 | `CountBadge` | `min-w-[18px] min-h-[18px] px-[5px] rounded-full text-badge`, accent |
-| `Kbd` | `inline-flex items-center h-4 px-1 rounded border border-control text-meta font-mono text-ink-muted` |
+| `Kbd` | `inline-flex items-center h-4 px-1 rounded border border-control text-meta font-mono text-ink-muted`; **(restyle, wave 3)** `onFilled` for a key hint inside a filled button: `border-white/40 text-white` |
 | `Spinner` | the `loader` icon spinning at 12, 16 or 24; optional visible `text`; never `role="status"` |
 
 ### 4.13 Containers
@@ -1055,17 +1059,17 @@ Native `title` only: a native tooltip cannot be covered by a native web view. Ev
 | `Banner` | the 26px banner (3.8), `role="status"`, text in `span.flex-1` + `data-cv-banner-text`. **(restyle)** Actions are `Button size="sm"` (22px): `{label, onClick, disabled?, primary?}`, `variant="primary"` when `primary`, else `secondary` (D-27; wave 1 drew underlined links). The divider is `box-shadow: inset 0 -1px 0 var(--c-divider)` (salvage `ca9659c`); `status={false}` omits `role="status"` for the offline banners; `align="center"` centers the icon, text and actions as one group, the text span not growing (the offline banners, as today; the harness reads `span.flex-1` only inside `role="status"` banners, B15) |
 | `EmptyState` | `flex flex-col items-center gap-2 py-8 text-center`; icon 32 `text-ink-faint`; title `text-body text-ink-secondary`; description `text-label text-ink-muted` |
 | `SectionHeader` | `<h3 class="text-label font-semibold text-ink-secondary">` (stays an `h3`, B37) |
-| `SettingsRow` | `grid gap-1 py-3 border-b border-divider last:border-0`; title `text-body font-semibold text-ink`; description `text-label text-ink-muted`; the Backup toggles keep their `<label>` and a direct-child `Switch` (B22, B39) |
+| `SettingsRow` | `grid gap-1 py-3 border-b border-divider last:border-0`; title `text-body font-semibold text-ink`; description `text-label text-ink-muted`; the Backup toggles keep their `<label>` and a direct-child `Switch` (B22, B39). **(restyle, wave 3)** `titleAside` sits right after the title, outside its `<label>`, so the label keeps its exact text (a badge such as "Pro and Team") |
 
 ### 4.14 ListRow and TreeRow
 
-`ListRow`: `flex items-center gap-1.5 h-row px-2 rounded text-body text-ink-secondary`; a `<button>` when clickable; states hover `bg-hover`, selected `bg-selected text-ink`, unfocused selection `bg-selected-inactive`; `description` makes it 36px with a `text-meta text-ink-muted` line. `leading`: an icon source draws in a 16px box; **(restyle)** an element (the hub's 28px icon tile, an entry icon) sizes itself in a `shrink-0` slot. **(restyle)** `meta`: always visible, after the label and inside the clickable button, `shrink-0 text-meta text-ink-faint` (badges, timestamps, type labels; L-23). `trailing`: small `IconButton`s or a decorative chevron, revealed on hover or focus-within by opacity (B45), outside the clickable button.
+`ListRow`: `flex items-center gap-1.5 h-row px-2 rounded text-body text-ink-secondary`; a `<button>` when clickable; states hover `bg-hover`, selected `bg-selected text-ink`, unfocused selection `bg-selected-inactive`; `description` makes it 36px with a `text-meta text-ink-muted` line. **(restyle, wave 3)** `detail`: a further line under the description (the picker's tags); the row then grows to fit with `py-1` instead of a fixed height. `leading`: an icon source draws in a 16px box; **(restyle)** an element (the hub's 28px icon tile, an entry icon) sizes itself in a `shrink-0` slot. **(restyle)** `meta`: always visible, after the label and inside the clickable button, `shrink-0 text-meta text-ink-faint` (badges, timestamps, type labels; L-23). `trailing`: small `IconButton`s or a decorative chevron, revealed on hover or focus-within by opacity (B45), outside the clickable button.
 
 `TreeRow`: 22px, `padding-left: calc(4px + depth * 8px)`, a 16px twistie slot on every row, 6px gaps. The entry tree applies this recipe to its own rows (3.6) without `role="treeitem"` (D-20).
 
 ### 4.15 Toasts
 
-`ToastCard` (wave 1) is the toast body of 3.14. The toast API (`common/Toast.tsx`) and the overlay protocol are unchanged.
+`ToastCard` (wave 1) is the toast body of 3.14. The toast API (`common/Toast.tsx`) and the overlay protocol are unchanged. **(restyle, wave 3)** The action row wraps (`flex-wrap`), so three update buttons stay inside the card with any font; an action takes an optional `icon` (the update notification's `refresh` on Restart Now and `externalLink` on the website buttons, as today); the progress fill moves with `transition-[width] duration-150 ease-linear`.
 
 ### 4.16 Legacy class map
 
@@ -1099,7 +1103,7 @@ Each package applies this map to the files it owns, using a primitive wherever o
 | Tailwind palette entry colors | `text-entry-*` |
 | `w-8 h-8 border-2 … animate-spin` spinners | `Spinner` |
 
-Classes the harness still reads (Appendix B allowlist) stay until their hook exists. The dead files (10.5) are skipped.
+Classes the harness still reads (Appendix B allowlist) stay until their hook exists. The dead files (10.5) are skipped. **(wave 3 integration)** Every allowlisted class is gone and every hook has landed, so the allowlist is empty; the mechanism stays for R4-HARNESS.
 
 ---
 
@@ -1467,7 +1471,7 @@ Unchanged from wave 1: `openDialogs()` and `dialogDetails()` list `[role=dialog]
 
 ### 8.4 Text rules
 
-1. No existing title, `aria-label`, placeholder or visible text changes (D-1). Removing CSS `uppercase` changes what `innerText` returns for these labels only: flat-mode tree group labels, the vault menu's section headers, popup menu headers, the hub's "Recent Vaults" and team headers, the entry dialog's group labels, the `IconPicker` category labels, the Home dashboard's type labels. The harness reads none of them [V: grep of `scripts/verify` for uppercase phrases finds none].
+1. No existing title, `aria-label`, placeholder or visible text changes (D-1). Removing CSS `uppercase` changes what `innerText` returns for these labels only: flat-mode tree group labels, the vault menu's section headers, popup menu headers, the hub's "Recent Vaults" and team headers, the entry dialog's group labels, the `IconPicker` category labels, the Home dashboard's type labels; **(wave 3)** the sign-in screen's "or" divider, the onboarding tier labels (Included, Pro Feature, Teams Feature), the entry dashboard's field labels (Host, Username, Password, One-Time Password, Domain, Credential, Tags, Created, Modified, Notes), the AI panel's block labels (Created, Edited, Deleted, Input, Output, Approved, Denied), the audit log's date and category headers, the credential form's section labels (One-Time Password (TOTP), SSH Authentication, SSH Key Metadata) and the credential picker's type badge. The harness reads none of them [V: grep of `scripts/verify` for uppercase phrases finds none].
 2. Icon-only buttons that had no accessible name get `aria-label` (and a native `title`) with no visible text (D-20).
 3. No button's visible text may newly equal `Review`, `Use here instead`, `Lock Current Vault`, `New Vault`, `Not Now` or `Open Vault File`: the harness clicks those with `selector: 'button'` and takes the first match in document order.
 4. No new `role="dialog"` or `role="status"`. `role="status"` stays on the sync banners only; the offline banners keep none.
@@ -1502,7 +1506,7 @@ A failure found by an integrator goes back to the file's owner in that wave, or 
 
 **8.6.1 The reference folder.** The 124 PNGs of 3.1 (37 MB [V `du -sh`]) exist only in the scratchpad, which is temporary. R1-HARNESS's first step copies `<scratchpad>/restyle/before/` (the PNGs, `INVENTORY.txt`, `INVENTORY-raw.json`) to `$HOME/.conduit-verify/restyle-before/`, which every worktree on the machine reaches, adds shots 44 to 49 there, and commits `scripts/verify/fixtures/restyle/before-manifest.json`: `{ "files": { "<name>": "<sha256>" } }` for every file of the folder. `--before <dir>` defaults to `CONDUIT_RESTYLE_BEFORE`, else that folder. A file the manifest lists that is missing, or whose hash differs, fails the suite: a composite never silently disappears.
 
-1. **Screenshot.** On macOS a real window capture (`screencapture -x -o -l <windowId>`, like the reference set), elsewhere `page.screenshot()`; crops use element rectangles (`[data-cv-sidebar-header]`, `[data-cv-sidebar-footer]`, the `[data-tabbar]` rows, the popup window) where the hooks exist, and today's regions otherwise. Written to `.verify/<runId>/restyle/after/<mode>-<nn>-<name>.png`, the reference names of 3.1.
+1. **Screenshot.** On macOS a real window capture (`screencapture -x -o -l <windowId>`, like the reference set), elsewhere `page.screenshot()`. **(wave 3)** When macOS refuses the window capture (no screen recording permission), the page screenshot is used with the popup menu and toast windows' own pages laid over it at their offset from the content area; the fallback is listed under WARNINGS in `inventory-diff.txt` and never fails a scenario, since the inventory and the rules do not read pixels; crops use element rectangles (`[data-cv-sidebar-header]`, `[data-cv-sidebar-footer]`, the `[data-tabbar]` rows, the popup window) where the hooks exist, and today's regions otherwise. Written to `.verify/<runId>/restyle/after/<mode>-<nn>-<name>.png`, the reference names of 3.1.
 2. **Composite.** `sharp` writes `.verify/<runId>/restyle/compare/<mode>-<nn>-<name>.png`: before on the left, after on the right, scaled to the same height, labeled.
 3. **Inventory.** `scripts/verify/lib/inventory.mjs` records every visible control of the screen's region in document order as `{tag, text, title, aria, pressed, type, placeholder}` (the format of `INVENTORY-raw.json`; the extraction reproduces it on the unchanged layout). A `label`'s `text` is its own text without the text of form controls, buttons or options nested in it, because `FormField` and `Checkbox` nest their control inside the label (4.4, 4.6) while today's labels stand beside it. Popup menus are recorded as `{kind: item | header | separator | submenu, label, children}`, read from the menu window; the application menu from `Menu.getApplicationMenu()`. `compareInventory()` compares the result with `scripts/verify/fixtures/restyle/before-inventory.json` (the normalized `INVENTORY-raw.json` plus shots 44 to 49). Both sides are normalized first:
    - full vault paths become `<vault-path>`; the run's vault directory, wherever it appears in a title or text (the hub rows read `Acme Infrastructure /tmp/cv-4f4fcc/vaults` [V]), becomes `<vault-dir>`; ports become `<port>`;
@@ -1517,6 +1521,8 @@ A failure found by an integrator goes back to the file's owner in that wave, or 
      - **inserted where they stood**: `{tag: label, text: "Icon pack"}`, then six buttons whose texts start with `Lucide`, `Phosphor`, `Hugeicons`, `Material Symbols`, `Fluent` and `Tabler (Classic)`, in that order (OD-4). The section is required: R1-FOUNDATION has merged, so an Appearance tab without it fails. (Until the wave-1 review the change carried `insertWhen: [data-cv-appearance="icon-pack"]`, which let the tab pass without the section; the comparator keeps `insertWhen` for a future delta that needs it);
      - **inserted before `Ocean`**: `{tag: button, text: "Modern"}` (OD-7).
      Nothing else differs on that screen: the three remaining section labels stay `<label>` elements (6.4).
+
+     **(wave 3, R3-DASHBOARD)** A second entry, `home-dashboard-full-window`: the Home dashboard's type labels drop CSS `uppercase` (rule 1 of 8.4), and in the Favorites row the label is part of the button's text, which the case-insensitive rule does not cover (only part of the text was uppercase). **Removed** `{tag: button, text: "Intranet Status WEB"}`, **inserted where it stood** `{tag: button, text: "Intranet Status Web"}`.
 4. **Geometry rules.** Each rule needs hooks that a later package adds. On a screen where a rule's hooks are missing, the rule reports `pending` in `inventory-diff.txt` instead of failing; `--strict` turns every pending rule into a failure. R2-SHELL's integration and every later run use `--strict`. Height rules check only the elements that already carry their hook.
 
 | Rule | Checks | Needs | Hook added by |
@@ -1969,7 +1975,7 @@ Wave 3 restyles dialogs, screens, session views, the picker and toasts, one dire
 
 #### R3-VAULT: Vault hub and vault lifecycle dialogs
 
-**Owns:** `src/components/vault/VaultHub.tsx`, `src/components/vault/UnlockDialog.tsx`, `src/components/vault/ChangePasswordDialog.tsx`, `src/components/vault/RenameVaultDialog.tsx`, `src/components/vault/CloudRestoreDialog.tsx`, `src/components/vault/BackupManagerDialog.tsx`, `src/components/vault/BackupHistoryPanel.tsx`, `src/components/vault/BiometricSetupPrompt.tsx`, `src/components/vault/RecoveryPassphraseDialog.tsx`, `src/components/vault/ProVaultLockDialog.tsx`, `src/components/vault/ExportDialog.tsx`, `src/components/vault/VaultImportDialog.tsx`, `src/components/vault/VaultSwitcherMenu.tsx`, `src/components/vault/CloudSyncIndicator.tsx`, `src/components/vault/__tests__/ChangePasswordDialog.test.tsx`, `src/components/vault/__tests__/UnlockDialog.strict.test.tsx`, `src/components/vault/__tests__/VaultHub.test.tsx`
+**Owns:** `src/components/vault/VaultHub.tsx`, `src/components/vault/UnlockDialog.tsx`, `src/components/vault/ChangePasswordDialog.tsx`, `src/components/vault/RenameVaultDialog.tsx`, `src/components/vault/CloudRestoreDialog.tsx`, `src/components/vault/BackupManagerDialog.tsx`, `src/components/vault/BackupHistoryPanel.tsx`, `src/components/vault/BiometricSetupPrompt.tsx`, `src/components/vault/RecoveryPassphraseDialog.tsx`, `src/components/vault/ProVaultLockDialog.tsx`, `src/components/vault/ExportDialog.tsx`, `src/components/vault/VaultImportDialog.tsx`, `src/components/vault/TransferStates.tsx`, `src/components/vault/VaultSwitcherMenu.tsx`, `src/components/vault/CloudSyncIndicator.tsx`, `src/components/vault/__tests__/ChangePasswordDialog.test.tsx`, `src/components/vault/__tests__/VaultDialogs.close.test.tsx`, `src/components/vault/__tests__/UnlockDialog.strict.test.tsx`, `src/components/vault/__tests__/VaultHub.test.tsx`
 
 **Deliverables:**
 
