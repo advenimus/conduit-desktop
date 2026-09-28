@@ -1,20 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  SettingsIcon,
-  PlusIcon,
-  FolderPlusIcon,
-  SearchIcon,
-  ChevronDownIcon,
-  LoginIcon,
-  LogoutIcon,
-  StarIcon,
-  StarFilledIcon,
-  UsersIcon,
-  CloseIcon,
-  SparklesIcon,
-  ClockIcon,
-  HomeIcon,
-} from "../../lib/icons";
+import { ChevronDownIcon, ClockIcon } from "../../lib/icons";
+import { Badge, Button, Callout, IconButton, SearchInput, cx } from "../ui";
 import EntryTree from "../entries/EntryTree";
 import { TeamInvitationBanner } from "./TeamInvitationBanner";
 import VaultContextBar from "./VaultContextBar";
@@ -33,6 +19,14 @@ import TeamSyncIndicator from "../vault/TeamSyncIndicator";
 import PersonalSyncIndicator from "../sync/PersonalSyncIndicator";
 import SidebarPanel from "./SidebarPanel";
 import SidebarWindowControls from "./SidebarWindowControls";
+
+const CREATE_DISABLED_REASON = "View-only access";
+
+const TRIAL_TONES = {
+  urgent: { box: "bg-danger-bg border-danger-border text-danger", icon: "text-danger" },
+  moderate: { box: "bg-warning-bg border-warning-border text-warning", icon: "text-warning" },
+  none: { box: "bg-info-bg border-info-border text-ink", icon: "text-info" },
+} as const;
 
 export default function Sidebar() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -297,63 +291,68 @@ export default function Sidebar() {
     return () => document.removeEventListener("conduit:animated-collapse", handler);
   }, [animatedCollapse]);
 
+  const trialTone = TRIAL_TONES[trialUrgency === "urgent" || trialUrgency === "moderate" ? trialUrgency : "none"];
+
   // ── Full sidebar content (panel) ──
   const sidebarContent = (
     <>
       {/* Header */}
-      <div className={`flex items-center justify-between p-3 ${isTeamVaultActive ? "border-l-2 border-l-team-border-strong bg-team" : ""}`}>
-        <div className="flex items-center gap-1 min-w-0">
-          <SidebarWindowControls
-            isPinned={isPinned}
-            isDocked={isDocked}
-            onClose={animatedCollapse}
-            onTogglePin={togglePin}
-          />
-          <div className="relative min-w-0" ref={vaultMenuRef}>
-            <button
-              onClick={() => setShowVaultMenu(!showVaultMenu)}
-              className="flex items-center gap-1 text-sm font-semibold text-ink-secondary hover:text-ink truncate"
-              title={isNetworkVault ? `Network vault — ${currentVaultPath}` : (currentVaultPath ?? "Open a vault")}
-            >
-              {vaultName}
-              <ChevronDownIcon
-                size={14}
-                className="text-ink-muted flex-shrink-0"
-              />
-            </button>
-            {showVaultMenu && (
-              <VaultSwitcherMenu
-                onClose={() => setShowVaultMenu(false)}
-                onNeedDeviceSetup={handleNeedDeviceSetup}
-                onTeamVaultUnlock={handleTeamVaultUnlock}
-              />
-            )}
-          </div>
+      <div
+        data-cv-sidebar-header
+        className={cx(
+          "flex h-tabstrip shrink-0 items-center gap-0.5 px-1",
+          isTeamVaultActive && "border-l-2 border-l-team-border-strong bg-team",
+        )}
+      >
+        <SidebarWindowControls
+          isPinned={isPinned}
+          isDocked={isDocked}
+          onClose={animatedCollapse}
+          onTogglePin={togglePin}
+        />
+        <div className="relative min-w-0 flex-1" ref={vaultMenuRef}>
+          <button
+            type="button"
+            data-cv-vault-switcher
+            onClick={() => setShowVaultMenu(!showVaultMenu)}
+            className="-ml-1 flex h-6 max-w-full min-w-0 items-center gap-0.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover"
+            title={isNetworkVault ? `Network vault — ${currentVaultPath}` : (currentVaultPath ?? "Open a vault")}
+          >
+            <span className="min-w-0 truncate">{vaultName}</span>
+            <ChevronDownIcon size={16} className="shrink-0 text-ink-muted" />
+          </button>
+          {showVaultMenu && (
+            <VaultSwitcherMenu
+              onClose={() => setShowVaultMenu(false)}
+              onNeedDeviceSetup={handleNeedDeviceSetup}
+              onTeamVaultUnlock={handleTeamVaultUnlock}
+            />
+          )}
         </div>
-        <div className="flex items-center gap-1">
-          <button
+        <div className="flex shrink-0 items-center gap-0.5">
+          <IconButton
+            icon={showFavoritesOnly ? "starFilled" : "star"}
+            label={showFavoritesOnly ? "Show all entries" : "Show favorites only"}
             onClick={handleToggleFavorites}
-            className={`p-1.5 rounded hover:bg-raised ${showFavoritesOnly ? "text-yellow-400" : "text-ink-muted hover:text-ink"}`}
-            title={showFavoritesOnly ? "Show all entries" : "Show favorites only"}
-          >
-            {showFavoritesOnly ? <StarFilledIcon size={16} /> : <StarIcon size={16} />}
-          </button>
-          <button
+            tone={showFavoritesOnly ? "inherit" : "default"}
+            className={showFavoritesOnly ? "text-favorite" : undefined}
+          />
+          <IconButton
+            icon="plus"
+            label="New Entry"
+            title={isCreateDisabled ? CREATE_DISABLED_REASON : "New Entry (Ctrl+E)"}
+            disabled={isCreateDisabled}
+            disabledReason={CREATE_DISABLED_REASON}
             onClick={handleNewEntry}
+          />
+          <IconButton
+            icon="folderPlus"
+            label="New Folder"
+            title={isCreateDisabled ? CREATE_DISABLED_REASON : "New Folder (Ctrl+Shift+N)"}
             disabled={isCreateDisabled}
-            className={`p-1.5 rounded hover:bg-raised ${isCreateDisabled ? "opacity-30 cursor-not-allowed" : "text-ink-muted hover:text-ink"}`}
-            title={isCreateDisabled ? "View-only access" : "New Entry (Ctrl+E)"}
-          >
-            <PlusIcon size={16} />
-          </button>
-          <button
+            disabledReason={CREATE_DISABLED_REASON}
             onClick={handleNewFolder}
-            disabled={isCreateDisabled}
-            className={`p-1.5 rounded hover:bg-raised ${isCreateDisabled ? "opacity-30 cursor-not-allowed" : "text-ink-muted hover:text-ink"}`}
-            title={isCreateDisabled ? "View-only access" : "New Folder (Ctrl+Shift+N)"}
-          >
-            <FolderPlusIcon size={16} />
-          </button>
+          />
         </div>
       </div>
 
@@ -362,74 +361,47 @@ export default function Sidebar() {
 
       {/* Admin onboarding card */}
       {showTeamOnboarding && (
-        <div className="mx-2 mt-2 p-3 rounded-lg bg-conduit-500/5 border border-conduit-500/20">
-          <div className="flex items-start gap-2">
-            <UsersIcon size={16} className="text-conduit-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-ink">Create your first team vault</p>
-              <p className="text-[11px] text-ink-muted mt-0.5">
-                Share credentials securely with your team.
-              </p>
-              <button
-                onClick={() => {
-                  document.dispatchEvent(new CustomEvent("conduit:create-team-vault"));
-                  dismissOnboarding();
-                }}
-                className="mt-2 px-3 py-1 text-xs bg-conduit-600 text-white rounded hover:bg-conduit-500 transition-colors"
-              >
-                Create Team Vault
-              </button>
-            </div>
-            <button
-              onClick={dismissOnboarding}
-              className="p-0.5 text-ink-faint hover:text-ink-muted flex-shrink-0"
-              title="Dismiss"
+        <Callout
+          tone="info"
+          size="sm"
+          icon="users"
+          title="Create your first team vault"
+          className="mx-2 mt-2"
+          onDismiss={dismissOnboarding}
+          actions={
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                document.dispatchEvent(new CustomEvent("conduit:create-team-vault"));
+                dismissOnboarding();
+              }}
             >
-              <CloseIcon size={12} />
-            </button>
-          </div>
-        </div>
+              Create Team Vault
+            </Button>
+          }
+        >
+          Share credentials securely with your team.
+        </Callout>
       )}
 
       {/* Team invitation banner */}
       <TeamInvitationBanner />
 
       {/* Search */}
-      <div className="p-2">
-        <div className="flex items-center gap-2 h-9 px-2.5 bg-well rounded-md">
-          <SearchIcon size={16} className="text-ink-muted flex-shrink-0" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search entries..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape" && searchQuery) {
-                e.stopPropagation();
-                setSearchQuery("");
-              }
-            }}
-            // data-bare opts out of the global/platform input chrome (border, fill,
-            // focus outline, WinUI bottom accent) — the row is the visible field here
-            data-bare
-            className="flex-1 min-w-0 h-full bg-transparent text-sm leading-5 text-ink outline-none focus-visible:outline-none placeholder:text-ink-faint"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery("");
-                searchInputRef.current?.focus();
-              }}
-              className="flex-shrink-0 p-0.5 rounded-full text-ink-faint hover:text-ink hover:bg-raised transition-colors"
-              title="Clear search"
-              aria-label="Clear search"
-            >
-              <CloseIcon size={12} />
-            </button>
-          )}
-        </div>
+      <div data-cv-sidebar-search className="px-2 pb-2">
+        <SearchInput
+          ref={searchInputRef}
+          placeholder="Search entries..."
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && searchQuery) {
+              e.stopPropagation();
+              setSearchQuery("");
+            }
+          }}
+        />
       </div>
 
       {/* Entry Tree */}
@@ -457,7 +429,7 @@ export default function Sidebar() {
             requestAnimationFrame(step);
           }, 800);
         }}
-        className="flex-1 overflow-y-auto overflow-x-auto px-2 scrollbar-autohide"
+        className="flex-1 overflow-y-auto overflow-x-auto px-1 scrollbar-autohide"
       >
         <div className="min-w-fit">
           <EntryTree searchQuery={searchQuery} showFavoritesOnly={showFavoritesOnly} />
@@ -466,55 +438,33 @@ export default function Sidebar() {
 
       {/* Trial promotion / status */}
       {showTrialPromo && (
-        <div className="mx-2 mb-2 p-3 rounded-lg bg-conduit-500/5 border border-conduit-500/20">
-          <div className="flex items-start gap-2">
-            <SparklesIcon size={16} className="text-conduit-400 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-ink">Try Pro free for 30 days</p>
-              <button
-                onClick={() => invoke("auth_open_pricing")}
-                className="mt-2 px-3 py-1 text-xs bg-conduit-600 text-white rounded hover:bg-conduit-500 transition-colors"
-              >
-                Start Free Trial →
-              </button>
-            </div>
-            <button
-              onClick={dismissTrialPromo}
-              className="p-0.5 text-ink-faint hover:text-ink-muted flex-shrink-0"
-              title="Dismiss"
-            >
-              <CloseIcon size={12} />
-            </button>
-          </div>
-        </div>
+        <Callout
+          tone="info"
+          size="sm"
+          icon="sparkles"
+          title="Try Pro free for 30 days"
+          className="mx-2 mb-2"
+          onDismiss={dismissTrialPromo}
+          actions={
+            <Button size="sm" variant="primary" onClick={() => invoke("auth_open_pricing")}>
+              Start Free Trial →
+            </Button>
+          }
+        />
       )}
       {isTrialing && trialDaysRemaining >= 0 && (
-        <div className={`mx-2 mb-2 px-3 py-2 rounded-lg border ${
-          trialUrgency === 'urgent' ? 'bg-red-500/5 border-red-500/20' :
-          trialUrgency === 'moderate' ? 'bg-amber-500/5 border-amber-500/20' :
-          'bg-conduit-500/5 border-conduit-500/20'
-        }`}>
-          <div className="flex items-center gap-2">
-            <ClockIcon size={14} className={
-              trialUrgency === 'urgent' ? 'text-red-400' :
-              trialUrgency === 'moderate' ? 'text-amber-400' :
-              'text-conduit-400'
-            } />
-            <span className={`text-xs font-medium ${
-              trialUrgency === 'urgent' ? 'text-red-400' :
-              trialUrgency === 'moderate' ? 'text-amber-400' :
-              'text-ink'
-            }`}>
-              Pro Trial — {trialDaysRemaining} {trialDaysRemaining === 1 ? 'day' : 'days'} left
-            </span>
-          </div>
+        <div className={cx("mx-2 mb-2 flex h-7 items-center gap-2 rounded-md border px-2 text-label font-semibold", trialTone.box)}>
+          <ClockIcon size={16} className={cx("shrink-0", trialTone.icon)} />
+          <span className="truncate">
+            Pro Trial — {trialDaysRemaining} {trialDaysRemaining === 1 ? 'day' : 'days'} left
+          </span>
         </div>
       )}
       {/* Footer — home + settings + account */}
-      <div className="border-t border-stroke-dim">
-        <div className="flex items-center justify-between px-3 py-2">
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-ink-faint">
+      <div data-cv-sidebar-footer className="shrink-0 border-t border-divider">
+        <div className="flex h-8 items-center justify-between gap-1 px-2">
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="text-meta text-ink-faint tabular-nums whitespace-nowrap">
               {showFavoritesOnly
                 ? `${favoriteCount} ${favoriteCount === 1 ? "favorite" : "favorites"}`
                 : `${totalItems} ${totalItems === 1 ? "item" : "items"}`}
@@ -523,73 +473,50 @@ export default function Sidebar() {
             <CloudSyncIndicator />
             <TeamSyncIndicator />
           </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleHome}
-              className="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink"
-              title="Home"
-            >
-              <HomeIcon size={16} />
-            </button>
-            <button
-              onClick={handleSettings}
-              className="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink"
-              title="Settings (Ctrl+,)"
-            >
-              <SettingsIcon size={16} />
-            </button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <IconButton icon="home" label="Home" onClick={handleHome} />
+            <IconButton icon="settings" label="Settings" title="Settings (Ctrl+,)" onClick={handleSettings} />
           </div>
         </div>
         {user ? (
-          <div className="flex items-center justify-between px-3 py-2 border-t border-stroke-dim">
-            <div className="flex items-center gap-1.5 min-w-0 mr-2">
+          <div className="flex h-8 items-center justify-between gap-2 px-2 border-t border-divider">
+            <div className="flex min-w-0 items-center gap-1.5">
               <button
+                type="button"
                 onClick={() => document.dispatchEvent(new CustomEvent("conduit:settings", { detail: { tab: "account" } }))}
-                className="text-xs text-ink-muted truncate hover:text-ink hover:underline text-left"
+                className="min-w-0 truncate text-left text-label text-ink-muted hover:text-ink hover:underline"
                 title="Account Settings"
               >
                 {user.email}
               </button>
               {authMode === 'cached' && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-600/20 text-amber-400 rounded flex-shrink-0">
+                <Badge tone="warning" className="shrink-0">
                   offline
-                </span>
+                </Badge>
               )}
             </div>
             {showSignOutConfirm ? (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <button
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="danger"
                   onClick={async () => { setShowSignOutConfirm(false); await signOut(); }}
-                  className="px-2 py-0.5 text-xs text-white bg-red-600 hover:bg-red-700 rounded"
                 >
                   Confirm
-                </button>
-                <button
-                  onClick={() => setShowSignOutConfirm(false)}
-                  className="px-2 py-0.5 text-xs hover:bg-raised rounded text-ink-muted"
-                >
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowSignOutConfirm(false)}>
                   Cancel
-                </button>
+                </Button>
               </div>
             ) : (
-              <button
-                onClick={() => setShowSignOutConfirm(true)}
-                className="p-1 rounded hover:bg-raised text-ink-muted hover:text-red-400 flex-shrink-0"
-                title="Sign Out"
-              >
-                <LogoutIcon size={14} />
-              </button>
+              <IconButton icon="logout" tone="danger" label="Sign Out" onClick={() => setShowSignOutConfirm(true)} />
             )}
           </div>
         ) : authMode === 'local' ? (
-          <div className="px-3 py-2 border-t border-stroke-dim">
-            <button
-              onClick={() => useAuthStore.getState().exitToSignIn()}
-              className="flex items-center gap-1.5 text-xs text-conduit-400 hover:text-conduit-300 transition-colors"
-            >
-              <LoginIcon size={12} />
+          <div className="px-2 py-1.5 border-t border-divider">
+            <Button variant="link" size="sm" icon="login" onClick={() => useAuthStore.getState().exitToSignIn()}>
               Sign in to start a free Pro trial
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>

@@ -25,18 +25,18 @@ export default function CloudSyncIndicator() {
   if (status === "synced") {
     return (
       <div
-        className="p-1 text-green-400"
+        className="flex size-toolbar shrink-0 items-center justify-center text-success"
         title={`Cloud synced${lastSyncedAt ? `: ${formatTime(lastSyncedAt)}` : ""}`}
       >
-        <CloudIcon size={14} />
+        <CloudIcon size={16} />
       </div>
     );
   }
 
   if (status === "syncing") {
     return (
-      <div className="p-1 text-conduit-400 animate-pulse" title="Syncing...">
-        <CloudIcon size={14} />
+      <div className="flex size-toolbar shrink-0 items-center justify-center text-info animate-pulse" title="Syncing...">
+        <CloudIcon size={16} />
       </div>
     );
   }
@@ -44,18 +44,18 @@ export default function CloudSyncIndicator() {
   if (status === "error") {
     return (
       <div
-        className="p-1 text-amber-400"
+        className="flex size-toolbar shrink-0 items-center justify-center text-warning"
         title={`Sync error: ${error ?? "Unknown error"}`}
       >
-        <AlertTriangleIcon size={14} />
+        <AlertTriangleIcon size={16} />
       </div>
     );
   }
 
   // idle
   return (
-    <div className="p-1 text-ink-faint" title="Cloud backup enabled">
-      <CloudOffIcon size={14} />
+    <div className="flex size-toolbar shrink-0 items-center justify-center text-ink-faint" title="Cloud backup enabled">
+      <CloudOffIcon size={16} />
     </div>
   );
 }

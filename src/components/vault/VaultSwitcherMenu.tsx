@@ -4,9 +4,42 @@ import { useAuthStore } from "../../stores/authStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { invoke } from "../../lib/electron";
 import { showContextMenu } from "../../utils/contextMenu";
+import type { ComponentPropsWithRef, ReactNode } from "react";
 import {
   ArrowsExchangeIcon, CheckIcon, ChevronRightIcon, FolderOpenIcon, LockIcon, NetworkIcon, PlusIcon, UsersIcon
 } from "../../lib/icons";
+import { Menu, MenuHeader, MenuSeparator, cx } from "../ui";
+
+interface VaultMenuRowProps extends ComponentPropsWithRef<"button"> {
+  /** The 16px leading slot: the current vault's check, or the row's icon. Empty keeps the names aligned. */
+  lead?: ReactNode;
+}
+
+/** A row with the DOM menu item look (spec 3.6, 4.10); rows stay buttons because the harness clicks them by text (B43). */
+function VaultMenuRow({ lead, className, children, onMouseEnter, ...rest }: VaultMenuRowProps) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      tabIndex={-1}
+      onMouseEnter={(e) => {
+        onMouseEnter?.(e);
+        e.currentTarget.focus();
+      }}
+      className={cx(
+        "mx-1 flex h-6 w-[calc(100%-8px)] items-center gap-2 rounded-md px-2 text-left text-body text-ink-secondary",
+        "focus:bg-(--c-menu-selection-bg) focus:outline focus:outline-1 focus:-outline-offset-1 focus:outline-(--c-menu-selection-border)",
+        className,
+      )}
+      {...rest}
+    >
+      <span className="flex size-4 shrink-0 items-center justify-center text-ink-muted">{lead}</span>
+      {children}
+    </button>
+  );
+}
+
+const currentMark = <CheckIcon size={16} className="text-ink-secondary" />;
 
 interface VaultSwitcherMenuProps {
   onClose: () => void;
@@ -108,15 +141,17 @@ export default function VaultSwitcherMenu({
   const isSignedIn = authMode === "authenticated" || authMode === "cached";
 
   return (
-    <div data-context-menu className="absolute top-full left-0 mt-1 w-[280px] bg-panel rounded-lg shadow-lg border border-stroke-dim z-50 py-1 overflow-hidden">
-      {/* Personal Vaults */}
-      <div className="px-3 py-1.5 text-[10px] font-semibold text-ink-faint uppercase tracking-wider">
-        Personal Vaults
-      </div>
+    <Menu
+      data-context-menu
+      autoFocus={false}
+      className="absolute top-full left-0 z-50 mt-1 w-[280px] overflow-hidden rounded-lg border border-overlay-border bg-overlay shadow-overlay"
+    >
+      <MenuHeader>Personal Vaults</MenuHeader>
 
       {/* Current vault */}
       {currentVaultPath && (
-        <button
+        <VaultMenuRow
+          lead={isPersonalActive ? currentMark : null}
           onClick={() => {
             if (vaultType === "team") {
               handlePersonalVault(currentVaultPath);
@@ -124,22 +159,14 @@ export default function VaultSwitcherMenu({
               onClose();
             }
           }}
-          className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-well rounded-sm mx-0"
         >
-          <span
-            className={`w-5 flex items-center justify-center ${
-              isPersonalActive ? "text-conduit-400" : "text-transparent"
-            }`}
-          >
-            <CheckIcon size={14} />
-          </span>
-          <span className={`truncate ${isPersonalActive ? "text-ink font-medium" : "text-ink-secondary"}`}>
+          <span className={cx("min-w-0 truncate", isPersonalActive && "font-semibold text-ink")}>
             {currentVaultPath.split(/[/\\]/).pop()?.replace(".conduit", "") ?? "Vault"}
           </span>
           {isNetworkVault && isPersonalActive && (
             <span title="Network vault"><NetworkIcon size={12} className="text-ink-faint flex-shrink-0" /></span>
           )}
-        </button>
+        </VaultMenuRow>
       )}
 
       {/* Recent vaults */}
@@ -147,46 +174,30 @@ export default function VaultSwitcherMenu({
         const fileName =
           vaultPath.split(/[/\\]/).pop()?.replace(".conduit", "") ?? vaultPath;
         return (
-          <button
+          <VaultMenuRow
             key={vaultPath}
             onClick={() => handlePersonalVault(vaultPath)}
             onContextMenu={(e) => handleRecentVaultContextMenu(e, vaultPath)}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm text-ink-secondary hover:bg-well rounded-sm mx-0"
             title={vaultPath}
           >
-            <span className="w-5" />
-            <span className="truncate">{fileName}</span>
-          </button>
+            <span className="min-w-0 truncate">{fileName}</span>
+          </VaultMenuRow>
         );
       })}
 
       {/* New / Open vault */}
-      <button
-        onClick={handleNewVault}
-        className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm text-ink-muted hover:bg-well hover:text-ink rounded-sm mx-0"
-      >
-        <span className="w-5 flex items-center justify-center">
-          <PlusIcon size={14} />
-        </span>
+      <VaultMenuRow lead={<PlusIcon size={16} />} onClick={handleNewVault}>
         New Vault...
-      </button>
-      <button
-        onClick={handleOpenVault}
-        className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm text-ink-muted hover:bg-well hover:text-ink rounded-sm mx-0"
-      >
-        <span className="w-5 flex items-center justify-center">
-          <FolderOpenIcon size={14} />
-        </span>
+      </VaultMenuRow>
+      <VaultMenuRow lead={<FolderOpenIcon size={16} />} onClick={handleOpenVault}>
         Open Vault File...
-      </button>
+      </VaultMenuRow>
 
       {/* Team Vaults section */}
       {isSignedIn && (
         <>
-          <div className="border-t border-stroke-dim my-1" />
-          <div className="px-3 py-1.5 text-[10px] font-semibold text-ink-faint uppercase tracking-wider">
-            Team Vaults
-          </div>
+          <MenuSeparator />
+          <MenuHeader>Team Vaults</MenuHeader>
 
           {isTeamMember && team ? (
             <>
@@ -195,8 +206,9 @@ export default function VaultSwitcherMenu({
                   const isActive =
                     vaultType === "team" && teamVaultId === vault.id;
                   return (
-                    <button
+                    <VaultMenuRow
                       key={vault.id}
+                      lead={isActive ? currentMark : null}
                       onClick={() => {
                         if (isActive) {
                           onClose();
@@ -204,33 +216,20 @@ export default function VaultSwitcherMenu({
                           handleTeamVault(vault);
                         }
                       }}
-                      className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-well rounded-sm mx-0"
                       title={vault.description ?? vault.name}
                     >
-                      <span
-                        className={`w-5 flex items-center justify-center ${
-                          isActive ? "text-conduit-400" : "text-transparent"
-                        }`}
-                      >
-                        <CheckIcon size={14} />
-                      </span>
-                      <UsersIcon
-                        size={14}
-                        className="text-conduit-400 flex-shrink-0"
-                      />
-                      <span
-                        className={`truncate flex-1 ${isActive ? "text-ink font-medium" : "text-ink-secondary"}`}
-                      >
+                      <UsersIcon size={16} className="text-ink-muted flex-shrink-0" />
+                      <span className={cx("min-w-0 flex-1 truncate", isActive && "font-semibold text-ink")}>
                         {vault.name}
                       </span>
-                      <span className="text-[10px] text-ink-faint flex-shrink-0">
+                      <span className="text-badge text-ink-faint tabular-nums flex-shrink-0">
                         {vault.member_count}
                       </span>
-                    </button>
+                    </VaultMenuRow>
                   );
                 })
               ) : (
-                <div className="px-3 py-2 text-xs text-ink-faint leading-relaxed">
+                <div className="px-3 py-1.5 text-label text-ink-muted">
                   No team vaults yet.{" "}
                   {myRole === "admin"
                     ? "Create a shared vault for your team."
@@ -239,31 +238,22 @@ export default function VaultSwitcherMenu({
               )}
 
               {myRole === "admin" && (
-                <button
-                  onClick={handleCreateTeamVault}
-                  className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm text-ink-muted hover:bg-well hover:text-ink rounded-sm mx-0"
-                >
-                  <span className="w-5 flex items-center justify-center">
-                    <PlusIcon size={14} />
-                  </span>
+                <VaultMenuRow lead={<PlusIcon size={16} />} onClick={handleCreateTeamVault}>
                   Create Team Vault...
-                </button>
+                </VaultMenuRow>
               )}
             </>
           ) : (
-            <button
+            <VaultMenuRow
+              lead={<UsersIcon size={16} />}
               onClick={() => {
                 onClose();
                 invoke('auth_open_account');
               }}
-              className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm text-ink-muted hover:bg-well hover:text-ink rounded-sm mx-0"
             >
-              <span className="w-5 flex items-center justify-center">
-                <UsersIcon size={14} className="text-ink-faint" />
-              </span>
-              <span className="text-xs flex-1">Upgrade to Teams for shared vaults</span>
-              <ChevronRightIcon size={12} className="text-ink-faint" />
-            </button>
+              <span className="min-w-0 flex-1 truncate text-label">Upgrade to Teams for shared vaults</span>
+              <ChevronRightIcon size={12} className="text-ink-faint flex-shrink-0" />
+            </VaultMenuRow>
           )}
         </>
       )}
@@ -271,27 +261,15 @@ export default function VaultSwitcherMenu({
       {/* Lock & Switch */}
       {isUnlocked && (
         <>
-          <div className="border-t border-stroke-dim my-1" />
-          <button
-            onClick={handleLock}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm text-ink-muted hover:bg-well hover:text-ink rounded-sm mx-0"
-          >
-            <span className="w-5 flex items-center justify-center">
-              <LockIcon size={14} />
-            </span>
+          <MenuSeparator />
+          <VaultMenuRow lead={<LockIcon size={16} />} onClick={handleLock}>
             Lock Current Vault
-          </button>
-          <button
-            onClick={handleLock}
-            className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm text-ink-muted hover:bg-well hover:text-ink rounded-sm mx-0"
-          >
-            <span className="w-5 flex items-center justify-center">
-              <ArrowsExchangeIcon size={14} />
-            </span>
+          </VaultMenuRow>
+          <VaultMenuRow lead={<ArrowsExchangeIcon size={16} />} onClick={handleLock}>
             Switch Vault...
-          </button>
+          </VaultMenuRow>
         </>
       )}
-    </div>
+    </Menu>
   );
 }

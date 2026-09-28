@@ -50,16 +50,16 @@ export default function TeamSyncIndicator() {
 
   if (status === "synced") {
     return (
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center">
         <div
-          className="p-1 text-blue-400"
+          className="flex size-toolbar shrink-0 items-center justify-center text-info"
           title={`Team vault synced${lastSyncedAt ? `: ${formatTime(lastSyncedAt)}` : ""}`}
         >
-          <UsersIcon size={14} />
+          <UsersIcon size={16} />
         </div>
         {syncFailures > 0 && (
           <div
-            className="p-1 text-amber-400"
+            className="flex size-toolbar shrink-0 items-center justify-center text-warning"
             title={`${syncFailures} item${syncFailures === 1 ? "" : "s"} failed to sync — will retry automatically`}
           >
             <AlertTriangleIcon size={12} />
@@ -71,8 +71,8 @@ export default function TeamSyncIndicator() {
 
   if (status === "syncing") {
     return (
-      <div className="p-1 text-blue-400 animate-pulse" title="Syncing team vault...">
-        <UsersIcon size={14} />
+      <div className="flex size-toolbar shrink-0 items-center justify-center text-info animate-pulse" title="Syncing team vault...">
+        <UsersIcon size={16} />
       </div>
     );
   }
@@ -80,26 +80,26 @@ export default function TeamSyncIndicator() {
   if (status === "offline") {
     return (
       <div
-        className="p-1 text-amber-400"
+        className="flex size-toolbar shrink-0 items-center justify-center text-warning"
         title={`Team vault offline${pendingChanges > 0 ? ` (${pendingChanges} pending changes)` : ""}`}
       >
-        <WifiOffIcon size={14} />
+        <WifiOffIcon size={16} />
       </div>
     );
   }
 
   if (status === "error") {
     return (
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center">
         <div
-          className="p-1 text-red-400"
+          className="flex size-toolbar shrink-0 items-center justify-center text-danger"
           title={`Team sync error: ${error ?? "Unknown error"}`}
         >
-          <AlertTriangleIcon size={14} />
+          <AlertTriangleIcon size={16} />
         </div>
         {syncFailures > 0 && (
           <span
-            className="text-[10px] text-amber-400"
+            className="text-badge text-warning"
             title={`${syncFailures} item${syncFailures === 1 ? "" : "s"} failed to sync — will retry automatically`}
           >
             {syncFailures}
