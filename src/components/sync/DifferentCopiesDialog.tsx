@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { DevicesIcon } from "../../lib/icons";
 import { syncApi, errorText } from "../../lib/sync-api";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
@@ -53,10 +52,10 @@ export default function DifferentCopiesDialog({ prompt }: { prompt: DifferentCop
 
   return (
     <SyncDialogFrame
-      icon={DevicesIcon}
+      icon="devices"
       tone="warn"
       title="Two copies of this vault"
-      width="w-[500px]"
+      width={500}
       onEscape={() => void later()}
       footer={
         <>

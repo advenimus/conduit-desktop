@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { AlertTriangleIcon } from "../../lib/icons";
+import { IconSlot } from "../ui";
 import { useSyncStore } from "../../stores/syncStore";
 import { groupsForRow } from "../../stores/sync-reducers";
 import type { FieldConflict } from "../../types/sync";
-import ConflictFieldRow, { smallButton } from "./ConflictFieldRow";
+import ConflictFieldRow from "./ConflictFieldRow";
+import SmallButton from "./SmallButton";
 
 interface EntryConflictInlineProps {
   entryId: string;
@@ -29,27 +30,27 @@ export default function EntryConflictInline({ entryId, mode }: EntryConflictInli
   if (mode === "editor") {
     const names = fields.map((f) => f.label).join(", ");
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-300">
-        <AlertTriangleIcon size={14} className="flex-shrink-0" />
+      <div className="flex items-center gap-2 border-b border-warning-border bg-warning-bg px-4 py-2 text-label text-warning">
+        <IconSlot icon="alertTriangle" className="shrink-0" />
         <span className="flex-1">
           {names ? `Other devices saved different values for: ${names}.` : "Other devices changed this item."} Fields you change here replace the other versions.
         </span>
-        <button type="button" onClick={openReview} className={smallButton()}>Review</button>
+        <SmallButton onClick={openReview}>Review</SmallButton>
       </div>
     );
   }
 
   return (
-    <div className="px-6 py-4 border-b border-stroke space-y-2 bg-amber-500/5">
+    <div className="space-y-2 border-b border-stroke bg-warning-bg px-6 py-4">
       <div className="flex items-center gap-2">
-        <AlertTriangleIcon size={16} className="text-amber-400" />
-        <span className="text-sm font-medium text-ink flex-1">Your devices saved different versions</span>
-        <button type="button" onClick={openReview} className={smallButton()}>Open review</button>
+        <IconSlot icon="alertTriangle" className="text-warning" />
+        <span className="flex-1 text-body font-semibold text-ink">Your devices saved different versions</span>
+        <SmallButton onClick={openReview}>Open review</SmallButton>
       </div>
       {fields.map((f) => (
         <ConflictFieldRow key={`${f.key.rowId}:${f.key.reg}`} field={f} itemTitle={title} compact />
       ))}
-      {fields.length === 0 && <p className="text-xs text-ink-muted">Other devices changed this item in different ways. Open the review to decide.</p>}
+      {fields.length === 0 && <p className="text-label text-ink-muted">Other devices changed this item in different ways. Open the review to decide.</p>}
     </div>
   );
 }

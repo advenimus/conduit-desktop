@@ -2,9 +2,9 @@ import { errorText } from "../../lib/sync-api";
 import { useSyncStore } from "../../stores/syncStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { toast } from "../common/Toast";
-import { AlertTriangleIcon } from "../../lib/icons";
+import { IconSlot } from "../ui";
 import { noticeText } from "./sync-copy";
-import { smallButton } from "./ConflictFieldRow";
+import SmallButton from "./SmallButton";
 import type { LocalNotice } from "../../types/sync";
 
 const NO_NOTICES: readonly LocalNotice[] = [];
@@ -27,15 +27,15 @@ export default function SyncNoticeList() {
   return (
     <div className="space-y-2">
       {notices.map((n) => (
-        <div key={n.id} className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/20">
-          <AlertTriangleIcon size={14} className="text-amber-400 mt-0.5 flex-shrink-0" />
-          <p className="flex-1 text-xs text-ink-secondary">{noticeText(n, itemName(n))}</p>
+        <div key={n.id} data-cv-sync-notice="" className="flex items-start gap-2 rounded-md border border-warning-border bg-warning-bg p-2.5">
+          <IconSlot icon="alertTriangle" className="mt-px shrink-0 text-warning" />
+          <p data-cv-sync-notice-text="" className="flex-1 text-label text-ink-secondary">{noticeText(n, itemName(n))}</p>
           {n.kind === "mass-change" && (
-            <button type="button" onClick={() => useSyncStore.getState().openView({ kind: "mass-change", noticeId: n.id })} className={smallButton(true)}>
+            <SmallButton primary onClick={() => useSyncStore.getState().openView({ kind: "mass-change", noticeId: n.id })}>
               Review
-            </button>
+            </SmallButton>
           )}
-          <button type="button" onClick={() => dismiss(n.id)} className={smallButton()}>OK</button>
+          <SmallButton onClick={() => dismiss(n.id)}>OK</SmallButton>
         </div>
       ))}
     </div>

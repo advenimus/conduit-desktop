@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { FileImportIcon, LoaderIcon } from "../../lib/icons";
 import { syncApi, errorText } from "../../lib/sync-api";
 import { useSyncStore } from "../../stores/syncStore";
 import { rowKeyString } from "../../stores/sync-reducers";
 import { toast } from "../common/Toast";
 import type { CandidatePreview, CandidatePreviewRow, SyncRowKey } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
+import { Checkbox, Spinner } from "../ui";
 import { formatValue, MASKED_VALUE } from "./conflict-logic";
 import { plural } from "./sync-copy";
 import { confirmSideFilesAfterReview } from "./side-files-actions";
@@ -16,8 +16,8 @@ function RowList({ title, rows }: { title: string; rows: readonly CandidatePrevi
   if (rows.length === 0) return null;
   return (
     <div>
-      <p className="text-xs font-medium text-ink mb-1">{title} ({rows.length})</p>
-      <ul className="text-xs text-ink-muted list-disc pl-5 space-y-0.5">
+      <p className="mb-1 text-label font-semibold text-ink">{title} ({rows.length})</p>
+      <ul className="text-label text-ink-muted list-disc pl-5 space-y-0.5">
         {rows.slice(0, MAX_LISTED).map((r) => <li key={rowKeyString(r.row)}>{r.title}</li>)}
         {rows.length > MAX_LISTED && <li>and {rows.length - MAX_LISTED} more</li>}
       </ul>
@@ -29,10 +29,10 @@ function ChangedFields({ preview }: { preview: CandidatePreview }) {
   if (preview.changedFields.length === 0) return null;
   return (
     <div>
-      <p className="text-xs font-medium text-ink mb-1">Different values ({preview.changedFields.length})</p>
+      <p className="mb-1 text-label font-semibold text-ink">Different values ({preview.changedFields.length})</p>
       <div className="max-h-40 overflow-y-auto rounded border border-stroke divide-y divide-stroke-dim">
         {preview.changedFields.slice(0, 50).map((f) => (
-          <div key={`${rowKeyString(f.key)}:${f.key.reg}`} className="px-2 py-1.5 text-xs">
+          <div key={`${rowKeyString(f.key)}:${f.key.reg}`} className="px-2 py-1.5 text-label">
             <span className="text-ink">{f.rowTitle}</span> <span className="text-ink-muted">{f.label}:</span>{" "}
             <span className="font-mono">{f.masked ? MASKED_VALUE : formatValue(f.current)}</span>
             <span className="text-ink-muted"> in the vault, </span>
@@ -102,9 +102,9 @@ export default function CandidateMergeDialog({ candidateId, confirmSideFilesAfte
 
   return (
     <SyncDialogFrame
-      icon={FileImportIcon}
+      icon="fileImport"
       title={preview ? `Merge '${preview.label}'?` : "Merge a copy"}
-      width="w-[560px]"
+      width={560}
       onEscape={close}
       footer={
         <>
@@ -115,7 +115,7 @@ export default function CandidateMergeDialog({ candidateId, confirmSideFilesAfte
       }
     >
       {!preview ? (
-        <div className="flex items-center gap-2"><LoaderIcon size={16} className="animate-spin" /> Comparing...</div>
+        <Spinner text="Comparing..." />
       ) : (
         <>
           <p>{introText(preview.kind)}</p>
@@ -124,10 +124,9 @@ export default function CandidateMergeDialog({ candidateId, confirmSideFilesAfte
           <RowList title="Deleted in this copy (merging deletes them unless your vault changed them since)" rows={preview.deletions} />
           <RowList title="Missing from this copy" rows={preview.missingFromCopy} />
           {preview.missingFromCopy.length > 0 && (
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <input type="checkbox" checked={deleteMissing} onChange={(e) => setDeleteMissing(e.target.checked)} className="accent-conduit-500" />
+            <Checkbox checked={deleteMissing} onChange={setDeleteMissing}>
               Delete the missing items from the vault too
-            </label>
+            </Checkbox>
           )}
         </>
       )}

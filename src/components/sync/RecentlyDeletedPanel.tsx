@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { LoaderIcon, TrashIcon } from "../../lib/icons";
 import { syncApi, errorText } from "../../lib/sync-api";
 import { useSyncStore } from "../../stores/syncStore";
 import { rowKeyString } from "../../stores/sync-reducers";
@@ -7,6 +6,7 @@ import { toast } from "../common/Toast";
 import ConfirmDialog from "../common/ConfirmDialog";
 import type { RecentlyDeletedItem, SyncRowKey } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
+import { Checkbox, Spinner } from "../ui";
 import { deviceNameOr, formatAgo, plural } from "./sync-copy";
 
 type PendingDelete = { readonly rows: readonly SyncRowKey[] } | { readonly all: true } | null;
@@ -14,16 +14,22 @@ type PendingDelete = { readonly rows: readonly SyncRowKey[] } | { readonly all: 
 function ItemRow({ item, checked, onToggle }: { item: RecentlyDeletedItem; checked: boolean; onToggle: () => void }) {
   const by = item.deviceName ? ` on ${deviceNameOr(item.deviceName)}` : "";
   return (
-    <label className={`flex items-center gap-3 py-2 border-b border-stroke-dim last:border-b-0 ${item.redacted ? "opacity-60" : "cursor-pointer"}`}>
-      <input type="checkbox" checked={checked} disabled={item.redacted} onChange={onToggle} className="accent-conduit-500" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-ink truncate">{item.title}</p>
-        <p className="text-xs text-ink-muted">
+    <Checkbox
+      checked={checked}
+      disabled={item.redacted}
+      onChange={onToggle}
+      className="w-full border-b border-stroke-dim py-2 last:border-b-0"
+      description={
+        <span data-cv-row-detail="">
           {item.redacted ? "Erased permanently" : `Deleted ${formatAgo(item.diedMs)}${by}`}
           {item.entryType ? ` · ${item.entryType}` : ""}
-        </p>
-      </div>
-    </label>
+        </span>
+      }
+    >
+      <span data-cv-row-title="" className="block truncate text-ink">
+        {item.title}
+      </span>
+    </Checkbox>
   );
 }
 
@@ -97,10 +103,10 @@ export default function RecentlyDeletedPanel() {
   return (
     <>
       <SyncDialogFrame
-        icon={TrashIcon}
+        icon="trash"
         title="Recently deleted"
-        width="w-[560px]"
-        onEscape={() => (pendingDelete ? setPendingDelete(null) : close())}
+        width={560}
+        onEscape={close}
         footer={
           <>
             <DialogButton variant="danger" disabled={busy || selectedRows.length === 0} onClick={() => setPendingDelete({ rows: selectedRows })}>Delete permanently</DialogButton>
@@ -110,37 +116,36 @@ export default function RecentlyDeletedPanel() {
           </>
         }
       >
-        <label className="flex items-center gap-2 text-xs cursor-pointer">
-          <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} className="accent-conduit-500" />
+        <Checkbox checked={showAll} onChange={setShowAll}>
           Show items deleted more than 30 days ago
-        </label>
+        </Checkbox>
         {items === null ? (
-          <div className="flex items-center gap-2"><LoaderIcon size={16} className="animate-spin" /> Loading...</div>
+          <Spinner text="Loading..." />
         ) : loadFailed ? (
           <LoadFailed what="the deleted items" onRetry={() => void load()} />
         ) : items.length === 0 ? (
           <p>Nothing was deleted recently.</p>
         ) : (
-          <div className="max-h-80 overflow-y-auto">
+          <div data-cv-deleted-list="" className="max-h-80 overflow-y-auto">
             {items.map((i) => <ItemRow key={rowKeyString(i.row)} item={i} checked={selected.has(rowKeyString(i.row))} onToggle={() => toggle(rowKeyString(i.row))} />)}
           </div>
         )}
       </SyncDialogFrame>
       {pendingDelete && (
-        <div className="relative z-[70]">
-          <ConfirmDialog
-            title="Delete permanently?"
-            message="This erases the items on every device that syncs this vault. It can't be undone."
-            confirmLabel="Delete permanently"
-            variant="danger"
-            onConfirm={() => {
-              const target = pendingDelete;
-              setPendingDelete(null);
-              void erase(target);
-            }}
-            onCancel={() => setPendingDelete(null)}
-          />
-        </div>
+        <ConfirmDialog
+          title="Delete permanently?"
+          message="This erases the items on every device that syncs this vault. It can't be undone."
+          confirmLabel="Delete permanently"
+          variant="danger"
+          layer="stacked"
+          closeOnEscape
+          onConfirm={() => {
+            const target = pendingDelete;
+            setPendingDelete(null);
+            void erase(target);
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </>
   );

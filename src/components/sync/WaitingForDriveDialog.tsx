@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { CloudDownloadIcon, LoaderIcon } from "../../lib/icons";
 import { syncApi, errorText } from "../../lib/sync-api";
 import { toast } from "../common/Toast";
 import type { WaitingDevice, WaitingForDriveState } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
+import { Spinner } from "../ui";
 import { deviceNameOr, formatAgo } from "./sync-copy";
 
 function deviceLabel(d: WaitingDevice | undefined): string {
@@ -61,12 +61,12 @@ export function WaitActions({ waiting, duringUnlock }: WaitActionsProps) {
 export default function WaitingForDriveDialog({ waiting, duringUnlock }: WaitActionsProps) {
   return (
     <SyncDialogFrame
-      icon={CloudDownloadIcon}
+      icon="cloudDownload"
       title="Getting the latest changes"
       footer={<WaitActions waiting={waiting} duringUnlock={duringUnlock} />}
     >
       <div className="flex items-center gap-2 text-ink">
-        <LoaderIcon size={16} className="animate-spin text-conduit-400 flex-shrink-0" />
+        <Spinner className="shrink-0 text-link" />
         <span>{waitingText(waiting)}</span>
       </div>
       <p>Conduit continues on its own when the file arrives. Opening now is safe: changes merge when they arrive.</p>
