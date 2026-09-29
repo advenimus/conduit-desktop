@@ -15,6 +15,7 @@
     "dev:electron:prod": "cross-env CONDUIT_ENV=production tsc -p electron/tsconfig.json && cd mcp && npx tsc && cd .. && concurrently -k \"cross-env CONDUIT_ENV=production vite\" \"wait-on http://localhost:1420 && cross-env CONDUIT_ENV=production electron .\"",
     "build": "tsc && vite build && tsc -p electron/tsconfig.json && cd mcp && npx tsc",
     "build:mac": "cross-env CONDUIT_ENV=production npm run build && electron-builder --mac",
+    "icons:mac": "bash scripts/build-mac-icon.sh",
     "build:win": "cross-env CONDUIT_ENV=production npm run build && electron-builder --win",
     "build:linux": "cross-env CONDUIT_ENV=production npm run build && electron-builder --linux",
     "preview": "vite preview",
