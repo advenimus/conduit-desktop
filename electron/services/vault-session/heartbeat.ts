@@ -9,8 +9,8 @@
 
 import { SESSION_LOG_PREFIX, type TimerHandle } from '../sync/host.js';
 import type { LeaseTracker } from './lease.js';
-import type { AcquireArgs, AcquireResult, HeartbeatArgs, HeartbeatResult, SessionClientPort, SessionIds } from './session-client.js';
-import type { DisplacementReason, Holder, SessionHost } from './host.js';
+import type { AcquireArgs, AcquireResult, DenialCause, HeartbeatArgs, HeartbeatResult, Ownership, SessionClientPort, SessionIds } from './session-client.js';
+import type { DisplacedDetail, DisplacementReason, Holder, SessionHost } from './host.js';
 import { acknowledgesMarker, actionFor, errorName, heartbeatArgs, readContext } from './heartbeat-inputs.js';
 
 export { ACTIVE_WINDOW_MS, isActive } from './heartbeat-inputs.js';
@@ -32,9 +32,14 @@ export interface HeartbeatContext {
 
 export interface HeartbeatEvents {
   /** Server or superseded displacement: the runtime runs displacement (6.6). */
-  displaced(reason: DisplacementReason, byDeviceName: string | null): void;
-  /** A re-acquire after reconnect found another holder (6.8 "Reachable again"). */
-  reconnectConflict(holders: readonly Holder[]): void;
+  displaced(reason: DisplacementReason, byDeviceName: string | null, detail?: DisplacedDetail): void;
+  /**
+   * A re-acquire after reconnect found another holder (6.8 "Reachable again"), or the account's
+   * device cap full (plan enforcement S3: holders[0] is the device a take-over would lock).
+   */
+  reconnectConflict(holders: readonly Holder[], cause?: DenialCause, deviceCap?: number | null): void;
+  /** Every confirmed grant or heartbeat `ok` (ownerCheck, owner tag, banners); null ownership is unknown. */
+  ownershipConfirmed?(ownership: Ownership | null): void;
   /** Lease became confirmed or unconfirmed (badge, effective limit). */
   leaseChanged(): void;
   /** Server limit changed (plan change, 6.9). */
@@ -51,7 +56,7 @@ export interface HeartbeatDeps {
   readonly client: SessionClientPort;
   readonly lease: LeaseTracker;
   readonly host: Pick<SessionHost, 'clock' | 'timers' | 'logger' | 'power' | 'activity' | 'busy'>;
-  /** Acquire arguments for re-acquire (takeover always false here). */
+  /** Acquire arguments for re-acquire (takeover and claim always false here: background re-acquires never claim). */
   readonly acquireArgs: () => AcquireArgs;
   readonly context: () => HeartbeatContext;
   readonly events: HeartbeatEvents;
@@ -221,9 +226,11 @@ export class HeartbeatLoop {
     const { logger } = this.deps.host;
     if (result.kind === 'ok') {
       this.noteLimit(prevLimit, result.limit);
+      this.noteOwnership(result.ownership);
     } else if (result.kind === 'displaced') {
       logger.info(`${P} lease displaced by the server`, { reason: result.reason });
-      this.emit('displaced', () => this.deps.events.displaced(result.reason, result.byDeviceName));
+      const detail: DisplacedDetail = { minVersion: result.minVersion, released: result.released };
+      this.emit('displaced', () => this.deps.events.displaced(result.reason, result.byDeviceName, detail));
     } else if (result.kind === 'lost' && result.reason === 'superseded') {
       logger.warn(`${P} lease superseded by another running copy with this device identity`);
       this.emit('displaced', () => this.deps.events.displaced('superseded', null));
@@ -248,8 +255,17 @@ export class HeartbeatLoop {
     if (result.kind === 'granted') {
       this.deps.host.logger.info(`${P} lease acquired`);
       this.noteLimit(prevLimit, result.limit);
+      this.noteOwnership(result.ownership);
     } else if (result.kind === 'denied') {
-      this.reportConflict(result.holders);
+      this.reportConflict(result.holders, result.cause, result.deviceCap);
+    } else if (result.kind === 'not-owner') {
+      this.deps.host.logger.info(`${P} re-acquire refused: the vault belongs to another account`);
+      const detail: DisplacedDetail = { minVersion: null, released: result.released };
+      this.emit('displaced', () => this.deps.events.displaced('not_owner', null, detail));
+    } else if (result.kind === 'update-required') {
+      this.deps.host.logger.info(`${P} re-acquire refused: this version is below the minimum`);
+      const detail: DisplacedDetail = { minVersion: result.minVersion, released: false };
+      this.emit('displaced', () => this.deps.events.displaced('update_required', null, detail));
     }
   }
 
@@ -264,14 +280,14 @@ export class HeartbeatLoop {
     }
   }
 
-  private reportConflict(holders: readonly Holder[]): void {
+  private reportConflict(holders: readonly Holder[], cause: DenialCause, deviceCap: number | null): void {
     if (this.conflictReported) {
       this.deps.host.logger.debug(`${P} vault still open on another device`);
       return;
     }
     this.conflictReported = true;
-    this.deps.host.logger.info(`${P} vault open on another device after reconnect`, { holders: holders.length });
-    this.emit('reconnectConflict', () => this.deps.events.reconnectConflict(holders));
+    this.deps.host.logger.info(`${P} vault open on another device after reconnect`, { holders: holders.length, cause });
+    this.emit('reconnectConflict', () => this.deps.events.reconnectConflict(holders, cause, deviceCap));
   }
 
   // ---------- Events ----------
@@ -283,6 +299,11 @@ export class HeartbeatLoop {
     this.reportedConfirmed = confirmed;
     this.deps.host.logger.info(`${P} lease ${confirmed ? 'confirmed' : 'unconfirmed'}`);
     this.emit('leaseChanged', () => this.deps.events.leaseChanged());
+  }
+
+  private noteOwnership(ownership: Ownership | null): void {
+    const handler = this.deps.events.ownershipConfirmed;
+    if (handler !== undefined) this.emit('ownershipConfirmed', () => handler.call(this.deps.events, ownership));
   }
 
   private noteLimit(prev: number | null, next: number): void {
@@ -308,7 +329,7 @@ export class HeartbeatLoop {
 
   private buildAcquireArgs(): AcquireArgs | null {
     try {
-      return { ...this.deps.acquireArgs(), takeover: false };
+      return { ...this.deps.acquireArgs(), takeover: false, claim: false };
     } catch (err) {
       this.deps.host.logger.error(`${P} acquire arguments unavailable`, { error: errorName(err) });
       return null;

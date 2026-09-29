@@ -10,7 +10,7 @@
 
 import type { FinalOutcome } from '../sync/sync-engine.js';
 import type { TimerHandle } from '../sync/host.js';
-import type { BusyReport, DisplacementReason, LockedReason, SessionDisplacedEvent, SessionHost } from './host.js';
+import { NO_DISPLACED_DETAIL, type BusyReport, type DisplacedDetail, type DisplacementReason, type LockedReason, type SessionDisplacedEvent, type SessionHost } from './host.js';
 
 /** 6.2: final save when displaced, at most 15 s (the engine enforces the cap). */
 export const DISPLACED_FINAL_SYNC_CAP_MS = 15_000;
@@ -24,7 +24,6 @@ export const FINAL_SYNC_BACKSTOP_MS = DISPLACED_FINAL_SYNC_CAP_MS + 2_000;
 /** Backstop for the release and teardown steps (each is bounded by its own callee first). */
 export const STEP_BACKSTOP_MS = 15_000;
 
-const LOCK_REASON: LockedReason = 'open_elsewhere';
 const NO_BUSY: BusyReport = Object.freeze({ sessions: 0, jobs: 0 });
 
 export interface DisplacementDeps {
@@ -37,6 +36,8 @@ export interface DisplacementDeps {
   readonly release: (pending: boolean) => Promise<void>;
   /** Stops engine, heartbeat, realtime and stale wait; closes the replica (W). */
   readonly teardown: () => Promise<void>;
+  /** The device cap as last confirmed (the device_cap notice names it). */
+  readonly deviceCap?: () => number | null;
 }
 
 export interface DisplacementOutcome {
@@ -46,6 +47,11 @@ export interface DisplacementOutcome {
 }
 
 type Bounded<T> = { readonly kind: 'done'; readonly value: T } | { readonly kind: 'failed' } | { readonly kind: 'timed-out' };
+
+/** Plan enforcement 4.4: not_owner and update_required keep their own soft-lock reason; everything else is open_elsewhere. */
+export function lockedReasonFor(reason: DisplacementReason): LockedReason {
+  return reason === 'not_owner' || reason === 'update_required' ? reason : 'open_elsewhere';
+}
 
 function errorMeta(err: unknown): { readonly error: string; readonly code: string | null } {
   const code = (err as { code?: unknown } | null)?.code;
@@ -60,11 +66,11 @@ export class Displacement {
   constructor(private readonly deps: DisplacementDeps) {}
 
   /** Runs 6.6 once; later calls return the first call's promise. Never throws (logs and continues). */
-  displace(reason: DisplacementReason, byDeviceName: string | null): Promise<DisplacementOutcome> {
+  displace(reason: DisplacementReason, byDeviceName: string | null, detail: DisplacedDetail = NO_DISPLACED_DETAIL): Promise<DisplacementOutcome> {
     if (this.running !== null) return this.running;
     this.cancelReconnectTimer();
     this.phase = 'in-progress';
-    this.running = this.run(reason, byDeviceName).catch((err: unknown) => this.recover(err, reason, byDeviceName));
+    this.running = this.run(reason, byDeviceName, detail).catch((err: unknown) => this.recover(err, reason, byDeviceName));
     return this.running;
   }
 
@@ -107,19 +113,20 @@ export class Displacement {
     this.reconnect = null;
   }
 
-  private async run(reason: DisplacementReason, byDeviceName: string | null): Promise<DisplacementOutcome> {
+  private async run(reason: DisplacementReason, byDeviceName: string | null, detail: DisplacedDetail): Promise<DisplacementOutcome> {
     const { access, logger } = this.deps.host;
+    const lockReason = lockedReasonFor(reason);
     logger.info('[vault-session] displacement started', { reason });
-    this.syncStep('block access', () => access.blockAccess(LOCK_REASON));
+    this.syncStep('block access', () => access.blockAccess(lockReason));
     this.syncStep('displacing event', () =>
       this.deps.host.sessionEvents.emit('vault:session-displacing', { lineageId: this.deps.lineageId, reason, byDeviceName }),
     );
     const changesSaved = await this.finalSave();
     await this.bounded('release', () => this.deps.release(!changesSaved), STEP_BACKSTOP_MS);
     await this.bounded('teardown', () => this.deps.teardown(), STEP_BACKSTOP_MS);
-    this.syncStep('soft lock', () => access.softLock(LOCK_REASON));
+    this.syncStep('soft lock', () => access.softLock(lockReason));
     this.phase = 'soft-locked';
-    this.emitDisplaced(reason, byDeviceName, changesSaved);
+    this.emitDisplaced(reason, byDeviceName, changesSaved, detail);
     logger.info('[vault-session] displacement finished', { reason, changesSaved });
     return { reason, byDeviceName, changesSaved };
   }
@@ -133,7 +140,7 @@ export class Displacement {
     return res.value.published || !res.value.pendingPublish;
   }
 
-  private emitDisplaced(reason: DisplacementReason, byDeviceName: string | null, changesSaved: boolean): void {
+  private emitDisplaced(reason: DisplacementReason, byDeviceName: string | null, changesSaved: boolean, detail: DisplacedDetail): void {
     const busy = this.readBusy();
     const event: SessionDisplacedEvent = {
       lineageId: this.deps.lineageId,
@@ -143,8 +150,20 @@ export class Displacement {
       runningJobs: busy.jobs,
       changesSaved,
       fileName: this.deps.fileName,
+      minVersion: detail.minVersion,
+      released: detail.released,
+      deviceCap: this.readDeviceCap(),
     };
     this.syncStep('displaced event', () => this.deps.host.sessionEvents.emit('vault:session-displaced', event));
+  }
+
+  private readDeviceCap(): number | null {
+    try {
+      return this.deps.deviceCap?.() ?? null;
+    } catch (err) {
+      this.deps.host.logger.error('[vault-session] device cap unavailable', errorMeta(err));
+      return null;
+    }
   }
 
   private readBusy(): BusyReport {
@@ -187,7 +206,7 @@ export class Displacement {
   private recover(err: unknown, reason: DisplacementReason, byDeviceName: string | null): DisplacementOutcome {
     this.deps.host.logger.error('[vault-session] displacement failed', errorMeta(err));
     if (this.phase !== 'soft-locked') {
-      this.syncStep('soft lock', () => this.deps.host.access.softLock(LOCK_REASON));
+      this.syncStep('soft lock', () => this.deps.host.access.softLock(lockedReasonFor(reason)));
       this.phase = 'soft-locked';
     }
     return { reason, byDeviceName, changesSaved: false };

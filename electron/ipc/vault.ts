@@ -6,6 +6,7 @@
  * vault-manage.ts, vault-wiring.ts and vault-lock-flow.ts; this module registers them.
  */
 
+import path from 'node:path';
 import { ipcMain, dialog } from 'electron';
 import { AppState } from '../services/state.js';
 import { logAudit } from '../services/audit.js';
@@ -62,12 +63,14 @@ export function registerVaultHandlers(): void {
     return state.currentVaultPath;
   });
 
-  ipcMain.handle('vault_pick_file', async (_e, args: { mode: 'open' | 'save' }) => {
+  ipcMain.handle('vault_pick_file', async (_e, args: { mode: 'open' | 'save'; defaultDir?: unknown }) => {
     const win = AppState.getInstance().getMainWindow() ?? null;
     if (args.mode === 'save') {
+      // "Make my own copy" opens next to the original so the copy syncs like it did.
+      const dir = typeof args.defaultDir === 'string' && path.isAbsolute(args.defaultDir) ? args.defaultDir : null;
       const result = await dialog.showSaveDialog(win!, {
         title: 'Create New Vault',
-        defaultPath: 'my-vault.conduit',
+        defaultPath: dir === null ? 'my-vault.conduit' : path.join(dir, 'my-vault.conduit'),
         filters: [{ name: 'Conduit Vault', extensions: ['conduit'] }],
       });
       return result.canceled ? null : result.filePath;

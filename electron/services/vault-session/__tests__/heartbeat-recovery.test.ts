@@ -154,7 +154,7 @@ describe('HeartbeatLoop: lost, displaced, offline, sleep', () => {
     h.startConfirmed();
     await h.loop.beatNow();
     expect(h.rec.conflicts).toHaveLength(1);
-    h.lease.onAcquire({ kind: 'granted', leaseId: LEASE_2, limit: 1, sessions: [], serverNowMs: null }, h.t.clock.now());
+    h.lease.onAcquire({ kind: 'granted', leaseId: LEASE_2, limit: 1, sessions: [], serverNowMs: null, deviceCap: null, ownership: null }, h.t.clock.now());
     await h.loop.beatNow();
     expect(h.beats().map((c) => c.args.p_lease_id)).toEqual([LEASE, LEASE_2]);
     expect(h.acquires()).toHaveLength(1);

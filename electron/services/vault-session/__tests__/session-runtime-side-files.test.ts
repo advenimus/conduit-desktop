@@ -45,7 +45,7 @@ function rig() {
 }
 
 function granted(sessions: readonly SessionRowView[], serverNowMs: number | null = null): AcquireResult {
-  return { kind: 'granted', leaseId: '55555555-5555-4555-8555-555555555555', limit: -1, sessions, serverNowMs };
+  return { kind: 'granted', leaseId: '55555555-5555-4555-8555-555555555555', limit: -1, sessions, serverNowMs, deviceCap: null, ownership: null };
 }
 
 /** The other device's flagged row; `heartbeatAtMs` null is a server that does not report it. */

@@ -1,5 +1,6 @@
 /**
- * Owner claims while a vault runs (spec 6.5, 6.7, 12 rows 28/29/62): after
+ * Owner claims and the owner tag while a vault runs (spec 6.5, 6.7, 12 rows 28/29/62;
+ * docs/PLAN_ENFORCEMENT.md 3.2): after
  * every merge the claims check is scheduled on a zero timer and then queued in the engine's
  * lane (never inside the engine's call, coalesced), and it displaces this device when another
  * device holds the provisional claim of W as it is at check time; a take-over writes this
@@ -17,6 +18,8 @@ import { claimWrites, evaluateClaims, shouldDisplace } from './claims.js';
 import { claimsApply } from './effective-limit.js';
 import type { LeaseTracker } from './lease.js';
 import type { SessionHost } from './host.js';
+import { ownerHint, ownerTagWritesFor, readOwnerTag, releasedTagWrites } from './owner-tag.js';
+import type { Ownership } from './session-client.js';
 import { P, errorMeta, guarded } from './session-runtime-parts.js';
 
 export interface ClaimsWatchDeps {
@@ -97,5 +100,40 @@ export async function writeOwnerClaim(
     await engine.exclusive(() => replica.applyWrites(claimWrites(hint, replica.context()), { interactive: true, ruleR: false }));
   } catch (err) {
     host.logger.error(`${P} owner claim was not written`, errorMeta(err));
+  }
+}
+
+/** 3.2: a confirmed owner writes its hint into the owner tag when the tag says something else. */
+export async function writeOwnerTag(
+  host: Pick<SessionHost, 'account' | 'logger'>,
+  replica: ReplicaPort | null,
+  engine: SyncEngine | null,
+  ownership: Ownership | null,
+): Promise<void> {
+  const userId = host.account.userId();
+  if (replica === null || engine === null || ownership?.kind !== 'owner' || userId === null) return;
+  const hint = ownerHint(replica.lineageId, userId);
+  if (readOwnerTag(replica.state())?.a === hint) return;
+  try {
+    await engine.exclusive(() => {
+      const writes = ownerTagWritesFor(ownership, hint, replica.state(), replica.context());
+      if (writes.length > 0) replica.applyWrites(writes, { interactive: true, ruleR: false });
+    });
+  } catch (err) {
+    host.logger.error(`${P} owner tag was not written`, errorMeta(err));
+  }
+}
+
+/** 3.2: {"a": null} right after a confirmed release. */
+export async function writeReleasedTag(host: Pick<SessionHost, 'logger'>, replica: ReplicaPort | null, engine: SyncEngine | null): Promise<void> {
+  if (replica === null || engine === null) return;
+  try {
+    await engine.exclusive(() => {
+      const writes = releasedTagWrites(replica.state(), replica.context());
+      if (writes.length > 0) replica.applyWrites(writes, { interactive: true, ruleR: false });
+    });
+    engine.trigger('local-edit');
+  } catch (err) {
+    host.logger.error(`${P} released owner tag was not written`, errorMeta(err));
   }
 }

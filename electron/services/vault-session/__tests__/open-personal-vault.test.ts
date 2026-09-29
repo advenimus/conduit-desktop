@@ -26,7 +26,7 @@ const stagingFiles = (): string[] => stagingOf(h);
 
 describe('early in-use check (6.3 step 3)', () => {
   it('refuses from the server peek before any password work', async () => {
-    h.client.peekResult = { kind: 'ok', limit: 1, holders: [holder('MacBook', 'icloud:Vaults')] };
+    h.client.peekResult = { kind: 'ok', limit: 1, deviceCap: null, holders: [holder('MacBook', 'icloud:Vaults')], refusal: null };
     const err = await refusal(openPersonalVault(openInput(vaultPath), h.deps));
     expect(err).toBeInstanceOf(PersonalVaultOpenError);
     expect(JSON.parse(err.message)).toEqual({
@@ -36,6 +36,10 @@ describe('early in-use check (6.3 step 3)', () => {
       fileName: 'Vault.conduit',
       locationDiffers: true,
       via: 'server',
+      cause: 'vault_limit',
+      deviceCap: null,
+      displaceDeviceName: null,
+      alsoLockDeviceName: null,
     });
     expect(h.kdf.calls).toBe(0);
     expect(h.client.of('peek')[0]).toMatchObject({ args: { vaultKey: LINEAGE, deviceId: h.config.deviceUuid }, timeoutMs: 3_000 });
@@ -45,11 +49,11 @@ describe('early in-use check (6.3 step 3)', () => {
   });
 
   it('reports a holder in the same location without the location note, and allows unlimited plans', async () => {
-    h.client.peekResult = { kind: 'ok', limit: 1, holders: [holder('MacBook', 'local:cloud')] };
+    h.client.peekResult = { kind: 'ok', limit: 1, deviceCap: null, holders: [holder('MacBook', 'local:cloud')], refusal: null };
     const err = await refusal(openPersonalVault(openInput(vaultPath), h.deps));
     expect(JSON.parse(err.message)).toMatchObject({ locationDiffers: false });
-    h.client.peekResult = { kind: 'ok', limit: -1, holders: [holder('MacBook')] };
-    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: -1, sessions: [], serverNowMs: null };
+    h.client.peekResult = { kind: 'ok', limit: -1, deviceCap: null, holders: [holder('MacBook')], refusal: null };
+    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: -1, sessions: [], serverNowMs: null, deviceCap: null, ownership: null };
     await expect(openPersonalVault(openInput(vaultPath), h.deps)).resolves.toMatchObject({ shared: true });
   });
 
@@ -93,6 +97,10 @@ describe('early in-use check (6.3 step 3)', () => {
       fileName: 'Vault.conduit',
       locationDiffers: true,
       via: 'claim',
+      cause: 'vault_limit',
+      deviceCap: null,
+      displaceDeviceName: null,
+      alsoLockDeviceName: null,
     });
     expect(h.kdf.calls).toBe(0);
   });
@@ -131,7 +139,7 @@ describe('early in-use check (6.3 step 3)', () => {
   });
 
   it('take-over skips the peek and acquires with takeover', async () => {
-    h.client.peekResult = { kind: 'ok', limit: 1, holders: [holder('MacBook')] };
+    h.client.peekResult = { kind: 'ok', limit: 1, deviceCap: null, holders: [holder('MacBook')], refusal: null };
     await openPersonalVault(openInput(vaultPath, { takeover: true }), h.deps);
     expect(h.client.of('peek')).toHaveLength(0);
     expect(h.client.of('acquire')[0]?.args).toMatchObject({ takeover: true });

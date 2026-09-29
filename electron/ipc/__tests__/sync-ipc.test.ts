@@ -65,7 +65,7 @@ describe('sync IPC channels', () => {
         'sync_review_side_file_wal', 'sync_locate_file', 'sync_save_new_copy', 'sync_undo_rebind', 'sync_make_separate_vault',
         'sync_export_unsynced', 'sync_dismiss_prompt', 'sync_dismiss_notice', 'sync_set_enabled', 'sync_enter_new_password',
         'sync_adopt_legacy_password', 'sync_resolve_concurrent_epoch', 'vault_session_takeover', 'vault_session_lock_here',
-        'vault_session_stop_waiting', 'vault_session_open_now',
+        'vault_session_stop_waiting', 'vault_session_open_now', 'sync_release_ownership', 'sync_make_own_copy',
       ].sort(),
     );
   });

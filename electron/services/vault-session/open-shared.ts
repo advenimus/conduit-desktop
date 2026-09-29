@@ -26,6 +26,7 @@ import { errCode } from './open-staging.js';
 import { startSharedSession } from './open-start.js';
 import type { AcquireResult } from './session-client.js';
 import type { SharedProbe } from './stale-wait.js';
+import type { TicketSource } from './own-copy-tickets.js';
 import { sideFilesFlagRecent } from './session-runtime-parts.js';
 
 const SIDE_FILE_SUFFIXES = ['-wal', '-shm'] as const;
@@ -48,7 +49,8 @@ export async function openSharedVault(
   try {
     if (peek.damagedW) await parkDamagedWorkingCopy(ctx, peek.lineageId);
     const plan = await planBinding(ctx, loc, peek);
-    const acquire = await acquireLease(ctx, loc, peek.lineageId, plan.binding.fileId, rollback);
+    const source: TicketSource = peek.hasW ? { kind: 'working', lineageId: peek.lineageId } : { kind: 'shared', path: ctx.sharedPath };
+    const acquire = await acquireLease(ctx, loc, peek.lineageId, plan.binding.fileId, rollback, { source, key: unlock.key });
     const seeded = await chooseSeed(ctx, peek, unlock, acquire, plan);
     const opened = await ctx.c.openReplica(
       {
@@ -81,7 +83,7 @@ export async function openSharedVault(
 }
 
 export function sessionsOf(acquire: AcquireResult | null): readonly SessionRowView[] {
-  return acquire !== null && acquire.kind !== 'unconfirmed' ? acquire.sessions : [];
+  return acquire?.kind === 'granted' || acquire?.kind === 'denied' ? acquire.sessions : [];
 }
 
 /** -wal or -shm next to S (5.5). A stat failure counts as present: holding legacy deletes is the safe side. */

@@ -51,7 +51,7 @@ function rig(): Rig {
   return { t, lease, engine, runtime };
 }
 
-const granted: AcquireResult = { kind: 'granted', leaseId: LEASE, limit: 1, sessions: [], serverNowMs: null };
+const granted: AcquireResult = { kind: 'granted', leaseId: LEASE, limit: 1, sessions: [], serverNowMs: null, deviceCap: null, ownership: null };
 
 function releases(r: Rig): readonly Readonly<Record<string, unknown>>[] {
   return r.t.rpc.callsOf('vault_session_release').map((c) => c.args);

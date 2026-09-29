@@ -4,7 +4,8 @@
  * replica, the replica's open notices and a same-device-copy prompt, one unlock cycle (or the
  * first publish of a new vault) within UNLOCK_CYCLE_BUDGET_MS, then this device's presence
  * (session_open = 1) and, when the effective limit is 1, the owner claim, written after that
- * cycle so the new claim outranks older ones; finally engine.start() and runtime.start().
+ * cycle so the new claim outranks older ones, plus the owner tag when the grant says this
+ * account owns the vault (docs/PLAN_ENFORCEMENT.md 3.2); finally engine.start() and runtime.start().
  */
 
 import path from 'node:path';
@@ -23,6 +24,7 @@ import type { VaultLocation } from './open-location.js';
 import type { OkDecision } from './open-password.js';
 import type { OpenedPersonalVault } from './open-personal-vault.js';
 import { errCode } from './open-staging.js';
+import { ownerHint, ownerTagWritesFor } from './owner-tag.js';
 
 export interface StartInput {
   readonly replica: ReplicaPort;
@@ -157,7 +159,9 @@ function writePresenceAndClaim(ctx: OpenContext, replica: ReplicaPort, engine: S
   const rctx = replica.context();
   const limit = limitAfterAcquire(ctx, replica, acquire, nowMs);
   const claims = ctx.c.claimsApply(limit) ? ctx.c.claimWrites(hint, rctx) : [];
-  replica.applyWrites([presenceWrite(presence, rctx), ...claims], { interactive: true, ruleR: false });
+  const ownership = acquire?.kind === 'granted' ? acquire.ownership : null;
+  const tag = ownerTagWritesFor(ownership, userId === null ? null : ownerHint(replica.lineageId, userId), replica.state(), rctx);
+  replica.applyWrites([presenceWrite(presence, rctx), ...claims, ...tag], { interactive: true, ruleR: false });
 }
 
 /** 6.8 from the acquire answer (the runtime takes over the lease state at start). */

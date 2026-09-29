@@ -97,7 +97,7 @@ describe('SessionRealtime', () => {
     root = makeTempRoot('realtime');
     t = makeTestSessionHost(root);
     lease = new LeaseTracker();
-    lease.onAcquire({ kind: 'granted', leaseId: LEASE, limit: 1, sessions: [iphoneSession], serverNowMs: null }, t.clock.now());
+    lease.onAcquire({ kind: 'granted', leaseId: LEASE, limit: 1, sessions: [iphoneSession], serverNowMs: null, deviceCap: null, ownership: null }, t.clock.now());
     displaced = [];
     rt = make();
   });

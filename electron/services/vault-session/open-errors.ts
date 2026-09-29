@@ -13,7 +13,10 @@ export type OpenErrorCode =
   | 'VAULT_PASSWORD_CHANGED_ELSEWHERE'
   | 'VAULT_FILE_UNREADABLE'
   | 'VAULT_FOREIGN_FILE'
-  | 'VAULT_WORKING_COPY_DAMAGED';
+  | 'VAULT_WORKING_COPY_DAMAGED'
+  | 'VAULT_NOT_OWNER'
+  | 'VAULT_SIGN_IN_REQUIRED'
+  | 'VAULT_UPDATE_REQUIRED';
 
 export type OpenErrorPayload =
   | {
@@ -25,6 +28,13 @@ export type OpenErrorPayload =
       readonly locationDiffers: boolean;
       /** 'server' (lease) or 'claim' (in-file owner claim, signed out or unconfirmed). */
       readonly via: 'server' | 'claim';
+      /** 'device_cap': the account's device cap (plan enforcement S1); holders are then devices. */
+      readonly cause: 'vault_limit' | 'device_cap';
+      readonly deviceCap: number | null;
+      /** device_cap: the device a take-over locks (holders[0]). */
+      readonly displaceDeviceName: string | null;
+      /** vault_limit whose take-over also locks another device for the cap (S1b); '' when unnamed. */
+      readonly alsoLockDeviceName: string | null;
     }
   | {
       readonly code: 'VAULT_PASSWORD_CHANGED_ELSEWHERE';
@@ -47,7 +57,22 @@ export type OpenErrorPayload =
       readonly fileName: string;
       /** The shared file is usable: open again with recoverWorkingCopy to park W and start from it. */
       readonly recoverable: boolean;
-    };
+    }
+  | {
+      readonly code: 'VAULT_NOT_OWNER';
+      readonly fileName: string;
+      /** The owner tag refused offline (S5): no copy ticket. */
+      readonly offline: boolean;
+      readonly graceEndedMs: number | null;
+      /** This account released the vault earlier (S8b). */
+      readonly released: boolean;
+      /** "Make my own copy" ticket (sync_make_own_copy); null offline or without a key. */
+      readonly copyTicket: string | null;
+      /** The original's folder: the Save dialog's default. */
+      readonly copyDir: string | null;
+    }
+  | { readonly code: 'VAULT_SIGN_IN_REQUIRED'; readonly fileName: string }
+  | { readonly code: 'VAULT_UPDATE_REQUIRED'; readonly fileName: string; readonly minVersion: string };
 
 /** Error whose message is the JSON payload (vaultStore parses it like TeamVaultUnlock.tsx does). */
 export class PersonalVaultOpenError extends Error {
@@ -105,19 +130,49 @@ export interface OpenElsewhereInput {
   /** Our location (file-binding.locationOf). */
   readonly ownLocation: string;
   readonly via: 'server' | 'claim';
+  /** Absent: the per-vault limit. */
+  readonly cause?: 'vault_limit' | 'device_cap';
+  readonly deviceCap?: number | null;
+  readonly alsoLockDeviceName?: string | null;
 }
 
 export function openElsewhereError(input: OpenElsewhereInput): PersonalVaultOpenError {
   const own = input.ownLocation.toLowerCase();
   const locationDiffers = input.holders.some((h) => h.location !== null && h.location.toLowerCase() !== own);
+  const cause = input.cause ?? 'vault_limit';
   return new PersonalVaultOpenError({
     code: 'VAULT_OPEN_ELSEWHERE',
     holders: input.holders,
     limit: input.limit,
     fileName: input.fileName,
-    locationDiffers,
+    locationDiffers: cause === 'vault_limit' && locationDiffers,
     via: input.via,
+    cause,
+    deviceCap: input.deviceCap ?? null,
+    displaceDeviceName: cause === 'device_cap' ? (input.holders[0]?.deviceName ?? null) : null,
+    alsoLockDeviceName: input.alsoLockDeviceName ?? null,
   });
+}
+
+export interface NotOwnerInput {
+  readonly fileName: string;
+  readonly offline: boolean;
+  readonly graceEndedMs: number | null;
+  readonly released: boolean;
+  readonly copyTicket: string | null;
+  readonly copyDir: string | null;
+}
+
+export function notOwnerError(input: NotOwnerInput): PersonalVaultOpenError {
+  return new PersonalVaultOpenError({ code: 'VAULT_NOT_OWNER', ...input });
+}
+
+export function signInRequiredError(fileName: string): PersonalVaultOpenError {
+  return new PersonalVaultOpenError({ code: 'VAULT_SIGN_IN_REQUIRED', fileName });
+}
+
+export function updateRequiredError(fileName: string, minVersion: string): PersonalVaultOpenError {
+  return new PersonalVaultOpenError({ code: 'VAULT_UPDATE_REQUIRED', fileName, minVersion });
 }
 
 export interface ChangedElsewhereInput {

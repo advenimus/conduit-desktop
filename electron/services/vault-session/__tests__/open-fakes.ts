@@ -31,6 +31,7 @@ import type {
   AcquireArgs,
   AcquireResult,
   HeartbeatResult,
+  ReleaseOwnershipResult,
   PeekResult,
   ReleaseArgs,
   SessionClientPort,
@@ -298,8 +299,8 @@ export class FakeRuntime {
 
 export class FakeClient implements SessionClientPort {
   readonly calls: { readonly fn: string; readonly args: unknown; readonly timeoutMs?: number }[] = [];
-  peekResult: PeekResult | Promise<PeekResult> = { kind: 'ok', limit: 1, holders: [] };
-  acquireResult: AcquireResult = { kind: 'granted', leaseId: 'lease-1', limit: 1, sessions: [], serverNowMs: null };
+  peekResult: PeekResult | Promise<PeekResult> = { kind: 'ok', limit: 1, deviceCap: null, holders: [], refusal: null };
+  acquireResult: AcquireResult = { kind: 'granted', leaseId: 'lease-1', limit: 1, sessions: [], serverNowMs: null, deviceCap: null, ownership: null };
   releaseResult: SimpleResult = { kind: 'ok' };
 
   constructor(private readonly signedIn: () => boolean) {}
@@ -332,6 +333,13 @@ export class FakeClient implements SessionClientPort {
   async abandon(args: AbandonArgs): Promise<SimpleResult> {
     this.calls.push({ fn: 'abandon', args });
     return { kind: 'ok' };
+  }
+
+  releaseOwnershipResult: ReleaseOwnershipResult = { released: true };
+
+  async releaseOwnership(vaultKey: string): Promise<ReleaseOwnershipResult> {
+    this.calls.push({ fn: 'releaseOwnership', args: vaultKey });
+    return this.releaseOwnershipResult;
   }
 }
 

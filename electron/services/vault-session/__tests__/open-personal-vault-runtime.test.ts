@@ -39,7 +39,7 @@ describe('stale-file wait started by the open (real runtime)', () => {
   for (const [plan, limit, blocking] of [['Free', 1, true], ['Pro', -1, false]] as const) {
     it(`${plan}: an uncovered marker of the same file starts a ${blocking ? 'dialog' : 'banner'}`, async () => {
       const row = sessionRow({ fileId: 'file-1', marker: { dev: 9, ms: 700, c: 0 }, writtenAtMs: 700 });
-      h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit, sessions: [row], serverNowMs: null };
+      h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit, sessions: [row], serverNowMs: null, deviceCap: null, ownership: null };
       const opened = await openPersonalVault(openInput(vaultPath), h.deps);
       expect(opened.shared).toBe(true);
       const started = waits.find((w) => w !== null);
