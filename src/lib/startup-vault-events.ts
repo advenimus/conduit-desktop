@@ -1,6 +1,7 @@
 // Main's auto-unlock-event (electron/ipc/auto-unlock-lifecycle.ts) as toasts (docs/AUTO_UNLOCK.md 2.8).
 import { toast } from "../components/common/Toast";
 import { useStartupVaultStore } from "../stores/startupVaultStore";
+import { useVaultStore } from "../stores/vaultStore";
 import { toastAccountChanged, toastResealFailed, toastResealed } from "./startup-vault-copy";
 
 type AutoUnlockEvent =
@@ -25,4 +26,13 @@ export function handleAutoUnlockEvent(payload: unknown): void {
   else if (payload.kind === "reseal-failed") toastResealFailed();
   else toastForgotten(payload.reason, payload.name);
   void useStartupVaultStore.getState().refresh();
+}
+
+/** Main reports currentOn only while the vault is unlocked, so every unlock and lock re-reads it (spec 2.7). */
+export function watchVaultForStartupStatus(): () => void {
+  return useVaultStore.subscribe((s, prev) => {
+    if (s.isUnlocked !== prev.isUnlocked || s.currentVaultPath !== prev.currentVaultPath || s.vaultType !== prev.vaultType) {
+      void useStartupVaultStore.getState().refresh();
+    }
+  });
 }

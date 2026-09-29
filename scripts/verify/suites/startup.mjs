@@ -143,6 +143,18 @@ async function lockAsksAgain(ctx) {
   ctx.checkEqual(count(logSince(dev, mark), AUTO_SOURCE), 0, 'no automatic attempt after a lock');
   ctx.step('Lock keeps asking, also across a close and show of the window');
 
+  await ctx.ui.clickSelector(dev, `button[title="${vault}"]`);
+  await ctx.ui.waitForText(dev, AFTER_LOCK_LINE);
+  await ctx.ui.typeInto(dev, PASSWORD_INPUT, PW);
+  await ctx.ui.clickSelector(dev, SUBMIT);
+  await waitUnlocked(dev);
+  await dev.page.evaluate(async () => {
+    const { useSidebarStore } = await import('/src/stores/sidebarStore.ts');
+    useSidebarStore.getState().expand();
+  });
+  await ctx.ui.waitFor(() => ctx.ui.exists(dev, '[data-cv-auto-unlock-indicator]'), { timeoutMs: 10_000, label: 'sidebar indicator after a typed unlock' });
+  ctx.step('a typed unlock after the lock brings the sidebar indicator back');
+
   await ctx.quitDevice(dev);
   writeDeviceSettings(dev, { vault_idle_lock_minutes: 5 });
   r = await relaunchAutomatic(ctx, dev);

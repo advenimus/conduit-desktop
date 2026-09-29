@@ -54,7 +54,7 @@ import { Banner, IconButton } from "./components/ui";
 import FullScreenSpinner from "./components/common/FullScreenSpinner";
 import { useStartupVaultStore } from "./stores/startupVaultStore";
 import { goToVaultHubFromStartup, installStartupInputReporters, reportInputScreen, runStartupVault } from "./lib/startup-vault";
-import { handleAutoUnlockEvent } from "./lib/startup-vault-events";
+import { handleAutoUnlockEvent, watchVaultForStartupStatus } from "./lib/startup-vault-events";
 import StartupConfirmHost from "./components/vault/StartupConfirmHost";
 
 /**
@@ -809,6 +809,7 @@ function App() {
     const unlistenAutoUnlock = window.electron.on("auto-unlock-event", (payload: unknown) => {
       handleAutoUnlockEvent(payload);
     });
+    const unwatchStartupStatus = watchVaultForStartupStatus();
 
     // Listen for file association opens (.conduit files double-clicked while app is running)
     const unlistenOpenVaultFile = window.electron.on("open-vault-file", async (filePath: unknown) => {
@@ -924,6 +925,7 @@ function App() {
       unlistenSystemLock();
       unlistenStartupAgain();
       unlistenAutoUnlock();
+      unwatchStartupStatus();
       unlistenOpenVaultFile();
       unlistenMenu();
       unlistenLocalNetwork();
