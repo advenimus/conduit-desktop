@@ -12,7 +12,7 @@ interface AllowEntry { ref: string; file: string; token: string; tag?: string; h
 // The redesign scripts are plain .mjs without type declarations.
 const legacy = (await import('../redesign/legacy-classes.mjs' as string)) as {
   scanSource(source: string, opts: { file: string; allowlist?: AllowEntry[] }): ScanResult;
-  scanPaths(paths: string[], opts?: { cwd?: string }): ScanResult & { files: number };
+  scanPaths(paths: string[], opts?: { cwd?: string; deadFiles?: string[] }): ScanResult & { files: number };
   formatReport(result: ScanResult & { files: number }): string;
   DEAD_FILES: string[];
   APPENDIX_B_ALLOWLIST: AllowEntry[];
@@ -189,12 +189,30 @@ describe('exclusions', () => {
     expect(res.findings).toHaveLength(1);
   });
 
-  it('skips the 10.5 dead files and test files', () => {
-    expect(legacy.DEAD_FILES).toContain('src/components/layout/TabBar.tsx');
-    expect(legacy.DEAD_FILES).toHaveLength(9);
-    const res = legacy.scanPaths(['src/components/layout/TabBar.tsx', 'src/components/common/ContextMenu.tsx'], { cwd: REPO });
-    expect(res.files).toBe(0);
-    expect(res.findings).toEqual([]);
+  it('has no dead files left to skip: R4-CLEANUP deleted them', () => {
+    expect(legacy.DEAD_FILES).toEqual([]);
+  });
+
+  it('skips the listed dead files and test files', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'legacy-classes-dead-'));
+    try {
+      fs.mkdirSync(path.join(dir, 'src', 'old', '__tests__'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'src', 'old', 'Dead.tsx'), 'export const D = () => <div className="bg-panel" />;\n');
+      fs.writeFileSync(path.join(dir, 'src', 'old', 'Live.tsx'), 'export const L = () => <div className="uppercase" />;\n');
+      fs.writeFileSync(path.join(dir, 'src', 'old', 'Live.test.tsx'), 'render(<div className="bg-panel" />);\n');
+      fs.writeFileSync(path.join(dir, 'src', 'old', '__tests__', 'x.tsx'), 'render(<div className="bg-panel" />);\n');
+
+      const res = legacy.scanPaths(['src'], { cwd: dir, deadFiles: ['src/old/Dead.tsx'] });
+      expect(res.files).toBe(1);
+      expect(res.findings.map((f) => `${f.file}:${f.token}`)).toEqual(['src/old/Live.tsx:uppercase']);
+
+      const direct = legacy.scanPaths(['src/old/Dead.tsx'], { cwd: dir, deadFiles: ['src/old/Dead.tsx'] });
+      expect(direct).toMatchObject({ files: 0, findings: [] });
+
+      expect(legacy.scanPaths(['src'], { cwd: dir }).findings.map((f) => f.file)).toEqual(['src/old/Dead.tsx', 'src/old/Live.tsx']);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

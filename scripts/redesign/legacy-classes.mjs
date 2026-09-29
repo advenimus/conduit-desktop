@@ -3,7 +3,7 @@
 // replaces in its directory. It reads class strings only (className and class attributes, cx()/clsx()
 // arguments and values named like *className or *Classes), so words such as the `uppercase` option in
 // src/utils/passwordGenerator.ts are not findings. Classes the harness still reads (Appendix B) are
-// allowed until the file carries the matching data-cv hook; the dead files of section 10.5 are skipped.
+// allowed until the file carries the matching data-cv hook; files listed in DEAD_FILES are skipped.
 //
 //   node scripts/redesign/legacy-classes.mjs [--json] [path ...]   (default path: src)
 //   exit 0: no findings; 1: findings; 2: bad path or read error
@@ -13,17 +13,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
-export const DEAD_FILES = Object.freeze([
-  'src/components/vault/TeamVaultMembersDialog.tsx',
-  'src/components/connections/ConnectionTree.tsx',
-  'src/components/layout/TabBar.tsx',
-  'src/components/vault/FolderPermissionEditor.tsx',
-  'src/components/vault/VaultSelector.tsx',
-  'src/components/layout/MainContent.tsx',
-  'src/components/ai/McpSetupPopover.tsx',
-  'src/components/common/ContextMenu.tsx',
-  'src/components/upgrade/UpgradeGate.tsx',
-]);
+/** Repo-relative files the report skips. Empty since R4-CLEANUP deleted the dead files of section 10.5. */
+export const DEAD_FILES = Object.freeze([]);
 
 /**
  * Appendix B classes the harness still reads: {ref, file, token, tag?, hook}, `tag` narrowing an entry
@@ -218,27 +209,27 @@ export function scanSource(source, { file, allowlist = APPENDIX_B_ALLOWLIST }) {
   return { findings: findings.sort(byPosition), allowlisted: allowlisted.sort(byPosition) };
 }
 
-function isSkipped(rel) {
+function isSkipped(rel, deadFiles) {
   const parts = rel.split('/');
-  return DEAD_FILES.includes(rel) || parts.includes('__tests__') || parts.includes('node_modules') || /\.test\.[cm]?[jt]sx?$/.test(rel);
+  return deadFiles.includes(rel) || parts.includes('__tests__') || parts.includes('node_modules') || /\.test\.[cm]?[jt]sx?$/.test(rel);
 }
 
-function listFiles(abs, rel) {
-  if (fs.statSync(abs).isFile()) return SOURCE_EXTENSIONS.has(path.extname(abs)) && !isSkipped(rel) ? [rel] : [];
+function listFiles(abs, rel, deadFiles) {
+  if (fs.statSync(abs).isFile()) return SOURCE_EXTENSIONS.has(path.extname(abs)) && !isSkipped(rel, deadFiles) ? [rel] : [];
   return fs
     .readdirSync(abs, { withFileTypes: true })
     .sort((a, b) => a.name.localeCompare(b.name))
-    .flatMap((entry) => (entry.isDirectory() && ['node_modules', '__tests__'].includes(entry.name) ? [] : listFiles(path.join(abs, entry.name), rel ? `${rel}/${entry.name}` : entry.name)));
+    .flatMap((entry) => (entry.isDirectory() && ['node_modules', '__tests__'].includes(entry.name) ? [] : listFiles(path.join(abs, entry.name), rel ? `${rel}/${entry.name}` : entry.name, deadFiles)));
 }
 
-/** Scans files and directories relative to cwd. Throws on a path that does not exist. */
-export function scanPaths(paths, { cwd = process.cwd() } = {}) {
+/** Scans files and directories relative to cwd, skipping `deadFiles`. Throws on a path that does not exist. */
+export function scanPaths(paths, { cwd = process.cwd(), deadFiles = DEAD_FILES } = {}) {
   const files = [
     ...new Set(
       paths.flatMap((p) => {
         const abs = path.resolve(cwd, p);
         if (!fs.existsSync(abs)) throw new Error(`no such file or directory: ${p}`);
-        return listFiles(abs, path.relative(cwd, abs).split(path.sep).join('/'));
+        return listFiles(abs, path.relative(cwd, abs).split(path.sep).join('/'), deadFiles);
       }),
     ),
   ];
