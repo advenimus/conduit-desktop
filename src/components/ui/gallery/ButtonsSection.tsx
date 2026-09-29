@@ -1,7 +1,7 @@
 import { Button, IconButton, type ButtonVariant } from "..";
 import { Demo, GallerySection } from "./Section";
 
-const VARIANTS: ReadonlyArray<ButtonVariant> = ["primary", "secondary", "ghost", "danger", "link"];
+const VARIANTS: ReadonlyArray<ButtonVariant> = ["primary", "secondary", "ghost", "ghost-danger", "danger", "link"];
 
 export function ButtonsSection() {
   return (

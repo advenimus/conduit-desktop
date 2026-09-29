@@ -13,7 +13,6 @@ import TakeoverDialog from "../TakeoverDialog";
 import CandidateMergeDialog from "../CandidateMergeDialog";
 import { InlineError } from "../PasswordFields";
 import { PendingBadge } from "../PendingVaultsWarning";
-import { smallButton } from "../ConflictFieldRow";
 import { useSyncStore } from "../../../stores/syncStore";
 import type { ConflictVersion, FieldConflict, SyncStateResponse } from "../../../types/sync";
 
@@ -235,11 +234,5 @@ describe("leftovers", () => {
     expect(badge.className).toContain("text-warning");
     expect(badge.className).not.toMatch(/amber|text-\[10px\]/);
     useSyncStore.setState({ state: null });
-  });
-
-  it("smallButton keeps the Button sm look for plain buttons outside this directory", () => {
-    expect(smallButton(true)).toContain("bg-btn-primary");
-    expect(smallButton()).toContain("h-control-sm");
-    expect(smallButton()).not.toMatch(/conduit|bg-raised/);
   });
 });

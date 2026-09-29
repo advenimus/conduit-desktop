@@ -31,6 +31,17 @@
           "insert": [{ "tag": "button", "text": "Modern" }]
         }
       ]
+    },
+    {
+      "screen": "home-dashboard-full-window",
+      "reason": "The Home dashboard type labels drop CSS uppercase (8.4 rule 1)",
+      "changes": [
+        {
+          "reason": "Favorites row type label in title case",
+          "remove": [{ "tag": "button", "text": "Intranet Status WEB" }],
+          "insert": [{ "tag": "button", "text": "Intranet Status Web" }]
+        }
+      ]
     }
   ]
 }

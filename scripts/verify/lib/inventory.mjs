@@ -12,8 +12,9 @@ const PAGE_CALL_TIMEOUT_MS = 15_000;
 
 /**
  * In-page: the visible controls under `roots` and whether each `probes` selector matches a visible
- * element. A root is a CSS selector (every visible match), {last: css} (the last visible match, the
- * topmost dialog), or {around: [css, ...]} (the nearest ancestor of the first selector's match that
+ * element. A root is a CSS selector (every visible match), {last: css} (the topmost visible match: the
+ * highest z-index of its [data-cv-layer], then the last in document order; portaled dialogs follow the
+ * in-place sync dialogs in the document even when they sit below them), or {around: [css, ...]} (the nearest ancestor of the first selector's match that
  * also holds a match of every other one); a root itself is never recorded, only what is inside it.
  * null roots mean the whole body. Self-contained for page.evaluate.
  */
@@ -59,9 +60,11 @@ export function extractControlsInPage({ roots, probes }) {
     }
     return [];
   };
+  const layerZ = (el) => Number.parseInt(getComputedStyle(el.closest('[data-cv-layer]') ?? el).zIndex, 10) || 0;
+  const topmost = (els) => els.reduce((top, el) => (top === null || layerZ(el) >= layerZ(top) ? el : top), null);
   const resolve = (root) => {
     if (typeof root === 'string') return matches(root);
-    if (root.last) return matches(root.last).slice(-1);
+    if (root.last) return [topmost(matches(root.last))].filter(Boolean);
     if (root.around) return around(root.around);
     return [];
   };

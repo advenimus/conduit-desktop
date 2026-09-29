@@ -11,6 +11,7 @@ export interface ToastCardAction {
   label: string;
   onClick: () => void;
   variant?: "primary" | "secondary";
+  icon?: IconSource;
 }
 
 export interface ToastCardProgress {
@@ -60,14 +61,14 @@ export function ToastCard({ type, toastId = "", title, message, actions, progres
               </div>
             )}
             <div className="h-1 overflow-hidden rounded-full bg-selected">
-              <div className="h-full rounded-full bg-(--c-progress)" style={{ width: `${percent}%` }} />
+              <div className="h-full rounded-full bg-(--c-progress) transition-[width] duration-150 ease-linear" style={{ width: `${percent}%` }} />
             </div>
           </div>
         )}
         {actions && actions.length > 0 && (
-          <div className="mt-2 flex gap-1">
+          <div className="mt-2 flex flex-wrap gap-1">
             {actions.map((action) => (
-              <Button key={action.id} size="sm" variant={action.variant ?? "secondary"} onClick={action.onClick}>
+              <Button key={action.id} size="sm" variant={action.variant ?? "secondary"} icon={action.icon} onClick={action.onClick}>
                 {action.label}
               </Button>
             ))}

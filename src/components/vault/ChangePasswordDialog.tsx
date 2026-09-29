@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "../../lib/electron";
+import { errorText } from "../../lib/sync-api";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
 import { Button, Callout, Checkbox, Dialog, FormField, IconButton, TextInput } from "../ui";
@@ -46,8 +47,8 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
       toast.success("Vault password changed successfully");
       onClose();
     } catch (err) {
-      const msg = typeof err === "string" ? err : "Failed to change password";
-      setError(msg);
+      // invoke() rejects with an Error, so its message is the reason (a wrong current password, say).
+      setError(errorText(err, "Failed to change password"));
       setLoading(false);
     }
   };
@@ -56,6 +57,7 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
     <Dialog
       open
       title="Change Password"
+      description="Update the master password for this vault"
       icon="lock"
       width={420}
       hideClose
@@ -71,8 +73,6 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
         </>
       }
     >
-      <p className="text-ink-muted">Update the master password for this vault</p>
-
       <FormField label="Current Password">
         <PasswordField
           value={currentPassword}

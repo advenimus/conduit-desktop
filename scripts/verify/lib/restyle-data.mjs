@@ -107,11 +107,16 @@ export async function createVaultShowing(device, file, { onDialog } = {}) {
   if (res.outcome !== 'unlocked') throw new Error(`${device.name}: creating ${path.basename(file)} ended in ${res.outcome}`);
 }
 
-/** Clicks the button labeled exactly `label` in the topmost dialog. */
+/**
+ * Clicks the button labeled exactly `label` in the topmost dialog: the highest z-index of its
+ * [data-cv-layer], then the last in document order (the portaled Settings dialog follows the in-place
+ * sync panels in the document although they sit above it).
+ */
 export function clickInTopDialog(device, label, opts = {}) {
   return waitFor(() => withTimeout(device.page.evaluate(({ label }) => {
+    const layerZ = (el) => Number.parseInt(getComputedStyle(el.closest('[data-cv-layer]') ?? el).zIndex, 10) || 0;
     const dialogs = [...document.querySelectorAll('[data-dialog-content]')].filter((d) => d.getClientRects().length > 0);
-    const top = dialogs[dialogs.length - 1];
+    const top = dialogs.reduce((best, el) => (best === null || layerZ(el) >= layerZ(best) ? el : best), null);
     const button = top && [...top.querySelectorAll('button')].find((b) => (b.innerText ?? '').trim() === label && b.getClientRects().length > 0);
     if (!button || button.disabled) return false;
     button.click();

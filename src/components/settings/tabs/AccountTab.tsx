@@ -118,7 +118,7 @@ export default function AccountTab({ onClose }: AccountTabProps) {
                 </Button>
               </div>
             ) : (
-              <Button variant="ghost" className="text-danger! hover:text-danger!" onClick={() => setShowSignOutConfirm(true)}>
+              <Button variant="ghost-danger" onClick={() => setShowSignOutConfirm(true)}>
                 Sign Out
               </Button>
             )}

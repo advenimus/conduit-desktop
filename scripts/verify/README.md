@@ -569,7 +569,10 @@ Staging: Build Mac, Intranet Status on a local test page; Domain Admin and Runbo
 
 - `after/<mode>-<nn>-<name>.png`: the after shot under its reference name. On macOS it is a real window
   capture (`screencapture -l`, so the native frame and native web views are in it) with popup menus,
-  toasts and the picker laid over the main window at their place; elsewhere a page screenshot.
+  toasts and the picker laid over the main window at their place; elsewhere, or when macOS refuses the
+  capture (no screen recording permission), a page screenshot with the popup menu and toast pages laid
+  over it the same way. The fallback is listed under WARNINGS in `inventory-diff.txt` and never fails
+  a scenario.
 - `compare/<mode>-<nn>-<name>.png`: before left, after right, same height, labeled. The scenario fails
   when a reference shot it owns gets no composite.
 - `<scenario>/inventory.json` (the captures) and `<scenario>/inventory-diff.txt` (every inventory

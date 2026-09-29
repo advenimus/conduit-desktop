@@ -106,7 +106,6 @@ function CredentialRow({ credential, selected, onClick, onMouseEnter }: Credenti
   const type = resolveCredentialType(credential.credential_type);
   const tags = credential.tags.slice(0, MAX_TAGS);
   const hasAccount = Boolean(credential.username || credential.domain);
-  const hasDescription = hasAccount || tags.length > 0;
 
   return (
     <ListRow
@@ -114,34 +113,32 @@ function CredentialRow({ credential, selected, onClick, onMouseEnter }: Credenti
       onMouseEnter={onMouseEnter}
       selected={selected}
       meta={type !== "generic" ? <Badge>{CREDENTIAL_TYPES[type].label}</Badge> : undefined}
-      description={hasDescription ? <CredentialDescription credential={credential} tags={tags} hasAccount={hasAccount} /> : undefined}
-      // A third line (tags) needs more than the two-line row height.
-      className={tags.length > 0 ? "h-auto! py-1" : undefined}
+      description={hasAccount ? <AccountLine credential={credential} /> : undefined}
+      detail={tags.length > 0 ? <TagLine tags={tags} /> : undefined}
     >
       <span className="text-ink">{credential.name}</span>
     </ListRow>
   );
 }
 
-function CredentialDescription({ credential, tags, hasAccount }: { credential: CredentialMeta; tags: string[]; hasAccount: boolean }) {
+function AccountLine({ credential }: { credential: CredentialMeta }) {
   return (
-    <span className="flex flex-col gap-0.5">
-      {hasAccount && (
-        <span className="flex min-w-0 items-center gap-1.5">
-          {credential.username && <span className="truncate">{credential.username}</span>}
-          {credential.username && credential.domain && <span className="text-ink-faint">·</span>}
-          {credential.domain && <span className="truncate">{credential.domain}</span>}
-        </span>
-      )}
-      {tags.length > 0 && (
-        <span className="flex flex-wrap gap-1">
-          {tags.map((tag) => (
-            <Badge key={tag} className="rounded-full">
-              #{tag}
-            </Badge>
-          ))}
-        </span>
-      )}
+    <span className="flex min-w-0 items-center gap-1.5">
+      {credential.username && <span className="truncate">{credential.username}</span>}
+      {credential.username && credential.domain && <span className="text-ink-faint">·</span>}
+      {credential.domain && <span className="truncate">{credential.domain}</span>}
+    </span>
+  );
+}
+
+function TagLine({ tags }: { tags: string[] }) {
+  return (
+    <span className="flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <Badge key={tag} className="rounded-full">
+          #{tag}
+        </Badge>
+      ))}
     </span>
   );
 }

@@ -50,7 +50,7 @@ const ENTRY_TYPE_CATEGORIES: TypeCategory[] = [
     label: "Credentials",
     items: [
       { type: "credential", label: "Password", description: "Username & password", icon: KeyIcon, color: "text-entry-credential", credentialType: "generic" },
-      { type: "credential", label: "SSH Key", description: "Key pair & fingerprint", icon: ShieldLockIcon, color: "text-entry-credential", credentialType: "ssh_key" },
+      { type: "credential", label: "SSH Key", description: "Key pair & fingerprint", icon: ShieldLockIcon, color: "text-entry-sshkey", credentialType: "ssh_key" },
     ],
   },
 ];

@@ -458,9 +458,11 @@
         "src/components/vault/ProVaultLockDialog.tsx",
         "src/components/vault/ExportDialog.tsx",
         "src/components/vault/VaultImportDialog.tsx",
+        "src/components/vault/TransferStates.tsx",
         "src/components/vault/VaultSwitcherMenu.tsx",
         "src/components/vault/CloudSyncIndicator.tsx",
         "src/components/vault/__tests__/ChangePasswordDialog.test.tsx",
+        "src/components/vault/__tests__/VaultDialogs.close.test.tsx",
         "src/components/vault/__tests__/UnlockDialog.strict.test.tsx",
         "src/components/vault/__tests__/VaultHub.test.tsx"
       ],

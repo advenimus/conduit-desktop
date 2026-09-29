@@ -203,7 +203,7 @@ describe("VaultSettingsDialog", () => {
     const onClose = vi.fn();
     await show(<VaultSettingsDialog onClose={onClose} />);
     expect(title()).toBe("Vault Settings");
-    expect(screen.getByText("Acme Team Vault")).toBeInTheDocument();
+    expect(screen.getByText("Acme Team Vault").closest("[data-cv-dialog-subtitle]")).not.toBeNull();
     const nav = within(dialog()).getByRole("navigation");
     expect(within(nav).getAllByRole("button").map((b) => b.textContent)).toEqual(["Members", "Permissions", "Activity"]);
     expect(within(nav).getByRole("button", { name: "Members" })).toHaveAttribute("data-selected");
@@ -255,7 +255,7 @@ describe("CredentialManager", () => {
     const onClose = vi.fn();
     await show(<CredentialManager onClose={onClose} />);
     expect(title()).toBe("Credentials");
-    expect(screen.getByText("2 stored")).toBeInTheDocument();
+    expect(screen.getByText("2 stored").closest("[data-cv-dialog-subtitle]")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Lock vault" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search credentials...")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();

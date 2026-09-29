@@ -4,6 +4,8 @@ import PasswordGeneratorDialog from "../PasswordGeneratorDialog";
 import PasswordGenerateButton from "../PasswordGenerateButton";
 import SshKeyGeneratorDialog from "../SshKeyGeneratorDialog";
 import SshKeyGenerateButton from "../SshKeyGenerateButton";
+import type { ReactNode } from "react";
+import { Dialog } from "../../ui";
 import { clickScrim, closeButton, pressEscape, topPanel } from "../../common/__tests__/dialogClose";
 
 const invoke = vi.fn<(channel: string, args?: unknown) => Promise<unknown>>();
@@ -107,5 +109,36 @@ describe("SshKeyGeneratorDialog", () => {
     render(<SshKeyGenerateButton onKeyGenerated={() => {}} />);
     fireEvent.click(screen.getByTitle("SSH Key Generator"));
     expect(topPanel().querySelector("h2")).toHaveTextContent("SSH Key Generator");
+  });
+});
+
+describe("generators opened from inside another dialog (the entry dialog)", () => {
+  function EntryLike({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+    return (
+      <Dialog open title="Edit Entry" onClose={onClose} closeOnEscape={false}>
+        <input aria-label="Password" />
+        {children}
+      </Dialog>
+    );
+  }
+
+  it.each([
+    ["Password Generator", () => <PasswordGenerateButton onPasswordGenerated={() => {}} />],
+    ["SSH Key Generator", () => <SshKeyGenerateButton onKeyGenerated={() => {}} />],
+  ])("%s: Escape closes only the generator and Tab stays inside it", (title, button) => {
+    const outer = vi.fn();
+    render(<EntryLike onClose={outer}>{button()}</EntryLike>);
+    fireEvent.click(screen.getByTitle(title));
+    const generator = topPanel();
+    expect(generator.querySelector("h2")).toHaveTextContent(title);
+    const focusables = [...generator.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])")].filter((el) => el.tabIndex >= 0);
+    focusables[focusables.length - 1].focus();
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: "Tab" });
+    expect(document.activeElement).not.toBe(focusables[focusables.length - 1]);
+    expect(generator.contains(document.activeElement)).toBe(true);
+    pressEscape();
+    expect(document.querySelectorAll("[data-dialog-content]")).toHaveLength(1);
+    expect(topPanel().querySelector("h2")).toHaveTextContent("Edit Entry");
+    expect(outer).not.toHaveBeenCalled();
   });
 });

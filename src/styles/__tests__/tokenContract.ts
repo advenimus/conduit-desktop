@@ -27,7 +27,7 @@ export const COLOR_TOKENS: readonly string[] = [
   "danger", "warning", "success", "info",
   "danger-bg", "danger-border", "warning-bg", "warning-border", "info-bg", "info-border", "success-bg", "success-border",
   "state-connected", "state-connecting", "state-error", "favorite",
-  "entry-ssh", "entry-rdp", "entry-vnc", "entry-web", "entry-credential", "entry-document", "entry-command", "entry-folder",
+  "entry-ssh", "entry-rdp", "entry-vnc", "entry-web", "entry-credential", "entry-sshkey", "entry-document", "entry-command", "entry-folder",
   "team-bg", "team-border", "team-border-strong",
 ].map((name) => `--c-${name}`);
 
@@ -143,6 +143,7 @@ export const MODERN_VALUES: Readonly<Record<string, readonly [string, string]>> 
   "--c-entry-vnc": ["#C084FC", "#7E22CE"],
   "--c-entry-web": ["#22D3EE", "#0E7490"],
   "--c-entry-credential": ["#FACC15", "#A16207"],
+  "--c-entry-sshkey": ["#FB923C", "#C2410C"],
   "--c-entry-document": ["#2DD4BF", "#0F766E"],
   "--c-entry-command": ["#FBBF24", "#B45309"],
   "--c-favorite": ["#FACC15", "#A16207"],

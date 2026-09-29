@@ -295,6 +295,43 @@ describe("Dialog custom layout", () => {
   });
 });
 
+describe("Dialog subtitle and description (spec 4.8, wave 3)", () => {
+  it("puts the subtitle right after the title, before header children and the close button", () => {
+    render(
+      <Dialog open onClose={() => {}} title="Vault Settings" subtitle="Acme Infrastructure" layout="custom">
+        <DialogHeader>
+          <Button>Lock</Button>
+        </DialogHeader>
+      </Dialog>,
+    );
+    const title = panel().querySelector("h2")!;
+    const subtitle = panel().querySelector("[data-cv-dialog-subtitle]")!;
+    expect(title).toHaveTextContent(/^Vault Settings$/);
+    expect(subtitle).toHaveTextContent("Acme Infrastructure");
+    const order = [...panel().querySelectorAll("h2, [data-cv-dialog-subtitle], button")].map((el) => el.textContent || el.getAttribute("aria-label"));
+    expect(order).toEqual(["Vault Settings", "Acme Infrastructure", "Lock", "Close"]);
+    expect(title.parentElement).toBe(subtitle.parentElement);
+  });
+
+  it("puts the description on a line under the title in the standard layout", () => {
+    render(
+      <Dialog open onClose={() => {}} title="Change Password" description="Update the master password for this vault">
+        <p>Body</p>
+      </Dialog>,
+    );
+    const description = panel().querySelector("[data-cv-dialog-description]")!;
+    expect(description).toHaveTextContent("Update the master password for this vault");
+    expect(description.closest("[data-dialog-content] > div")?.querySelector("h2")).toHaveTextContent("Change Password");
+    expect(panel().querySelector("h2")).toHaveTextContent(/^Change Password$/);
+  });
+
+  it("keeps today's header markup without either", () => {
+    render(<Dialog open onClose={() => {}} title="Rename vault" />);
+    expect(panel().querySelector("h2")?.className).toContain("flex-1");
+    expect(panel().querySelector("[data-cv-dialog-subtitle], [data-cv-dialog-description]")).toBeNull();
+  });
+});
+
 describe("Dialog width and close behavior (spec 4.8, D-18, D-26)", () => {
   it("width overrides the size step with an inline max-width, so a dialog keeps today's width", () => {
     const { rerender } = render(<Dialog open onClose={() => {}} title="Settings" width={768} />);

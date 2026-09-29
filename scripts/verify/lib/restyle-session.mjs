@@ -33,6 +33,7 @@ export function createRestyleSession(ctx, scenarioId, { shots = [] } = {}) {
   const rules = [];
   const composites = new Set();
   const problems = [];
+  const warnings = [];
   const notes = [];
   const hasReference = (mode, name) => Object.hasOwn(manifest.files, `${mode}-${name}.png`);
   // A declared shot with no reference in either mode is new: it is captured in both modes so it can
@@ -51,8 +52,10 @@ export function createRestyleSession(ctx, scenarioId, { shots = [] } = {}) {
     const file = path.join(out.after, `${mode}-${name}.png`);
     const full = crop ? `${file}.full.png` : file;
     const capture = await captureWindow(device, full, overlays ? { overlays } : undefined);
+    // A page screenshot still yields the composite, inventory and rules; only the native frame and
+    // native web views are missing from the image, so the fallback is a warning, not a failure.
     if (device.captureWarning) {
-      problems.push(`${mode}-${name}: ${device.captureWarning}`);
+      warnings.push(`${mode}-${name}: ${device.captureWarning}`);
       device.captureWarning = null;
     }
     if (capture.missing?.length > 0) notes.push(`${mode}-${name}: page screenshot without the ${capture.missing.join(' and ')} window(s); this composite does not show them`);
@@ -128,10 +131,12 @@ export function createRestyleSession(ctx, scenarioId, { shots = [] } = {}) {
     lines.push('', 'GEOMETRY RULES', ...summary.lines, '', `pending: ${summary.pending}${ctx.options.strict ? ' (failures under --strict)' : ''}`);
     if (missing.length > 0) lines.push('', 'MISSING COMPOSITES', ...missing.map((m) => `  ${m}`));
     if (problems.length > 0) lines.push('', 'PROBLEMS', ...problems.map((p) => `  ${p}`));
+    if (warnings.length > 0) lines.push('', 'WARNINGS', ...warnings.map((w) => `  ${w}`));
     if (notes.length > 0) lines.push('', 'NOTES', ...notes.map((n) => `  ${n}`));
     fs.writeFileSync(path.join(out.scenario, 'inventory.json'), `${JSON.stringify({ scenario: scenarioId, captures }, null, 2)}\n`);
     fs.writeFileSync(path.join(out.scenario, 'inventory-diff.txt'), `${lines.join('\n')}\n`);
     ctx.step(`${inventories.length - badInventories.length}/${inventories.length} inventories match, ${summary.failed} rule failure(s), ${summary.pending} pending, ${composites.size} composite(s)`);
+    if (warnings.length > 0) ctx.step(`warning: ${warnings.length} page screenshot(s) instead of window captures (see inventory-diff.txt)`);
     const failures = [
       ...badInventories.map((i) => `inventory ${i.mode} ${i.screen} differs`),
       ...(summary.failed > 0 ? [`${summary.failed} geometry rule failure(s)`] : []),

@@ -219,7 +219,7 @@ function gatesFor(r: TokenResolver): Gate[] {
   for (const state of ["state-connected", "state-connecting", "state-error"]) {
     for (const s of ["shell", "tabstrip", "tab-active-bg"]) add(`${state} on ${s}`, c(state), c(s), 3);
   }
-  for (const entry of ["ssh", "rdp", "vnc", "web", "credential", "document", "command", "folder"]) {
+  for (const entry of ["ssh", "rdp", "vnc", "web", "credential", "sshkey", "document", "command", "folder"]) {
     for (const s of ["sidebar", "editor", "tabstrip"]) add(`entry-${entry} on ${s}`, c(`entry-${entry}`), c(s), 3);
   }
   // The favorite star in the side bar header and the tree (D-17)
@@ -281,7 +281,7 @@ describe("selected-row re-scope (spec 2.11)", () => {
 describe("@theme mapping (spec 2.10)", () => {
   it("entry-type colors compile to tokens (entryIcons.ts uses them)", () => {
     const css = root.toString();
-    for (const entry of ["ssh", "rdp", "vnc", "web", "credential", "document", "command", "folder"]) {
+    for (const entry of ["ssh", "rdp", "vnc", "web", "credential", "sshkey", "document", "command", "folder"]) {
       expect(css).toMatch(new RegExp(`\\.text-entry-${entry}\\s*\\{\\s*color:\\s*var\\(--color-entry-${entry}\\)`));
       expect(css).toContain(`--color-entry-${entry}: var(--c-entry-${entry});`);
     }

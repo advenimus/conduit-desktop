@@ -19,8 +19,6 @@ import {
 
 import SmallButton from "./SmallButton";
 
-export { smallButton } from "./SmallButton";
-
 const SINGLE_VERSION_KEY_REGS = new Set(["private_key", "totp_secret"]);
 
 /** Folder and item names for Location and Linked credential versions. */

@@ -3,7 +3,7 @@ import { invoke } from "../../lib/electron";
 import { useEntryStore } from "../../stores/entryStore";
 import { FolderIcon, FolderOpenIcon, LockIcon } from "../../lib/icons";
 import { Button, Callout, Dialog, FormField, IconButton, TextInput } from "../ui";
-import { ResultSummary, WorkingState } from "./VaultImportDialog";
+import { ResultSummary, WorkingState } from "./TransferStates";
 
 const SCOPE_CARD =
   "flex items-center gap-2 p-2.5 rounded-md border border-card-border cursor-pointer hover:bg-hover has-[:checked]:border-accent has-[:checked]:bg-selected-inactive";

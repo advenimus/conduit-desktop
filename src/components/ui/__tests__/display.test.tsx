@@ -100,6 +100,14 @@ describe("Kbd", () => {
     render(<Kbd>Ctrl+P</Kbd>);
     expect(screen.getByText("Ctrl+P").tagName).toBe("KBD");
   });
+
+  it("onFilled swaps the border and text for white, for a hint inside a filled button", () => {
+    render(<Kbd onFilled>Ctrl+N</Kbd>);
+    const cls = screen.getByText("Ctrl+N").className.split(" ");
+    expect(cls).toEqual(expect.arrayContaining(["border-white/40", "text-white"]));
+    expect(cls).not.toContain("border-control");
+    expect(cls).not.toContain("text-ink-muted");
+  });
 });
 
 describe("Callout", () => {
@@ -269,6 +277,28 @@ describe("containers", () => {
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
+  it("SettingsRow titleAside sits right after the title, outside its label, and keeps the switch a direct child (B39)", () => {
+    render(
+      <SettingsRow
+        title="Cloud Backup"
+        titleAside={<span data-testid="badge">Pro and Team</span>}
+        toggle={<Switch checked={false} onChange={() => {}} data-cv-toggle="cloud" />}
+      />,
+    );
+    const label = [...document.querySelectorAll("label")].find((l) => l.textContent === "Cloud Backup") as HTMLLabelElement;
+    expect(label).toBeTruthy();
+    const badge = screen.getByTestId("badge");
+    expect(label.contains(badge)).toBe(false);
+    expect(label.nextElementSibling).toBe(badge);
+    const row = label.closest("[data-cv-toggle-row]") as HTMLElement;
+    expect(row.querySelector(":scope > button")).toHaveAttribute("data-cv-toggle", "cloud");
+  });
+
+  it("SettingsRow titleAside also follows a plain title", () => {
+    render(<SettingsRow title="Idle lock" titleAside={<span data-testid="aside">Pro</span>} />);
+    expect(screen.getByText("Idle lock").nextElementSibling).toBe(screen.getByTestId("aside"));
+  });
+
   it("SettingsRow without a toggle shows the title, the description and the control", () => {
     render(
       <SettingsRow title="Idle lock" description="Lock after a while">
@@ -302,5 +332,26 @@ describe("ToastCard", () => {
     expect(onAction).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("wraps its action row, draws an action's icon and eases the progress fill", () => {
+    render(
+      <ToastCard
+        type="info"
+        toastId="t2"
+        title="Update Ready"
+        actions={[
+          { id: "a", label: "Restart Now", icon: "refresh", onClick: () => {} },
+          { id: "b", label: "Later", onClick: () => {} },
+        ]}
+        progress={{ percent: 30 }}
+      />,
+    );
+    const restart = screen.getByRole("button", { name: "Restart Now" });
+    expect(restart.parentElement?.className.split(" ")).toContain("flex-wrap");
+    expect(restart.querySelector("svg")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Later" }).querySelector("svg")).toBeNull();
+    const fill = document.querySelector('[data-toast="t2"] [style]') as HTMLElement;
+    expect(fill.className.split(" ")).toEqual(expect.arrayContaining(["transition-[width]", "duration-150", "ease-linear"]));
   });
 });

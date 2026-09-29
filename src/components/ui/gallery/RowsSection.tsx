@@ -24,6 +24,9 @@ export function RowsSection() {
               {id[0].toUpperCase() + id.slice(1)}
             </ListRow>
           ))}
+          <ListRow leading="key" onClick={() => {}} description="admin · ACME" detail={<span className="flex gap-1">#prod #windows</span>}>
+            With a detail line
+          </ListRow>
           <ListRow selected inactive leading="database">
             Selected, list not focused
           </ListRow>

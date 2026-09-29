@@ -3,7 +3,7 @@ import { LoaderIcon } from "../../lib/icons";
 import { COLOR_TRANSITION, cx } from "./cx";
 import { IconSlot, type IconSource } from "./IconSlot";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "link";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "ghost-danger" | "danger" | "link";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export interface ButtonProps extends ComponentPropsWithRef<"button"> {
@@ -38,6 +38,7 @@ const VARIANT: Readonly<Record<ButtonVariant, string>> = {
   secondary:
     "border bg-(--c-btn-secondary-bg) text-(--c-btn-secondary-fg) border-(--c-btn-secondary-border) hover:bg-(--c-btn-secondary-hover)",
   ghost: "border bg-transparent border-transparent text-ink-secondary hover:bg-hover hover:text-ink",
+  "ghost-danger": "border bg-transparent border-transparent text-danger hover:bg-hover",
   danger: "border bg-btn-danger hover:bg-btn-danger-hover text-white border-transparent",
   link: "h-auto px-0 border-0 bg-transparent text-link hover:text-link-hover hover:underline",
 };
