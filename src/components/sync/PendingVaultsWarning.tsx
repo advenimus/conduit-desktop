@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Badge, Button, IconSlot } from "../ui";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { isPendingPath } from "../../stores/sync-reducers";
 import { toast } from "../common/Toast";

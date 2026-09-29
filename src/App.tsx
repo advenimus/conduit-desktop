@@ -51,6 +51,7 @@ import { useBackupStates } from "./hooks/useBackupStates";
 import { useFreeze } from "./lib/native-freeze";
 import type { TeamVaultSummary } from "./stores/teamStore";
 import { Banner, IconButton, Spinner } from "./components/ui";
+import { errorText } from "./lib/errorText";
 
 /**
  * Notification controllers — manage toast + update state and push to overlay window.
@@ -491,7 +492,7 @@ function App() {
             vaultState.setShowVaultHub(false);
             return;
           } catch (err) {
-            const msg = typeof err === "string" ? err : "Failed to auto-connect to team vault";
+            const msg = errorText(err, "Failed to auto-connect to team vault");
             vaultState.setAutoConnectInProgress(false);
             vaultState.setAutoConnectError(msg);
             vaultState.setShowVaultHub(true);

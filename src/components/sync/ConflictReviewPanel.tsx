@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { errorText } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { orderGroups, rowKeyString } from "../../stores/sync-reducers";
 import { toast } from "../common/Toast";

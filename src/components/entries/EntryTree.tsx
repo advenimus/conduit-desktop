@@ -20,6 +20,7 @@ import {
   ChevronDownIcon, ChevronRightIcon, LockIcon, StarFilledIcon, UsersIcon
 } from "../../lib/icons";
 import { cx } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface TreeNode {
   id: string;
@@ -677,7 +678,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           await navigator.clipboard.writeText(code);
           toast.success("OTP copied");
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Failed to copy OTP");
+          toast.error(errorText(err, "Failed to copy OTP"));
         }
         break;
       }
@@ -693,7 +694,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             await globalTypeText(cred.username);
           }
           toast.success("Username typed");
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to type username"); }
+        } catch (err) { toast.error(errorText(err, "Failed to type username")); }
         break;
       }
       case "autotype_password": {
@@ -708,7 +709,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             await globalTypeText(cred.password);
           }
           toast.success("Password typed");
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to type password"); }
+        } catch (err) { toast.error(errorText(err, "Failed to type password")); }
         break;
       }
       case "autotype_username_tab_password": {
@@ -724,7 +725,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             await globalTypeUsernameTabPassword(cred.username, cred.password);
           }
           toast.success("Credentials typed");
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to type credentials"); }
+        } catch (err) { toast.error(errorText(err, "Failed to type credentials")); }
         break;
       }
       case "favorite":

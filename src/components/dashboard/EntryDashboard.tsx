@@ -14,6 +14,7 @@ import {
 } from "../../lib/icons";
 import { Button, IconButton } from "../ui";
 import { DetailLabel, DetailRow, TotpCountdown } from "./EntryDetailParts";
+import { errorText } from "../../lib/errorText";
 
 interface EntryDashboardProps {
   entryId: string;
@@ -143,7 +144,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
       await invoke("entry_open_external", { id: entryId });
       toast.success("Opened in external app");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to open externally");
+      toast.error(errorText(err, "Failed to open externally"));
     }
   };
 

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { rowKeyString } from "../../stores/sync-reducers";
 import { toast } from "../common/Toast";

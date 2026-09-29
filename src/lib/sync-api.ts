@@ -86,9 +86,3 @@ export const syncApi = {
   openPricing: () => invoke<void>("auth_open_pricing"),
 };
 
-/** The plain error text of a failed IPC call. */
-export function errorText(err: unknown, fallback: string): string {
-  if (err instanceof Error && err.message) return err.message;
-  if (typeof err === "string" && err) return err;
-  return fallback;
-}

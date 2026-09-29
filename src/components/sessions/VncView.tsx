@@ -8,6 +8,7 @@ import {
 } from "../../lib/vnc-keysyms";
 import { Button } from "../ui";
 import { SessionConnecting, SessionError } from "./SessionStates";
+import { errorText } from "../../lib/errorText";
 
 // noVNC's RFB class — CJS module with default export
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -176,7 +177,7 @@ export default function VncView({
       } catch (err) {
         if (!destroyed) {
           const msg =
-            err instanceof Error ? err.message : "Failed to connect";
+            errorText(err, "Failed to connect");
           setError(msg);
         }
       }

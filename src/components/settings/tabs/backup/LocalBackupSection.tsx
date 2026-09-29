@@ -7,7 +7,8 @@ import { toast } from "../../../common/Toast";
 import { Button, IconButton, TextInput } from "../../../ui";
 import { formatFileSize } from "../../SettingsHelpers";
 import { HINT, SECTION_LABEL } from "../../settings-styles";
-import { BackupToggleRow, errorMessage } from "./BackupToggleRow";
+import { BackupToggleRow } from "./BackupToggleRow";
+import { errorText } from "../../../../lib/errorText";
 
 function statusText(state: LocalBackupState): string {
   if (state.status === "backed-up" && state.lastBackedUpAt) return `Last backup: ${new Date(state.lastBackedUpAt).toLocaleString()}`;
@@ -56,7 +57,7 @@ export function LocalBackupSection() {
         await enableLocalBackup(chosen);
       }
     } catch (err) {
-      toast.error("Could not change local backup", errorMessage(err, "Try again."));
+      toast.error("Could not change local backup", errorText(err, "Try again."));
     } finally {
       setBusy(false);
     }
@@ -71,7 +72,7 @@ export function LocalBackupSection() {
       setFolder(chosen);
       await enableLocalBackup(chosen);
     } catch (err) {
-      toast.error("Could not change the backup folder", errorMessage(err, "Try again."));
+      toast.error("Could not change the backup folder", errorText(err, "Try again."));
     } finally {
       setBusy(false);
     }
@@ -82,7 +83,7 @@ export function LocalBackupSection() {
     try {
       await localBackupNow();
     } catch (err) {
-      toast.error("Backup failed", errorMessage(err, "Try again."));
+      toast.error("Backup failed", errorText(err, "Try again."));
     } finally {
       setBusy(false);
     }
@@ -92,7 +93,7 @@ export function LocalBackupSection() {
     try {
       await deleteLocalBackup(fullPath);
     } catch (err) {
-      toast.error("Could not delete the backup", errorMessage(err, "Try again."));
+      toast.error("Could not delete the backup", errorText(err, "Try again."));
     }
     setConfirmDelete(null);
   };

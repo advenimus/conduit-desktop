@@ -9,6 +9,7 @@ import { invoke } from "../../lib/electron";
 import { generateTotpCode } from "../../lib/totp";
 import { CloseIcon, ShieldLockIcon, TagIcon, TrashIcon } from "../../lib/icons";
 import { Button, Callout, Card, Dialog, FormField, IconButton, SegmentedControl, TextInput, Textarea, cx } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 const DEFAULT_AUTH = "default";
 const SSH_AUTH_OPTIONS = [
@@ -113,7 +114,7 @@ export default function CredentialForm({
         })
         .catch((err: unknown) => {
           setError(
-            typeof err === "string" ? err : "Failed to load credential"
+            errorText(err, "Failed to load credential")
           );
         })
         .finally(() => setIsFetching(false));
@@ -169,7 +170,7 @@ export default function CredentialForm({
       onSaved();
     } catch (err) {
       setError(
-        typeof err === "string" ? err : "Failed to save credential"
+        errorText(err, "Failed to save credential")
       );
     } finally {
       setIsLoading(false);
@@ -216,7 +217,7 @@ export default function CredentialForm({
       setShowTotpManual(false);
       toast.success("QR code imported successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to decode QR code");
+      toast.error(errorText(err, "Failed to decode QR code"));
     }
   };
 

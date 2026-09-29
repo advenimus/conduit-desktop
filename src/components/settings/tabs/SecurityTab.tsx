@@ -5,6 +5,7 @@ import { Callout, Card, SectionHeader, Switch } from "../../ui";
 import { HINT } from "../settings-styles";
 import IdleLockSetting from "../../sync/IdleLockSetting";
 import type { TabProps } from "../SettingsHelpers";
+import { errorText } from "../../../lib/errorText";
 
 export default function SecurityTab({ settings, setSettings }: TabProps) {
   const {
@@ -34,7 +35,7 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
         await enableBiometric();
       }
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to update biometric setting");
+      setError(errorText(err, "Failed to update biometric setting"));
     } finally {
       setToggling(false);
     }

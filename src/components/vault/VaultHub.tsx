@@ -8,6 +8,7 @@ import { showContextMenu } from "../../utils/contextMenu";
 import PendingVaultsWarning, { PendingBadge } from "../sync/PendingVaultsWarning";
 import { AlertCircleIcon, CheckIcon, FingerprintIcon } from "../../lib/icons";
 import { Badge, Button, IconSlot, ListRow, Spinner, type IconSource } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 /**
  * Full-screen vault landing page shown on launch and when returning from lock/close.
@@ -109,7 +110,7 @@ export default function VaultHub() {
         vaultState.setShowVaultHub(false);
       }
     } catch (err) {
-      const msg = typeof err === "string" ? err : "Failed to connect";
+      const msg = errorText(err, "Failed to connect");
       vaultState.setAutoConnectInProgress(false);
       vaultState.setAutoConnectError(msg);
       vaultState.setShowVaultHub(true);

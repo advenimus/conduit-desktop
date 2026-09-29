@@ -10,6 +10,7 @@ import { useTierStore } from "./tierStore";
 import { resolveRdpConfig, resolveWebConfig } from "../lib/resolveConfig";
 import { toast } from "../components/common/Toast";
 import { disposeTerminalEntry } from "../components/sessions/TerminalView";
+import { errorText } from "../lib/errorText";
 
 /**
  * Map UI quality setting to RDP performance mode.
@@ -227,7 +228,7 @@ async function connectEntry(
         },
       });
     }).catch((err) => {
-      const msg = typeof err === "string" ? err : err instanceof Error ? err.message : "Connection failed";
+      const msg = errorText(err, "Connection failed");
       useSessionStore.getState().updateSessionStatus(entry.id, "disconnected", msg);
     });
     return;
@@ -622,7 +623,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
       const cred = await get().resolveCredential(id);
       await connectEntry(entry, cred, sessionStore);
     } catch (err) {
-      const msg = typeof err === "string" ? err : err instanceof Error ? err.message : "Connection failed";
+      const msg = errorText(err, "Connection failed");
       sessionStore.updateSessionStatus(entry.id, "disconnected", msg);
       console.error("Failed to open entry:", err);
     } finally {
@@ -659,7 +660,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
       };
       await connectEntry(entry, cred, sessionStore);
     } catch (err) {
-      const msg = typeof err === "string" ? err : err instanceof Error ? err.message : "Connection failed";
+      const msg = errorText(err, "Connection failed");
       sessionStore.updateSessionStatus(entry.id, "disconnected", msg);
       console.error("Failed to open entry with credential:", err);
     } finally {
@@ -716,7 +717,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
     try {
       await get().openEntry(entryId);
     } catch (err) {
-      const msg = typeof err === "string" ? err : err instanceof Error ? err.message : "Reconnection failed";
+      const msg = errorText(err, "Reconnection failed");
       useSessionStore.getState().updateSessionStatus(trackingId, "disconnected", msg);
     } finally {
       // Clear reconnecting flag — find by entryId since ID may have changed again

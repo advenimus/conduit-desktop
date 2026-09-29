@@ -7,6 +7,7 @@ import { useAuthStore } from "../../stores/authStore";
 import RecoveryPassphraseDialog from "./RecoveryPassphraseDialog";
 import { LockIcon } from "../../lib/icons";
 import { Button, Callout, Dialog, FormField, Spinner, TextInput } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface CreateTeamVaultDialogProps {
   onClose: () => void;
@@ -51,7 +52,7 @@ export default function CreateTeamVaultDialog({
       setPassphrase(result.recoveryPassphrase);
       setStep("show-passphrase");
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to generate identity key");
+      setError(errorText(err, "Failed to generate identity key"));
     } finally {
       setLoading(false);
     }
@@ -83,7 +84,7 @@ export default function CreateTeamVaultDialog({
       await useEntryStore.getState().loadAll();
       onClose();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to create team vault");
+      setError(errorText(err, "Failed to create team vault"));
       setStep("form");
     } finally {
       setLoading(false);

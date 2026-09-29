@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { invoke } from "../../lib/electron";
-import { errorText } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
 import { Button, Callout, Checkbox, Dialog, FormField, IconButton, TextInput } from "../ui";

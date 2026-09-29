@@ -3,6 +3,7 @@ import { invoke } from "../../lib/electron";
 import RecoveryPassphraseDialog from "./RecoveryPassphraseDialog";
 import { CheckIcon, DesktopIcon, KeyIcon, type IconComponent } from "../../lib/icons";
 import { Button, Callout, Dialog, Spinner, TextInput } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface DeviceSetupDialogProps {
   onComplete: () => void;
@@ -73,7 +74,7 @@ export default function DeviceSetupDialog({
       setGeneratedPassphrase(result.recoveryPassphrase);
       setMode("show-passphrase");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate identity key");
+      setError(errorText(err, "Failed to generate identity key"));
       setErrorReturnMode("first-time");
       setMode("error");
     }
@@ -96,7 +97,7 @@ export default function DeviceSetupDialog({
       setTimeout(onComplete, 1500);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Invalid recovery passphrase"
+        errorText(err, "Invalid recovery passphrase")
       );
       setErrorReturnMode("choose");
       setMode("error");
@@ -144,7 +145,7 @@ export default function DeviceSetupDialog({
       setPollTimer(timer);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to create auth request"
+        errorText(err, "Failed to create auth request")
       );
       setErrorReturnMode("choose");
       setMode("error");

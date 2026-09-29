@@ -4,7 +4,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { useAiStore } from "../../stores/aiStore";
 import { useSyncStore } from "../../stores/syncStore";
 import { invoke } from "../../lib/electron";
-import { errorText } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { toast } from "../common/Toast";
 import UnlockErrorView, { openErrorLine, type UnlockRetry } from "../sync/UnlockErrorView";
 import { useForgetUnlockRequestOnClose } from "../sync/useForgetUnlockRequest";

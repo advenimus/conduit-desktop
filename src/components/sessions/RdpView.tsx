@@ -8,6 +8,7 @@ import { formatFileSize } from "../../lib/format";
 import { friendlyConnectionError } from "../../lib/errorMessages";
 import { Button } from "../ui";
 import { SessionConnecting, SessionError, SessionStatePanel } from "./SessionStates";
+import { errorText } from "../../lib/errorText";
 
 interface DirtyRegion {
   x: number;
@@ -361,7 +362,7 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
         }
       } catch (err) {
         console.error("Failed to set up RDP frame listener:", err);
-        setError(err instanceof Error ? err.message : "Failed to connect");
+        setError(errorText(err, "Failed to connect"));
       }
     };
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ReleaseNotesManifest, ReleaseEntry } from '../../types/whats-new';
+import { errorText } from '../../lib/errorText';
 
 const MANIFEST_URL =
   'https://raw.githubusercontent.com/advenimus/conduit-desktop/main/release-notes/manifest.json';
@@ -56,7 +57,7 @@ async function fetchManifest(): Promise<void> {
     console.log('[whats-new] Loaded', cachedReleases.length, 'releases');
   } catch (err) {
     cachedReleases = null;
-    cachedError = err instanceof Error ? err.message : 'Failed to fetch release notes';
+    cachedError = errorText(err, 'Failed to fetch release notes');
     console.error('[whats-new] Fetch error:', cachedError);
   }
 }
