@@ -42,7 +42,7 @@ import { devDeviceLimitOverride, devLimitCollaborators } from './app-sync-dev.js
 import { exportClosedLineage, lineageForPath, pendingVaults, type LineageLookupDeps } from './app-sync-lineage.js';
 import { exportUnsynced as exportOpen, sideFileTuples } from './app-sync-actions.js';
 import { changeEnginePassword, renameEngineShared, snapshotEngineVault } from './app-sync-flows.js';
-import { InvalidSyncRequest, requireString } from './app-sync-dto-map.js';
+import { InvalidSyncRequest, ownershipDto, requireString } from './app-sync-dto-map.js';
 import type { EngineVault } from './app-sync-review.js';
 import type * as Dto from './app-sync-dto.js';
 import { OPEN_IN_PROGRESS_MESSAGE, VaultSlot } from './app-sync-slot.js';
@@ -324,13 +324,10 @@ export class AppSyncManager {
     };
   }
 
-  /** Plan enforcement 4.7: the runtime's last confirmed answer; 'unknown' signed out, soft-locked or unconfirmed. */
   private ownership(o: OpenedPersonalVault | null, soft: boolean): Dto.VaultOwnership | null {
     if (o === null) return null;
-    const view = o.runtime.ownershipView();
-    const signedIn = this.started?.syncHost.account.userId() !== null;
-    if (!signedIn || soft || !view.confirmed || view.ownership === null) return { kind: 'unknown' };
-    return view.ownership;
+    const signedIn = (this.started?.syncHost.account.userId() ?? null) !== null;
+    return ownershipDto(o.runtime.ownershipView(), signedIn, soft);
   }
 
   /** Sync settings [Release this vault...]: vault_owner_release for the open vault. */
