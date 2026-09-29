@@ -5,7 +5,7 @@ import { useVaultStore } from "../../stores/vaultStore";
 import type { VaultOwnership } from "../../types/sync";
 import SyncBanner from "./SyncBanner";
 import { makeOwnCopyWhileOpen, openTeamTrial, switchAccount, updateConduit } from "./plan-actions";
-import { formatShortDate } from "./sync-copy";
+import { formatShortDate, releaseAfterText } from "./sync-copy";
 
 const DISMISS_KEY_PREFIX = "conduit.ownershipBanner";
 
@@ -94,7 +94,7 @@ function SharedBanner({ lineageId, ownership }: { lineageId: string; ownership: 
   return (
     <SyncBanner
       tone="info"
-      text={`Another Conduit account is using this vault until ${formatShortDate(ownership.sharedUntilMs)}.`}
+      text={`Another Conduit account is using this vault until ${formatShortDate(ownership.sharedUntilMs)}.${tooSoon && ownership.releaseAfterMs !== null ? ` ${releaseAfterText(ownership.releaseAfterMs)}` : ""}`}
       actions={[
         { label: "Later", onClick: dismiss },
         { label: "Try Team free", onClick: openTeamTrial },

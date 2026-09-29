@@ -7,7 +7,7 @@ import SignInRequiredDialog from "../SignInRequiredDialog";
 import UpdateRequiredDialog from "../UpdateRequiredDialog";
 import SessionConflictDialog from "../SessionConflictDialog";
 import SyncBanners from "../SyncBanners";
-import { deviceCapText, ownerLineText } from "../sync-copy";
+import { deviceCapText, ownerLineText, releaseAfterText } from "../sync-copy";
 import { useSyncStore } from "../../../stores/syncStore";
 import { useVaultStore } from "../../../stores/vaultStore";
 import { useAuthStore } from "../../../stores/authStore";
@@ -216,9 +216,11 @@ describe("banners (S7, S7b, S21, S22)", () => {
     fireEvent.click(screen.getByText("Release this vault..."));
     expect(useSyncStore.getState().releaseDialogOpen).toBe(true);
     cleanup();
-    useSyncStore.setState({ state: stateWith({ kind: "owner", releaseAfterMs: Date.now() + 86_400_000, sharedUntilMs: Date.now() + 86_400_000 }) });
+    const releaseAfterMs = Date.now() + 86_400_000;
+    useSyncStore.setState({ state: stateWith({ kind: "owner", releaseAfterMs, sharedUntilMs: Date.now() + 86_400_000 }) });
     render(<SyncBanners />);
     expect(screen.getByText("Release this vault...")).toBeDisabled();
+    expect(screen.getByText(new RegExp(releaseAfterText(releaseAfterMs).replace(/[.]/g, "\\.")))).toBeInTheDocument();
   });
 
   it("S21 and S22 soft-lock banners", () => {
