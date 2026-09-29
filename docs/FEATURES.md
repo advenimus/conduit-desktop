@@ -826,6 +826,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
   - Global shortcut: Cmd/Ctrl+Shift+Space (also available from tray context menu)
   - Search and filter credentials with keyboard navigation (arrow keys + Enter)
   - Detail view with copy buttons for username, password, TOTP code, domain, and private key
+  - Copy confirmations and errors show as toasts over the picker, in an overlay window of its own
   - TOTP countdown ring with auto-refresh and visual low-time warning
   - Vault unlock support: password prompt (personal vault) or auto-unlock (team vault)
   - Works independently of main window (app can be in tray-only mode)

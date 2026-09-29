@@ -18,7 +18,7 @@ Toasts do not render in the window that raises them. They draw in a separate tra
 6. The overlay is click-through until the pointer is over an element with `data-toast`. Button clicks go back as `overlay:action-clicked` and `overlay:dismiss-toast` (and `overlay:update-action` for the update card); `ToastController` runs the callback and dismisses the toast.
 7. The overlay follows the main window's scheme and dark or light mode through `localStorage` (the `storage` event), and its icons follow the active icon pack.
 
-The credential picker window (`CredentialPickerApp.tsx`) mounts `ToastContainer`, an alias of `ToastController`, but nothing in that window sends its state to an overlay, so toasts raised in the picker window are not shown today.
+The credential picker window (`CredentialPickerApp.tsx`) gets an overlay of its own. It mounts `WindowToasts` (`src/components/common/WindowToasts.tsx`), which renders `ToastController` and sends the picker's toasts (with no update card) over `overlay:push-state`. `main.ts` creates a second `OverlayManager` for the picker window with `placement: 'cover'`, so that overlay covers the picker instead of sitting in the main window's corner, and destroys it when the picker closes. Each manager takes state only from its own window and sends a toast's clicks back to the window whose toast it is.
 
 ## API Reference
 
@@ -136,8 +136,9 @@ Labels show only when `leftLabel` or `rightLabel` is set; they use `tabular-nums
 
 - `src/components/common/Toast.tsx`: the `toast` API, types and `ToastController`
 - `src/App.tsx`: `NotificationStack`, which mounts the controllers and sends `overlay:push-state`
+- `src/components/common/WindowToasts.tsx`: the same for the credential picker window, without the update card
 - `src/components/common/UpdateNotification.tsx`: the update notification's state bridge
-- `electron/services/overlay/overlay-manager.ts`: the overlay window, its position and the IPC relay
+- `electron/services/overlay/overlay-manager.ts`: one overlay window per host window, its position and the IPC relay
 - `src/components/overlay/OverlayApp.tsx`, `OverlayToast.tsx`, `OverlayUpdateNotification.tsx`: the overlay page
 - `src/components/ui/ToastCard.tsx`: the toast's look
 - `src/types/toast.ts`: the serialized toast and overlay state types

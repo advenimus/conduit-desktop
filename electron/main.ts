@@ -222,6 +222,7 @@ app.on('open-file', (event, filePath) => {
 import { isQuitting, setIsQuitting } from './services/app-lifecycle.js';
 let tray: Tray | null = null;
 let pickerWindow: BrowserWindow | null = null;
+let pickerOverlay: OverlayManager | null = null;
 let overlayManager: OverlayManager | null = null;
 let mainWindowRef: BrowserWindow | null = null;
 let stopIdleLock: (() => void) | null = null;
@@ -320,6 +321,9 @@ function createPickerWindow() {
     pickerWindow?.show();
   });
 
+  // The picker's toasts draw in an overlay of their own, over the picker.
+  pickerOverlay = new OverlayManager(pickerWindow, { placement: 'cover' });
+
   pickerWindow.on('blur', () => {
     // Close on click outside
     if (pickerWindow && !pickerWindow.isDestroyed()) {
@@ -329,6 +333,8 @@ function createPickerWindow() {
 
   pickerWindow.on('closed', () => {
     pickerWindow = null;
+    pickerOverlay?.destroy();
+    pickerOverlay = null;
   });
 }
 

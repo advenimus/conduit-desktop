@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, act, waitFor } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import CredentialPickerApp from "../CredentialPickerApp";
+import { toast } from "../../common/Toast";
 import { setIconPack, useIconPackStore } from "../../../lib/icons";
 import { META, dto, iconMarkup, stubElectron, stubScrollIntoView, type Invoke } from "./fixtures";
 
@@ -105,5 +106,18 @@ describe("CredentialPickerApp", () => {
     const tabler = iconMarkup(container);
     expect(tabler).toHaveLength(lucide.length);
     tabler.forEach((markup, i) => expect(markup).not.toBe(lucide[i]));
+  });
+
+  it("sends its toasts to the picker's own overlay window, which draws them (notification.md)", async () => {
+    await mount();
+    act(() => {
+      toast.success("Password copied");
+    });
+    const send = window.electron.send as ReturnType<typeof vi.fn>;
+    expect(send).toHaveBeenLastCalledWith("overlay:push-state", {
+      toasts: [expect.objectContaining({ type: "success", title: "Password copied" })],
+      update: null,
+    });
+    expect(document.querySelector("[data-toast]")).toBeNull();
   });
 });
