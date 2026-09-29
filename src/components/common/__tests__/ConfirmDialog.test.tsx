@@ -67,11 +67,11 @@ describe("ConfirmDialog", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it("renders in place on the base layer without a layer prop", () => {
+  it("portals to document.body on the base layer without a layer prop", () => {
     const { view } = renderConfirm();
-    const host = view.getByTestId("host");
-    expect(host.querySelector("[data-dialog-content]")).not.toBeNull();
+    expect(view.getByTestId("host").querySelector("[data-dialog-content]")).toBeNull();
     expect(topPanel().parentElement).toHaveAttribute("data-cv-layer", "base");
+    expect(topPanel().parentElement?.parentElement).toBe(document.body);
   });
 
   it("portals to document.body on the given layer", () => {

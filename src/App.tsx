@@ -24,7 +24,7 @@ import VaultImportDialog from "./components/vault/VaultImportDialog";
 import RenameVaultDialog from "./components/vault/RenameVaultDialog";
 import ChangePasswordDialog from "./components/vault/ChangePasswordDialog";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useTheme } from "./hooks/useTheme";
+import { useAppearance } from "./lib/appearance/useAppearance";
 import { useSessionStore, type SessionType } from "./stores/sessionStore";
 import { useLayoutStore, findLeaf } from "./stores/layoutStore";
 import { useEntryStore } from "./stores/entryStore";
@@ -169,7 +169,7 @@ function App() {
 
   // Initialize hooks
   useKeyboardShortcuts();
-  useTheme();
+  useAppearance();
   useBackupStates();
 
   // Remove splash screen once React has mounted

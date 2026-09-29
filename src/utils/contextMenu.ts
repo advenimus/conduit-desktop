@@ -10,37 +10,12 @@ import { invoke } from "../lib/electron";
 import { iconToSvg, SEMANTIC_ICON_NAMES, type SemanticIconName } from "../lib/icons";
 import { resolveCssColor, type ColorToken } from "../lib/appearance/resolveCssColor";
 
-/**
- * @deprecated Menu-local icon keys from before the icon registry (spec 5.7). Call sites may pass them
- * until R4-CLEANUP converts the rest to semantic names and removes this map. Each key keeps today's
- * distinction from its neighbors (Rename is not Edit, Copy Host is not Duplicate, Unfavorite is not
- * Favorite); null is an item that had no icon.
- */
-export const LEGACY_MENU_ICON_KEYS = {
-  play: "playerPlay",
-  edit: "pencil",
-  rename: "textCursor",
-  "copy-host": "server",
-  reconnect: "refresh",
-  connect: "link",
-  "folder-plus": "folderPlus",
-  "external-link": "externalLink",
-  dots: "ellipsis",
-  "chevron-right": "chevronRight",
-  "star-off": "starFilled",
-  // Split Right and Split Down share this key; R2-TABS gives each its own glyph (spec 3.4).
-  split: null,
-} as const satisfies Readonly<Record<string, SemanticIconName | null>>;
-
-export type LegacyMenuIconKey = keyof typeof LEGACY_MENU_ICON_KEYS;
-export type MenuIconName = SemanticIconName | LegacyMenuIconKey;
-
 export interface PopupMenuItem {
   id: string;
   label: string;
   type?: "separator" | "header";
   variant?: "danger";
-  icon?: MenuIconName;
+  icon?: SemanticIconName;
   children?: PopupMenuItem[]; // submenu items
 }
 
@@ -73,23 +48,13 @@ type MenuColorKey = keyof typeof MENU_COLOR_TOKENS;
 
 const SEMANTIC_NAMES: ReadonlySet<string> = new Set(SEMANTIC_ICON_NAMES);
 
-const isLegacyKey = (key: string): key is LegacyMenuIconKey => Object.prototype.hasOwnProperty.call(LEGACY_MENU_ICON_KEYS, key);
-
-/** The semantic icon for a menu icon key (an old key or a semantic name), or null when it has none or is neither. */
-export function menuIconName(key: string): SemanticIconName | null {
-  if (isLegacyKey(key)) return LEGACY_MENU_ICON_KEYS[key];
-  return SEMANTIC_NAMES.has(key) ? (key as SemanticIconName) : null;
-}
-
-function menuIconSvg(key: string): string | undefined {
-  const name = menuIconName(key);
-  if (!name && isLegacyKey(key)) return undefined;
-  if (!name) {
-    console.warn(`[contextMenu] Unknown menu icon "${key}"; the item is shown without one`);
+function menuIconSvg(name: string): string | undefined {
+  if (!SEMANTIC_NAMES.has(name)) {
+    console.warn(`[contextMenu] Unknown menu icon "${name}"; the item is shown without one`);
     return undefined;
   }
   try {
-    return iconToSvg(name, MENU_ICON_SIZE);
+    return iconToSvg(name as SemanticIconName, MENU_ICON_SIZE);
   } catch (err) {
     console.warn(`[contextMenu] Could not render the "${name}" icon; the item is shown without one`, err);
     return undefined;
