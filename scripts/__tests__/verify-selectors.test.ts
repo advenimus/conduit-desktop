@@ -467,6 +467,14 @@ describe('dialog detection (8.3)', () => {
     expect(await flows.openDialogs(device)).toEqual(['Vault open on another device']);
     expect(await syncFlows.dialogDetails(device)).toEqual([{ title: 'Vault open on another device', text: 'Use here instead' }]);
   });
+
+  it('reads the plan enforcement dialogs by their titles (docs/PLAN_ENFORCEMENT.md S1, S4, S6, S9, S12)', async () => {
+    const titles = ['Too many devices', 'This vault belongs to another account', 'Sign in to open this vault', 'Update required', 'Release this vault?'];
+    document.body.innerHTML = titles.map((t) => `<div role="dialog" aria-label="${t}"><button>OK</button></div>`).join('') +
+      '<div data-dialog-content role="dialog" aria-labelledby="u"><h2 id="u">Unlock Vault</h2></div>';
+    expect(await flows.openDialogs(device)).toEqual(titles);
+    expect((await syncFlows.dialogDetails(device)).map((d) => d.title)).toEqual(titles);
+  });
 });
 
 describe('harness readers on restyled markup, with and without decoys', () => {

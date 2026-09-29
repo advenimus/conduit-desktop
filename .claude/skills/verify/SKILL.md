@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Run every live end-to-end suite (backup, copies, lifecycle, mcp, password, resilience, smoke, sync; 41 scenarios) against the real Conduit app and a local Supabase, then summarize pass or fail. Use before shipping or after changing vault sync, device leases, vault open or lock, master passwords, backups, sign-in, tiers, or the MCP server, and whenever asked to "verify", "run the live tests" or "prove it works in the real app". Fully isolated from the user's dev app and data; takes about 12 minutes.
+description: Run every live end-to-end suite (backup, copies, lifecycle, mcp, ownership, password, resilience, smoke, sync; 50 scenarios) against the real Conduit app and a local Supabase, then summarize pass or fail. Use before shipping or after changing vault sync, device leases, vault open or lock, master passwords, backups, sign-in, tiers, or the MCP server, and whenever asked to "verify", "run the live tests" or "prove it works in the real app". Fully isolated from the user's dev app and data; takes about 12 minutes.
 ---
 
 # /verify: all live suites
@@ -15,6 +15,7 @@ they add per-scenario detail and suite-specific troubleshooting:
 |---|---|---|
 | `verify-sync` (`.claude/skills/verify-sync/SKILL.md`) | `sync` | `npm run verify:sync` |
 | `verify-mcp` (`.claude/skills/verify-mcp/SKILL.md`) | `mcp` | `npm run verify:mcp` |
+| `verify-ownership` (`.claude/skills/verify-ownership/SKILL.md`) | `ownership` | `npm run verify:ownership` |
 | `verify-data` (`.claude/skills/verify-data/SKILL.md`) | `backup`, `copies`, `lifecycle`, `password`, `resilience` | `npm run verify:data`, or `node scripts/verify/run.mjs <suite>` |
 
 Smoke has no skill of its own (`node scripts/verify/run.mjs smoke`).
@@ -42,6 +43,9 @@ Smoke has no skill of its own (`node scripts/verify/run.mjs smoke`).
 - `has-conflict`: a same-field conflict makes `entry_info` report `has_conflict: true` until it is resolved in the review panel.
 - `locked-and-elsewhere`: a locked vault returns `code: VAULT_LOCKED`; after a Free take-over from another device it returns `reason: open_elsewhere` and the device shows the locked-out dialog.
 - `audit`: every MCP call of the run is in the MCP audit log, in order, with the right outcome; secrets such as `api_key` show as `[REDACTED]`.
+
+**ownership** (vault ownership and plan limits, `docs/PLAN_ENFORCEMENT.md`; not timed yet)
+- Owner and grace banners, grace ending with [Make my own copy], release and hand-over, release surviving a background re-acquire, the owner tag signed out and offline, the account device cap, the minimum app version, and the cloud backup plan gate. Details and wording: `.claude/skills/verify-ownership/SKILL.md`.
 
 **password** (master-password changes on a synced vault, spec 4.7 and 4.8; `node scripts/verify/run.mjs password`, about 1 minute)
 - `change-while-both-open`: on Pro, A changes the password (Vault > Change Password...); B shows "Syncing paused" naming the device, stops publishing, takes [Later] and keeps editing (a host and a secret); the old password is refused there; with the new one B's edits reach A, both show the same entries and every secret decrypts; after a lock the old password gets "Invalid master password" on both and the new one unlocks.

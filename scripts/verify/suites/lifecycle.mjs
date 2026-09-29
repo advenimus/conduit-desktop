@@ -17,6 +17,8 @@ import { bytesContaining, entryStorage, fileSha256, historyPasswordCiphers, stor
 import { emitLockScreen, idleChecks, renameVaultFromMenu, stubSystemIdle, unlockShownDialog, waitRecentlyDeleted } from '../lib/lifecycle-flows.mjs';
 
 const PW = 'verify-lifecycle-password-1';
+/** The account device cap every plan has (account_max_active_devices = 5, docs/PLAN_ENFORCEMENT.md 4.7). */
+const DEVICE_CAP_LINE = 'Up to 5 devices at once across your vaults.';
 const CONVERGE_MS = 30_000;
 // 5.9: missing for 30 s of repeated stat calls, then the folder listing and the rebind.
 const REBIND_MS = 75_000;
@@ -333,7 +335,7 @@ async function syncTab(ctx) {
   await ctx.flows.createVault(f, vaultIn(ctx, 'l6', 'Free.conduit'), PW);
   await ctx.waitFor(async () => (await ctx.ui.readSyncState(f)).status?.kind === 'up-to-date', { timeoutMs: CONVERGE_MS, label: 'free device up to date' });
   const ft = await readSyncTab(f);
-  ctx.checkEqual(ft.plan, 'Your plan: a vault can be open on one device at a time. Team vaults sync through your team.', 'Free plan line');
+  ctx.checkEqual(ft.plan, `Your plan: a vault can be open on one device at a time. Team vaults sync through your team. ${DEVICE_CAP_LINE}`, 'Free plan line');
   ctx.checkEqual((await ctx.ui.readSyncState(f)).deviceLimit?.limit, 1, 'the Free device limit is 1');
   ctx.checkEqual([ft.status, ft.devices.length], ['Up to date', 1], `Free: status and one device (${JSON.stringify(ft.devices)})`);
   ctx.check(ft.devices[0].name.endsWith('(this device)') && ft.devices[0].line.startsWith('Open now'), `Free: this device is open (${JSON.stringify(ft.devices[0])})`);
@@ -347,7 +349,7 @@ async function syncTab(ctx) {
     await cancelSettings(a);
     return null;
   }, { timeoutMs: CONVERGE_MS, intervalMs: 1_000, label: 'A lists both devices' });
-  ctx.checkEqual(pro.plan, 'Your plan: a vault can be open on any number of devices at once. Team vaults sync through your team.', 'Pro plan line');
+  ctx.checkEqual(pro.plan, `Your plan: a vault can be open on any number of devices at once. Team vaults sync through your team. ${DEVICE_CAP_LINE}`, 'Pro plan line');
   ctx.checkEqual((await ctx.ui.readSyncState(a)).deviceLimit?.limit, -1, 'the Pro device limit is unlimited');
   const [own, other] = [pro.devices.find((d) => d.name.endsWith('(this device)')), pro.devices.find((d) => !d.name.endsWith('(this device)'))];
   ctx.check(own?.line.startsWith('Open now') && other?.line.startsWith('Open now'), `Pro: both devices open (${JSON.stringify(pro.devices)})`);

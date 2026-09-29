@@ -31,6 +31,7 @@ in all); each suite alone adds about 8 s of setup.
 | `copies` | 5 | 105 to 145 s | `verify-data` | Conflict copies, user copies, side files, mass-change undo, two copies |
 | `lifecycle` | 6 | 160 s | `verify-data` | Recently deleted, rename and rebind, separate vault, damaged copy, idle lock, Sync tab |
 | `mcp` | 6 | 44 s | `verify-mcp` | MCP tools, no daily quota, MCP writes that sync, conflicts, lock errors, audit log |
+| `ownership` | 9 | not measured yet | `verify-ownership` | Vault owner and grace, Make my own copy, release, owner tag signed out and offline, device cap, minimum version, cloud backup plan gate (`docs/PLAN_ENFORCEMENT.md` 7.3) |
 | `password` | 4 | 50 s | `verify-data` | Master-password change on a synced vault |
 | `resilience` | 5 | 148 s | `verify-data` | Offline open and reconnect, cached tier, team vaults, export and import |
 | `smoke` | 2 | 4 s | none | Harness health |
@@ -39,6 +40,8 @@ in all); each suite alone adds about 8 s of setup.
 
 A suite with `optIn: true` runs only when it is named; `all` (the default) leaves it out. `--help` lists
 the opt-in suites.
+
+`ownership` needs the plan enforcement migrations (`20260929150000` to `20260929150300`) on the local stack; it moves the grace and cooldown clocks by updating `personal_vault_owners` and `personal_vault_guest_grace`, inserts fake lease rows for the device cap, and sets `app_config.min_app_version` for one scenario (reset to `0.0.0` when the scenario ends and again at cleanup). Devices are `o1a` to `o9a`, folders `<cloud>/o1` to `<cloud>/o9`.
 
 `sync`'s `file-safety` watches the whole cloud folder from the sync suite's first scenario on, so in a
 full run it also covers the files the earlier suites left there.
