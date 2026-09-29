@@ -13,11 +13,21 @@ import { errorText } from "../lib/errorText";
 
 export type { UnlockOptions } from "./vault-unlock-errors";
 
+export type SoftLockReason = "open_elsewhere" | "not_owner" | "update_required";
+
+/** Why the server refused the last cloud backup upload (plan enforcement S16, S17, S24). */
+export type CloudBackupNotice =
+  | { readonly kind: "plan" }
+  | { readonly kind: "full" }
+  | { readonly kind: "vaults-full"; readonly vaults: number | null };
+
 export interface CloudSyncState {
   status: "idle" | "syncing" | "synced" | "error" | "disabled";
   lastSyncedAt: string | null;
   error: string | null;
   enabled: boolean;
+  /** Absent from older main processes. */
+  notice?: CloudBackupNotice | null;
 }
 
 export interface CloudBackupEntry {
@@ -77,8 +87,8 @@ interface VaultState {
   // Network vault detection
   isNetworkVault: boolean;
 
-  /** Soft lock: the vault opened on another device; open connections keep running. */
-  lockedReason: "open_elsewhere" | null;
+  /** Soft lock: open on another device, owned by another account, or an update needed; open connections keep running. */
+  lockedReason: SoftLockReason | null;
 
   // Team vault
   vaultType: "personal" | "team";
@@ -104,7 +114,7 @@ interface VaultState {
   /** Mark vault as locked locally (backend already locked). */
   setLocked: () => void;
   /** Displaced: vault locked, but sessions, tabs and layout stay. */
-  setSoftLocked: () => void;
+  setSoftLocked: (reason?: SoftLockReason) => void;
 
   // Vault management
   createVault: (filePath: string, masterPassword: string) => Promise<void>;
@@ -309,9 +319,9 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     set({ isUnlocked: false, credentials: [], showVaultHub: true, lockedReason: null });
   },
 
-  setSoftLocked: () => {
+  setSoftLocked: (reason: SoftLockReason = "open_elsewhere") => {
     useSyncStore.getState().resetForLock();
-    set({ isUnlocked: false, credentials: [], lockedReason: "open_elsewhere" });
+    set({ isUnlocked: false, credentials: [], lockedReason: reason });
   },
 
   createVault: async (filePath: string, masterPassword: string) => {
@@ -524,7 +534,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   disableCloudSync: async () => {
     try {
       await invoke("cloud_sync_disable");
-      set({ cloudSyncState: { status: "disabled", lastSyncedAt: null, error: null, enabled: false } });
+      set({ cloudSyncState: { status: "disabled", lastSyncedAt: null, error: null, enabled: false, notice: null } });
     } catch (err) {
       console.error("Failed to disable cloud sync:", err);
       throw err;

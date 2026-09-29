@@ -41,6 +41,8 @@ const syncState: SyncStateResponse = {
   notices: [],
   pendingVaults: [],
   softLocked: false,
+  ownership: null,
+  deviceCap: null,
 };
 
 function handler(channel: string): Promise<unknown> {

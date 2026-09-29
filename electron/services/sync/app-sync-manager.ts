@@ -42,10 +42,12 @@ import { devDeviceLimitOverride, devLimitCollaborators } from './app-sync-dev.js
 import { exportClosedLineage, lineageForPath, pendingVaults, type LineageLookupDeps } from './app-sync-lineage.js';
 import { exportUnsynced as exportOpen, sideFileTuples } from './app-sync-actions.js';
 import { changeEnginePassword, renameEngineShared, snapshotEngineVault } from './app-sync-flows.js';
-import { InvalidSyncRequest, requireString } from './app-sync-dto-map.js';
+import { InvalidSyncRequest, ownershipDto, requireString } from './app-sync-dto-map.js';
 import type { EngineVault } from './app-sync-review.js';
 import type * as Dto from './app-sync-dto.js';
 import { OPEN_IN_PROGRESS_MESSAGE, VaultSlot } from './app-sync-slot.js';
+import { OwnCopyTickets } from '../vault-session/own-copy-tickets.js';
+import { makeOwnCopy } from './app-sync-own-copy.js';
 import { followSharedPath, type SharedPathChange } from './app-sync-binding.js';
 
 /** Event sent while an unlock waits for the cloud drive (4.4 G1), before the vault is open. */
@@ -118,6 +120,8 @@ export class AppSyncManager {
   /** Lineages whose unsynced changes were exported this launch (5.11 turn-off rule). */
   private readonly exported = new Set<string>();
   private readonly logger: SyncLogger;
+  /** "Make my own copy" keys (memory only), cleared on lock, sign-out and quit. */
+  private readonly tickets = new OwnCopyTickets();
 
   constructor(private readonly deps: AppSyncManagerDeps) {
     this.logger = deps.logger ?? createConsoleLogger();
@@ -203,6 +207,7 @@ export class AppSyncManager {
       config: s.identity.config,
       progress: this.progress(),
       incarnations: s.identity.incarnations,
+      tickets: this.tickets,
       collaborators: devLimitCollaborators(s.devLimit),
     };
     try {
@@ -220,6 +225,7 @@ export class AppSyncManager {
    * in progress is cancelled and closed first; a displaced save in progress is awaited.
    */
   async lock(): Promise<void> {
+    this.tickets.clear();
     await this.slot.close('lock');
     this.logger.info(`${SYNC_LOG_PREFIX} vault locked`);
   }
@@ -229,6 +235,7 @@ export class AppSyncManager {
    * tracker stays armed: a failed update install keeps the app running.
    */
   async quit(): Promise<void> {
+    this.tickets.clear();
     if (!this.slot.isBusy()) return;
     let timer: NodeJS.Timeout | undefined;
     const cap = new Promise<'cap'>((resolve) => {
@@ -253,6 +260,7 @@ export class AppSyncManager {
 
   /** Signed out while a vault is open: release the lease; owner claims apply from now on. */
   async signedOut(): Promise<void> {
+    this.tickets.clear();
     await this.opened?.runtime.signedOut();
   }
 
@@ -311,7 +319,32 @@ export class AppSyncManager {
       notices: live?.replica.local().notices ?? [],
       pendingVaults: await pendingVaults(s.lookup),
       softLocked: soft,
+      ownership: this.ownership(o, soft),
+      deviceCap: o?.runtime.ownershipView().deviceCap ?? null,
     };
+  }
+
+  private ownership(o: OpenedPersonalVault | null, soft: boolean): Dto.VaultOwnership | null {
+    if (o === null) return null;
+    const signedIn = (this.started?.syncHost.account.userId() ?? null) !== null;
+    return ownershipDto(o.runtime.ownershipView(), signedIn, soft);
+  }
+
+  /** Sync settings [Release this vault...]: vault_owner_release for the open vault. */
+  releaseOwnership(): Promise<Dto.ReleaseOwnershipResult> {
+    if (this.opened === null || this.opened.runtime.isSoftLocked()) throw new Error(SYNC_NOT_RUNNING_MESSAGE);
+    return this.opened.runtime.releaseOwnership();
+  }
+
+  /** S4 [Make my own copy]: forks the refused vault with the ticket's key into `targetPath`. */
+  makeOwnCopy(ticket: string, targetPath: string): Promise<Dto.ForkResultDto> {
+    const s = this.requireStarted();
+    return makeOwnCopy(requireString(ticket, 'ticket'), targetPath, {
+      tickets: this.tickets,
+      machineDir: s.identity.machineDir,
+      workDir: path.join(s.identity.syncRoot, 'tmp'),
+      host: s.syncHost,
+    });
   }
 
   private vaultInfo(o: OpenedPersonalVault, engine: boolean): Dto.OpenVaultInfo {

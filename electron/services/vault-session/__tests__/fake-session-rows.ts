@@ -12,6 +12,7 @@ export const PLATFORMS: ReadonlySet<string> = new Set(['macos', 'windows', 'linu
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type RowStatus = 'active' | 'released' | 'expired' | 'displaced';
+export type DisplacedReasonCode = 'takeover' | 'plan_limit' | 'device_cap' | 'not_owner' | 'update_required';
 export type Json = Readonly<Record<string, unknown>>;
 
 export interface SessionRow {
@@ -34,7 +35,7 @@ export interface SessionRow {
   readonly busy: Json;
   readonly flags: Json;
   readonly displacedByDevice: string | null;
-  readonly displacedReason: 'takeover' | 'plan_limit' | null;
+  readonly displacedReason: DisplacedReasonCode | null;
   readonly displacedAtMs: number | null;
   readonly writtenVv: Json;
   readonly writtenAtMs: number | null;
@@ -114,6 +115,42 @@ function compareIds(a: string, b: string): number {
 /** Take-over order (9.5 acquire): not busy first, least recently active first, device_id. */
 export function takeoverOrder(a: SessionRow, b: SessionRow): number {
   return Number(isBusy(a.busy)) - Number(isBusy(b.busy)) || a.lastActiveMs - b.lastActiveMs || compareIds(a.deviceId, b.deviceId);
+}
+
+/** Device order of the account cap (plan enforcement 2.4): idle before busy, least recently active, device_id. */
+export function deviceTakeoverOrder(a: DeviceGroup, b: DeviceGroup): number {
+  return Number(a.busy) - Number(b.busy) || a.lastActiveMs - b.lastActiveMs || compareIds(a.deviceId, b.deviceId);
+}
+
+/** The account sweep's ranking: busy first, most recently active first, device_id. */
+export function deviceKeepOrder(a: DeviceGroup, b: DeviceGroup): number {
+  return Number(b.busy) - Number(a.busy) || b.lastActiveMs - a.lastActiveMs || compareIds(a.deviceId, b.deviceId);
+}
+
+/** One device's live rows of an account, grouped (vault_session_device_holders). */
+export interface DeviceGroup {
+  readonly deviceId: string;
+  readonly rows: readonly SessionRow[];
+  readonly busy: boolean;
+  readonly lastActiveMs: number;
+}
+
+export function groupByDevice(rows: readonly SessionRow[]): DeviceGroup[] {
+  const byDevice = new Map<string, SessionRow[]>();
+  for (const r of rows) byDevice.set(r.deviceId, [...(byDevice.get(r.deviceId) ?? []), r]);
+  return [...byDevice.entries()].map(([deviceId, list]) => ({
+    deviceId,
+    rows: list,
+    busy: list.some((r) => isBusy(r.busy)),
+    lastActiveMs: Math.max(...list.map((r) => r.lastActiveMs)),
+  }));
+}
+
+/** A device-cap holder entry: the latest row's fields, busy sums and the vault count. */
+export function deviceHolderJson(g: DeviceGroup): Json {
+  const latest = [...g.rows].sort((a, b) => b.lastActiveMs - a.lastActiveMs)[0]!;
+  const sum = (k: 'sessions' | 'jobs'): number => g.rows.reduce((n, r) => n + (typeof r.busy[k] === 'number' ? Math.max(r.busy[k] as number, 0) : 0), 0);
+  return { ...holderJson(latest), last_active_at: iso(g.lastActiveMs), busy: { sessions: sum('sessions'), jobs: sum('jobs') }, vaults: g.rows.length };
 }
 
 /** Plan-limit ranking (9.5 heartbeat): busy first, most recently active first, device_id. */

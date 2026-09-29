@@ -4,6 +4,7 @@ import type {
   SyncPauseReason,
   SyncStatus,
   TakeoverHolder,
+  VaultOwnership,
   VersionSource,
 } from "../../types/sync";
 
@@ -204,4 +205,41 @@ export function noticeText(notice: LocalNotice, itemName: string | null = null):
     case "candidate-dropped":
       return `${plural(Math.max(1, notice.count), "copy", "copies")} waiting for review ${notice.count > 1 ? "were" : "was"} removed. ${notice.count > 1 ? "They were" : "It was"} locked with a master password this device no longer has.`;
   }
+}
+
+/** The server's fallback device cap (app_config account_max_active_devices_fallback), when none was confirmed. */
+export const DEFAULT_DEVICE_CAP = 5;
+
+/** Sync settings plan line (plan enforcement 4.7); null when there is no cap. */
+export function deviceCapText(n: number | null): string | null {
+  if (n === null || n === -1) return null;
+  return `Up to ${n} devices at once across your vaults.`;
+}
+
+/** S11: the owner line in Sync settings; null with no personal vault open. */
+export function ownerLineText(ownership: VaultOwnership | null): string | null {
+  if (ownership === null) return null;
+  switch (ownership.kind) {
+    case "owner":
+      return "Owner: this account.";
+    case "grace":
+      return `Owner: another account. You can use it until ${formatShortDate(ownership.untilMs)}.`;
+    case "unowned":
+      return "Owner: not set yet.";
+    case "unknown":
+      return "Owner: sign in to check.";
+  }
+}
+
+/** S13, and the disabled release button's hint. */
+export function releaseAfterText(releaseAfterMs: number): string {
+  return `You can release this vault on ${formatShortDate(releaseAfterMs)}.`;
+}
+
+/** Device-cap take-over line: "MacBook: 2 vaults open, active 5 minutes ago". */
+export function deviceHolderLine(holder: TakeoverHolder, nowMs: number = Date.now()): string {
+  const parts = [holder.vaults == null ? null : `${plural(holder.vaults, "vault")} open`, holder.lastActiveMs === null ? null : `active ${formatAgo(holder.lastActiveMs, nowMs)}`];
+  const detail = parts.filter((p): p is string => p !== null).join(", ");
+  const name = deviceNameOr(holder.deviceName);
+  return detail === "" ? name : `${name}: ${detail}`;
 }

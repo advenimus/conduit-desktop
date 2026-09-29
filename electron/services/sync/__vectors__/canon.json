@@ -630,6 +630,28 @@
       "output": "047b2261223a6e756c6c2c2264223a226465766963652d75756964227d"
     },
     {
+      "name": "canon: _sync owner tag JSON",
+      "fn": "canon",
+      "input": {
+        "tbl": 9,
+        "rowId": "owner",
+        "reg": "account",
+        "value": "{\"a\":\"0123456789abcdef0123456789abcdef\"}"
+      },
+      "output": "047b2261223a223031323334353637383961626364656630313233343536373839616263646566227d"
+    },
+    {
+      "name": "canon: _sync owner tag released",
+      "fn": "canon",
+      "input": {
+        "tbl": 9,
+        "rowId": "owner",
+        "reg": "account",
+        "value": "{\"a\":null}"
+      },
+      "output": "047b2261223a6e756c6c7d"
+    },
+    {
       "name": "canon: _sync dismiss flag",
       "fn": "canon",
       "input": {

@@ -7,6 +7,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AuthService } from '../auth/supabase.js';
+import { getEnvConfig } from '../env-config.js';
+import { postInviteAccept } from './invite-accept.js';
 
 // ---------- Types ----------
 
@@ -74,9 +76,11 @@ export interface AuditLogEntry {
 
 export class TeamService {
   private authService: AuthService;
+  private readonly fetchImpl: typeof fetch;
 
-  constructor(authService: AuthService) {
+  constructor(authService: AuthService, fetchImpl: typeof fetch = (input, init) => fetch(input, init)) {
     this.authService = authService;
+    this.fetchImpl = fetchImpl;
   }
 
   private getSupabase(): SupabaseClient {
@@ -220,15 +224,18 @@ export class TeamService {
     })) as TeamInvitation[];
   }
 
-  /** Accept a team invitation. */
+  /**
+   * Accept a team invitation through the website route (docs/PLAN_ENFORCEMENT.md 2.8, 4.9): it
+   * adds the member with the service role, reserves the seat, updates billing and the plan. The
+   * app only checks the invitation is pending and addressed to this account.
+   */
   async acceptInvitation(invitationId: string): Promise<void> {
-    const userId = this.getUserId();
     const supabase = this.getSupabase();
+    this.getUserId();
 
-    // Get the invitation
     const { data: invitation, error: fetchError } = await supabase
       .from('team_invitations')
-      .select('*')
+      .select('token, status, email')
       .eq('id', invitationId)
       .single();
 
@@ -246,34 +253,15 @@ export class TeamService {
       throw new Error('This invitation was sent to a different email address');
     }
 
-    // Add user as team member
-    const { error: memberError } = await supabase
-      .from('team_members')
-      .insert({
-        team_id: invitation.team_id,
-        user_id: userId,
-        role: invitation.role,
-      });
+    const accessToken = await this.authService.getAccessToken();
+    if (!accessToken) throw new Error('Not authenticated');
+    await postInviteAccept(this.fetchImpl, getEnvConfig().websiteUrl, accessToken, invitation.token);
 
-    if (memberError) {
-      throw new Error(`Failed to join team: ${memberError.message}`);
+    try {
+      await this.authService.refreshSession();
+    } catch (err) {
+      console.warn('[team-service] Profile refresh after joining a team failed:', err instanceof Error ? err.name : 'Error');
     }
-
-    // Update invitation status
-    await supabase
-      .from('team_invitations')
-      .update({
-        status: 'accepted',
-        responded_at: new Date().toISOString(),
-      })
-      .eq('id', invitationId);
-
-    // Set primary team if not set
-    await supabase
-      .from('user_profiles')
-      .update({ primary_team_id: invitation.team_id })
-      .eq('id', userId)
-      .is('primary_team_id', null);
   }
 
   /** Decline a team invitation. */

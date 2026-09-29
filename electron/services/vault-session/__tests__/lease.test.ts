@@ -8,9 +8,9 @@ import type { AcquireResult, HeartbeatResult } from '../session-client.js';
 import { row } from './stale-fixtures.js';
 
 const MAC = '22222222-2222-4222-8222-222222222222';
-const granted = (leaseId = 'lease-1', limit = 1): AcquireResult => ({ kind: 'granted', leaseId, limit, sessions: [row({ deviceId: MAC })], serverNowMs: null });
+const granted = (leaseId = 'lease-1', limit = 1): AcquireResult => ({ kind: 'granted', leaseId, limit, sessions: [row({ deviceId: MAC })], serverNowMs: null, deviceCap: null, ownership: null });
 const unconfirmed: AcquireResult = { kind: 'unconfirmed', reason: 'network', detail: 'network' };
-const ok = (limit = 1): HeartbeatResult => ({ kind: 'ok', limit, sessions: [], serverNowMs: null });
+const ok = (limit = 1): HeartbeatResult => ({ kind: 'ok', limit, deviceCap: null, ownership: null, sessions: [], serverNowMs: null });
 
 describe('LeaseTracker', () => {
   it('starts with no lease (signed out)', () => {
@@ -43,7 +43,7 @@ describe('LeaseTracker', () => {
     expect(l.toServerMs(20_000)).toBe(23_000);
     l.onHeartbeat(ok(), 30_000);
     expect(l.toServerMs(20_000)).toBe(23_000);
-    l.onHeartbeat({ kind: 'ok', limit: 1, sessions: [], serverNowMs: 29_000 }, 30_000);
+    l.onHeartbeat({ kind: 'ok', limit: 1, deviceCap: null, ownership: null, sessions: [], serverNowMs: 29_000 }, 30_000);
     expect(l.toServerMs(20_000)).toBe(19_000);
   });
 
@@ -55,7 +55,7 @@ describe('LeaseTracker', () => {
     l.onHeartbeat({ kind: 'unconfirmed', reason: 'timeout', detail: 't' }, 30);
     l.onHeartbeat({ kind: 'unconfirmed', reason: 'server', detail: '503' }, 40);
     expect(l.state()).toEqual({ kind: 'unconfirmed', leaseId: 'lease-1', sinceMs: 30, reason: 'server' });
-    l.onAcquire({ kind: 'denied', limit: 1, holders: [], sessions: [], serverNowMs: null }, 50);
+    l.onAcquire({ kind: 'denied', cause: 'vault_limit', limit: 1, deviceCap: null, holders: [], alsoLocks: null, sessions: [], serverNowMs: null }, 50);
     expect(l.leaseId()).toBe('lease-1');
     l.onHeartbeat(ok(), 60);
     expect(l.state()).toEqual({ kind: 'confirmed', leaseId: 'lease-1', lastOkMs: 60 });
@@ -64,7 +64,7 @@ describe('LeaseTracker', () => {
   it('maps displaced, superseded, lost and released', () => {
     const l = new LeaseTracker();
     l.onAcquire(granted(), 0);
-    l.onHeartbeat({ kind: 'displaced', reason: 'plan_limit', byDeviceName: 'MacBook' }, 1);
+    l.onHeartbeat({ kind: 'displaced', reason: 'plan_limit', byDeviceName: 'MacBook', minVersion: null, released: false }, 1);
     expect(l.state()).toEqual({ kind: 'displaced', reason: 'plan_limit', byDeviceName: 'MacBook', leaseId: 'lease-1' });
     expect(l.leaseId()).toBeNull();
     expect(l.releaseLeaseId()).toBe('lease-1');

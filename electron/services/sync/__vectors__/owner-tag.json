@@ -1,0 +1,383 @@
+{
+  "format": 1,
+  "module": "owner-tag",
+  "notes": [
+    "evaluateOwnerTag of docs/PLAN_ENFORCEMENT.md 3.4. Verdicts: allow, sign-in, not-owner-offline.",
+    "tag: null when the _sync/owner/account register is absent, else {\"a\": hint or null}; tagMs is the HLC ms of its provisional sibling.",
+    "Hints are account_hint(lineageId, lowercase userId) (hashing.json). ownerCheck is local.json ownerCheck (3.3) or null.",
+    "An ownerCheck whose atMs is more than 300000 ms after nowMs is ignored."
+  ],
+  "rows": [
+    {
+      "name": "signed in, peek ok: tag absent",
+      "signedIn": true,
+      "peekConfirmed": true,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": null,
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed in, peek ok: tag released",
+      "signedIn": true,
+      "peekConfirmed": true,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": null
+      },
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed in, peek ok: tag names this account",
+      "signedIn": true,
+      "peekConfirmed": true,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "47c89d97114b24c60adc27f37ad163c8"
+      },
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed in, peek ok: tag names another account (the server decides)",
+      "signedIn": true,
+      "peekConfirmed": true,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: tag absent",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": null,
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: tag released",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": null
+      },
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: tag names this account",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "47c89d97114b24c60adc27f37ad163c8"
+      },
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: tag names another account, no cache",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": null,
+      "expect": "not-owner-offline",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: stale tag, newer owner cache",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "owner",
+        "untilMs": null,
+        "atMs": 1759996460000
+      },
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: newer tag, older owner cache",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "owner",
+        "untilMs": null,
+        "atMs": 1759996340000
+      },
+      "expect": "not-owner-offline",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: grace cache still running",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "grace",
+        "untilMs": 1760086400000,
+        "atMs": 1759999940000
+      },
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: grace cache expired",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "grace",
+        "untilMs": 1759999999999,
+        "atMs": 1759999940000
+      },
+      "expect": "not-owner-offline",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: owner cache of another account",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": {
+        "hint": "faeefb48d27e228f3bb19a469e1b16f6",
+        "kind": "owner",
+        "untilMs": null,
+        "atMs": 1759996460000
+      },
+      "expect": "not-owner-offline",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: owner cache dated in the future is ignored",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d",
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "owner",
+        "untilMs": null,
+        "atMs": 1760000600000
+      },
+      "expect": "not-owner-offline",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "offline: mixed-case user id hashes lowercase",
+      "signedIn": true,
+      "peekConfirmed": false,
+      "userId": "9A1B2C3D-4E5F-4A6B-8C7D-0E1F2A3B4C5D",
+      "tag": {
+        "a": "47c89d97114b24c60adc27f37ad163c8"
+      },
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed out: tag absent",
+      "signedIn": false,
+      "peekConfirmed": false,
+      "userId": null,
+      "tag": null,
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed out: tag released",
+      "signedIn": false,
+      "peekConfirmed": false,
+      "userId": null,
+      "tag": {
+        "a": null
+      },
+      "ownerCheck": null,
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed out: tag names an account, no cache",
+      "signedIn": false,
+      "peekConfirmed": false,
+      "userId": null,
+      "tag": {
+        "a": "47c89d97114b24c60adc27f37ad163c8"
+      },
+      "ownerCheck": null,
+      "expect": "sign-in",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed out: owner cache of the tagged account",
+      "signedIn": false,
+      "peekConfirmed": false,
+      "userId": null,
+      "tag": {
+        "a": "47c89d97114b24c60adc27f37ad163c8"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "owner",
+        "untilMs": null,
+        "atMs": 1759996340000
+      },
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed out: stale tag, newer owner cache",
+      "signedIn": false,
+      "peekConfirmed": false,
+      "userId": null,
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "owner",
+        "untilMs": null,
+        "atMs": 1759996460000
+      },
+      "expect": "allow",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed out: newer tag, older owner cache",
+      "signedIn": false,
+      "peekConfirmed": false,
+      "userId": null,
+      "tag": {
+        "a": "faeefb48d27e228f3bb19a469e1b16f6"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "owner",
+        "untilMs": null,
+        "atMs": 1759996340000
+      },
+      "expect": "sign-in",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed out: a grace cache never opens",
+      "signedIn": false,
+      "peekConfirmed": false,
+      "userId": null,
+      "tag": {
+        "a": "47c89d97114b24c60adc27f37ad163c8"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "grace",
+        "untilMs": 1760086400000,
+        "atMs": 1759999940000
+      },
+      "expect": "sign-in",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    },
+    {
+      "name": "signed out: owner cache dated in the future is ignored",
+      "signedIn": false,
+      "peekConfirmed": false,
+      "userId": null,
+      "tag": {
+        "a": "47c89d97114b24c60adc27f37ad163c8"
+      },
+      "ownerCheck": {
+        "hint": "47c89d97114b24c60adc27f37ad163c8",
+        "kind": "owner",
+        "untilMs": null,
+        "atMs": 1760000600000
+      },
+      "expect": "sign-in",
+      "lineageId": "0b8f3d52-6c41-4f0e-9d7e-1c2a3b4c5d6e",
+      "tagMs": 1759996400000,
+      "nowMs": 1760000000000
+    }
+  ]
+}

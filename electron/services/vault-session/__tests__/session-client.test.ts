@@ -26,6 +26,7 @@ const acquireArgs = (overrides: Partial<AcquireArgs> = {}): AcquireArgs => ({
   fileId: FILE_ID,
   location: 'Dropbox',
   takeover: false,
+  claim: true,
   ...overrides,
 });
 
@@ -95,13 +96,19 @@ describe('SessionClient', () => {
     it('sends the SQL parameter names with the early-check timeout', async () => {
       rpc.enqueue('vault_session_peek', rpcOk({ limit: 1, holders: [holderRow()] }));
       const res = await client.peek({ vaultKey: VAULT, deviceId: DEVICE });
-      expect(rpc.calls).toEqual([{ fn: 'vault_session_peek', args: { p_vault_key: VAULT, p_device_id: DEVICE }, timeoutMs: EARLY_CHECK_TIMEOUT_MS }]);
+      expect(rpc.calls).toEqual([
+        {
+          fn: 'vault_session_peek',
+          args: { p_vault_key: VAULT, p_device_id: DEVICE, p_platform: 'macos', p_app_version: '0.18.0' },
+          timeoutMs: EARLY_CHECK_TIMEOUT_MS,
+        },
+      ]);
       expect(res).toMatchObject({ kind: 'ok', limit: 1, holders: [{ deviceId: OTHER, busySessions: 3, busyJobs: 1 }] });
     });
 
     it('accepts an unlimited plan with no holders', async () => {
       rpc.enqueue('vault_session_peek', rpcOk({ limit: -1, holders: [] }));
-      expect(await client.peek({ vaultKey: VAULT, deviceId: DEVICE }, 500)).toEqual({ kind: 'ok', limit: -1, holders: [] });
+      expect(await client.peek({ vaultKey: VAULT, deviceId: DEVICE }, 500)).toEqual({ kind: 'ok', limit: -1, deviceCap: null, holders: [], refusal: null });
       expect(rpc.calls[0].timeoutMs).toBe(500);
     });
 
@@ -140,6 +147,7 @@ describe('SessionClient', () => {
             p_file_id: FILE_ID,
             p_location: 'Dropbox',
             p_takeover: true,
+            p_claim: true,
           },
         },
       ]);
@@ -154,7 +162,7 @@ describe('SessionClient', () => {
     it('parses a grant', async () => {
       rpc.enqueue('vault_session_acquire', rpcOk({ granted: true, lease_id: LEASE, limit: 1, ttl_seconds: 90, heartbeat_seconds: 30, sessions: [sessionRow()], server_now: TS }));
       const res = await client.acquire(acquireArgs());
-      expect(res).toMatchObject({ kind: 'granted', leaseId: LEASE, limit: 1, serverNowMs: TS_MS });
+      expect(res).toMatchObject({ kind: 'granted', leaseId: LEASE, limit: 1, serverNowMs: TS_MS, deviceCap: null, ownership: null });
       expect(res.kind === 'granted' && res.sessions).toHaveLength(1);
     });
 
@@ -260,8 +268,8 @@ describe('SessionClient', () => {
 
     it.each([
       [{ status: 'ok', limit: -1, sessions: [sessionRow()], server_now: TS }, { kind: 'ok', limit: -1, serverNowMs: TS_MS }],
-      [{ status: 'displaced', reason: 'takeover', by: 'iPhone' }, { kind: 'displaced', reason: 'takeover', byDeviceName: 'iPhone' }],
-      [{ status: 'displaced', reason: 'plan_limit', by: null }, { kind: 'displaced', reason: 'plan_limit', byDeviceName: null }],
+      [{ status: 'displaced', reason: 'takeover', by: 'iPhone' }, { kind: 'displaced', reason: 'takeover', byDeviceName: 'iPhone', minVersion: null, released: false }],
+      [{ status: 'displaced', reason: 'plan_limit', by: null }, { kind: 'displaced', reason: 'plan_limit', byDeviceName: null, minVersion: null, released: false }],
       [{ status: 'lost', reason: 'unknown' }, { kind: 'lost', reason: 'unknown' }],
       [{ status: 'lost', reason: 'superseded' }, { kind: 'lost', reason: 'superseded' }],
       [{ status: 'lost', reason: 'released' }, { kind: 'lost', reason: 'released' }],
@@ -335,6 +343,30 @@ describe('SessionClient', () => {
     it('abandon failures are unconfirmed', async () => {
       rpc.enqueue('vault_session_abandon', rpcFail({ kind: 'postgres', code: '28000' }));
       expect(await client.abandon({ vaultKey: VAULT, deviceId: DEVICE, targetDeviceId: OTHER })).toMatchObject({ kind: 'unconfirmed', reason: 'auth' });
+    });
+  });
+
+  describe('plan enforcement', () => {
+    it('sends p_claim false for a background re-acquire', async () => {
+      rpc.enqueue('vault_session_acquire', rpcOk({ granted: true, lease_id: LEASE, limit: 1, sessions: [], server_now: TS, ownership: 'unowned' }));
+      const res = await client.acquire(acquireArgs({ claim: false }));
+      expect(rpc.calls[0]?.args).toMatchObject({ p_claim: false, p_takeover: false });
+      expect(res).toMatchObject({ kind: 'granted', ownership: { kind: 'unowned' } });
+    });
+
+    it('releaseOwnership sends the vault key and reads the answer', async () => {
+      rpc.enqueue('vault_owner_release', rpcOk({ released: false, reason: 'too_soon', retry_after: TS }));
+      expect(await client.releaseOwnership(VAULT)).toEqual({ released: false, reason: 'too_soon', retryAfterMs: TS_MS });
+      expect(rpc.calls).toEqual([{ fn: 'vault_owner_release', timeoutMs: RPC_TIMEOUT_MS, args: { p_vault_key: VAULT } }]);
+    });
+
+    it('releaseOwnership is unconfirmed on a transport error, a malformed answer or signed out', async () => {
+      rpc.enqueue('vault_owner_release', rpcFail({ kind: 'network' }));
+      expect(await client.releaseOwnership(VAULT)).toEqual({ released: false, reason: 'unconfirmed' });
+      rpc.enqueue('vault_owner_release', rpcOk({ released: 'yes' }));
+      expect(await client.releaseOwnership(VAULT)).toEqual({ released: false, reason: 'unconfirmed' });
+      t.knobs.userId = null;
+      expect(await client.releaseOwnership(VAULT)).toEqual({ released: false, reason: 'unconfirmed' });
     });
   });
 });

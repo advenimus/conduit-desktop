@@ -80,6 +80,11 @@ export function registerAuthHandlers(): void {
     shell.openExternal(`${config.websiteUrl}/pricing`);
   });
 
+  ipcMain.handle('auth_open_team_trial', () => {
+    const config = getEnvConfig();
+    shell.openExternal(`${config.websiteUrl}/account/team/setup?plan=monthly&trial=true`);
+  });
+
   ipcMain.handle('auth_open_download', () => {
     const config = getEnvConfig();
     shell.openExternal(`${config.websiteUrl}/download`);

@@ -129,7 +129,7 @@ The local anon key is a well-known public development key baked into `env-config
 
 - `docs/FEATURES.md` — Feature list
 - `docs/MULTI_DEVICE_SYNC.md`: personal vault multi-device sync and device limits (merge engine in `electron/services/sync/`, device leases in `electron/services/vault-session/`)
-- `scripts/verify/README.md`: live end-to-end harness (`npm run verify`); agents run it with the `/verify`, `/verify-sync` and `/verify-mcp` skills in `.claude/skills/`
+- `scripts/verify/README.md`: live end-to-end harness (`npm run verify`); agents run it with the `/verify`, `/verify-sync`, `/verify-mcp` and `/verify-ownership` skills in `.claude/skills/`
 - `docs/SUPABASE.md` — Supabase integration architecture
 - `docs/LOCAL_SUPABASE.md` — Local Supabase setup for development
 - `docs/ADDING_ENTRY_TYPES.md` — How to add new entry / credential types

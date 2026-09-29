@@ -1,7 +1,8 @@
 /**
  * IPC channels of personal-vault sync (docs/MULTI_DEVICE_SYNC.md 11.1): status, Sync now,
  * devices, other copies, side files, file binding, export, turning sync off (support only, no
- * UI), the password flows after a change on another device, and the device-session answers.
+ * UI), the password flows after a change on another device, the device-session answers, and
+ * vault ownership (release, "Make my own copy"; docs/PLAN_ENFORCEMENT.md 4.5, 4.7).
  * Review channels are in sync-review.ts. Every channel takes one argument object, validated here and again in the
  * sync layer; errors reach the renderer as short text (sync-errors.ts).
  */
@@ -31,7 +32,16 @@ import { applyVaultPasswordChange } from './sync-password.js';
 
 export type AppSyncFacade = Pick<
   AppSyncManager,
-  'getState' | 'engineVault' | 'runtime' | 'exportUnsynced' | 'setEnabled' | 'answerConflict' | 'stopWaiting' | 'openNow'
+  | 'getState'
+  | 'engineVault'
+  | 'runtime'
+  | 'exportUnsynced'
+  | 'setEnabled'
+  | 'answerConflict'
+  | 'stopWaiting'
+  | 'openNow'
+  | 'releaseOwnership'
+  | 'makeOwnCopy'
 >;
 
 export interface SyncIpcDeps {
@@ -134,4 +144,8 @@ export function registerSyncHandlers(deps: SyncIpcDeps = defaultDeps(), ipc: Ipc
   on('vault_session_lock_here', () => deps.appSync().answerConflict('lock-here'));
   on('vault_session_stop_waiting', (a) => deps.appSync().stopWaiting(requireString(a.deviceId, 'device')));
   on('vault_session_open_now', () => deps.appSync().openNow());
+  on('sync_release_ownership', () => deps.appSync().releaseOwnership());
+  on('sync_make_own_copy', (a) =>
+    deps.appSync().makeOwnCopy(requireString(a.ticket, 'ticket'), requireVaultTarget(a.targetPath, 'target path')),
+  );
 }

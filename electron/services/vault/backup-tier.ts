@@ -1,7 +1,8 @@
 /**
  * Plan check for cloud backup and cloud restores (spec 8.1 `cloud_sync_enabled`: Free off,
- * Pro and Team on). The live profile decides; before the profile loads (offline or cached
- * mode) a usable cached tier copy in settings.json decides (7 days, not future-dated).
+ * Pro and Team on; a team member always, as the server's cloud_backup_allowed()). The live
+ * profile decides; before the profile loads (offline or cached mode) a usable cached tier copy
+ * in settings.json decides (7 days, not future-dated).
  */
 
 import { usableCachedTier, type CachedTierFields } from '../auth/tier-cache.js';
@@ -13,7 +14,7 @@ export const CLOUD_RESTORE_PLAN_MESSAGE = 'Cloud backup restore needs the Pro or
 
 /** The parts of AuthState the check reads. */
 export interface TierAuthState {
-  readonly profile: { readonly tier?: { readonly features?: unknown } | null } | null;
+  readonly profile: { readonly tier?: { readonly features?: unknown } | null; readonly is_team_member?: boolean | null } | null;
 }
 
 function featureOn(features: unknown): boolean {
@@ -21,6 +22,6 @@ function featureOn(features: unknown): boolean {
 }
 
 export function cloudBackupAllowed(auth: TierAuthState, settings: CachedTierFields, nowMs: number = Date.now()): boolean {
-  if (auth.profile !== null) return featureOn(auth.profile.tier?.features);
+  if (auth.profile !== null) return auth.profile.is_team_member === true || featureOn(auth.profile.tier?.features);
   return featureOn(usableCachedTier(settings, nowMs));
 }

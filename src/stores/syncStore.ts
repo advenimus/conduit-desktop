@@ -61,6 +61,8 @@ interface SyncStoreState {
   deferredPrompts: ReadonlySet<string>;
   /** Lineage whose "N changes need review" banner was closed this session. */
   reviewBannerClosedFor: string | null;
+  /** S12 "Release this vault?" is open. */
+  releaseDialogOpen: boolean;
 
   refresh: () => Promise<void>;
   loadConflicts: () => Promise<void>;
@@ -79,6 +81,7 @@ interface SyncStoreState {
   /** Shows a put-off prompt again (the deferred password prompt's [Enter password]). */
   undeferPrompt: (promptId: string) => void;
   closeReviewBanner: () => void;
+  setReleaseDialogOpen: (open: boolean) => void;
   dismissPrompt: (promptId: string) => Promise<void>;
   dismissNotice: (noticeId: string) => Promise<void>;
   resolve: (request: ResolveRequest) => Promise<ResolveResult>;
@@ -116,6 +119,7 @@ export const useSyncStore = create<SyncStoreState>((set, get) => ({
   view: null,
   deferredPrompts: EMPTY_PROMPTS,
   reviewBannerClosedFor: null,
+  releaseDialogOpen: false,
 
   refresh: () => {
     if (refreshInFlight) return refreshInFlight;
@@ -179,6 +183,7 @@ export const useSyncStore = create<SyncStoreState>((set, get) => ({
   undeferPrompt: (promptId) => set({ deferredPrompts: new Set([...get().deferredPrompts].filter((id) => id !== promptId)) }),
 
   closeReviewBanner: () => set({ reviewBannerClosedFor: activeStatus(get().state)?.lineageId ?? null }),
+  setReleaseDialogOpen: (open) => set({ releaseDialogOpen: open }),
 
   dismissPrompt: async (promptId) => {
     await syncApi.dismissPrompt(promptId);
@@ -224,5 +229,6 @@ export const useSyncStore = create<SyncStoreState>((set, get) => ({
       view: null,
       deferredPrompts: EMPTY_PROMPTS,
       reviewBannerClosedFor: null,
+      releaseDialogOpen: false,
     }),
 }));

@@ -10,7 +10,7 @@
 import { SESSION_LOG_PREFIX, type SessionRowView } from '../sync/host.js';
 import type { AppDot } from '../sync/types.js';
 import type { BusyReport, Holder, RpcCaller, RpcFailure, RpcResult, SessionHost, SessionRpcName } from './host.js';
-import { markerToJson, parseAcquireData, parseHeartbeatData, parsePeekData, type Parsed } from './session-client-parse.js';
+import { markerToJson, parseAcquireData, parseHeartbeatData, parseOwnerReleaseData, parsePeekData, type Parsed } from './session-client-parse.js';
 
 export { markerFromJson, markerToJson, parseHolders, parseSessions } from './session-client-parse.js';
 
@@ -61,6 +61,8 @@ export interface AcquireArgs extends SessionIds {
   readonly fileId: string | null;
   readonly location: string | null;
   readonly takeover: boolean;
+  /** p_claim (plan enforcement 2.5.1): true only for an open the user started; background re-acquires send false. */
+  readonly claim: boolean;
 }
 
 export interface SessionFlags {
@@ -93,30 +95,85 @@ export interface AbandonArgs extends SessionIds {
   readonly targetDeviceId: string;
 }
 
-export type PeekResult = { readonly kind: 'ok'; readonly limit: number; readonly holders: readonly Holder[] } | Unconfirmed;
+/** Plan enforcement 2.5.1: absent on a grant or heartbeat `ok` means unknown (null). */
+export type Ownership =
+  | { readonly kind: 'owner'; readonly releaseAfterMs: number | null; readonly sharedUntilMs: number | null }
+  | { readonly kind: 'grace'; readonly untilMs: number }
+  | { readonly kind: 'unowned' };
+
+export type PeekRefusal =
+  | { readonly kind: 'update-required'; readonly minVersion: string }
+  | { readonly kind: 'device-cap'; readonly deviceCap: number; readonly devices: readonly Holder[] };
+
+export type PeekResult =
+  | {
+      readonly kind: 'ok';
+      readonly limit: number;
+      readonly deviceCap: number | null;
+      readonly holders: readonly Holder[];
+      readonly refusal: PeekRefusal | null;
+    }
+  | Unconfirmed;
+
+export type DenialCause = 'vault_limit' | 'device_cap';
+
+export interface AlsoLocks {
+  readonly deviceId: string;
+  readonly deviceName: string | null;
+}
 
 export type AcquireResult =
   | {
       readonly kind: 'granted';
       readonly leaseId: string;
       readonly limit: number;
+      readonly deviceCap: number | null;
+      readonly ownership: Ownership | null;
       readonly sessions: readonly SessionRowView[];
       readonly serverNowMs: number | null;
     }
   | {
       readonly kind: 'denied';
+      readonly cause: DenialCause;
       readonly limit: number;
+      readonly deviceCap: number | null;
+      /** vault_limit: this vault's holders; device_cap: the account's devices, [0] would be displaced. */
       readonly holders: readonly Holder[];
+      readonly alsoLocks: AlsoLocks | null;
       readonly sessions: readonly SessionRowView[];
       readonly serverNowMs: number | null;
     }
+  | { readonly kind: 'not-owner'; readonly graceEndedMs: number | null; readonly released: boolean; readonly serverNowMs: number | null }
+  | { readonly kind: 'update-required'; readonly minVersion: string; readonly serverNowMs: number | null }
   | Unconfirmed;
 
+export type ServerDisplacedReason = 'takeover' | 'plan_limit' | 'device_cap' | 'not_owner' | 'update_required';
+
 export type HeartbeatResult =
-  | { readonly kind: 'ok'; readonly limit: number; readonly sessions: readonly SessionRowView[]; readonly serverNowMs: number | null }
-  | { readonly kind: 'displaced'; readonly reason: 'takeover' | 'plan_limit'; readonly byDeviceName: string | null }
+  | {
+      readonly kind: 'ok';
+      readonly limit: number;
+      readonly deviceCap: number | null;
+      readonly ownership: Ownership | null;
+      readonly sessions: readonly SessionRowView[];
+      readonly serverNowMs: number | null;
+    }
+  | {
+      readonly kind: 'displaced';
+      readonly reason: ServerDisplacedReason;
+      readonly byDeviceName: string | null;
+      readonly minVersion: string | null;
+      readonly released: boolean;
+    }
   | { readonly kind: 'lost'; readonly reason: 'unknown' | 'superseded' | 'released' | 'expired' }
   | Unconfirmed;
+
+/** vault_owner_release (plan enforcement 2.3); `unconfirmed` covers transport errors, timeouts and malformed answers. */
+export type ReleaseOwnershipResult =
+  | { readonly released: true }
+  | { readonly released: false; readonly reason: 'too_soon'; readonly retryAfterMs: number }
+  | { readonly released: false; readonly reason: 'not_owner' }
+  | { readonly released: false; readonly reason: 'unconfirmed' };
 
 export type SimpleResult = { readonly kind: 'ok' } | Unconfirmed;
 
@@ -159,6 +216,7 @@ function acquireParams(a: AcquireArgs): Readonly<Record<string, unknown>> {
     p_file_id: a.fileId,
     p_location: a.location,
     p_takeover: a.takeover,
+    p_claim: a.claim,
   };
 }
 
@@ -190,25 +248,32 @@ export interface SessionClientPort {
   heartbeat(args: HeartbeatArgs): Promise<HeartbeatResult>;
   release(args: ReleaseArgs, timeoutMs?: number): Promise<SimpleResult>;
   abandon(args: AbandonArgs): Promise<SimpleResult>;
+  releaseOwnership(vaultKey: string): Promise<ReleaseOwnershipResult>;
 }
 
 export class SessionClient implements SessionClientPort {
   constructor(
     private readonly rpc: RpcCaller,
-    private readonly host: Pick<SessionHost, 'account' | 'logger'>,
+    private readonly host: Pick<SessionHost, 'account' | 'logger'> & Partial<Pick<SessionHost, 'device'>>,
   ) {}
 
   /** Signed out (account.userId() null): { unconfirmed, 'signed-out' } without a call. */
   async peek(ids: SessionIds, timeoutMs: number = EARLY_CHECK_TIMEOUT_MS): Promise<PeekResult> {
     const fn: SessionRpcName = 'vault_session_peek';
-    const answer = await this.invoke(fn, { p_vault_key: ids.vaultKey, p_device_id: ids.deviceId }, timeoutMs);
+    const answer = await this.invoke(fn, { p_vault_key: ids.vaultKey, p_device_id: ids.deviceId, ...this.versionParams() }, timeoutMs);
     if (answer.kind === 'unconfirmed') return answer;
     // The SQL selects nothing when auth.uid() is null, so PostgREST answers null.
     if (answer.data === null) return this.reject(fn, unconfirmed('auth', 'peek: no row'));
     const parsed = parsePeekData(answer.data);
     if (!parsed.ok) return this.reject(fn, unconfirmed('malformed', parsed.detail));
     this.logSkipped(fn, parsed.skipped);
-    return { kind: 'ok', limit: parsed.value.limit, holders: parsed.value.holders };
+    return { kind: 'ok', ...parsed.value };
+  }
+
+  /** p_platform and p_app_version so the server can answer update_required before the password. */
+  private versionParams(): Readonly<Record<string, string>> {
+    const device = this.host.device?.current();
+    return device === undefined ? {} : { p_platform: device.platform, p_app_version: device.appVersion };
   }
 
   async acquire(args: AcquireArgs): Promise<AcquireResult> {
@@ -245,6 +310,18 @@ export class SessionClient implements SessionClientPort {
     const params = { p_vault_key: args.vaultKey, p_device_id: args.deviceId, p_target_device_id: args.targetDeviceId };
     const answer = await this.invoke('vault_session_abandon', params, RPC_TIMEOUT_MS);
     return answer.kind === 'answer' ? { kind: 'ok' } : answer;
+  }
+
+  async releaseOwnership(vaultKey: string): Promise<ReleaseOwnershipResult> {
+    const fn: SessionRpcName = 'vault_owner_release';
+    const answer = await this.invoke(fn, { p_vault_key: vaultKey }, RPC_TIMEOUT_MS);
+    if (answer.kind === 'unconfirmed') return { released: false, reason: 'unconfirmed' };
+    const parsed = parseOwnerReleaseData(answer.data);
+    if (!parsed.ok) {
+      this.reject(fn, unconfirmed('malformed', parsed.detail));
+      return { released: false, reason: 'unconfirmed' };
+    }
+    return parsed.value;
   }
 
   private async invoke(fn: SessionRpcName, args: Readonly<Record<string, unknown>>, timeoutMs: number): Promise<Answer> {

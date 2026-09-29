@@ -16,6 +16,12 @@ function maxOpenDevicesOf(profile: UserProfile): number {
   return typeof raw === 'number' ? raw : DEFAULT_MAX_OPEN_DEVICES;
 }
 
+/** `account_max_active_devices` from the tier (-1 no cap), null when the tier does not say; display only. */
+function accountDeviceCapOf(profile: UserProfile): number | null {
+  const raw = profile.tier?.features?.account_max_active_devices;
+  return typeof raw === 'number' && Number.isInteger(raw) && (raw === -1 || raw >= 1) ? raw : null;
+}
+
 interface TierStoreState {
   accessibleEntryIds: Set<string>;
   lockedEntryIds: Set<string>;
@@ -29,6 +35,8 @@ interface TierStoreState {
   sharedVaults: boolean;
   /** Devices a personal vault can be open on at once; -1 = unlimited. */
   maxOpenDevices: number;
+  /** Devices with any personal vault open, per account; -1 no cap, null unknown. */
+  accountMaxActiveDevices: number | null;
   /** Server kill switch `personal_sync = 'paused'`. */
   personalSyncPaused: boolean;
 
@@ -58,6 +66,7 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
   cloudSyncEnabled: false,
   sharedVaults: false,
   maxOpenDevices: DEFAULT_MAX_OPEN_DEVICES,
+  accountMaxActiveDevices: null,
   personalSyncPaused: false,
 
   isTrialing: false,
@@ -84,6 +93,7 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
         cloudSyncEnabled: false,
         sharedVaults: false,
         maxOpenDevices: DEFAULT_MAX_OPEN_DEVICES,
+        accountMaxActiveDevices: null,
         personalSyncPaused: false,
         isTrialing: false,
         trialDaysRemaining: -1,
@@ -124,6 +134,7 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
     const cloudSyncEnabled = canAccessFeature(profile, 'cloud_sync_enabled');
     const sharedVaults = canAccessFeature(profile, 'shared_vaults');
     const maxOpenDevices = maxOpenDevicesOf(profile);
+    const accountMaxActiveDevices = accountDeviceCapOf(profile);
     const personalSyncPaused = profile.tier?.features?.personal_sync === 'paused';
 
     // Trial state
@@ -173,6 +184,7 @@ export const useTierStore = create<TierStoreState>((set, get) => ({
       maxConnections,
       cliAgentsEnabled,
       mcpEnabled,
+      accountMaxActiveDevices,
       cloudSyncEnabled,
       sharedVaults,
       maxOpenDevices,

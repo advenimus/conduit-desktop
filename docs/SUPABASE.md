@@ -84,6 +84,8 @@ or new.stripe_customer_id is distinct from old.stripe_customer_id
 | `personal_sync` | text | `on` | `on` | `on` |
 | `backup_retention_days` | number | 1 | 14 | 180 |
 | `max_cloud_backups` | number | 3 | 25 | -1 |
+| `max_cloud_backup_vaults` | number | 0 | 10 | -1 |
+| `account_max_active_devices` | number | 5 | 5 | 5 |
 | `shared_vaults` | bool | false | false | true |
 | `chat_cloud_sync_enabled` | bool | false | true | true |
 | `beta_features_enabled` | bool | false | false | true |
@@ -96,10 +98,25 @@ Notes:
 - `mcp_daily_quota` is retired. It stays `-1` on every tier because MCP builds before the removal cap at 50/day when the key is missing
 - `cloud_sync_enabled` means whole-file **cloud backup**. The name is kept for older clients; it does not gate multi-device sync. Set explicitly by `20260926150803_tier_vault_devices.sql`
 - `vault_max_open_devices`: how many devices may have one personal vault open (unlocked) at once. `20260926150803` sets `-1` everywhere; `20260926150934_free_single_device.sql` sets Free to `1`. Setting Free back to `-1` turns enforcement off without a client release. Team members always get `-1` server-side (`is_team_member`)
+- `account_max_active_devices` (plan enforcement, `docs/PLAN_ENFORCEMENT.md` 2.4): devices with any personal vault open at once, per account. `-1` means no cap; a missing key uses `app_config.account_max_active_devices_fallback` (5). Team vaults do not count. The desktop reads it for display only
+- `max_cloud_backups` counts snapshots per vault folder; `max_cloud_backup_vaults` counts vault folders per account (plan enforcement 2.9). The `storage.objects` INSERT and UPDATE policies of bucket `vaults` enforce the plan (`cloud_backup_allowed()`), the object names, and (with the pending count-cap migration) both caps
 - `personal_sync`: `on` or `paused`. Kill switch for the personal sync engine; `paused` stops merging and publishing, and every edit stays in the device's working copy
 - The merge engine itself is not gated by plan. See `docs/MULTI_DEVICE_SYNC.md` section 8
 - Removed in WS1: `ai_chat_enabled`, `ai_token_budget_monthly`, `ai_max_output`, `auto_compaction` (built-in agent retired)
 - Removed later: `chat_cloud_sync_enabled` (in-app chat history layer removed; CLIs own their own session state)
+
+### `app_config` (server settings, no client access)
+
+A key/value table read only by server functions (RLS on, no policies; `docs/PLAN_ENFORCEMENT.md` 2.2). Changing a row needs no client release.
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `min_app_version` | `{"desktop": "0.0.0", "ios": "0.0.0"}` | Minimum app version per platform group. `0.0.0` turns the check off. Below it, the lease RPCs answer `update_required` and the app shows "Update required" |
+| `vault_share_grace_days` | `14` | How long another account may use a vault (per vault and per pair of accounts) |
+| `vault_release_cooldown_days` | `7` | How long after becoming owner an account can release a vault (`0` turns it off) |
+| `account_max_active_devices_fallback` | `5` | Device cap when the tier has no `account_max_active_devices` |
+
+Turning a minimum on: `update public.app_config set value = jsonb_set(value, '{desktop}', '"0.19.0"'), updated_at = now() where key = 'min_app_version';`
 
 ### Query Pattern
 Profile is fetched with a foreign-key join:

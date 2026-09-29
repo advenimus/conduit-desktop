@@ -16,7 +16,8 @@ export type SessionRpcName =
   | 'vault_session_acquire'
   | 'vault_session_heartbeat'
   | 'vault_session_release'
-  | 'vault_session_abandon';
+  | 'vault_session_abandon'
+  | 'vault_owner_release';
 
 export type RpcFailureKind =
   /** fetch failed, DNS, connection reset, offline. */
@@ -106,7 +107,8 @@ export interface TierCacheHost {
 
 // ---------- Vault access (6.6 soft lock) ----------
 
-export type LockedReason = 'open_elsewhere';
+/** device_cap soft-locks as open_elsewhere (plan enforcement 4.2). */
+export type LockedReason = 'open_elsewhere' | 'not_owner' | 'update_required';
 
 export interface VaultAccessHost {
   /** 6.6 step 1: overlay; vault IPC and MCP calls fail with the locked error and `reason`. */
@@ -125,7 +127,24 @@ export interface VaultAccessHost {
 // ---------- Renderer events ----------
 
 /** 'yielded': the user chose [Lock here] in the reconnect conflict (6.8). */
-export type DisplacementReason = 'takeover' | 'plan_limit' | 'owner_claim' | 'superseded' | 'reconnect_unanswered' | 'yielded';
+export type DisplacementReason =
+  | 'takeover'
+  | 'plan_limit'
+  | 'device_cap'
+  | 'not_owner'
+  | 'update_required'
+  | 'owner_claim'
+  | 'superseded'
+  | 'reconnect_unanswered'
+  | 'yielded';
+
+/** What the displaced notice needs beyond the reason (plan enforcement S8b, S10). */
+export interface DisplacedDetail {
+  readonly minVersion: string | null;
+  readonly released: boolean;
+}
+
+export const NO_DISPLACED_DETAIL: DisplacedDetail = Object.freeze({ minVersion: null, released: false });
 
 export interface Holder {
   readonly deviceId: string;
@@ -137,6 +156,8 @@ export interface Holder {
   readonly lastActiveMs: number | null;
   readonly busySessions: number;
   readonly busyJobs: number;
+  /** Device-cap holders (plan enforcement 2.4): personal vaults this device has open; null when not sent. */
+  readonly vaults?: number | null;
 }
 
 /** `vault:session-displacing` (6.6 step 1 overlay): access is blocked while the last changes save. */
@@ -157,6 +178,12 @@ export interface SessionDisplacedEvent {
   /** The final publish succeeded; false: changes stay in W and publish at the next unlock. */
   readonly changesSaved: boolean;
   readonly fileName: string | null;
+  /** update_required: the minimum version (S10). */
+  readonly minVersion: string | null;
+  /** not_owner: this account released the vault earlier (S8b). */
+  readonly released: boolean;
+  /** device_cap: account_max_active_devices as last confirmed (S2), else null. */
+  readonly deviceCap: number | null;
 }
 
 /** `vault:session-conflict` (6.8 "Reachable again"): [Use here instead] [Lock here], soft lock at answerByMs. */
@@ -164,9 +191,18 @@ export interface SessionConflictEvent {
   readonly lineageId: string;
   readonly holders: readonly Holder[];
   readonly answerByMs: number;
+  /** 'device_cap': the account's device cap is full (plan enforcement S3); holders[0] would lock. */
+  readonly cause: 'vault_limit' | 'device_cap';
+  readonly deviceCap: number | null;
+}
+
+/** `vault:session-ownership`: the confirmed ownership changed (banners and Sync settings refresh). */
+export interface SessionOwnershipEvent {
+  readonly lineageId: string;
 }
 
 export interface SessionEventMap {
+  'vault:session-ownership': SessionOwnershipEvent;
   'vault:session-displacing': SessionDisplacingEvent;
   'vault:session-displaced': SessionDisplacedEvent;
   'vault:session-conflict': SessionConflictEvent;

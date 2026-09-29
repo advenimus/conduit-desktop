@@ -118,7 +118,7 @@ describe('private vaults (3.2, 7.3)', () => {
 
   it('are refused by the server peek before the password, like shared ones', async () => {
     writePresync(vault(), 'pw1', PRIVATE_SALT);
-    h.client.peekResult = { kind: 'ok', limit: 1, holders: [holder('MacBook')] };
+    h.client.peekResult = { kind: 'ok', limit: 1, deviceCap: null, holders: [holder('MacBook')], refusal: null };
     const err = await refusal(openPersonalVault(openInput(vault()), h.deps));
     expect(JSON.parse(err.message)).toMatchObject({ code: 'VAULT_OPEN_ELSEWHERE', via: 'server', fileName: 'default.conduit' });
     expect(h.kdf.calls).toBe(0);

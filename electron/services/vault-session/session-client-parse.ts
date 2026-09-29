@@ -8,7 +8,7 @@
 import type { SessionRowView, SessionStatus } from '../sync/host.js';
 import { DEV_BITS, HLC_MAX_COUNTER, type AppDot } from '../sync/types.js';
 import type { Holder } from './host.js';
-import type { AcquireResult, HeartbeatResult } from './session-client.js';
+import type { AcquireResult, AlsoLocks, HeartbeatResult, Ownership, PeekRefusal, ReleaseOwnershipResult, ServerDisplacedReason } from './session-client.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
@@ -17,7 +17,9 @@ const MAX_DEV = 2 ** DEV_BITS - 1;
 /** vault_max_open_devices: -1 means unlimited; otherwise at least one device. */
 const UNLIMITED_LIMIT = -1;
 const SESSION_STATUSES: ReadonlySet<string> = new Set<SessionStatus>(['active', 'released', 'expired', 'displaced']);
-const DISPLACED_REASONS: ReadonlySet<string> = new Set(['takeover', 'plan_limit']);
+const DISPLACED_REASONS: ReadonlySet<string> = new Set<ServerDisplacedReason>(['takeover', 'plan_limit', 'device_cap', 'not_owner', 'update_required']);
+const DENIAL_REASONS: ReadonlySet<string> = new Set(['vault_limit', 'device_cap', 'not_owner', 'update_required']);
+const MAX_VERSION_LENGTH = 40;
 const LOST_REASONS: ReadonlySet<string> = new Set(['unknown', 'superseded', 'released', 'expired']);
 const SIDE_FILES_PRESENT = 'present';
 
@@ -27,7 +29,9 @@ export type Parsed<T> =
 
 export interface PeekData {
   readonly limit: number;
+  readonly deviceCap: number | null;
   readonly holders: readonly Holder[];
+  readonly refusal: PeekRefusal | null;
 }
 
 // ---------- Primitive checks ----------
@@ -156,7 +160,10 @@ function parseSessionRow(raw: unknown): SessionRowView | null {
 }
 
 function parseHolder(raw: unknown): Holder | null {
-  return isRecord(raw) ? parseCommon(raw) : null;
+  if (!isRecord(raw)) return null;
+  const common = parseCommon(raw);
+  if (common === null) return null;
+  return raw.vaults === undefined ? common : { ...common, vaults: typeof raw.vaults === 'number' ? count(raw.vaults) : null };
 }
 
 function parseList<T>(raw: unknown, parseOne: (v: unknown) => T | null): { readonly rows: readonly T[]; readonly skipped: number } {
@@ -182,12 +189,85 @@ export function parseHolders(raw: unknown): readonly Holder[] {
 
 const malformed = (detail: string): Parsed<never> => ({ ok: false, detail });
 
+/** Absent: null; present: -1 or an integer >= 1; undefined when invalid. */
+function optionalCap(v: unknown): number | null | undefined {
+  if (v === null || v === undefined) return null;
+  return isServerLimit(v) ? v : undefined;
+}
+
+function optionalBool(v: unknown): boolean | undefined {
+  if (v === null || v === undefined) return false;
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+function isMinVersion(v: unknown): v is string {
+  return typeof v === 'string' && v.length >= 1 && v.length <= MAX_VERSION_LENGTH;
+}
+
+/** ownership, grace_until, release_after, shared_until of a grant or heartbeat `ok`; undefined when malformed. */
+function parseOwnership(data: Readonly<Record<string, unknown>>): Ownership | null | undefined {
+  const kind = data.ownership;
+  if (kind === null || kind === undefined) return null;
+  if (kind === 'unowned') return { kind: 'unowned' };
+  if (kind === 'grace') {
+    const untilMs = timestampMs(data.grace_until);
+    return typeof untilMs === 'number' ? { kind: 'grace', untilMs } : undefined;
+  }
+  if (kind !== 'owner') return undefined;
+  const releaseAfterMs = timestampMs(data.release_after);
+  const sharedUntilMs = timestampMs(data.shared_until);
+  if (releaseAfterMs === undefined || sharedUntilMs === undefined) return undefined;
+  return { kind: 'owner', releaseAfterMs, sharedUntilMs };
+}
+
+function parseAlsoLocks(v: unknown): AlsoLocks | null | undefined {
+  if (v === null || v === undefined) return null;
+  if (!isRecord(v) || !isUuid(v.device_id)) return undefined;
+  const name = optionalText(v.device_name);
+  return name === undefined ? undefined : { deviceId: v.device_id.toLowerCase(), deviceName: name };
+}
+
+function parsePeekRefusal(data: Readonly<Record<string, unknown>>): Parsed<PeekRefusal | null> {
+  const reason = data.reason;
+  if (reason === null || reason === undefined) return { ok: true, value: null, skipped: 0 };
+  if (reason === 'update_required') {
+    if (!isMinVersion(data.min_version)) return malformed('peek: min_version');
+    return { ok: true, value: { kind: 'update-required', minVersion: data.min_version }, skipped: 0 };
+  }
+  if (reason !== 'device_cap') return malformed('peek: reason');
+  if (!isServerLimit(data.device_cap) || data.device_cap < 1) return malformed('peek: device_cap');
+  if (!Array.isArray(data.devices)) return malformed('peek: devices');
+  const devices = parseList(data.devices, parseHolder);
+  if (devices.rows.length === 0) return malformed('peek: device_cap without devices');
+  return { ok: true, value: { kind: 'device-cap', deviceCap: data.device_cap, devices: devices.rows }, skipped: devices.skipped };
+}
+
 export function parsePeekData(data: unknown): Parsed<PeekData> {
   if (!isRecord(data)) return malformed('peek: not an object');
   if (!isServerLimit(data.limit)) return malformed('peek: limit');
   if (!Array.isArray(data.holders)) return malformed('peek: holders');
+  const deviceCap = optionalCap(data.device_cap);
+  if (deviceCap === undefined) return malformed('peek: device_cap');
+  const refusal = parsePeekRefusal(data);
+  if (!refusal.ok) return refusal;
   const holders = parseList(data.holders, parseHolder);
-  return { ok: true, value: { limit: data.limit, holders: holders.rows }, skipped: holders.skipped };
+  const value: PeekData = { limit: data.limit, deviceCap, holders: holders.rows, refusal: refusal.value };
+  return { ok: true, value, skipped: holders.skipped + refusal.skipped };
+}
+
+/** not_owner and update_required need no holders (plan enforcement 2.10). */
+function parseRefusalWithoutHolders(data: Readonly<Record<string, unknown>>, reason: string): Parsed<AcquireResult> {
+  const serverNowMs = timestampMs(data.server_now);
+  if (serverNowMs === undefined) return malformed('acquire: server_now');
+  if (reason === 'update_required') {
+    if (!isMinVersion(data.min_version)) return malformed('acquire: min_version');
+    return { ok: true, value: { kind: 'update-required', minVersion: data.min_version, serverNowMs }, skipped: 0 };
+  }
+  const graceEndedMs = timestampMs(data.grace_ended_at);
+  const released = optionalBool(data.released);
+  if (graceEndedMs === undefined) return malformed('acquire: grace_ended_at');
+  if (released === undefined) return malformed('acquire: released');
+  return { ok: true, value: { kind: 'not-owner', graceEndedMs, released, serverNowMs }, skipped: 0 };
 }
 
 export function parseAcquireData(data: unknown): Parsed<AcquireResult> {
@@ -195,21 +275,33 @@ export function parseAcquireData(data: unknown): Parsed<AcquireResult> {
   if (data.granted === false && data.error === 'too_many_sessions') {
     return { ok: true, value: { kind: 'unconfirmed', reason: 'too-many-sessions', detail: 'too_many_sessions' }, skipped: 0 };
   }
+  // A denial without a reason comes from an older server: it is the per-vault limit.
+  const reason = data.granted ? null : data.reason === undefined || data.reason === null ? 'vault_limit' : data.reason;
+  if (reason !== null && (typeof reason !== 'string' || !DENIAL_REASONS.has(reason))) return malformed('acquire: reason');
+  if (reason === 'not_owner' || reason === 'update_required') return parseRefusalWithoutHolders(data, reason);
   if (!isServerLimit(data.limit)) return malformed('acquire: limit');
   if (!Array.isArray(data.sessions)) return malformed('acquire: sessions');
   const serverNowMs = timestampMs(data.server_now);
   if (serverNowMs === undefined) return malformed('acquire: server_now');
+  const deviceCap = optionalCap(data.device_cap);
+  if (deviceCap === undefined) return malformed('acquire: device_cap');
   const sessions = parseList(data.sessions, parseSessionRow);
   if (data.granted) {
     if (!isUuid(data.lease_id)) return malformed('acquire: lease_id');
-    const value: AcquireResult = { kind: 'granted', leaseId: data.lease_id.toLowerCase(), limit: data.limit, sessions: sessions.rows, serverNowMs };
+    const ownership = parseOwnership(data);
+    if (ownership === undefined) return malformed('acquire: ownership');
+    const value: AcquireResult = { kind: 'granted', leaseId: data.lease_id.toLowerCase(), limit: data.limit, deviceCap, ownership, sessions: sessions.rows, serverNowMs };
     return { ok: true, value, skipped: sessions.skipped };
   }
+  const cause = reason === 'device_cap' ? 'device_cap' : 'vault_limit';
+  if (cause === 'device_cap' && (deviceCap === null || deviceCap < 1)) return malformed('acquire: device_cap');
   if (!Array.isArray(data.holders)) return malformed('acquire: holders');
   const holders = parseList(data.holders, parseHolder);
   // A denial must name who holds the vault; an empty list is a server problem, never a refusal.
   if (holders.rows.length === 0) return malformed('acquire: denied without holders');
-  const value: AcquireResult = { kind: 'denied', limit: data.limit, holders: holders.rows, sessions: sessions.rows, serverNowMs };
+  const alsoLocks = parseAlsoLocks(data.also_locks);
+  if (alsoLocks === undefined) return malformed('acquire: also_locks');
+  const value: AcquireResult = { kind: 'denied', cause, limit: data.limit, deviceCap, holders: holders.rows, alsoLocks, sessions: sessions.rows, serverNowMs };
   return { ok: true, value, skipped: sessions.skipped + holders.skipped };
 }
 
@@ -218,24 +310,44 @@ function parseHeartbeatOk(data: Readonly<Record<string, unknown>>): Parsed<Heart
   if (!Array.isArray(data.sessions)) return malformed('heartbeat: sessions');
   const serverNowMs = timestampMs(data.server_now);
   if (serverNowMs === undefined) return malformed('heartbeat: server_now');
+  const deviceCap = optionalCap(data.device_cap);
+  if (deviceCap === undefined) return malformed('heartbeat: device_cap');
+  const ownership = parseOwnership(data);
+  if (ownership === undefined) return malformed('heartbeat: ownership');
   const sessions = parseList(data.sessions, parseSessionRow);
-  return { ok: true, value: { kind: 'ok', limit: data.limit, sessions: sessions.rows, serverNowMs }, skipped: sessions.skipped };
+  return { ok: true, value: { kind: 'ok', limit: data.limit, deviceCap, ownership, sessions: sessions.rows, serverNowMs }, skipped: sessions.skipped };
+}
+
+function parseHeartbeatDisplaced(data: Readonly<Record<string, unknown>>): Parsed<HeartbeatResult> {
+  if (typeof data.reason !== 'string' || !DISPLACED_REASONS.has(data.reason)) return malformed('heartbeat: displaced reason');
+  const by = optionalText(data.by);
+  if (by === undefined) return malformed('heartbeat: displaced by');
+  const minVersion = data.min_version === undefined || data.min_version === null ? null : isMinVersion(data.min_version) ? data.min_version : undefined;
+  if (minVersion === undefined) return malformed('heartbeat: min_version');
+  const released = optionalBool(data.released);
+  if (released === undefined) return malformed('heartbeat: released');
+  const reason = data.reason as ServerDisplacedReason;
+  return { ok: true, value: { kind: 'displaced', reason, byDeviceName: by, minVersion, released }, skipped: 0 };
 }
 
 export function parseHeartbeatData(data: unknown): Parsed<HeartbeatResult> {
   if (!isRecord(data)) return malformed('heartbeat: not an object');
   if (data.status === 'ok') return parseHeartbeatOk(data);
-  if (data.status === 'displaced') {
-    if (typeof data.reason !== 'string' || !DISPLACED_REASONS.has(data.reason)) return malformed('heartbeat: displaced reason');
-    const by = optionalText(data.by);
-    if (by === undefined) return malformed('heartbeat: displaced by');
-    const reason = data.reason as 'takeover' | 'plan_limit';
-    return { ok: true, value: { kind: 'displaced', reason, byDeviceName: by }, skipped: 0 };
-  }
+  if (data.status === 'displaced') return parseHeartbeatDisplaced(data);
   if (data.status === 'lost') {
     if (typeof data.reason !== 'string' || !LOST_REASONS.has(data.reason)) return malformed('heartbeat: lost reason');
     const reason = data.reason as 'unknown' | 'superseded' | 'released' | 'expired';
     return { ok: true, value: { kind: 'lost', reason }, skipped: 0 };
   }
   return malformed('heartbeat: status');
+}
+
+export function parseOwnerReleaseData(data: unknown): Parsed<ReleaseOwnershipResult> {
+  if (!isRecord(data) || typeof data.released !== 'boolean') return malformed('release: released');
+  if (data.released) return { ok: true, value: { released: true }, skipped: 0 };
+  if (data.reason === 'not_owner') return { ok: true, value: { released: false, reason: 'not_owner' }, skipped: 0 };
+  if (data.reason !== 'too_soon') return malformed('release: reason');
+  const retryAfterMs = timestampMs(data.retry_after);
+  if (typeof retryAfterMs !== 'number') return malformed('release: retry_after');
+  return { ok: true, value: { released: false, reason: 'too_soon', retryAfterMs }, skipped: 0 };
 }

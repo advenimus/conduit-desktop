@@ -286,6 +286,19 @@ export interface LocalJson {
    * old password; the engine re-keys or removes them, now or at its next start (absent: false).
    */
   readonly sealLocalCopiesPending?: boolean;
+  /**
+   * Plan enforcement 3.3: the last confirmed ownership answer for the signed-in account on this
+   * device (absent: null). Read at unlock when the server cannot be reached.
+   */
+  readonly ownerCheck?: OwnerCheck | null;
+}
+
+/** Plan enforcement 3.3. `hint` is this device's account hint; `untilMs` is the grace end, null for 'owner'. */
+export interface OwnerCheck {
+  readonly hint: string;
+  readonly kind: 'owner' | 'grace';
+  readonly untilMs: number | null;
+  readonly atMs: number;
 }
 
 // ---------- _sync register values (3.5) ----------
@@ -308,6 +321,11 @@ export interface PresenceValue {
   readonly account_hint: string | null;
   readonly file_hint: FileHint | null;
   readonly side_files_seen_ms: number | null;
+}
+
+/** Value of `_sync/owner/account` (plan enforcement 3.1), stored as JCS text; `a` null when released. */
+export interface OwnerTagValue {
+  readonly a: string | null;
 }
 
 /** Value of `_sync/owner/owner`, stored as JCS text. */

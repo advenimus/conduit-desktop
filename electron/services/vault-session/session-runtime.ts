@@ -20,13 +20,35 @@ import type { EffectiveLimit } from './effective-limit.js';
 import type { HeartbeatLoop } from './heartbeat.js';
 import type { LeaseTracker } from './lease.js';
 import type { SessionRealtime } from './realtime.js';
-import { QUIT_RELEASE_TIMEOUT_MS, RPC_TIMEOUT_MS, type AcquireResult, type SessionClientPort, type SessionIds } from './session-client.js';
+import {
+  QUIT_RELEASE_TIMEOUT_MS,
+  RPC_TIMEOUT_MS,
+  type AcquireResult,
+  type DenialCause,
+  type Ownership,
+  type ReleaseOwnershipResult,
+  type SessionClientPort,
+  type SessionIds,
+} from './session-client.js';
 import type { StaleWait } from './stale-wait.js';
-import type { DisplacementReason, Holder, SessionConfig, SessionHost } from './host.js';
-import { ClaimsWatch, writeOwnerClaim } from './session-runtime-claims.js';
+import { NO_DISPLACED_DETAIL, type DisplacedDetail, type DisplacementReason, type Holder, type SessionConfig, type SessionHost } from './host.js';
+import { ClaimsWatch, writeOwnerClaim, writeOwnerTag, writeReleasedTag } from './session-runtime-claims.js';
+import { ownerHint } from './owner-tag.js';
 import { closeWorkingCopy, releaseLease, runFinalCycle, stopRunning, teardown, type CloseParts } from './session-runtime-close.js';
 import { startServerLinks, startStaleWait } from './session-runtime-links.js';
-import { P, acquireArgsFor, factsFromHint, guarded, readOr, recordLastLimit, runtimeEffectiveLimit, uncoveredSideFilesFlag, type FileFacts } from './session-runtime-parts.js';
+import {
+  P,
+  acquireArgsFor,
+  clearOwnerCheck,
+  factsFromHint,
+  guarded,
+  readOr,
+  recordLastLimit,
+  recordOwnerCheck,
+  runtimeEffectiveLimit,
+  uncoveredSideFilesFlag,
+  type FileFacts,
+} from './session-runtime-parts.js';
 
 export { SERVER_SIDE_FILES_WINDOW_MS } from './session-runtime-parts.js';
 
@@ -52,6 +74,13 @@ export interface ReleaseOutcome {
 
 export type ConflictChoice = 'use-here' | 'lock-here';
 
+/** What Sync settings and the banners show (plan enforcement 4.7); `confirmed` false means unknown. */
+export interface OwnershipView {
+  readonly confirmed: boolean;
+  readonly ownership: Ownership | null;
+  readonly deviceCap: number | null;
+}
+
 export class PersonalVaultRuntime {
   private engine: SyncEngine | null = null;
   private heartbeat: HeartbeatLoop | null = null;
@@ -67,6 +96,8 @@ export class PersonalVaultRuntime {
   private conflictHolders: readonly Holder[] = [];
   private readonly claims: ClaimsWatch;
   private beatTimer: TimerHandle | null = null;
+  /** The ownership last reported to the renderer (JSON), so only changes are sent. */
+  private reportedOwnership = 'null';
   private signOutRelease: Promise<void> | null = null;
 
   constructor(private readonly deps: RuntimeDeps) {
@@ -91,6 +122,7 @@ export class PersonalVaultRuntime {
         await releaseLease(this.parts(), pending, RPC_TIMEOUT_MS);
       },
       teardown: () => this.teardownAll(),
+      deviceCap: () => deps.lease.deviceCap(),
     });
   }
 
@@ -124,7 +156,11 @@ export class PersonalVaultRuntime {
   start(acquire: AcquireResult | null): void {
     const { host, lease, replica } = this.deps;
     if (acquire !== null) lease.onAcquire(acquire, host.clock.now());
-    if (acquire?.kind === 'granted') recordLastLimit(replica, host, acquire.limit);
+    if (acquire?.kind === 'granted') {
+      recordLastLimit(replica, host, acquire.limit);
+      recordOwnerCheck(replica, host, acquire.ownership, this.hint());
+      this.reportedOwnership = JSON.stringify(acquire.ownership);
+    }
     this.serverFlagSeen = this.serverSideFilesFlag(host.clock.now());
     const signedIn = host.account.userId() !== null;
     if (signedIn) this.linkServer();
@@ -166,10 +202,14 @@ export class PersonalVaultRuntime {
       return;
     }
     const { client, lease, host } = this.deps;
-    const result = await client.acquire(acquireArgsFor(host, { ...this.ids, sessionNonce: this.deps.config.sessionNonce, facts: this.facts(), takeover: true }));
+    // [Use here instead] is a user choice, so it claims an unowned vault.
+    const args = acquireArgsFor(host, { ...this.ids, sessionNonce: this.deps.config.sessionNonce, facts: this.facts(), takeover: true, claim: true });
+    const result = await client.acquire(args);
     lease.onAcquire(result, host.clock.now());
     this.updateBadge();
     if (result.kind === 'unconfirmed') return this.takeoverUnconfirmed(result.reason);
+    if (result.kind === 'not-owner') return this.displace('not_owner', null, { minVersion: null, released: result.released });
+    if (result.kind === 'update-required') return this.displace('update_required', null, { minVersion: result.minVersion, released: false });
     if (result.kind !== 'granted') {
       host.logger.warn(`${P} take-over after reconnect not granted; the conflict stays open`, { result: result.kind });
       return;
@@ -177,14 +217,38 @@ export class PersonalVaultRuntime {
     this.endConflict();
     recordLastLimit(this.deps.replica, host, result.limit);
     await writeOwnerClaim(host, this.deps.replica, this.engine, this.effectiveLimit().limit);
+    await this.onOwnership(result.ownership);
     void this.heartbeat?.beatNow();
   }
 
   /** Displacement from any source (heartbeat, Realtime, claims, conflict timeout). */
-  async displace(reason: DisplacementReason, byDeviceName: string | null): Promise<void> {
+  async displace(reason: DisplacementReason, byDeviceName: string | null, detail: DisplacedDetail = NO_DISPLACED_DETAIL): Promise<void> {
     this.closing = true;
     this.cancelTimers();
-    await this.displacement.displace(reason, byDeviceName);
+    if (reason === 'not_owner') clearOwnerCheck(this.deps.replica, this.deps.host);
+    await this.displacement.displace(reason, byDeviceName, detail);
+  }
+
+  /** The last confirmed ownership answer and device cap of this vault. */
+  ownershipView(): OwnershipView {
+    const { lease, host } = this.deps;
+    return { confirmed: lease.isConfirmed(host.clock.now()), ownership: lease.ownership(), deviceCap: lease.deviceCap() };
+  }
+
+  /**
+   * Sync settings [Release this vault...] (plan enforcement 4.7): vault_owner_release, then only
+   * on `released: true` the {"a": null} tag and a cleared ownerCheck.
+   */
+  async releaseOwnership(): Promise<ReleaseOwnershipResult> {
+    const { client, host, lease, replica } = this.deps;
+    const result = await client.releaseOwnership(this.deps.lineageId);
+    host.logger.info(`${P} release of ownership answered`, { released: result.released, reason: result.released ? null : result.reason });
+    if (!result.released) return result;
+    lease.ownershipReleased();
+    clearOwnerCheck(replica, host);
+    await writeReleasedTag(host, replica, this.engine);
+    this.reportOwnership(lease.ownership());
+    return result;
   }
 
   /** 6.11 [Open now]. */
@@ -237,8 +301,9 @@ export class PersonalVaultRuntime {
       sideFilesPresent: () => this.sideFilesPresent,
       pendingPublish: () => this.pendingPublish(),
       events: {
-        displaced: (reason, by) => void this.displace(reason, by),
-        reconnectConflict: (holders) => this.onReconnectConflict(holders),
+        displaced: (reason, by, detail) => void this.displace(reason, by, detail),
+        reconnectConflict: (holders, cause, deviceCap) => this.onReconnectConflict(holders, cause ?? 'vault_limit', deviceCap ?? null),
+        ownershipConfirmed: (ownership) => void this.onOwnership(ownership),
         leaseChanged: () => this.onLeaseChanged(),
         limitChanged: () => this.claims.schedule(),
         limitConfirmed: (limit) => {
@@ -254,13 +319,36 @@ export class PersonalVaultRuntime {
 
   // ---------- events ----------
 
-  private onReconnectConflict(holders: readonly Holder[]): void {
+  private onReconnectConflict(holders: readonly Holder[], cause: DenialCause, deviceCap: number | null): void {
     if (this.inactive()) return this.deps.host.logger.debug(`${P} reconnect conflict ignored: the vault is closing or locked`);
     this.conflictHolders = holders;
     const answerByMs = this.displacement.armReconnectTimer(holders[0]?.deviceName ?? null);
     guarded(this.deps.host.logger, 'conflict event', () =>
-      this.deps.host.sessionEvents.emit('vault:session-conflict', { lineageId: this.deps.lineageId, holders, answerByMs }),
+      this.deps.host.sessionEvents.emit('vault:session-conflict', { lineageId: this.deps.lineageId, holders, answerByMs, cause, deviceCap }),
     );
+  }
+
+  /** Every confirmed answer: ownerCheck (3.3) and, for the owner, the tag (3.2). */
+  private async onOwnership(ownership: Ownership | null): Promise<void> {
+    if (!this.deps.shared || this.inactive()) return;
+    recordOwnerCheck(this.deps.replica, this.deps.host, ownership, this.hint());
+    this.reportOwnership(ownership);
+    await writeOwnerTag(this.deps.host, this.deps.replica, this.engine, ownership);
+  }
+
+  private reportOwnership(ownership: Ownership | null): void {
+    const json = JSON.stringify(ownership);
+    if (ownership === null || json === this.reportedOwnership) return;
+    this.reportedOwnership = json;
+    guarded(this.deps.host.logger, 'ownership event', () =>
+      this.deps.host.sessionEvents.emit('vault:session-ownership', { lineageId: this.deps.lineageId }),
+    );
+  }
+
+  /** This device's owner hint for the signed-in account; null signed out. */
+  private hint(): string | null {
+    const userId = this.deps.host.account.userId();
+    return userId === null ? null : ownerHint(this.deps.lineageId, userId);
   }
 
   /** 5.5: publishing held only by the server flag resumes when it clears, not at the next safety poll. */

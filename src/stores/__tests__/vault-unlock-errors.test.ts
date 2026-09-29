@@ -17,6 +17,16 @@ describe("classifyUnlockError", () => {
     expect(res.payload?.code).toBe("VAULT_OPEN_ELSEWHERE");
   });
 
+  it.each([
+    ["VAULT_NOT_OWNER", { code: "VAULT_NOT_OWNER", fileName: "V", offline: false, graceEndedMs: null, released: false, copyTicket: "t", copyDir: "/d" }],
+    ["VAULT_SIGN_IN_REQUIRED", { code: "VAULT_SIGN_IN_REQUIRED", fileName: "V" }],
+    ["VAULT_UPDATE_REQUIRED", { code: "VAULT_UPDATE_REQUIRED", fileName: "V", minVersion: "0.19.0" }],
+  ])("routes %s to its dialog (no retry loop, no error line)", (code, payload) => {
+    const res = classifyUnlockError(new Error(JSON.stringify(payload)), "Invalid master password");
+    expect(res).toEqual({ payload, message: null });
+    expect(res.payload?.code).toBe(code);
+  });
+
   it("keeps the wrong-password message", () => {
     expect(classifyUnlockError(new Error("Invalid master password"), "x")).toEqual({ payload: null, message: "Invalid master password" });
   });

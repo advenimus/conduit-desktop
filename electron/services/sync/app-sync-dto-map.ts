@@ -25,6 +25,7 @@ import type {
 import type { RollbackPreview } from './restore.js';
 import type { UndoPreview } from './snapshots.js';
 import type * as Dto from './app-sync-dto.js';
+import type { OwnershipView } from '../vault-session/session-runtime.js';
 
 const TABLES: ReadonlySet<number> = new Set(Object.values(TBL));
 const MAX_ID_LEN = 512;
@@ -252,4 +253,10 @@ export function deletedDto(state: SyncState, items: readonly DeletedItem[]): Dto
     deviceName: deviceNameOfDev(state, d.diedDev, names),
     redacted: d.redacted,
   }));
+}
+
+/** Plan enforcement 4.7: the runtime's last confirmed answer; 'unknown' signed out, soft-locked or unconfirmed. */
+export function ownershipDto(view: OwnershipView, signedIn: boolean, softLocked: boolean): Dto.VaultOwnership {
+  if (!signedIn || softLocked || !view.confirmed || view.ownership === null) return { kind: 'unknown' };
+  return view.ownership;
 }

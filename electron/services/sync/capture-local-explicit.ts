@@ -12,6 +12,7 @@ import {
   isContentTbl,
   isDefaultValue,
   ownerRegKey,
+  ownerTagRegKey,
   requireDef,
 } from './catalog.js';
 import { modeOf } from './capture-local-apply.js';
@@ -27,6 +28,7 @@ import type {
   LocalAttribution,
   LocalWrite,
   OwnerClaimValue,
+  OwnerTagValue,
   PresenceValue,
   RegKey,
   RegisterDef,
@@ -86,6 +88,11 @@ export function presenceWrite(value: PresenceValue, ctx: SyncContext): LocalWrit
 /** `_sync/owner/owner` claim write (6.7). */
 export function ownerClaimWrite(value: OwnerClaimValue, ctx: SyncContext): LocalWrite {
   return prepareWrite(ownerRegKey(), { value: jcs(value) }, ctx, 'replace-all');
+}
+
+/** `_sync/owner/account` owner tag write (plan enforcement 3.2). */
+export function ownerTagWrite(value: OwnerTagValue, ctx: SyncContext): LocalWrite {
+  return prepareWrite(ownerTagRegKey(), { value: jcs(value) }, ctx, 'replace-all');
 }
 
 function assertUnique(writes: readonly LocalWrite[]): void {

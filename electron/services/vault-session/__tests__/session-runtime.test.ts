@@ -58,7 +58,7 @@ function rig(opts: { signedIn?: boolean; shared?: boolean } = {}): Rig {
 }
 
 function granted(limit = 1, sessions: readonly SessionRowView[] = []): AcquireResult {
-  return { kind: 'granted', leaseId: '55555555-5555-4555-8555-555555555555', limit, sessions, serverNowMs: null };
+  return { kind: 'granted', leaseId: '55555555-5555-4555-8555-555555555555', limit, sessions, serverNowMs: null, deviceCap: null, ownership: null };
 }
 
 describe('PersonalVaultRuntime signals', () => {

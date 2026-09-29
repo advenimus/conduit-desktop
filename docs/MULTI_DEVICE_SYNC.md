@@ -333,6 +333,7 @@ CREATE TABLE IF NOT EXISTS sync_key_wrap (       -- merge = union; validated on 
 | vault_meta (4) | `vault_id`, `cloud_sync_enabled` | row `value` | auto | `salt`, `verification` and `key_source` come from the epoch. `schema_version`, `sync_format` and `team_vault_id` are not synced. |
 | _sync (9) | `key/epoch` | current key epoch | special (4.8) | |
 | _sync | `owner/owner` | Free owner claim `{"a": account_hint or null, "d": device_uuid}` | auto | Section 6.7 |
+| _sync | `owner/account` | owner tag `{"a": account_hint or null}` (label "Vault owner") | auto | Written only by a confirmed owner, `{"a": null}` after a confirmed release. Offline and signed-out backup signal: `docs/PLAN_ENFORCEMENT.md` 3 |
 | _sync | `dismiss/<hash>` | dismissed suggestions | auto | For example the duplicate-folder suggestion |
 | _sync | `device/<device_uuid>` | presence row, canonical JSON: `platform`, `name`, `app_version`, `first_seen_ms`, `last_active_ms`, `session_open`, `session_since_ms`, `account_hint`, `file_hint {file_id, location, file_name}`, `side_files_seen_ms` | auto | One writer per install, so newer dots always replace older ones. Merged by dots, never by wall clock (red team #33). Written at unlock, lock, every publish (the publish marker, 6.11) and when a field changes. |
 
@@ -941,7 +942,7 @@ If the publish failed, the changes stay in this device's working copy and publis
 - Enforcement is client-side. A modified client, or edited local state, can skip it.
 - Signed-out and unconfirmed enforcement is best effort, with cloud latency.
 - Older apps (iOS 1.0.5, desktop 0.17 or older) are not enforced.
-- Two Conduit accounts on one vault are separate on the server; the in-file claim still displaces between them, best effort. Superseded by vault ownership in `docs/PLAN_ENFORCEMENT.md`.
+- Two Conduit accounts on one vault: the server now decides who owns a vault and how long another account may use it (`docs/PLAN_ENFORCEMENT.md` 2.3); the owner tag (3.5 table, `_sync/owner/account`) is the offline and signed-out backup signal. The Free owner claim still displaces between devices, best effort.
 - Two devices on different copies while signed out cannot be detected.
 
 ---
