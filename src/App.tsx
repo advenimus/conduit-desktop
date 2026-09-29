@@ -50,8 +50,12 @@ import SyncBanners from "./components/sync/SyncBanners";
 import { useBackupStates } from "./hooks/useBackupStates";
 import { useFreeze } from "./lib/native-freeze";
 import type { TeamVaultSummary } from "./stores/teamStore";
-import { Banner, IconButton, Spinner } from "./components/ui";
-import { errorText } from "./lib/errorText";
+import { Banner, IconButton } from "./components/ui";
+import FullScreenSpinner from "./components/common/FullScreenSpinner";
+import { useStartupVaultStore } from "./stores/startupVaultStore";
+import { goToVaultHubFromStartup, installStartupInputReporters, reportInputScreen, runStartupVault } from "./lib/startup-vault";
+import { handleAutoUnlockEvent } from "./lib/startup-vault-events";
+import StartupConfirmHost from "./components/vault/StartupConfirmHost";
 
 /**
  * Notification controllers — manage toast + update state and push to overlay window.
@@ -111,16 +115,7 @@ function OfflineBanner() {
   );
 }
 
-function FullScreenSpinner({ text }: { text: string }) {
-  return (
-    <div className="flex items-center justify-center h-screen bg-editor text-ink">
-      <div className="flex flex-col items-center gap-3">
-        <Spinner size={24} className="text-(--c-progress)" />
-        <span className="text-body text-ink-muted">{text}</span>
-      </div>
-    </div>
-  );
-}
+installStartupInputReporters();
 
 function App() {
   const [showAiPanel, setShowAiPanel] = useState(false);
@@ -159,6 +154,9 @@ function App() {
   const whatsNewChecked = useRef(false);
   const onboardingChecked = useRef(false);
   const { showVaultHub, autoConnectInProgress } = useVaultStore();
+  const startupPending = useStartupVaultStore((s) => s.pending);
+  const startupOpening = useStartupVaultStore((s) => s.opening);
+  const startupRan = useRef(false);
   const { isAuthenticated, isInitializing, authMode, handleAuthStateChanged } = useAuthStore();
   // cli_agents_enabled is read by ChatPanel via useAiStore directly
   // Derive a stable key from profile tier/team status so the tier capabilities
@@ -434,80 +432,22 @@ function App() {
   const sidebarOverlayOpen = sidebarExpanded && (!sidebarDockedOpen || sidebarMenuOpen);
   useFreeze(sidebarOverlayOpen, "sidebar", "side bar overlay");
 
-  // Check vault status on startup and determine whether to show hub or auto-connect
+  // Startup vault (docs/AUTO_UNLOCK.md 4.1, 4.2): once sign-in has settled and no sign-in or
+  // onboarding screen shows, main plans what opens: the hub, a team vault, or a personal vault.
+  const authGatePassed = !isInitializing && (isAuthenticated || authMode === "local" || authMode === "cached");
   useEffect(() => {
-    const init = async () => {
-      const vaultState = useVaultStore.getState();
-      await vaultState.checkVaultStatus();
-      const { isUnlocked: unlocked } = useVaultStore.getState();
-
-      if (unlocked) {
-        // Already unlocked (shouldn't normally happen on cold start, but handle it)
-        useEntryStore.getState().loadAll();
-        vaultState.setShowVaultHub(false);
-        return;
-      }
-
-      // Check if app was launched via file association (.conduit double-click)
-      try {
-        const pendingFile = await invoke<string | null>("get_pending_vault_file");
-        if (pendingFile) {
-          console.log("[App] Opening vault from file association:", pendingFile);
-          await vaultState.openVault(pendingFile);
-          vaultState.setShowVaultHub(false);
-          document.dispatchEvent(new CustomEvent("conduit:unlock-vault"));
-          return;
-        }
-      } catch {
-        // IPC not available — fall through
-      }
-
-      // Check if we should auto-connect to a team vault
-      try {
-        const settings = await invoke<{
-          last_vault_type?: string | null;
-          last_team_vault_id?: string | null;
-        }>("settings_get");
-
-        const { isTeamMember } = useAuthStore.getState();
-        const { authMode: currentAuthMode } = useAuthStore.getState();
-
-        // Check identity key exists before auto-opening team vault
-        const hasIdentityKey = await invoke<boolean>("identity_key_exists");
-
-        if (
-          settings.last_vault_type === "team" &&
-          settings.last_team_vault_id &&
-          isTeamMember &&
-          currentAuthMode === "authenticated" &&
-          hasIdentityKey
-        ) {
-          // Auto-connect to last team vault
-          vaultState.setAutoConnectInProgress(true);
-          vaultState.setShowVaultHub(false);
-          try {
-            await vaultState.openTeamVault(settings.last_team_vault_id);
-            useEntryStore.getState().loadAll();
-            vaultState.setAutoConnectInProgress(false);
-            vaultState.setShowVaultHub(false);
-            return;
-          } catch (err) {
-            const msg = errorText(err, "Failed to auto-connect to team vault");
-            vaultState.setAutoConnectInProgress(false);
-            vaultState.setAutoConnectError(msg);
-            vaultState.setShowVaultHub(true);
-            return;
-          }
-        }
-      } catch {
-        // Settings read failed — fall through to hub
-      }
-
-      // Default: show the vault hub
-      vaultState.setShowVaultHub(true);
-    };
-    init();
-  }, []);
+    if (!authGatePassed) {
+      if (!isInitializing) reportInputScreen();
+      return;
+    }
+    if (showOnboarding) {
+      reportInputScreen();
+      return;
+    }
+    if (startupRan.current) return;
+    startupRan.current = true;
+    void runStartupVault();
+  }, [authGatePassed, isInitializing, showOnboarding]);
 
   // Memoized onClose handlers for EntryDialog to prevent effect re-fires
   const closeEditingEntry = useCallback(() => setEditingEntryId(null), []);
@@ -862,6 +802,14 @@ function App() {
       useAiStore.getState().resetConversationState();
     });
 
+    // The window opened again after a close that locked an automatically opened vault (spec 4.6)
+    const unlistenStartupAgain = window.electron.on("vault-startup-again", () => {
+      void runStartupVault();
+    });
+    const unlistenAutoUnlock = window.electron.on("auto-unlock-event", (payload: unknown) => {
+      handleAutoUnlockEvent(payload);
+    });
+
     // Listen for file association opens (.conduit files double-clicked while app is running)
     const unlistenOpenVaultFile = window.electron.on("open-vault-file", async (filePath: unknown) => {
       const fp = filePath as string;
@@ -974,39 +922,202 @@ function App() {
       unlistenEntryChanged();
       unlistenFolderChanged();
       unlistenSystemLock();
+      unlistenStartupAgain();
+      unlistenAutoUnlock();
       unlistenOpenVaultFile();
       unlistenMenu();
       unlistenLocalNetwork();
     };
   }, []);
 
-  // Auth loading state
-  if (isInitializing) {
-    return <FullScreenSpinner text="Loading..." />;
-  }
+  // One NotificationStack for every screen, so a toast raised on one screen survives the switch to the next.
+  const renderScreen = () => {
+    // Auth loading state
+    if (isInitializing) {
+      return <FullScreenSpinner text="Loading..." />;
+    }
 
-  // Auth gate — allow local and cached modes to bypass sign-in
-  if (!isAuthenticated && authMode !== 'local' && authMode !== 'cached') {
-    return <AuthScreen />;
-  }
+    // Auth gate — allow local and cached modes to bypass sign-in
+    if (!isAuthenticated && authMode !== 'local' && authMode !== 'cached') {
+      return <AuthScreen />;
+    }
 
-  // Onboarding gate — show wizard for first-time authenticated users
-  if (showOnboarding) {
-    return <OnboardingWizard onComplete={() => setShowOnboarding(false)} />;
-  }
+    // Onboarding gate — show wizard for first-time authenticated users
+    if (showOnboarding) {
+      return <OnboardingWizard onComplete={() => setShowOnboarding(false)} />;
+    }
 
-  // Full-screen auto-connect spinner (team vault auto-connect in progress)
-  if (autoConnectInProgress) {
-    return <FullScreenSpinner text="Connecting to team vault..." />;
-  }
+    // The startup vault opening (spec 2.3): automatic unlock, or a team vault chosen in Settings
+    if (startupOpening) {
+      return (
+        <FullScreenSpinner
+          text={startupOpening.text}
+          onGoToHub={startupOpening.cancellable ? goToVaultHubFromStartup : undefined}
+        />
+      );
+    }
 
-  // Vault Hub — full-screen landing page (stays until explicitly dismissed)
-  if (showVaultHub) {
+    // Full-screen auto-connect spinner (team vault auto-connect in progress)
+    if (autoConnectInProgress) {
+      return <FullScreenSpinner text="Connecting to team vault..." />;
+    }
+
+    // Sign-in settled; the startup routine has not decided yet
+    if (startupPending) {
+      return <FullScreenSpinner text="Loading..." />;
+    }
+
+    // Vault Hub — full-screen landing page (stays until explicitly dismissed)
+    if (showVaultHub) {
+      return (
+        <div className="flex flex-col h-screen bg-editor text-ink">
+          {authMode === 'cached' && <OfflineBanner />}
+          <VaultHub />
+          {/* Overlay dialogs that can appear on top of hub */}
+          {showUnlockDialog && (
+            <UnlockDialog
+              onSuccess={() => {
+                setShowUnlockDialog(false);
+                useVaultStore.getState().setShowVaultHub(false);
+                useEntryStore.getState().loadAll();
+              }}
+              onCancel={() => {
+                setShowUnlockDialog(false);
+              }}
+            />
+          )}
+          {showCloudRestore && (
+            <CloudRestoreDialog
+              onRestore={() => {
+                setShowCloudRestore(false);
+                useVaultStore.getState().setShowVaultHub(false);
+                useEntryStore.getState().loadAll();
+              }}
+              onCreateNew={() => {
+                setShowCloudRestore(false);
+                useVaultStore.getState().clearError();
+                setShowUnlockDialog(true);
+              }}
+            />
+          )}
+          {teamVaultToUnlock && (
+            <TeamVaultUnlock
+              teamVaultId={teamVaultToUnlock.id}
+              vaultName={teamVaultToUnlock.name}
+              onSuccess={() => {
+                setTeamVaultToUnlock(null);
+                useVaultStore.getState().setShowVaultHub(false);
+                useEntryStore.getState().loadAll();
+              }}
+              onCancel={() => setTeamVaultToUnlock(null)}
+            />
+          )}
+          {showDeviceSetup && (
+            <DeviceSetupDialog
+              onComplete={() => {
+                setShowDeviceSetup(false);
+                useTeamStore.getState().loadTeamVaults();
+              }}
+              onSkip={() => setShowDeviceSetup(false)}
+            />
+          )}
+          <SyncLayer />
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col h-screen bg-editor text-ink">
+        <div data-cv-accent-line className="h-[2px] shrink-0 bg-accent" />
         {authMode === 'cached' && <OfflineBanner />}
-        <VaultHub />
-        {/* Overlay dialogs that can appear on top of hub */}
+        <SyncBanners />
+        <div className="flex flex-1 min-h-0">
+        {/* Sidebar — docked in this row when pinned, otherwise a fixed overlay */}
+        <Sidebar />
+        {/* Main Area */}
+        <div className="flex flex-col flex-1 min-w-0">
+          {/* Content Area */}
+          <div className="flex flex-1 min-h-0">
+            <SplitContainer
+              rightSlot={
+                <IconButton
+                  data-cv-ai-toggle=""
+                  icon="robot"
+                  label="Toggle AI Panel"
+                  pressed={showAiPanel}
+                  className="mr-1"
+                  onClick={() => setShowAiPanel(!showAiPanel)}
+                />
+              }
+            />
+            {/* AI side panel */}
+            <>
+              <div
+                data-cv-ai-divider=""
+                data-dragging={aiDragging ? "" : undefined}
+                onMouseDown={handleAiResizeStart}
+                className="cv-sash cv-sash-ai"
+                style={{ display: showAiPanel ? undefined : 'none' }}
+              />
+              <div
+                data-cv-ai-panel=""
+                className="shrink-0 overflow-hidden"
+                style={{
+                  width: aiPanelWidth,
+                  display: showAiPanel ? undefined : 'none',
+                  contain: 'strict',
+                }}
+              >
+                <ChatPanel />
+              </div>
+            </>
+          </div>
+        </div>
+        </div>
+
+        {/* Startup status bar (background builds, setup tasks) */}
+        <StartupStatus />
+
+        {/* Modals */}
+        {showQuickConnect && (
+          <QuickConnect onClose={() => setShowQuickConnect(false)} />
+        )}
+        {showSettings !== false && (
+          <SettingsDialog
+            initialTab={showSettings}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+        {showCredentials && (
+          <CredentialManager onClose={() => setShowCredentials(false)} />
+        )}
+        {showEntryDialog && (
+          <EntryDialog
+            folderId={newEntryFolderId}
+            onClose={closeNewEntryDialog}
+          />
+        )}
+        {editingEntryId && (
+          <EntryDialog
+            editingEntryId={editingEntryId}
+            onClose={closeEditingEntry}
+          />
+        )}
+        {showFolderDialog && (
+          <FolderDialog
+            parentId={newFolderParentId}
+            onClose={() => {
+              setShowFolderDialog(false);
+              setNewFolderParentId(null);
+            }}
+          />
+        )}
+        {editingFolderId && (
+          <FolderDialog
+            editingFolderId={editingFolderId}
+            onClose={() => setEditingFolderId(null)}
+          />
+        )}
         {showUnlockDialog && (
           <UnlockDialog
             onSuccess={() => {
@@ -1033,18 +1144,66 @@ function App() {
             }}
           />
         )}
-        {teamVaultToUnlock && (
-          <TeamVaultUnlock
-            teamVaultId={teamVaultToUnlock.id}
-            vaultName={teamVaultToUnlock.name}
-            onSuccess={() => {
-              setTeamVaultToUnlock(null);
-              useVaultStore.getState().setShowVaultHub(false);
-              useEntryStore.getState().loadAll();
+
+        {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
+        {showWhatsNew && (
+          <WhatsNewDialog
+            initialVersion={whatsNewVersion}
+            onClose={async () => {
+              setShowWhatsNew(false);
+              // Save current version as last_seen_whats_new_version
+              try {
+                const version = await invoke<string>('app_get_version');
+                const settings = await invoke<Record<string, unknown>>('settings_get');
+                await invoke('settings_save', {
+                  settings: { ...settings, last_seen_whats_new_version: version },
+                });
+              } catch {
+                // Best-effort save
+              }
             }}
-            onCancel={() => setTeamVaultToUnlock(null)}
           />
         )}
+        {showPasswordGenerator && (
+          <PasswordGeneratorDialog onClose={() => setShowPasswordGenerator(false)} />
+        )}
+        {showSshKeyGenerator && (
+          <SshKeyGeneratorDialog onClose={() => setShowSshKeyGenerator(false)} />
+        )}
+        {showImportDialog && (
+          <ImportDialog
+            onClose={() => {
+              setShowImportDialog(false);
+              useEntryStore.getState().loadAll();
+            }}
+          />
+        )}
+        {showExportDialog && (
+          <ExportDialog onClose={() => setShowExportDialog(false)} />
+        )}
+        {showVaultImportDialog && (
+          <VaultImportDialog
+            onClose={() => {
+              setShowVaultImportDialog(false);
+              useEntryStore.getState().loadAll();
+            }}
+          />
+        )}
+
+        {showRenameVaultDialog && (
+          <RenameVaultDialog onClose={() => setShowRenameVaultDialog(false)} />
+        )}
+
+        {showChangePasswordDialog && (
+          <ChangePasswordDialog onClose={() => setShowChangePasswordDialog(false)} />
+        )}
+
+        {/* Feedback / Bug report dialog */}
+        {feedbackType && (
+          <FeedbackDialog type={feedbackType} onClose={() => setFeedbackType(null)} />
+        )}
+
+        {/* Device setup for team vaults */}
         {showDeviceSetup && (
           <DeviceSetupDialog
             onComplete={() => {
@@ -1054,241 +1213,56 @@ function App() {
             onSkip={() => setShowDeviceSetup(false)}
           />
         )}
+
+        {/* Create team vault */}
+        {showCreateTeamVault && (
+          <CreateTeamVaultDialog
+            onClose={() => setShowCreateTeamVault(false)}
+          />
+        )}
+
+        {/* Team vault unlock */}
+        {teamVaultToUnlock && (
+          <TeamVaultUnlock
+            teamVaultId={teamVaultToUnlock.id}
+            vaultName={teamVaultToUnlock.name}
+            onSuccess={() => {
+              setTeamVaultToUnlock(null);
+              useEntryStore.getState().loadAll();
+            }}
+            onCancel={() => setTeamVaultToUnlock(null)}
+          />
+        )}
+
+        {/* Vault settings (members + folder permissions) */}
+        {showVaultSettings && (
+          <VaultSettingsDialog
+            initialTab={showVaultSettings.tab}
+            initialFolderId={showVaultSettings.folderId}
+            onClose={() => setShowVaultSettings(false)}
+          />
+        )}
+
+        {/* Device authorization approval */}
+        {pendingDeviceAuth && (
+          <DeviceAuthApprovalDialog
+            requestId={pendingDeviceAuth.id}
+            deviceName={pendingDeviceAuth.requesting_device_name}
+            onClose={() => setPendingDeviceAuth(null)}
+          />
+        )}
+
         <SyncLayer />
-        <NotificationStack />
       </div>
     );
-  }
+  };
 
   return (
-    <div className="flex flex-col h-screen bg-editor text-ink">
-      <div data-cv-accent-line className="h-[2px] shrink-0 bg-accent" />
-      {authMode === 'cached' && <OfflineBanner />}
-      <SyncBanners />
-      <div className="flex flex-1 min-h-0">
-      {/* Sidebar — docked in this row when pinned, otherwise a fixed overlay */}
-      <Sidebar />
-      {/* Main Area */}
-      <div className="flex flex-col flex-1 min-w-0">
-        {/* Content Area */}
-        <div className="flex flex-1 min-h-0">
-          <SplitContainer
-            rightSlot={
-              <IconButton
-                data-cv-ai-toggle=""
-                icon="robot"
-                label="Toggle AI Panel"
-                pressed={showAiPanel}
-                className="mr-1"
-                onClick={() => setShowAiPanel(!showAiPanel)}
-              />
-            }
-          />
-          {/* AI side panel */}
-          <>
-            <div
-              data-cv-ai-divider=""
-              data-dragging={aiDragging ? "" : undefined}
-              onMouseDown={handleAiResizeStart}
-              className="cv-sash cv-sash-ai"
-              style={{ display: showAiPanel ? undefined : 'none' }}
-            />
-            <div
-              data-cv-ai-panel=""
-              className="shrink-0 overflow-hidden"
-              style={{
-                width: aiPanelWidth,
-                display: showAiPanel ? undefined : 'none',
-                contain: 'strict',
-              }}
-            >
-              <ChatPanel />
-            </div>
-          </>
-        </div>
-      </div>
-      </div>
-
-      {/* Startup status bar (background builds, setup tasks) */}
-      <StartupStatus />
-
-      {/* Modals */}
-      {showQuickConnect && (
-        <QuickConnect onClose={() => setShowQuickConnect(false)} />
-      )}
-      {showSettings !== false && (
-        <SettingsDialog
-          initialTab={showSettings}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
-      {showCredentials && (
-        <CredentialManager onClose={() => setShowCredentials(false)} />
-      )}
-      {showEntryDialog && (
-        <EntryDialog
-          folderId={newEntryFolderId}
-          onClose={closeNewEntryDialog}
-        />
-      )}
-      {editingEntryId && (
-        <EntryDialog
-          editingEntryId={editingEntryId}
-          onClose={closeEditingEntry}
-        />
-      )}
-      {showFolderDialog && (
-        <FolderDialog
-          parentId={newFolderParentId}
-          onClose={() => {
-            setShowFolderDialog(false);
-            setNewFolderParentId(null);
-          }}
-        />
-      )}
-      {editingFolderId && (
-        <FolderDialog
-          editingFolderId={editingFolderId}
-          onClose={() => setEditingFolderId(null)}
-        />
-      )}
-      {showUnlockDialog && (
-        <UnlockDialog
-          onSuccess={() => {
-            setShowUnlockDialog(false);
-            useVaultStore.getState().setShowVaultHub(false);
-            useEntryStore.getState().loadAll();
-          }}
-          onCancel={() => {
-            setShowUnlockDialog(false);
-          }}
-        />
-      )}
-      {showCloudRestore && (
-        <CloudRestoreDialog
-          onRestore={() => {
-            setShowCloudRestore(false);
-            useVaultStore.getState().setShowVaultHub(false);
-            useEntryStore.getState().loadAll();
-          }}
-          onCreateNew={() => {
-            setShowCloudRestore(false);
-            useVaultStore.getState().clearError();
-            setShowUnlockDialog(true);
-          }}
-        />
-      )}
-
-      {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
-      {showWhatsNew && (
-        <WhatsNewDialog
-          initialVersion={whatsNewVersion}
-          onClose={async () => {
-            setShowWhatsNew(false);
-            // Save current version as last_seen_whats_new_version
-            try {
-              const version = await invoke<string>('app_get_version');
-              const settings = await invoke<Record<string, unknown>>('settings_get');
-              await invoke('settings_save', {
-                settings: { ...settings, last_seen_whats_new_version: version },
-              });
-            } catch {
-              // Best-effort save
-            }
-          }}
-        />
-      )}
-      {showPasswordGenerator && (
-        <PasswordGeneratorDialog onClose={() => setShowPasswordGenerator(false)} />
-      )}
-      {showSshKeyGenerator && (
-        <SshKeyGeneratorDialog onClose={() => setShowSshKeyGenerator(false)} />
-      )}
-      {showImportDialog && (
-        <ImportDialog
-          onClose={() => {
-            setShowImportDialog(false);
-            useEntryStore.getState().loadAll();
-          }}
-        />
-      )}
-      {showExportDialog && (
-        <ExportDialog onClose={() => setShowExportDialog(false)} />
-      )}
-      {showVaultImportDialog && (
-        <VaultImportDialog
-          onClose={() => {
-            setShowVaultImportDialog(false);
-            useEntryStore.getState().loadAll();
-          }}
-        />
-      )}
-
-      {showRenameVaultDialog && (
-        <RenameVaultDialog onClose={() => setShowRenameVaultDialog(false)} />
-      )}
-
-      {showChangePasswordDialog && (
-        <ChangePasswordDialog onClose={() => setShowChangePasswordDialog(false)} />
-      )}
-
-      {/* Feedback / Bug report dialog */}
-      {feedbackType && (
-        <FeedbackDialog type={feedbackType} onClose={() => setFeedbackType(null)} />
-      )}
-
-      {/* Device setup for team vaults */}
-      {showDeviceSetup && (
-        <DeviceSetupDialog
-          onComplete={() => {
-            setShowDeviceSetup(false);
-            useTeamStore.getState().loadTeamVaults();
-          }}
-          onSkip={() => setShowDeviceSetup(false)}
-        />
-      )}
-
-      {/* Create team vault */}
-      {showCreateTeamVault && (
-        <CreateTeamVaultDialog
-          onClose={() => setShowCreateTeamVault(false)}
-        />
-      )}
-
-      {/* Team vault unlock */}
-      {teamVaultToUnlock && (
-        <TeamVaultUnlock
-          teamVaultId={teamVaultToUnlock.id}
-          vaultName={teamVaultToUnlock.name}
-          onSuccess={() => {
-            setTeamVaultToUnlock(null);
-            useEntryStore.getState().loadAll();
-          }}
-          onCancel={() => setTeamVaultToUnlock(null)}
-        />
-      )}
-
-      {/* Vault settings (members + folder permissions) */}
-      {showVaultSettings && (
-        <VaultSettingsDialog
-          initialTab={showVaultSettings.tab}
-          initialFolderId={showVaultSettings.folderId}
-          onClose={() => setShowVaultSettings(false)}
-        />
-      )}
-
-      {/* Device authorization approval */}
-      {pendingDeviceAuth && (
-        <DeviceAuthApprovalDialog
-          requestId={pendingDeviceAuth.id}
-          deviceName={pendingDeviceAuth.requesting_device_name}
-          onClose={() => setPendingDeviceAuth(null)}
-        />
-      )}
-
-      <SyncLayer />
+    <>
+      {renderScreen()}
+      <StartupConfirmHost />
       <NotificationStack />
-    </div>
+    </>
   );
 }
 

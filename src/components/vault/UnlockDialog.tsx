@@ -9,10 +9,18 @@ import { toast } from "../common/Toast";
 import UnlockErrorView, { openErrorLine, type UnlockRetry } from "../sync/UnlockErrorView";
 import { useForgetUnlockRequestOnClose } from "../sync/useForgetUnlockRequest";
 import BiometricSetupPrompt from "./BiometricSetupPrompt";
+import AutoUnlockWarningDialog from "./AutoUnlockWarningDialog";
+import { AutoUnlockCheckbox, AutoUnlockFallbackNote } from "./AutoUnlockFields";
+import { useAutoUnlockChoice } from "./useAutoUnlockChoice";
+import { useStartupVaultStore } from "../../stores/startupVaultStore";
+import { toastStartupOpenCancelled, turnOffAutoUnlock } from "../../lib/startup-vault";
 import { CloudIcon } from "../../lib/icons";
 import { Button, Callout, Checkbox, Dialog, FormField, IconButton, TextInput } from "../ui";
 
-type AttemptKind = "password" | "biometric";
+/** "saved": the startup vault's automatic attempt, and every retry or typed password in its fallback. */
+type AttemptKind = "password" | "biometric" | "saved";
+
+const SAVED_UNLOCK_UNAVAILABLE = "Conduit couldn't use the saved unlock. Enter your master password.";
 
 interface UnlockDialogProps {
   onSuccess: () => void;
@@ -40,6 +48,8 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
   const cloudBackupAllowed = useAiStore((s) => s.tierCapabilities?.cloud_sync_enabled ?? false);
   const openError = useSyncStore((s) => s.openError);
   const takeoverMode = useSyncStore((s) => s.takeoverMode);
+  const fallback = useStartupVaultStore((s) => s.fallback);
+  const autoUnlock = useStartupVaultStore((s) => s.autoUnlock);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -48,11 +58,16 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [lineError, setLineError] = useState<string | null>(null);
+  const [lineRetryable, setLineRetryable] = useState(false);
+  const [showAutoWarning, setShowAutoWarning] = useState(false);
+  const [touchIdSettled, setTouchIdSettled] = useState(false);
   const biometricTriggered = useRef(false);
-  const attemptRef = useRef<AttemptKind>("password");
+  const attemptRef = useRef<AttemptKind>(fallback ? "saved" : "password");
   const lastOptsRef = useRef<UnlockOptions>({});
 
   const isInitializing = !vaultExists;
+  const autoTouchId = !isInitializing && biometricAvailable && biometricEnabled && fallback === null;
+  const choice = useAutoUnlockChoice({ isInitializing, touchIdPending: biometricUnlockInProgress || (autoTouchId && !touchIdSettled) });
 
   // Structured errors without a dialog become the error line.
   useEffect(() => {
@@ -60,9 +75,32 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     const line = openErrorLine(openError);
     if (line) {
       setLineError(line);
+      setLineRetryable(openError.code === "VAULT_FILE_UNREADABLE" && attemptRef.current === "saved");
       useSyncStore.getState().setOpenError(null);
     }
   }, [openError]);
+
+  const succeed = () => {
+    useStartupVaultStore.getState().setFallback(null);
+    onSuccess();
+  };
+
+  const cancel = () => {
+    const f = useStartupVaultStore.getState().fallback;
+    useStartupVaultStore.getState().setFallback(null);
+    onCancel();
+    if (f) toastStartupOpenCancelled(f.name);
+  };
+
+  /** After any successful unlock: the warning when the checkbox asks for it, else done. */
+  const finishUnlock = async (offerBiometric: boolean): Promise<void> => {
+    if ((await choice.afterUnlock()) === "warning") {
+      setShowAutoWarning(true);
+      return;
+    }
+    if (offerBiometric && (await offerBiometricSetup())) return;
+    succeed();
+  };
 
   useForgetUnlockRequestOnClose();
 
@@ -71,22 +109,25 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     lastOptsRef.current = opts;
     const merged: UnlockOptions = useSyncStore.getState().takeoverMode ? { ...opts, takeover: true } : opts;
     if (kind === "biometric") await biometricUnlock(merged);
-    else await unlockVault(pw, merged);
+    else if (kind === "saved") {
+      const res = await autoUnlock({ ...merged, password: pw || undefined });
+      if (!res.ok) {
+        useStartupVaultStore.getState().setFallback(null);
+        attemptRef.current = "password";
+        useVaultStore.setState({ error: SAVED_UNLOCK_UNAVAILABLE });
+        throw new Error(SAVED_UNLOCK_UNAVAILABLE);
+      }
+    } else await unlockVault(pw, merged);
   };
 
-  // Auto-trigger biometric on mount when available and enabled
+  // Auto-trigger biometric on mount when available and enabled, never over an automatic attempt's fallback
   useEffect(() => {
-    if (
-      !isInitializing &&
-      biometricAvailable &&
-      biometricEnabled &&
-      !biometricTriggered.current
-    ) {
+    if (autoTouchId && !biometricTriggered.current) {
       biometricTriggered.current = true;
-      handleBiometricUnlock();
+      void handleBiometricUnlock().finally(() => setTouchIdSettled(true));
     }
     // eslint-disable-next-line
-  }, [biometricAvailable, biometricEnabled, isInitializing]);
+  }, [autoTouchId]);
 
   // Re-check biometric status when dialog opens
   useEffect(() => {
@@ -99,7 +140,7 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     setLineError(null);
     try {
       await runUnlock("biometric", "", {});
-      onSuccess();
+      await finishUnlock(false);
     } catch {
       // Cancelled or failed: stay on the dialog (sync errors open their own dialog)
     }
@@ -127,12 +168,17 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     setRetryError(null);
     try {
       if (retry.password !== null) setPassword(retry.password);
-      const kind: AttemptKind = retry.password !== null ? "password" : attemptRef.current;
+      const saved = attemptRef.current === "saved";
+      const kind: AttemptKind = saved ? "saved" : retry.password !== null ? "password" : attemptRef.current;
       // A take-over or rebuild repeats the last attempt, keeping its previous password.
       const opts = retry.password !== null ? retry.opts : { ...lastOptsRef.current, ...retry.opts };
       await runUnlock(kind, retry.password ?? password, opts);
-      if (kind === "password" && (await offerBiometricSetup())) return;
-      onSuccess();
+      if (saved && retry.keepAutoUnlock !== undefined) {
+        await choice.afterSavedPasswordChanged(retry.keepAutoUnlock);
+        succeed();
+        return;
+      }
+      await finishUnlock(kind === "password");
     } catch {
       const sync = useSyncStore.getState();
       if (sync.openError === null && previousError?.code === "VAULT_PASSWORD_CHANGED_ELSEWHERE") {
@@ -148,6 +194,8 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     useSyncStore.getState().setOpenError(null);
     setPassword("");
     setRetryError(null);
+    // A gate dialog of the startup vault's automatic attempt closes the whole dialog (spec 2.1).
+    if (attemptRef.current === "saved") cancel();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,11 +219,12 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
           }
         }
       } else {
-        await runUnlock("password", password, {});
-        if (await offerBiometricSetup()) return;
+        await runUnlock(fallback ? "saved" : "password", password, {});
+        await finishUnlock(true);
+        return;
       }
 
-      onSuccess();
+      succeed();
     } catch {
       // Error is set in the store
     }
@@ -187,7 +236,7 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     } catch (err) {
       console.error("Failed to enable biometric:", err);
     }
-    onSuccess();
+    succeed();
   };
 
   const handleBiometricSetupDismiss = async () => {
@@ -197,7 +246,7 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     } catch {
       // Best-effort
     }
-    onSuccess();
+    succeed();
   };
 
   const passwordsMatch = !isInitializing || password === confirmPassword;
@@ -205,12 +254,17 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
   const showCloudBackupOption = isAuthenticated && cloudBackupAllowed;
   const shownError = lineError ?? error;
 
+  if (showAutoWarning) {
+    return <AutoUnlockWarningDialog mode="after-unlock" onClose={() => succeed()} />;
+  }
+
   if (openError && !openErrorLine(openError)) {
     return (
       <UnlockErrorView
         payload={openError}
         busy={retrying || isLoading || biometricUnlockInProgress}
         error={retryError}
+        savedUnlockName={attemptRef.current === "saved" ? (fallback?.name ?? null) : null}
         onRetry={(retry) => void handleRetry(retry)}
         onCancel={handleErrorCancel}
       />
@@ -237,11 +291,11 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
       icon="lock"
       width={384}
       hideClose
-      onClose={onCancel}
+      onClose={cancel}
       onSubmit={(e) => void handleSubmit(e)}
       footer={
         <>
-          <Button onClick={onCancel}>Cancel</Button>
+          <Button onClick={cancel}>Cancel</Button>
           <Button type="submit" variant="primary" disabled={!canSubmit} loading={isLoading} loadingLabel="Please wait...">
             {isInitializing ? "Create Vault" : "Unlock"}
           </Button>
@@ -254,15 +308,25 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
             {currentVaultPath.split(/[/\\]/).pop()}
           </p>
         )}
-        <p className="text-body text-ink-muted">
-          {isInitializing
-            ? "Set a master password to protect your credentials"
-            : biometricUnlockInProgress
-            ? "Authenticating..."
-            : takeoverMode
-            ? "Unlock to use this vault here. It locks on the other device."
-            : "Enter your master password to access credentials"}
-        </p>
+        {choice.keepMode ? (
+          <AutoUnlockFallbackNote
+            onTurnOff={() => {
+              const name = fallback?.name ?? "";
+              useStartupVaultStore.getState().setFallback(null);
+              void turnOffAutoUnlock(name);
+            }}
+          />
+        ) : (
+          <p className="text-body text-ink-muted">
+            {isInitializing
+              ? "Set a master password to protect your credentials"
+              : biometricUnlockInProgress
+              ? "Authenticating..."
+              : takeoverMode
+              ? "Unlock to use this vault here. It locks on the other device."
+              : (choice.afterLockLine ?? "Enter your master password to access credentials")}
+          </p>
+        )}
       </div>
 
       <FormField label="Master Password">
@@ -316,7 +380,22 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
         </>
       )}
 
-      {shownError && <Callout tone="danger">{shownError}</Callout>}
+      {choice.showCheckbox && <AutoUnlockCheckbox keepMode={choice.keepMode} checked={choice.checked} onChange={choice.setChecked} />}
+
+      {shownError && (
+        <Callout
+          tone="danger"
+          actions={
+            lineRetryable && lineError ? (
+              <Button variant="link" size="sm" onClick={() => void handleRetry({ password: null, opts: {} })} disabled={retrying}>
+                Try Again
+              </Button>
+            ) : undefined
+          }
+        >
+          {shownError}
+        </Callout>
+      )}
     </Dialog>
   );
 }

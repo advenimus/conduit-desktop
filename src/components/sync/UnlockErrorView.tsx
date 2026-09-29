@@ -24,18 +24,22 @@ export function openErrorLine(payload: OpenErrorPayload): string | null {
 export interface UnlockRetry {
   readonly password: string | null;
   readonly opts: UnlockOptions;
+  /** The password-changed dialog of an automatic unlock: keep unlocking automatically with the new password. */
+  readonly keepAutoUnlock?: boolean;
 }
 
 interface UnlockErrorViewProps {
   payload: OpenErrorPayload;
   busy: boolean;
   error: string | null;
+  /** The startup vault's automatic unlock failed; its name. */
+  savedUnlockName?: string | null;
   onRetry: (retry: UnlockRetry) => void;
   onCancel: () => void;
 }
 
 /** The dialog for a structured unlock error; the unlock dialog keeps the typed password. */
-export default function UnlockErrorView({ payload, busy, error, onRetry, onCancel }: UnlockErrorViewProps) {
+export default function UnlockErrorView({ payload, busy, error, savedUnlockName = null, onRetry, onCancel }: UnlockErrorViewProps) {
   switch (payload.code) {
     case "VAULT_OPEN_ELSEWHERE":
       return (
@@ -52,8 +56,9 @@ export default function UnlockErrorView({ payload, busy, error, onRetry, onCance
           payload={payload}
           busy={busy}
           error={error}
-          onSubmit={(password, previousPassword) =>
-            onRetry({ password, opts: previousPassword ? { previousPassword } : {} })
+          savedUnlockName={savedUnlockName}
+          onSubmit={(password, previousPassword, keepAutoUnlock) =>
+            onRetry({ password, opts: previousPassword ? { previousPassword } : {}, keepAutoUnlock })
           }
           onCancel={onCancel}
         />

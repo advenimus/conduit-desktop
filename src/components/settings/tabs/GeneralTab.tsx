@@ -1,9 +1,10 @@
 import type { TabProps } from "../SettingsHelpers";
+import StartupVaultSetting from "./StartupVaultSetting";
 
-export default function GeneralTab(_props: TabProps) {
+export default function GeneralTab({ onNavigate }: TabProps) {
   return (
-    <div className="space-y-4">
-      <p className="text-body text-ink-muted">No general settings available.</p>
+    <div className="space-y-6">
+      <StartupVaultSetting onOpenSecurity={() => onNavigate?.("security")} />
     </div>
   );
 }

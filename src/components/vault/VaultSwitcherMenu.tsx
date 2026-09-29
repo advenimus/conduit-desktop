@@ -3,11 +3,13 @@ import { useTeamStore, type TeamVaultSummary } from "../../stores/teamStore";
 import { useAuthStore } from "../../stores/authStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { invoke } from "../../lib/electron";
-import { showContextMenu } from "../../utils/contextMenu";
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import {
-  ArrowsExchangeIcon, CheckIcon, ChevronRightIcon, FolderOpenIcon, LockIcon, NetworkIcon, PlusIcon, UsersIcon
+  ArrowsExchangeIcon, CheckIcon, ChevronRightIcon, FolderOpenIcon, LockIcon, LockOpenIcon, NetworkIcon, PlusIcon, UsersIcon
 } from "../../lib/icons";
+import { useStartupVaultStore } from "../../stores/startupVaultStore";
+import { INDICATOR_TEXT } from "../../lib/startup-vault-copy";
+import { openRecentVaultMenu } from "./recentVaultMenu";
 import { Menu, MenuHeader, MenuSeparator, cx } from "../ui";
 
 interface VaultMenuRowProps extends ComponentPropsWithRef<"button"> {
@@ -56,6 +58,7 @@ export default function VaultSwitcherMenu({
     useVaultStore();
   const { teamVaults, myRole, team } = useTeamStore();
   const { isTeamMember, authMode } = useAuthStore();
+  const autoUnlockOn = useStartupVaultStore((s) => s.status?.currentOn ?? false);
 
   const otherVaults = recentVaults
     .filter((p) => p !== currentVaultPath)
@@ -122,20 +125,6 @@ export default function VaultSwitcherMenu({
     useAiStore.getState().resetConversationState();
   };
 
-  const handleRecentVaultContextMenu = async (e: React.MouseEvent, vaultPath: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const selected = await showContextMenu(e.clientX, e.clientY, [
-      { id: "remove", label: "Remove from Recents", icon: "close" },
-      { id: "sep", label: "", type: "separator" },
-      { id: "copy", label: "Copy Path", icon: "copy" },
-    ]);
-    if (selected === "remove") {
-      await useVaultStore.getState().removeRecentVault(vaultPath);
-    } else if (selected === "copy") {
-      await navigator.clipboard.writeText(vaultPath);
-    }
-  };
 
   const isPersonalActive = vaultType === "personal";
   const isSignedIn = authMode === "authenticated" || authMode === "cached";
@@ -166,6 +155,12 @@ export default function VaultSwitcherMenu({
           {isNetworkVault && isPersonalActive && (
             <span title="Network vault"><NetworkIcon size={12} className="text-ink-faint flex-shrink-0" /></span>
           )}
+          {autoUnlockOn && isPersonalActive && (
+            <span title={INDICATOR_TEXT} className="inline-flex">
+              <LockOpenIcon size={12} className="text-ink-faint flex-shrink-0" />
+              <span className="sr-only">{INDICATOR_TEXT}</span>
+            </span>
+          )}
         </VaultMenuRow>
       )}
 
@@ -177,7 +172,7 @@ export default function VaultSwitcherMenu({
           <VaultMenuRow
             key={vaultPath}
             onClick={() => handlePersonalVault(vaultPath)}
-            onContextMenu={(e) => handleRecentVaultContextMenu(e, vaultPath)}
+            onContextMenu={(e) => void openRecentVaultMenu(e, vaultPath)}
             title={vaultPath}
           >
             <span className="min-w-0 truncate">{fileName}</span>

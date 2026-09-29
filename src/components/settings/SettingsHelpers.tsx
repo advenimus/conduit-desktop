@@ -49,6 +49,8 @@ export interface TabProps {
   settings: Settings;
   setSettings: React.Dispatch<React.SetStateAction<Settings>>;
   onClose: () => void;
+  /** Switches the Settings dialog to another tab. */
+  onNavigate?: (tab: SettingsTab) => void;
 }
 
 export interface UsageData {
