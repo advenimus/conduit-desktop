@@ -44,7 +44,7 @@ Smoke has no skill of its own (`node scripts/verify/run.mjs smoke`).
 - `locked-and-elsewhere`: a locked vault returns `code: VAULT_LOCKED`; after a Free take-over from another device it returns `reason: open_elsewhere` and the device shows the locked-out dialog.
 - `audit`: every MCP call of the run is in the MCP audit log, in order, with the right outcome; secrets such as `api_key` show as `[REDACTED]`.
 
-**ownership** (vault ownership and plan limits, `docs/PLAN_ENFORCEMENT.md`; not timed yet)
+**ownership** (vault ownership and plan limits, `docs/PLAN_ENFORCEMENT.md`; `npm run verify:ownership`, about 3 minutes)
 - Owner and grace banners, grace ending with [Make my own copy], release and hand-over, release surviving a background re-acquire, the owner tag signed out and offline, the account device cap, the minimum app version, and the cloud backup plan gate. Details and wording: `.claude/skills/verify-ownership/SKILL.md`.
 
 **password** (master-password changes on a synced vault, spec 4.7 and 4.8; `node scripts/verify/run.mjs password`, about 1 minute)

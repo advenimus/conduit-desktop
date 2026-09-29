@@ -31,7 +31,7 @@ in all); each suite alone adds about 8 s of setup.
 | `copies` | 5 | 105 to 145 s | `verify-data` | Conflict copies, user copies, side files, mass-change undo, two copies |
 | `lifecycle` | 6 | 160 s | `verify-data` | Recently deleted, rename and rebind, separate vault, damaged copy, idle lock, Sync tab |
 | `mcp` | 6 | 44 s | `verify-mcp` | MCP tools, no daily quota, MCP writes that sync, conflicts, lock errors, audit log |
-| `ownership` | 9 | not measured yet | `verify-ownership` | Vault owner and grace, Make my own copy, release, owner tag signed out and offline, device cap, minimum version, cloud backup plan gate (`docs/PLAN_ENFORCEMENT.md` 7.3) |
+| `ownership` | 9 | 164 s | `verify-ownership` | Vault owner and grace, Make my own copy, release, owner tag signed out and offline, device cap, minimum version, cloud backup plan gate (`docs/PLAN_ENFORCEMENT.md` 7.3) |
 | `password` | 4 | 50 s | `verify-data` | Master-password change on a synced vault |
 | `resilience` | 5 | 148 s | `verify-data` | Offline open and reconnect, cached tier, team vaults, export and import |
 | `smoke` | 2 | 4 s | none | Harness health |

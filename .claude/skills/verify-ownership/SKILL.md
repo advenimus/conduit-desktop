@@ -1,6 +1,6 @@
 ---
 name: verify-ownership
-description: Run only the live vault ownership suite (owner and grace, grace ending and Make my own copy, release and hand-over, release surviving a background re-acquire, owner tag signed out and offline, the account device cap, the minimum app version, the cloud backup plan gate) against the real Conduit app and a local Supabase. Use after changing electron/services/vault-session/ (owner-tag, own-copy tickets, the open gate, the session client), src/components/sync/ ownership dialogs and banners, cloud backup limits, or the plan enforcement migrations, or when asked to verify ownership or plan limits live. Fully isolated.
+description: Run only the live vault ownership suite (owner and grace, grace ending and Make my own copy, release and hand-over, release surviving a background re-acquire, owner tag signed out and offline, the account device cap, the minimum app version, the cloud backup plan gate) against the real Conduit app and a local Supabase. Use after changing electron/services/vault-session/ (owner-tag, own-copy tickets, the open gate, the session client), src/components/sync/ ownership dialogs and banners, cloud backup limits, or the plan enforcement migrations, or when asked to verify ownership or plan limits live. Fully isolated; takes about 3 minutes.
 ---
 
 # /verify-ownership: vault ownership and plan limits suite
@@ -43,7 +43,7 @@ node scripts/verify/run.mjs ownership --only device-cap --keep     # keep /tmp/c
 ```
 
 Exit code 0 means all passed including cleanup, 1 means a failure, 2 means bad arguments. Test
-windows appear on screen: leave them alone. Use a 10 minute timeout.
+windows appear on screen: leave them alone. About 164 s of scenarios plus about 10 s of setup; use a 10 minute timeout.
 
 ## Read the results
 
