@@ -1,4 +1,4 @@
--- Rollback of 20260929150000_team_membership_hardening: restores the live definitions read from
+-- Rollback of 20260929161642_team_membership_hardening: restores the live definitions read from
 -- production on 2026-09-29. It reopens the holes that migration closed, so use it only to unblock a
 -- broken website flow, and fix forward. Not rolled back: the guarded upsert_vault_entry_versioned
 -- (the unguarded body is the worst hole) and the TRUNCATE/REFERENCES/TRIGGER revoke (no client uses them).

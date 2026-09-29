@@ -1,5 +1,5 @@
--- Rollback of 20260929150400_cloud_backup_count_cap: puts the INSERT and UPDATE policies of
--- 20260929150300 back (plan check and name check, no count caps).
+-- Rollback of 20260929161900_cloud_backup_count_cap: puts the INSERT and UPDATE policies of
+-- 20260929161756 back (plan check and name check, no count caps).
 
 drop policy if exists "Users can insert own vault" on storage.objects;
 create policy "Users can insert own vault" on storage.objects for insert to authenticated

@@ -1,3 +1,4 @@
+-- Not in production yet: apply together with desktop 0.18 and iOS 1.1 (docs/PLAN_ENFORCEMENT.md section 8).
 -- Personal vault ownership (one account per lineage, 14 days of grace per vault and per pair of
 -- accounts, release), the per-account device cap, and the minimum app version in the lease RPCs.
 -- See docs/PLAN_ENFORCEMENT.md sections 2.3 to 2.6.

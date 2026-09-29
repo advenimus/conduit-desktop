@@ -13,8 +13,8 @@ device-lease basics (take-over, plan changes, owner claims) are the `verify-sync
 
 ## Needs
 
-The plan enforcement migrations on the local stack (`supabase/migrations/20260929150000` to
-`20260929150300`); the harness applies every migration of the checkout on every run, so run it from a
+The plan enforcement migrations on the local stack (`supabase/migrations/20260929161642` to
+`20260929161756`); the harness applies every migration of the checkout on every run, so run it from a
 checkout that has them. Everything else is as in `verify-sync` (Docker, the pinned Supabase CLI, psql).
 
 ## What it proves

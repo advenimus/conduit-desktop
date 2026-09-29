@@ -1,6 +1,6 @@
 -- Local-stack parity with production for the /verify harness (read from prod on 2026-09-26).
--- The migrations create upsert_vault_entry_versioned (20260929150000) and the four storage.objects
--- policies of bucket "vaults" (20260929150300); this file adds what no migration creates.
+-- The migrations create upsert_vault_entry_versioned (20260929161642) and the four storage.objects
+-- policies of bucket "vaults" (20260929161756); this file adds what no migration creates.
 
 -- Storage bucket for cloud backup (same as production).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
