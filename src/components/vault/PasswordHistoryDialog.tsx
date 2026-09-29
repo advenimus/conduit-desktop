@@ -7,6 +7,7 @@ import { getPasswordHistoryLimit } from "../../lib/tier";
 import type { PasswordHistoryEntry } from "../../types/entry";
 import { ClockIcon, LockIcon, UserIcon } from "../../lib/icons";
 import { Button, Dialog, EmptyState, IconButton, Spinner } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface PasswordHistoryDialogProps {
   entryId: string;
@@ -33,7 +34,7 @@ export default function PasswordHistoryDialog({ entryId, entryName, onClose }: P
       });
       setHistory(entries);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load password history");
+      toast.error(errorText(err, "Failed to load password history"));
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,7 @@ export default function PasswordHistoryDialog({ entryId, entryName, onClose }: P
       setHistory((prev) => prev.filter((h) => h.id !== historyId));
       toast.success("History entry deleted");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete history entry");
+      toast.error(errorText(err, "Failed to delete history entry"));
     }
   };
 

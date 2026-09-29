@@ -8,6 +8,7 @@ import type { FolderData } from "../../types/entry";
 import AuditLogViewer from "./AuditLogViewer";
 import { ChevronDownIcon, ChevronRightIcon, CrownIcon, FolderIcon, UserIcon } from "../../lib/icons";
 import { Badge, Button, Callout, Dialog, DialogFooter, DialogHeader, EmptyState, IconButton, NavList, Select, Spinner, type NavItem } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 // ---------- Types ----------
 
@@ -122,7 +123,7 @@ function MembersTab({
       setSelectedRole("editor");
       await loadVaultMembers();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to add member");
+      setError(errorText(err, "Failed to add member"));
     } finally {
       setActionLoading(null);
     }
@@ -137,7 +138,7 @@ function MembersTab({
       setRemovingId(null);
       await loadVaultMembers();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to remove member");
+      setError(errorText(err, "Failed to remove member"));
     } finally {
       setActionLoading(null);
     }
@@ -151,7 +152,7 @@ function MembersTab({
       await invoke("team_vault_update_member_role", { teamVaultId, userId, role });
       await loadVaultMembers();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to update role");
+      setError(errorText(err, "Failed to update role"));
     } finally {
       setActionLoading(null);
     }
@@ -165,7 +166,7 @@ function MembersTab({
       await invoke("team_vault_rotate_key", { teamVaultId });
       setShowRotateConfirm(false);
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to rotate vault key");
+      setError(errorText(err, "Failed to rotate vault key"));
     } finally {
       setActionLoading(null);
     }
@@ -398,7 +399,7 @@ function FolderPermissionsTab({
         return next;
       });
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to load folder permissions");
+      setError(errorText(err, "Failed to load folder permissions"));
     } finally {
       setLoadingFolder(null);
     }
@@ -431,7 +432,7 @@ function FolderPermissionsTab({
       setSelectedRole("viewer");
       await loadFolderPerms(folderId);
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to add permission override");
+      setError(errorText(err, "Failed to add permission override"));
     } finally {
       setActionLoading(null);
     }
@@ -448,7 +449,7 @@ function FolderPermissionsTab({
       });
       await loadFolderPerms(folderId);
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to remove permission override");
+      setError(errorText(err, "Failed to remove permission override"));
     } finally {
       setActionLoading(null);
     }

@@ -16,7 +16,7 @@ vi.mock("../../lib/icons", async (importOriginal) => {
 });
 
 import { iconToSvg, SEMANTIC_ICON_NAMES } from "../../lib/icons";
-import { LEGACY_MENU_ICON_KEYS, menuIconName, showContextMenu, type PopupMenuItem } from "../contextMenu";
+import { showContextMenu, type PopupMenuItem } from "../contextMenu";
 
 /** jsdom does not resolve var(); the probe's computed color is stubbed per token, as Chromium serializes it. */
 const TOKENS: Record<string, string> = {
@@ -73,52 +73,10 @@ afterEach(() => {
   document.documentElement.classList.remove("dark", "light");
 });
 
-describe("menuIconName", () => {
-  it.each([
-    ["play", "playerPlay"],
-    ["edit", "pencil"],
-    ["rename", "textCursor"],
-    ["copy", "copy"],
-    ["copy-host", "server"],
-    ["reconnect", "refresh"],
-    ["connect", "link"],
-    ["folder-plus", "folderPlus"],
-    ["external-link", "externalLink"],
-    ["dots", "ellipsis"],
-    ["chevron-right", "chevronRight"],
-    ["star-off", "starFilled"],
-    ["split", null],
-  ])("maps the old key %s to %s", (key, name) => {
-    expect(menuIconName(key)).toBe(name);
-  });
-
-  it("keeps the distinctions today's menus draw between neighboring items", () => {
-    expect(menuIconName("rename")).not.toBe(menuIconName("edit"));
-    expect(menuIconName("copy-host")).not.toBe(menuIconName("copy"));
-    expect(menuIconName("star-off")).not.toBe(menuIconName("star"));
-  });
-
-  it("keeps the old keys that were already semantic names", () => {
-    for (const key of ["user", "key", "star", "trash", "plus", "folder", "close", "home", "terminal", "shield", "lock", "keyboard", "clock"]) {
-      expect(menuIconName(key)).toBe(key);
-    }
-  });
-
-  it("maps every old key to a semantic name and passes semantic names through", () => {
-    for (const name of Object.values(LEGACY_MENU_ICON_KEYS)) if (name !== null) expect(SEMANTIC_ICON_NAMES).toContain(name);
-    for (const name of SEMANTIC_ICON_NAMES) expect(menuIconName(name)).toBe(name);
-  });
-
-  it("returns null for an unknown key", () => {
-    expect(menuIconName("nope")).toBeNull();
-    expect(menuIconName("constructor")).toBeNull();
-  });
-});
-
 describe("showContextMenu", () => {
-  it("sends each item's icon as the active pack's 16px svg, for old keys and semantic names", async () => {
+  it("sends each item's icon as the active pack's 16px svg", async () => {
     const items: PopupMenuItem[] = [
-      { id: "open", label: "Open Session", icon: "play" },
+      { id: "open", label: "Open Session", icon: "playerPlay" },
       { id: "split_right", label: "Split Right", icon: "splitHorizontal" },
       { id: "sep", label: "", type: "separator" },
       { id: "plain", label: "No icon" },
@@ -138,22 +96,16 @@ describe("showContextMenu", () => {
     expect(payload).not.toHaveProperty("submenuIconSvg");
   });
 
-  it("sends Split Right and Split Down without an icon, as today, and warns about nothing", async () => {
+  it("sends every semantic icon name the registry knows", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    await showContextMenu(0, 0, [
-      { id: "split_right", label: "Split Right", icon: "split" },
-      { id: "split_down", label: "Split Down", icon: "split" },
-    ]);
-    expect(lastPayload().items).toEqual([
-      { id: "split_right", label: "Split Right" },
-      { id: "split_down", label: "Split Down" },
-    ]);
+    await showContextMenu(0, 0, SEMANTIC_ICON_NAMES.map((name) => ({ id: name, label: name, icon: name })));
+    expect(lastPayload().items.map((item) => item.iconSvg)).toEqual(SEMANTIC_ICON_NAMES.map((name) => iconToSvg(name, 16)));
     expect(warn).not.toHaveBeenCalled();
   });
 
   it("converts submenu children and sends the chevron for submenu rows", async () => {
     await showContextMenu(0, 0, [
-      { id: "open_with", label: "Open With", icon: "dots", children: [{ id: "open_external", label: "Open External", icon: "external-link" }] },
+      { id: "open_with", label: "Open With", icon: "ellipsis", children: [{ id: "open_external", label: "Open External", icon: "externalLink" }] },
     ]);
     const payload = lastPayload();
     expect(payload.items[0]).toEqual({
@@ -195,8 +147,8 @@ describe("showContextMenu", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     icons.fail.add("pencil");
     await showContextMenu(0, 0, [
-      { id: "edit", label: "Edit", icon: "edit" },
-      { id: "odd", label: "Odd", icon: "unknown-key" as PopupMenuItem["icon"] },
+      { id: "edit", label: "Edit", icon: "pencil" },
+      { id: "odd", label: "Odd", icon: "edit" as PopupMenuItem["icon"] },
     ]);
     expect(lastPayload().items).toEqual([
       { id: "edit", label: "Edit" },

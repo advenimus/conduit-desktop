@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useVaultStore } from "../../stores/vaultStore";
 import ProVaultLockDialog from "./ProVaultLockDialog";
 import { Button, Callout, Dialog, Spinner } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface TeamVaultUnlockProps {
   teamVaultId: string;
@@ -27,7 +28,7 @@ export default function TeamVaultUnlock({
   const [lockInfo, setLockInfo] = useState<{ lockedByEmail: string; lockedAt: string } | null>(null);
 
   const handleOpenError = (err: unknown) => {
-    const errStr = typeof err === "string" ? err : err instanceof Error ? err.message : "";
+    const errStr = errorText(err, "");
     // Check for structured vault lock error
     try {
       const parsed = JSON.parse(errStr);

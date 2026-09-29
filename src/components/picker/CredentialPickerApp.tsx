@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import { invoke, listen } from "../../lib/electron";
 import { KeyIcon } from "../../lib/icons";
 import type { CredentialMeta, CredentialDto } from "../../types/credential";
-import { ToastContainer } from "../common/Toast";
+import WindowToasts from "../common/WindowToasts";
 import { IconButton, Spinner } from "../ui";
 import PickerUnlock from "./PickerUnlock";
 import PickerCredentialList from "./PickerCredentialList";
@@ -111,10 +111,7 @@ export default function CredentialPickerApp() {
 
   return (
     <div className="relative flex h-screen w-screen select-none flex-col overflow-hidden rounded-lg border border-overlay-border bg-overlay text-ink">
-      {/* Toast Notifications */}
-      <div className="fixed bottom-2 right-2 z-50 max-w-[280px]">
-        <ToastContainer />
-      </div>
+      <WindowToasts />
       {/* Draggable header */}
       <div className="flex h-11 shrink-0 items-center justify-between border-b border-divider px-3" style={DRAG_REGION}>
         <div className="flex items-center gap-2 text-body font-semibold">

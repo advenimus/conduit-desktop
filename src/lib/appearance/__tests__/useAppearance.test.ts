@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { APPEARANCE_APPLIED_EVENT, useAppearance, type AppearanceAppliedDetail } from "../useAppearance";
 import { writeStoredAppearance } from "../dom";
-import { useTheme } from "../../../hooks/useTheme";
 import { useIconPackStore } from "../../icons";
 
 const root = document.documentElement;
@@ -178,9 +177,5 @@ describe("useAppearance", () => {
     localStorage.setItem("conduit-appearance-version", "3");
     writeStoredAppearance(state);
     expect(localStorage.getItem("conduit-appearance-version")).toBe("3");
-  });
-
-  it("useTheme re-exports useAppearance until R4-CLEANUP", () => {
-    expect(useTheme).toBe(useAppearance);
   });
 });

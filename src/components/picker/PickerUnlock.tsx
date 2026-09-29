@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "../../lib/electron";
 import { AlertCircleIcon, LockIcon } from "../../lib/icons";
 import { Button, Spinner, TextInput } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface PickerUnlockProps {
   vaultType: "personal" | "team";
@@ -34,7 +35,7 @@ export default function PickerUnlock({ vaultType, vaultExists, onUnlocked, onSho
         if (!cancelled) onUnlocked();
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to unlock team vault");
+          setError(errorText(err, "Failed to unlock team vault"));
           setLoading(false);
         }
       }
@@ -51,7 +52,7 @@ export default function PickerUnlock({ vaultType, vaultExists, onUnlocked, onSho
       await invoke("vault_unlock", { masterPassword: password });
       onUnlocked();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Wrong password");
+      setError(errorText(err, "Wrong password"));
       setLoading(false);
     }
   };

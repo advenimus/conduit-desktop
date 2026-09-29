@@ -2,6 +2,7 @@ import { useState } from "react";
 import { invoke } from "../../lib/electron";
 import { CheckIcon, CloseIcon } from "../../lib/icons";
 import { Button, Callout, Card, Dialog } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface DeviceAuthApprovalDialogProps {
   requestId: string;
@@ -30,7 +31,7 @@ export default function DeviceAuthApprovalDialog({
       setResult("approved");
       setTimeout(onClose, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to approve request");
+      setError(errorText(err, "Failed to approve request"));
     } finally {
       setLoading(false);
     }
@@ -44,7 +45,7 @@ export default function DeviceAuthApprovalDialog({
       setResult("denied");
       setTimeout(onClose, 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to deny request");
+      setError(errorText(err, "Failed to deny request"));
     } finally {
       setLoading(false);
     }

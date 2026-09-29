@@ -1,10 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-type Pair = { hook: string; legacy: string | null; probe?: string };
+type Pair = { hook: string };
 type Helpers = {
   usesHook(scope: ParentNode | null, pair: Pair): boolean;
-  pickOne(scope: ParentNode | null, pair: Pair, legacyScope?: ParentNode | null): Element | null;
+  pickOne(scope: ParentNode | null, pair: Pair): Element | null;
   pickAll(scope: ParentNode | null, pair: Pair): Element[];
   pickClosest(el: Element, scope: ParentNode, pair: Pair): Element | null;
 };
@@ -134,7 +134,7 @@ describe("Settings > Backup hooks (B22, B23, B24, B39, B40, B41)", () => {
     const label = [...scope().querySelectorAll("label")].find((l) => l.textContent === "Cloud Backup")!;
     const section = cv.pickClosest(label, scope(), S.cloudBackupSection)!;
     expect(section).toHaveAttribute("data-cv-cloud-backup-section");
-    expect(cv.pickOne(scope(), S.cloudBackupBadge, label.parentElement)?.textContent).toBe("Pro and Team");
+    expect(cv.pickOne(scope(), S.cloudBackupBadge)?.textContent).toBe("Pro and Team");
     const toggle = cv.pickOne(cv.pickClosest(label, scope(), S.toggleRow), S.toggle) as HTMLButtonElement;
     expect(toggle.disabled).toBe(true);
     expect(clickToggleInPage({ root: ROOT, label: "Cloud Backup" }, { ...cv, S })).toBe("disabled");

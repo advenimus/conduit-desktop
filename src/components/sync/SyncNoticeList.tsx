@@ -1,4 +1,4 @@
-import { errorText } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { toast } from "../common/Toast";

@@ -4,6 +4,7 @@ import { useVaultStore } from "../../stores/vaultStore";
 import { useTeamStore } from "../../stores/teamStore";
 import { toast } from "../common/Toast";
 import { Button, Callout, Dialog, FormField, TextInput } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface RenameVaultDialogProps {
   onClose: () => void;
@@ -58,7 +59,7 @@ export default function RenameVaultDialog({ onClose }: RenameVaultDialogProps) {
       toast.success(`Vault renamed to "${newName.trim()}"`);
       onClose();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to rename vault");
+      setError(errorText(err, "Failed to rename vault"));
       setLoading(false);
     }
   };

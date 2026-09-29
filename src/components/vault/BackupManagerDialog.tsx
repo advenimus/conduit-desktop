@@ -3,6 +3,7 @@ import { useVaultStore, type CloudBackupEntry } from "../../stores/vaultStore";
 import { useAuthStore } from "../../stores/authStore";
 import { CloudOffIcon, LockIcon } from "../../lib/icons";
 import { Badge, Button, Dialog, DialogFooter, DialogHeader, ListRow, Spinner, TextInput } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -160,7 +161,7 @@ export default function BackupManagerDialog({ onClose }: Props) {
       setRestoreVaultName(null);
       setRestorePassword("");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Restore failed";
+      const msg = errorText(err, "Restore failed");
       setRestoreError(msg);
     } finally {
       setRestoring(false);

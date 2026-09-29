@@ -3,7 +3,7 @@ import { useSyncStore } from "../../../stores/syncStore";
 import { useVaultStore } from "../../../stores/vaultStore";
 import { useTierStore } from "../../../stores/tierStore";
 import { activeStatus } from "../../../stores/sync-reducers";
-import { errorText } from "../../../lib/sync-api";
+import { errorText } from "../../../lib/errorText";
 import { toast } from "../../common/Toast";
 import SyncDevicesList from "../../sync/SyncDevicesList";
 import SyncNoticeList from "../../sync/SyncNoticeList";

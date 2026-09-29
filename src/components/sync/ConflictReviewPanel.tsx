@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { errorText } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { orderGroups, rowKeyString } from "../../stores/sync-reducers";
 import { toast } from "../common/Toast";
@@ -99,7 +99,7 @@ export default function ConflictReviewPanel({ initialRow }: { initialRow: SyncRo
       <div className="px-4"><SyncNoticeList /></div>
       {groups.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 text-ink-muted">
-          <IconSlot icon="circleCheck" size={28} className="text-success" />
+          <IconSlot icon="circleCheck" size={32} className="text-success" />
           <p className="text-body">Nothing to review. Every device agrees.</p>
         </div>
       ) : (

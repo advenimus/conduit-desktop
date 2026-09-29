@@ -20,6 +20,7 @@ import {
   ChevronDownIcon, ChevronRightIcon, LockIcon, StarFilledIcon, UsersIcon
 } from "../../lib/icons";
 import { cx } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface TreeNode {
   id: string;
@@ -540,10 +541,10 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
 
       if (canEdit) {
         items.push({ id: "new_entry", label: "New Entry", icon: "plus" });
-        items.push({ id: "new_folder", label: "New Folder", icon: "folder-plus" });
+        items.push({ id: "new_folder", label: "New Folder", icon: "folderPlus" });
         items.push({ id: "sep1", label: "", type: "separator" });
-        items.push({ id: "edit_folder", label: "Edit Folder", icon: "edit" });
-        items.push({ id: "rename", label: "Rename", icon: "rename" });
+        items.push({ id: "edit_folder", label: "Edit Folder", icon: "pencil" });
+        items.push({ id: "rename", label: "Rename", icon: "textCursor" });
       }
       if (vaultType === "team" && canManagePerms()) {
         items.push({ id: "sep_perms", label: "", type: "separator" });
@@ -581,24 +582,24 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         }
       } else {
         if (isConnection) {
-          items.push({ id: "open", label: "Open Session", icon: "play" });
+          items.push({ id: "open", label: "Open Session", icon: "playerPlay" });
           const openWithChildren: PopupMenuItem[] = [
-            { id: "open_external", label: "Open External", icon: "external-link" },
+            { id: "open_external", label: "Open External", icon: "externalLink" },
           ];
           if (node.entryType !== "web") {
             openWithChildren.push({
               id: "open_with_credential", label: "Open with Credential\u2026", icon: "key",
             });
           }
-          items.push({ id: "open_with", label: "Open With", icon: "dots", children: openWithChildren });
+          items.push({ id: "open_with", label: "Open With", icon: "ellipsis", children: openWithChildren });
         }
         items.push({ id: "view_info", label: "View Info", icon: "home" });
         items.push({ id: "sep0", label: "", type: "separator" });
         if (canEdit) {
-          items.push({ id: "edit", label: "Edit", icon: "edit" });
+          items.push({ id: "edit", label: "Edit", icon: "pencil" });
         }
         if (isConnection && entry?.host) {
-          items.push({ id: "copy_host", label: "Copy Host", icon: "copy-host" });
+          items.push({ id: "copy_host", label: "Copy Host", icon: "server" });
         }
         if (entry?.username || entry?.credential_id) {
           items.push({ id: "copy_username", label: "Copy Username", icon: "user" });
@@ -614,9 +615,9 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         ];
         items.push({ id: "autotype", label: "Auto-type", icon: "keyboard", children: autoTypeChildren });
         items.push({ id: "sep1", label: "", type: "separator" });
-        items.push({ id: "favorite", label: entry?.is_favorite ? "Unfavorite" : "Favorite", icon: entry?.is_favorite ? "star-off" : "star" });
+        items.push({ id: "favorite", label: entry?.is_favorite ? "Unfavorite" : "Favorite", icon: entry?.is_favorite ? "starFilled" : "star" });
         if (canEdit) {
-          items.push({ id: "rename", label: "Rename", icon: "rename" });
+          items.push({ id: "rename", label: "Rename", icon: "textCursor" });
           items.push({ id: "duplicate", label: "Duplicate", icon: "copy" });
         }
         if (role === "admin") {
@@ -677,7 +678,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           await navigator.clipboard.writeText(code);
           toast.success("OTP copied");
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Failed to copy OTP");
+          toast.error(errorText(err, "Failed to copy OTP"));
         }
         break;
       }
@@ -693,7 +694,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             await globalTypeText(cred.username);
           }
           toast.success("Username typed");
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to type username"); }
+        } catch (err) { toast.error(errorText(err, "Failed to type username")); }
         break;
       }
       case "autotype_password": {
@@ -708,7 +709,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             await globalTypeText(cred.password);
           }
           toast.success("Password typed");
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to type password"); }
+        } catch (err) { toast.error(errorText(err, "Failed to type password")); }
         break;
       }
       case "autotype_username_tab_password": {
@@ -724,7 +725,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             await globalTypeUsernameTabPassword(cred.username, cred.password);
           }
           toast.success("Credentials typed");
-        } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to type credentials"); }
+        } catch (err) { toast.error(errorText(err, "Failed to type credentials")); }
         break;
       }
       case "favorite":

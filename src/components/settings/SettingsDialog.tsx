@@ -26,6 +26,7 @@ import { DEFAULT_ICON_PACK } from "../../lib/icons";
 import { Button, Callout, Dialog, DialogFooter, DialogHeader } from "../ui";
 import type { ThemeChangeDetail } from "../../lib/appearance/useAppearance";
 import { mergeChangedSettings } from "./settings-merge";
+import { errorText } from "../../lib/errorText";
 
 export type { SettingsTab } from "./SettingsHelpers";
 
@@ -115,7 +116,7 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
 
       onClose();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to save settings");
+      setError(errorText(err, "Failed to save settings"));
     } finally {
       setIsSaving(false);
     }

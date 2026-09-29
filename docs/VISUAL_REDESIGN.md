@@ -895,7 +895,7 @@ The native child-window menus (`electron/ipc/menu.ts`) take the W2-MENUS restyle
 
 ### 3.14 Toasts
 
-Window, position and stacking unchanged (D-15). `OverlayToast.tsx` and `OverlayUpdateNotification.tsx` render `ToastCard` (4.15): `rounded-lg border border-overlay-border bg-overlay p-2 shadow-overlay`, no colored left bar; a 16px icon in the tone color (success `circleCheck` `text-success`, info `infoCircle` `text-info`, warning `alertTriangle` `text-warning`, error `circleX` `text-danger`); title `text-body font-semibold text-ink`; message `text-body text-ink-secondary`; progress `h-1 rounded-full bg-selected` with a `bg-(--c-progress)` fill and `text-meta` labels; actions `Button size="sm"` (primary or secondary); close `IconButton sm` `close` `label="Dismiss"`. `data-toast` stays (click-through, `OverlayApp.tsx`). Animations `toast-in` / `toast-out` unchanged [BEFORE 36, 37].
+Window, position and stacking unchanged (D-15). `OverlayToast.tsx` and `OverlayUpdateNotification.tsx` render `ToastCard` (4.15): `rounded-lg border border-overlay-border bg-overlay p-2 shadow-overlay`, no colored left bar; a 16px icon in the tone color (success `circleCheck` `text-success`, info `infoCircle` `text-info`, warning `alertTriangle` `text-warning`, error `circleX` `text-danger`); title `text-body font-semibold text-ink`; message `text-body text-ink-secondary`; progress `h-1 rounded-full bg-selected` with a `bg-(--c-progress)` fill and `text-meta` labels; actions `Button size="sm"` (primary or secondary); close `IconButton sm` `close` `label="Dismiss"`. `data-toast` stays (click-through, `OverlayApp.tsx`). Animations `toast-in` / `toast-out` unchanged [BEFORE 36, 37]. **(wave 4)** The credential picker window's toasts draw in an overlay of its own that covers the picker (`OverlayManager` with `placement: 'cover'`, `WindowToasts.tsx`); before, they were never shown.
 
 ### 3.15 Credential picker window
 
@@ -1018,9 +1018,9 @@ The pane tab bars are not `Tabs`: they keep their own markup with `tabs.css` (3.
 
 `DialogHeader`, `DialogBody` and `DialogFooter` serve custom layouts (Settings, the entry dialog); a custom layout without a `DialogHeader` still gets a hidden `h2`.
 
-**ConfirmDialog** (`src/components/common/ConfirmDialog.tsx`, rebuilt on `Dialog` by R3-MISC): props compatible with today's plus `cancelLabel`, `layer` and `closeOnEscape` (default `false`, as today); always `hideClose`. Without `layer` it renders in place (`portal={false}`), so `RecentlyDeletedPanel`'s `z-[70]` wrapper keeps working until R3-SYNC passes `layer="stacked"` and `closeOnEscape` (the panel's Escape cancels that confirm today, 3.12.1).
+**ConfirmDialog** (`src/components/common/ConfirmDialog.tsx`, rebuilt on `Dialog` by R3-MISC): props compatible with today's plus `cancelLabel`, `layer` and `closeOnEscape` (default `false`, as today); always `hideClose`. Without `layer` it renders in place (`portal={false}`), so `RecentlyDeletedPanel`'s `z-[70]` wrapper keeps working until R3-SYNC passes `layer="stacked"` and `closeOnEscape` (the panel's Escape cancels that confirm today, 3.12.1). **(wave 4)** R3-SYNC passes it, so R4-CLEANUP made `ConfirmDialog` portal on every layer; `layer` defaults to `base`.
 
-**Layer stack** (`src/components/ui/layers.ts`): one capturing `keydown` listener; Escape goes to the top layer only; Tab cycles inside the topmost trapping layer and the popovers above it. `src/components/sync/useEscapeLayer.ts` stays a re-export until R4-CLEANUP.
+**Layer stack** (`src/components/ui/layers.ts`): one capturing `keydown` listener; Escape goes to the top layer only; Tab cycles inside the topmost trapping layer and the popovers above it. `src/components/sync/useEscapeLayer.ts` stayed a re-export until R4-CLEANUP deleted it; callers import `useEscapeLayer` from `src/components/ui`.
 
 ### 4.9 Freeze registry (native web views)
 
@@ -1222,7 +1222,7 @@ Icons render at 12, 16, 20, 24, 32 or 48px. The restyle rounds today's 10 and 11
 
 ### 5.7 Popup menu icons
 
-`PopupMenuItem.icon` takes a semantic name or one of today's menu keys, which `src/utils/contextMenu.ts` maps (salvaged `LEGACY_MENU_ICON_KEYS`): `play` → `playerPlay`, `edit` → `pencil`, `rename` → `textCursor`, `copy-host` → `server`, `reconnect` → `refresh`, `connect` → `link`, `folder-plus` → `folderPlus`, `external-link` → `externalLink`, `dots` → `ellipsis`, `chevron-right` → `chevronRight`, `star-off` → `starFilled`, and `split` → no icon; other keys are semantic names already. The map keeps the distinctions today's menus draw (wave-1 review): Rename is not Edit's pencil, Copy Host is not Duplicate's copy, Unfavorite is not Favorite's outline star, Quick Connect keeps a link, and Split Right and Split Down stay without an icon, as today, until R2-TABS passes `splitHorizontal` and `splitVertical` (3.4). A slashed star is not used for Unfavorite because Phosphor and Material Symbols have none; the filled star marks an entry that is a favorite in all six packs. The helper sends each icon as `iconSvg: iconToSvg(name, 16)` from the active pack; the main process sanitizes it (7.1). R4-CLEANUP converts the remaining call sites to semantic names and deletes the map.
+`PopupMenuItem.icon` takes a semantic name or one of today's menu keys, which `src/utils/contextMenu.ts` maps (salvaged `LEGACY_MENU_ICON_KEYS`): `play` → `playerPlay`, `edit` → `pencil`, `rename` → `textCursor`, `copy-host` → `server`, `reconnect` → `refresh`, `connect` → `link`, `folder-plus` → `folderPlus`, `external-link` → `externalLink`, `dots` → `ellipsis`, `chevron-right` → `chevronRight`, `star-off` → `starFilled`, and `split` → no icon; other keys are semantic names already. The map keeps the distinctions today's menus draw (wave-1 review): Rename is not Edit's pencil, Copy Host is not Duplicate's copy, Unfavorite is not Favorite's outline star, Quick Connect keeps a link, and Split Right and Split Down stay without an icon, as today, until R2-TABS passes `splitHorizontal` and `splitVertical` (3.4). A slashed star is not used for Unfavorite because Phosphor and Material Symbols have none; the filled star marks an entry that is a favorite in all six packs. The helper sends each icon as `iconSvg: iconToSvg(name, 16)` from the active pack; the main process sanitizes it (7.1). R4-CLEANUP converts the remaining call sites to semantic names and deletes the map. **(wave 4)** Done: `PopupMenuItem.icon` is a `SemanticIconName`, and an unknown name is sent without an icon and logged.
 
 ### 5.8 Settings pack picker
 
@@ -1552,7 +1552,7 @@ Rules each package can meet before `--strict`:
 
 | Scenario (`--only`) | Reference shots | Inventory screens |
 |---|---|---|
-| `screens` | 00, 01, 02, 03, 41, 42 | `auth-screen`, `vault-hub-empty`, `vault-hub-with-recent`, `vault-hub-with-recent-2`, `unlock-dialog`, `main-empty-vault-welcome`, `sidebar-empty-vault-just-created` |
+| `screens` (theme `system`) | 00, 01, 02, 03, 41, 42 | `auth-screen`, `vault-hub-empty`, `vault-hub-with-recent`, `vault-hub-with-recent-2`, `unlock-dialog`, `main-empty-vault-welcome`, `sidebar-empty-vault-just-created` |
 | `sidebar` | 04, 06, 07, 08, 09, 21, 38, 39 | `main-sidebar-local-mode`, `vault-switcher-menu-open`, `sidebar-search-active`, `sidebar-favorites-only` |
 | `sidebar-signed-in` (`needsSupabase: true`) | 44 to 49 | `sidebar-signed-in`, `sidebar-sign-out-confirm`, `sidebar-cached-offline`, `sidebar-team-vault`, `sidebar-trial-card`, `sidebar-trial-strip`: a Free user who can start a trial and the same user in a Pro trial (`createTestUser`, `setTier` in `lib/supabase.mjs` [V exports]), a team with one team vault (`createTeam`, `createTeamVault`, `openTeamVaultInUi` in `lib/team.mjs` and `lib/team-flows.mjs` [V exports]), and cached mode by cutting the network the way the resilience suite does (`lib/net-proxy.mjs`) [A: that this reaches cached auth; if not, R1-HARNESS finds the way the app enters it] |
 | `tabs` | 05, 06, 07, 10, 10b, 40, 43 | `main-tabbars-split-ai-open`, `web-session-toolbar`, `home-dashboard-full-window`, `document-view-runbook`; plus the twelve-tab check of G10 |
@@ -1561,7 +1561,9 @@ Rules each package can meet before `--strict`:
 | `settings` | 20-01 to 20-14 | the 14 `settings-*` screens |
 | `dialogs` | 22 to 35 | `new-entry-dialog`, `new-entry-ssh-form`, the six `edit-entry-rdp-*`, `new-folder-dialog`, `quick-connect-dialog`, `confirm-delete-dialog`, the three `sync-panel-*` |
 | `toasts` | 36, 37 | none (screenshots; the four toasts come from View > Trigger Test Toast, or from the toast API) |
-| `packs` | none (sheets for owner gate 1) | none; for each of the six packs in dark and light it picks the pack in Settings > Appearance (live preview, then Save), captures the Appearance tab with its six cards, the side bar, both tab bars, the tree entry context menu window, a test toast and the credential picker window (opened the way its global shortcut opens it [A]), and asserts that `<html data-cv-icon-pack>` equals the pack id in the main, overlay and picker windows and that the menu's Edit icon markup differs from pack to pack; it also compares the picker window's icon markup across the six packs: six different markups pass, one markup for every pack (the picker's own inline SVGs, before R3-PICKER) reports `deferred`, which is listed but never fails, not even with `--strict`, and anything else fails; it writes one six-column sheet per mode under `.verify/<runId>/restyle/packs/`, then restarts the device and checks that the saved pack still applies |
+| `packs` | none (sheets for owner gate 1) | none; for each of the six packs in dark and light it picks the pack in Settings > Appearance (live preview, then Save), captures the Appearance tab with its six cards, the side bar, both tab bars, the tree entry context menu window, a test toast and the credential picker window (opened the way its global shortcut opens it [A]), and asserts that `<html data-cv-icon-pack>` equals the pack id in the main, overlay and picker windows and that the menu's Edit icon markup differs from pack to pack; it also compares the picker window's icon markup across the six packs: six different markups pass, one markup for every pack (the picker's own inline SVGs, before R3-PICKER) reports `deferred`, which is listed but never fails, not even with `--strict`, and anything else fails; it writes one six-column sheet per mode under `.verify/<runId>/restyle/packs/`, then restarts the device and checks that the saved pack still applies. **(wave 4)** Since R3-PICKER moved the picker onto the icon registry, its six markups differ and the check passes, so the `deferred` allowance is unused; the comparator keeps it |
+
+**(wave 4)** Every restyle device runs with its emulated system mode (`launchDevice(name, {colorScheme})`) set to the scenario's mode. The `screens` scenario also leaves the theme at `system`, a new install's default, so its dark and light shots come from the system mode and prove that the look follows it; the other scenarios set the theme to the mode.
 
 Output also includes `inventory.json` and `inventory-diff.txt` per scenario. Pixels are not diffed: styling changes sizes by design; the inventory and geometry rules decide pass or fail, and the owner reviews the composites at the gates.
 
@@ -2202,7 +2204,7 @@ Wave 4 starts when R3-FOUNDATION has closed wave 3. R4-HARNESS and R4-DOCS run i
 
 #### R4-DOCS: FEATURES.md, What's New and spec status
 
-**Owns:** `docs/FEATURES.md`, `release-notes/manifest.json`, `docs/VISUAL_REDESIGN.md`
+**Owns:** `docs/FEATURES.md`, `release-notes/manifest.json`, `docs/VISUAL_REDESIGN.md`, `.claude/commands/notification.md`
 
 **Deliverables:**
 
@@ -2246,7 +2248,7 @@ Wave 4 starts when R3-FOUNDATION has closed wave 3. R4-HARNESS and R4-DOCS run i
 
 ### 10.5 Dead files
 
-These nine files have no importers [V: grep of `src` and `electron` for each module, 2026-09-28]. Packages skip them, the legacy report excludes them (`DEAD_FILES` in `scripts/redesign/legacy-classes.mjs`), and R4-CLEANUP deletes them. `scripts/__tests__/legacy-classes.test.ts` reads two of them from the repo and asserts nine entries (`legacy-classes.test.ts:180-185` [V]), so R4-CLEANUP owns that test and moves it to temporary fixture files in the same change.
+These nine files had no importers [V: grep of `src` and `electron` for each module, 2026-09-28]; R4-CLEANUP deleted them and emptied `DEAD_FILES`, whose skip `scanPaths` keeps as its `deadFiles` option. Until then packages skipped them, the legacy report excludes them (`DEAD_FILES` in `scripts/redesign/legacy-classes.mjs`), and R4-CLEANUP deletes them. `scripts/__tests__/legacy-classes.test.ts` reads two of them from the repo and asserts nine entries (`legacy-classes.test.ts:180-185` [V]), so R4-CLEANUP owns that test and moves it to temporary fixture files in the same change.
 
 - `src/components/vault/TeamVaultMembersDialog.tsx`
 - `src/components/connections/ConnectionTree.tsx`

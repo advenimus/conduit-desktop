@@ -6,6 +6,7 @@ import PasswordGenerateButton from "../tools/PasswordGenerateButton";
 import { useVaultStore } from "../../stores/vaultStore";
 import { Button, Callout, Dialog, FormField, IconButton, SegmentedControl, Select, TextInput, type SegmentOption } from "../ui";
 import { FULL_WIDTH_SEGMENTS } from "../tools/segments";
+import { errorText } from "../../lib/errorText";
 
 interface QuickConnectProps {
   onClose: () => void;
@@ -111,7 +112,7 @@ export default function QuickConnect({ onClose }: QuickConnectProps) {
               },
             });
           }).catch((err) => {
-            const msg = typeof err === "string" ? err : err instanceof Error ? err.message : "Connection failed";
+            const msg = errorText(err, "Connection failed");
             useSessionStore.getState().updateSessionStatus(sessionId, "disconnected", msg);
           });
           return;
@@ -138,7 +139,7 @@ export default function QuickConnect({ onClose }: QuickConnectProps) {
       onClose();
     } catch (err) {
       setError(
-        typeof err === "string" ? err : err instanceof Error ? err.message : "Connection failed"
+        errorText(err, "Connection failed")
       );
     } finally {
       setIsLoading(false);
@@ -147,7 +148,7 @@ export default function QuickConnect({ onClose }: QuickConnectProps) {
 
   const credentialLabel = (
     <span className="flex items-center gap-1.5">
-      <KeyIcon size={14} />
+      <KeyIcon size={16} />
       Stored Credential
     </span>
   );

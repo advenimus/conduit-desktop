@@ -37,18 +37,39 @@ const OVERLAY_PADDING = 16;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type IpcHandler = (...args: any[]) => void;
 
+interface OverlaySender {
+  sender?: Electron.WebContents | null;
+}
+
+/**
+ * Where the overlay sits over its host window: `corner` is the main window's 400 x 500 column at
+ * the bottom-right; `cover` fills the host's content area (the credential picker, which is smaller).
+ */
+export type OverlayPlacement = 'corner' | 'cover';
+
+export interface OverlayManagerOptions {
+  placement?: OverlayPlacement;
+}
+
 // ── OverlayManager ─────────────────────────────────────────────────
 
+/**
+ * The toast overlay of one host window. Each host (the main window, an open credential picker) has its
+ * own manager: a manager takes toast state only from its host's renderer and sends clicks on its
+ * toasts back to that renderer, so the channels below are shared without crossing windows.
+ */
 export class OverlayManager {
   private overlayWindow: BrowserWindow | null = null;
   private mainWindow: BrowserWindow;
+  private readonly placement: OverlayPlacement;
   private lastState: OverlayState = { toasts: [], update: null };
   private ipcHandlers: Array<[string, IpcHandler]> = [];
   private windowReady = false;
   private blurTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(mainWindow: BrowserWindow) {
+  constructor(mainWindow: BrowserWindow, { placement = 'corner' }: OverlayManagerOptions = {}) {
     this.mainWindow = mainWindow;
+    this.placement = placement;
     this.attachMainWindowListeners();
     this.registerIpcHandlers();
     // Overlay window is created lazily on first toast/update
@@ -66,8 +87,8 @@ export class OverlayManager {
     this.overlayWindow = new BrowserWindow({
       x: bounds.x,
       y: bounds.y,
-      width: OVERLAY_WIDTH,
-      height: OVERLAY_HEIGHT,
+      width: bounds.width,
+      height: bounds.height,
       frame: false,
       transparent: true,
       // Electron 43+ rounds frameless windows on Linux by default; these draw their own shape.
@@ -130,24 +151,19 @@ export class OverlayManager {
     });
   }
 
-  private computeOverlayBounds(): { x: number; y: number } {
+  private computeOverlayBounds(): { x: number; y: number; width: number; height: number } {
     const contentBounds = this.mainWindow.getContentBounds();
+    if (this.placement === 'cover') return contentBounds;
     const x = contentBounds.x + contentBounds.width - OVERLAY_WIDTH - OVERLAY_PADDING;
     const y = contentBounds.y + contentBounds.height - OVERLAY_HEIGHT - OVERLAY_PADDING;
-    return { x, y };
+    return { x, y, width: OVERLAY_WIDTH, height: OVERLAY_HEIGHT };
   }
 
   private syncPosition(): void {
     if (!this.overlayWindow || this.overlayWindow.isDestroyed()) return;
-    if (this.mainWindow.isMinimized()) return;
+    if (this.mainWindow.isDestroyed() || this.mainWindow.isMinimized()) return;
 
-    const bounds = this.computeOverlayBounds();
-    this.overlayWindow.setBounds({
-      x: bounds.x,
-      y: bounds.y,
-      width: OVERLAY_WIDTH,
-      height: OVERLAY_HEIGHT,
-    });
+    this.overlayWindow.setBounds(this.computeOverlayBounds());
   }
 
   private attachMainWindowListeners(): void {
@@ -174,7 +190,7 @@ export class OverlayManager {
       if (this.blurTimeout) clearTimeout(this.blurTimeout);
       this.blurTimeout = setTimeout(() => {
         this.blurTimeout = null;
-        if (!this.mainWindow.isFocused()) {
+        if (!this.mainWindow.isDestroyed() && !this.mainWindow.isFocused()) {
           this.hideOverlay();
         }
       }, 200);
@@ -202,25 +218,43 @@ export class OverlayManager {
     this.ipcHandlers.push([channel, handler]);
   }
 
+  private isFromHost(event: OverlaySender): boolean {
+    return !this.mainWindow.isDestroyed() && event.sender === this.mainWindow.webContents;
+  }
+
+  private isFromOverlay(event: OverlaySender): boolean {
+    return !!this.overlayWindow && !this.overlayWindow.isDestroyed() && event.sender === this.overlayWindow.webContents;
+  }
+
+  /** Clicks are matched to the toast they belong to, not to their sender: the harness sends them without one. */
+  private ownsToast(toastId: string): boolean {
+    return this.lastState.toasts.some((t) => t.id === toastId);
+  }
+
+  private sendToHost(channel: string, data: unknown): void {
+    if (!this.mainWindow.isDestroyed()) this.mainWindow.webContents.send(channel, data);
+  }
+
   private registerIpcHandlers(): void {
-    this.addIpcHandler('overlay:push-state', (_event, state: OverlayState) => {
-      this.applyState(state);
+    this.addIpcHandler('overlay:push-state', (event: OverlaySender, state: OverlayState) => {
+      if (this.isFromHost(event)) this.applyState(state);
     });
 
     this.addIpcHandler('overlay:action-clicked', (_event, data: { actionId: string }) => {
-      this.mainWindow.webContents.send('overlay:action-clicked', data);
+      const toastId = String(data?.actionId ?? '').split(':')[0];
+      if (this.ownsToast(toastId)) this.sendToHost('overlay:action-clicked', data);
     });
 
     this.addIpcHandler('overlay:dismiss-toast', (_event, data: { toastId: string }) => {
-      this.mainWindow.webContents.send('overlay:dismiss-toast', data);
+      if (this.ownsToast(data?.toastId)) this.sendToHost('overlay:dismiss-toast', data);
     });
 
     this.addIpcHandler('overlay:update-action', (_event, data: { action: string }) => {
-      this.mainWindow.webContents.send('overlay:update-action', data);
+      if (this.lastState.update !== null) this.sendToHost('overlay:update-action', data);
     });
 
-    this.addIpcHandler('overlay:set-mouse-ignore', (_event, data: { ignore: boolean; forward?: boolean }) => {
-      if (!this.overlayWindow || this.overlayWindow.isDestroyed()) return;
+    this.addIpcHandler('overlay:set-mouse-ignore', (event: OverlaySender, data: { ignore: boolean; forward?: boolean }) => {
+      if (!this.isFromOverlay(event) || !this.overlayWindow) return;
       if (data.ignore) {
         this.overlayWindow.setIgnoreMouseEvents(true, { forward: data.forward ?? true });
       } else {
@@ -252,7 +286,7 @@ export class OverlayManager {
   private showOverlay(): void {
     if (!this.overlayWindow || this.overlayWindow.isDestroyed()) return;
     if (!this.windowReady) return;
-    if (this.mainWindow.isMinimized()) return;
+    if (this.mainWindow.isDestroyed() || this.mainWindow.isMinimized()) return;
     if (!this.mainWindow.isFocused()) return;
 
     this.syncPosition();
@@ -282,6 +316,10 @@ export class OverlayManager {
   }
 
   destroy(): void {
+    if (this.blurTimeout) {
+      clearTimeout(this.blurTimeout);
+      this.blurTimeout = null;
+    }
     for (const [channel, handler] of this.ipcHandlers) {
       ipcMain.removeListener(channel, handler);
     }

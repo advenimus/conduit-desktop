@@ -6,7 +6,6 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "danger" | "default";
-  /** Without a layer the confirm renders in place, so a caller's own z-index wrapper still applies (spec 4.8). */
   layer?: DialogLayer;
   /** Off by default: Escape is swallowed and the confirm stays open (spec 3.12.1). */
   closeOnEscape?: boolean;
@@ -33,7 +32,6 @@ export default function ConfirmDialog({
       hideClose
       closeOnEscape={closeOnEscape}
       layer={layer ?? "base"}
-      portal={layer !== undefined}
       width={448}
       footer={
         <>

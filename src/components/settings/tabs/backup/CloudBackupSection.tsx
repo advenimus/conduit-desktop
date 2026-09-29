@@ -6,7 +6,8 @@ import { toast } from "../../../common/Toast";
 import BackupHistoryPanel from "../../../vault/BackupHistoryPanel";
 import { Badge, Button } from "../../../ui";
 import { HINT } from "../../settings-styles";
-import { BackupToggleRow, errorMessage } from "./BackupToggleRow";
+import { BackupToggleRow } from "./BackupToggleRow";
+import { errorText } from "../../../../lib/errorText";
 
 function statusText(state: CloudSyncState): string {
   if (state.status === "synced" && state.lastSyncedAt) return `Last backup: ${new Date(state.lastSyncedAt).toLocaleString()}`;
@@ -34,7 +35,7 @@ export function CloudBackupSection({ allowed, onOpenManager }: CloudBackupSectio
       else await enableCloudSync();
     } catch (err) {
       console.error("[backup] Failed to toggle cloud backup:", err);
-      toast.error("Could not change cloud backup", errorMessage(err, "Try again."));
+      toast.error("Could not change cloud backup", errorText(err, "Try again."));
     } finally {
       setSyncing(false);
     }
@@ -45,7 +46,7 @@ export function CloudBackupSection({ allowed, onOpenManager }: CloudBackupSectio
     try {
       await syncNow();
     } catch (err) {
-      toast.error("Cloud backup failed", errorMessage(err, "Try again."));
+      toast.error("Cloud backup failed", errorText(err, "Try again."));
     } finally {
       setSyncing(false);
     }
@@ -57,7 +58,7 @@ export function CloudBackupSection({ allowed, onOpenManager }: CloudBackupSectio
       await disableCloudSync();
     } catch (err) {
       console.error("[backup] Failed to delete cloud backup:", err);
-      toast.error("Could not delete the cloud backup", errorMessage(err, "Try again."));
+      toast.error("Could not delete the cloud backup", errorText(err, "Try again."));
     }
     setConfirmDelete(false);
   };

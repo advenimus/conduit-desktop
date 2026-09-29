@@ -3,7 +3,6 @@ import { useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { useEscapeLayer, useLayer } from "../layers";
-import { useEscapeLayer as syncUseEscapeLayer } from "../../sync/useEscapeLayer";
 
 afterEach(cleanup);
 
@@ -245,9 +244,5 @@ describe("the layer stack", () => {
     panel.focus();
     fireEvent.keyDown(panel, { key: "Tab" });
     expect(document.activeElement).toBe(panel);
-  });
-
-  it("src/components/sync/useEscapeLayer.ts re-exports the shared hook", () => {
-    expect(syncUseEscapeLayer).toBe(useEscapeLayer);
   });
 });

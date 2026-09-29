@@ -13,6 +13,7 @@ import {
 import { Button, Callout, Dialog, FormField, SegmentedControl, TextInput, cx } from "../ui";
 import { FULL_WIDTH_SEGMENTS } from "./segments";
 import SshKeyOutput from "./SshKeyOutput";
+import { errorText } from "../../lib/errorText";
 
 interface SshKeyGeneratorDialogProps {
   onClose: () => void;
@@ -88,7 +89,7 @@ export default function SshKeyGeneratorDialog({
           : `SSH Key (${settings.type.toUpperCase()})`
       );
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to generate key pair");
+      setError(errorText(err, "Failed to generate key pair"));
     } finally {
       setGenerating(false);
     }
@@ -130,7 +131,7 @@ export default function SshKeyGeneratorDialog({
       toast.success("SSH key saved to vault");
       setShowSaveForm(false);
     } catch (err) {
-      toast.error(typeof err === "string" ? err : "Failed to save credential");
+      toast.error(errorText(err, "Failed to save credential"));
     } finally {
       setSaving(false);
     }

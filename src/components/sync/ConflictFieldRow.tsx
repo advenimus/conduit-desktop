@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { Badge, IconButton, Textarea, TextInput } from "../ui";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useEntryStore } from "../../stores/entryStore";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";

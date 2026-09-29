@@ -4,6 +4,7 @@ import { toast } from "../common/Toast";
 import { useAuthStore } from "../../stores/authStore";
 import { Button, Callout, Checkbox, Dialog, FormField, TextInput, Textarea } from "../ui";
 import ScreenshotPicker, { type ScreenshotEntry } from "./ScreenshotPicker";
+import { errorText } from "../../lib/errorText";
 
 interface FeedbackDialogProps {
   type: "bug" | "feedback";
@@ -79,7 +80,7 @@ export default function FeedbackDialog({ type, onClose }: FeedbackDialogProps) {
         setScreenshots((prev) => [...prev, ...newEntries].slice(0, MAX_SCREENSHOTS));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to pick screenshots.");
+      toast.error(errorText(err, "Failed to pick screenshots."));
     }
   };
 
@@ -110,7 +111,7 @@ export default function FeedbackDialog({ type, onClose }: FeedbackDialogProps) {
         toast.error(result.error ?? "Failed to submit feedback.");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to submit feedback.");
+      toast.error(errorText(err, "Failed to submit feedback."));
     } finally {
       setSubmitting(false);
     }

@@ -404,7 +404,6 @@ bring their own agent subscription.
   - Sidebar: trial promotion card for eligible free users, countdown card for active trials
   - Auth screen: trial highlight banner above sign-in card
   - Settings Account tab: trial progress bar with days remaining and Subscribe Now CTA
-  - UpgradeGate: "Start Free Trial" CTA when trial-eligible
   - Toast warnings at 7/3/1 days before trial ends
   - Trial conversion detection: success toast when trial converts to paid, warning when expired
   - Trial eligibility excludes team members and users already on Pro/Team tiers
@@ -637,7 +636,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Last opened vault persistence
 - Open from recent list
 - Remove individual vaults from recents (right-click context menu) with "Copy Path" option
-- Clear all recent vaults via "Clear All" link in VaultHub and VaultSelector headers
+- Clear all recent vaults via the "Clear All" link in the Vault Hub header
 
 ---
 
@@ -724,7 +723,6 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 ### Dialogs
 - Vault unlock
 - Cloud restore
-- Vault selector
 - Password generator
 - Settings (tabbed)
 - What's New (post-update release notes carousel with in-app link support)
@@ -828,6 +826,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
   - Global shortcut: Cmd/Ctrl+Shift+Space (also available from tray context menu)
   - Search and filter credentials with keyboard navigation (arrow keys + Enter)
   - Detail view with copy buttons for username, password, TOTP code, domain, and private key
+  - Copy confirmations and errors show as toasts over the picker, in an overlay window of its own
   - TOTP countdown ring with auto-refresh and visual low-time warning
   - Vault unlock support: password prompt (personal vault) or auto-unlock (team vault)
   - Works independently of main window (app can be in tray-only mode)

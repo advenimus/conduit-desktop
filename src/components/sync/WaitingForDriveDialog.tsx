@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { toast } from "../common/Toast";
 import type { WaitingDevice, WaitingForDriveState } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";

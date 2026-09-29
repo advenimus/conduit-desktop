@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-type Pair = { hook: string; legacy: string | null; probe?: string };
+type Pair = { hook: string };
 type Helpers = {
   usesHook(scope: ParentNode | null, pair: Pair): boolean;
-  pickOne(scope: ParentNode | null, pair: Pair, legacyScope?: ParentNode | null): Element | null;
+  pickOne(scope: ParentNode | null, pair: Pair): Element | null;
   pickAll(scope: ParentNode | null, pair: Pair): Element[];
 };
 // The harness is plain .mjs without type declarations.

@@ -4,9 +4,21 @@
     {
       "version": "0.18.0",
       "date": "2026-09-28",
-      "title": "A Fresh Look",
-      "summary": "Conduit gets a cleaner, more compact look and a choice of icon packs. Everything is still where you left it.",
+      "title": "Sync Across Devices and a Fresh Look",
+      "summary": "Keep one vault up to date on all your computers, pin the side bar open, and enjoy a cleaner, more compact look with a choice of icon packs. Everything is still where you left it.",
       "highlights": [
+        {
+          "text": "**Your vault on every device**: keep your vault in iCloud Drive, OneDrive, Dropbox, Google Drive or a network share and open it on each computer. Changes merge field by field, and when two devices change the same field, you pick which one to keep. With Pro, the vault can be open on all your devices at once.",
+          "category": "feature"
+        },
+        {
+          "text": "**More on the Free plan**: MCP tool calls are now unlimited. A Free vault is open on one device at a time, and \"Use here instead\" moves it to the computer you are using.",
+          "category": "feature"
+        },
+        {
+          "text": "**Pin the side bar**: dock it beside your sessions so it stays open while you work, or let it float and hide itself. Cmd+Shift+B (Ctrl+Shift+B on Windows and Linux) switches between the two.",
+          "category": "feature"
+        },
         {
           "text": "**Refreshed tabs and controls**: the active tab joins its session, and buttons, fields, lists, menus and dialogs share one compact style.",
           "category": "improvement"
@@ -26,6 +38,10 @@
         {
           "text": "**Platform themes retired**: the macOS, Windows and Ubuntu themes give way to the new look. Your icon style carries over as an icon pack.",
           "category": "improvement"
+        },
+        {
+          "text": "**Steadier remote clipboard**: copy and paste with remote desktops no longer stalls on Linux, and files copied from a remote desktop paste on macOS without missing items. Conduit also moves to a newer, supported version of Electron.",
+          "category": "fix"
         }
       ],
       "hasMedia": false

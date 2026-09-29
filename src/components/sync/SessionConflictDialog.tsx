@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
 import type { SessionConflictEvent } from "../../types/sync";

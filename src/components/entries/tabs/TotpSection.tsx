@@ -5,6 +5,7 @@ import { toast } from "../../common/Toast";
 import { invoke } from "../../../lib/electron";
 import { generateTotpCode } from "../../../lib/totp";
 import Field from "../Field";
+import { errorText } from "../../../lib/errorText";
 
 export interface TotpSectionProps {
   totpSecret?: string;
@@ -72,7 +73,7 @@ export default function TotpSection(props: TotpSectionProps) {
       setShowManual(false);
       toast.success("QR code imported successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to decode QR code");
+      toast.error(errorText(err, "Failed to decode QR code"));
     }
   };
 
