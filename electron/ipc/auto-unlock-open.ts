@@ -119,6 +119,8 @@ export async function runAutoUnlock(deps: AutoUnlockDeps, a: AutoUnlockArgs): Pr
     deps.store.removeAll();
     console.info(`${LOG} the saved password no longer opens the vault; forgotten`);
   };
+  // The vault is readable before open() returns (the first sync cycle still runs), so hold MCP first.
+  deps.holdMcp();
   try {
     await deps.open(
       {
@@ -143,6 +145,5 @@ export async function runAutoUnlock(deps: AutoUnlockDeps, a: AutoUnlockArgs): Pr
     throw err;
   }
   deps.attempt.succeeded();
-  deps.holdMcp();
   return { ok: true };
 }

@@ -25,6 +25,7 @@ interface World {
   opens: PersonalOpenRequest[];
   failWith: unknown[];
   held: number;
+  heldAtOpen: number[];
   startup: StartupVault | null;
 }
 
@@ -58,6 +59,7 @@ function deps(): AutoUnlockDeps {
     },
     open: async (req, onRefused) => {
       w.opens.push(req);
+      w.heldAtOpen.push(w.held);
       const err = w.failWith.shift();
       if (err === undefined) return {};
       await onRefused(err);
@@ -83,6 +85,7 @@ beforeEach(() => {
     opens: [],
     failWith: [],
     held: 0,
+    heldAtOpen: [],
     startup: { kind: 'personal', path: WORK, lineageId: 'L1' },
   };
   attempt = new StartupAttempt(Date.now);
@@ -96,6 +99,16 @@ describe('vault_auto_unlock first try', () => {
     expect(w.opens).toEqual([{ path: WORK, password: 'saved-pw', previousPassword: null, takeover: false, recoverWorkingCopy: false, source: 'auto_unlock' }]);
     expect(w.held).toBe(1);
     expect(attempt.attemptKind()).toBeNull();
+  });
+
+  it('holds MCP before the open starts, since the vault is readable before the open returns', async () => {
+    expect(await run()).toEqual({ ok: true });
+    expect(w.heldAtOpen).toEqual([1]);
+  });
+
+  it('a typed password in a fallback never holds MCP', async () => {
+    await run({ password: 'typed' });
+    expect(w.held).toBe(0);
   });
 
   it('forces takeover off even when asked', async () => {
@@ -175,6 +188,7 @@ describe('vault_auto_unlock retries (spec 4.3, 3.6)', () => {
 
   it('a take-over retry reuses the held password and may take over', async () => {
     expect(await run({ takeover: true })).toEqual({ ok: true });
+    expect(w.heldAtOpen).toEqual([1, 2]);
     expect(w.opens[1]).toMatchObject({ password: 'saved-pw', takeover: true, source: 'auto_unlock' });
   });
 

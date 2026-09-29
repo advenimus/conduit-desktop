@@ -1,5 +1,5 @@
 /**
- * MCP waits for a person after an automatic unlock (docs/AUTO_UNLOCK.md 4.8): until the first key
+ * MCP waits for a person from the start of an automatic unlock (docs/AUTO_UNLOCK.md 4.8): until the first key
  * press or click in the Conduit window, every request but GetTierInfo gets the locked error. A lock
  * or an unlock by a person clears it; only an automatic unlock sets it.
  */
