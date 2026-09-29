@@ -47,7 +47,7 @@ function stateWith(ownership: VaultOwnership | null): SyncStateResponse {
   return {
     enabled: true,
     killSwitch: false,
-    vault: { lineageId: "L", path: "/cloud/Vault.conduit", fileName: "Vault.conduit", shared: true, engine: false },
+    vault: { lineageId: "L", path: "/cloud/Vault.conduit", fileName: "Vault.conduit", shared: true, engine: true },
     status: null,
     deviceLimit: null,
     sideFiles: [],
@@ -191,6 +191,14 @@ describe("banners (S7, S7b, S21, S22)", () => {
     expect(text.textContent).toContain("The owner can move it into a Team vault and invite you. Signed in as me@example.com.");
     const banner = text.closest('[role="status"]') as HTMLElement;
     expect([...banner.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Switch account", "Later", "Try Team free", "Make my own copy"]);
+  });
+
+  it("a private vault (no engine) gets no [Make my own copy] while open", () => {
+    const state = stateWith({ kind: "grace", untilMs: Date.now() + 1_000_000 });
+    useSyncStore.setState({ state: { ...state, vault: { ...state.vault!, shared: false, engine: false } } });
+    render(<SyncBanners />);
+    expect(screen.queryByText("Make my own copy")).toBeNull();
+    expect(screen.getByText("Try Team free")).toBeInTheDocument();
   });
 
   it("[Later] hides the grace banner for the day", () => {

@@ -65,7 +65,7 @@ function useDismissedToday(kind: string, lineageId: string): readonly [boolean, 
 }
 
 /** S7: open during another account's grace. */
-function GraceBanner({ lineageId, untilMs }: { lineageId: string; untilMs: number }) {
+function GraceBanner({ lineageId, untilMs, canCopy }: { lineageId: string; untilMs: number; canCopy: boolean }) {
   const email = useAuthStore((s) => s.user?.email ?? null);
   const vaultPath = useVaultStore((s) => s.currentVaultPath);
   const [dismissed, dismiss] = useDismissedToday("grace", lineageId);
@@ -79,7 +79,8 @@ function GraceBanner({ lineageId, untilMs }: { lineageId: string; untilMs: numbe
         { label: "Switch account", onClick: () => void switchAccount() },
         { label: "Later", onClick: dismiss },
         { label: "Try Team free", onClick: openTeamTrial },
-        { label: "Make my own copy", primary: true, onClick: () => void makeOwnCopyWhileOpen(vaultPath) },
+        // A private vault has no working copy to fork while open.
+        ...(canCopy ? [{ label: "Make my own copy", primary: true, onClick: () => void makeOwnCopyWhileOpen(vaultPath) }] : []),
       ]}
     />
   );
@@ -111,7 +112,9 @@ export function OwnershipBanner() {
   const ownership = state?.ownership ?? null;
   const lineageId = state?.vault?.lineageId ?? null;
   if (!isUnlocked || vaultType !== "personal" || ownership === null || lineageId === null) return null;
-  if (ownership.kind === "grace") return <GraceBanner key={lineageId} lineageId={lineageId} untilMs={ownership.untilMs} />;
+  if (ownership.kind === "grace") {
+    return <GraceBanner key={lineageId} lineageId={lineageId} untilMs={ownership.untilMs} canCopy={state?.vault?.engine === true} />;
+  }
   if (ownership.kind === "owner" && ownership.sharedUntilMs !== null && ownership.sharedUntilMs > Date.now()) {
     return <SharedBanner key={lineageId} lineageId={lineageId} ownership={ownership} />;
   }
