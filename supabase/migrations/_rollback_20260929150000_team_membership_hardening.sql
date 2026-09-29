@@ -86,3 +86,54 @@ drop policy if exists team_vaults_insert on public.team_vaults;
 create policy team_vaults_insert on public.team_vaults for insert with check (exists (
   select 1 from public.team_members tm
    where tm.team_id = team_vaults.team_id and tm.user_id = (select auth.uid()) and tm.role = 'admin'));
+
+drop trigger if exists trg_guard_team_vault_member_update on public.team_vault_members;
+drop function if exists public.guard_team_vault_member_update();
+
+drop policy if exists vault_entries_insert on public.vault_entries;
+create policy vault_entries_insert on public.vault_entries for insert with check (exists (
+  select 1 from public.team_vault_members tvm join public.team_vaults tv on tv.id = tvm.team_vault_id
+   where tv.id = vault_entries.vault_id and tvm.user_id = (select auth.uid()) and tvm.role in ('admin', 'editor')));
+drop policy if exists vault_entries_update on public.vault_entries;
+create policy vault_entries_update on public.vault_entries for update using (exists (
+  select 1 from public.team_vault_members tvm join public.team_vaults tv on tv.id = tvm.team_vault_id
+   where tv.id = vault_entries.vault_id and tvm.user_id = (select auth.uid()) and tvm.role in ('admin', 'editor')));
+drop function if exists public.team_vault_folder_writable(uuid, uuid);
+
+drop policy if exists vault_password_history_select on public.vault_password_history;
+create policy vault_password_history_select on public.vault_password_history for select using (exists (
+  select 1 from public.team_vault_members
+   where team_vault_members.team_vault_id = vault_password_history.vault_id
+     and team_vault_members.user_id = (select auth.uid())));
+drop policy if exists vault_password_history_insert on public.vault_password_history;
+create policy vault_password_history_insert on public.vault_password_history for insert with check (exists (
+  select 1 from public.team_vault_members
+   where team_vault_members.team_vault_id = vault_password_history.vault_id
+     and team_vault_members.user_id = (select auth.uid()) and team_vault_members.role in ('editor', 'admin')));
+drop policy if exists vault_password_history_update on public.vault_password_history;
+create policy vault_password_history_update on public.vault_password_history for update using (exists (
+  select 1 from public.team_vault_members
+   where team_vault_members.team_vault_id = vault_password_history.vault_id
+     and team_vault_members.user_id = (select auth.uid()) and team_vault_members.role in ('editor', 'admin')));
+drop policy if exists vault_password_history_delete on public.vault_password_history;
+create policy vault_password_history_delete on public.vault_password_history for delete using (exists (
+  select 1 from public.team_vault_members
+   where team_vault_members.team_vault_id = vault_password_history.vault_id
+     and team_vault_members.user_id = (select auth.uid()) and team_vault_members.role = 'admin'));
+
+drop policy if exists vfp_select on public.vault_folder_permissions;
+create policy vfp_select on public.vault_folder_permissions for select to authenticated using (exists (
+  select 1 from public.team_vault_members tvm
+   where tvm.team_vault_id = vault_folder_permissions.vault_id and tvm.user_id = (select auth.uid())));
+drop policy if exists vfp_insert on public.vault_folder_permissions;
+create policy vfp_insert on public.vault_folder_permissions for insert to authenticated with check (exists (
+  select 1 from public.team_vault_members tvm
+   where tvm.team_vault_id = vault_folder_permissions.vault_id and tvm.user_id = (select auth.uid()) and tvm.role = 'admin'));
+drop policy if exists vfp_update on public.vault_folder_permissions;
+create policy vfp_update on public.vault_folder_permissions for update to authenticated using (exists (
+  select 1 from public.team_vault_members tvm
+   where tvm.team_vault_id = vault_folder_permissions.vault_id and tvm.user_id = (select auth.uid()) and tvm.role = 'admin'));
+drop policy if exists vfp_delete on public.vault_folder_permissions;
+create policy vfp_delete on public.vault_folder_permissions for delete to authenticated using (exists (
+  select 1 from public.team_vault_members tvm
+   where tvm.team_vault_id = vault_folder_permissions.vault_id and tvm.user_id = (select auth.uid()) and tvm.role = 'admin'));

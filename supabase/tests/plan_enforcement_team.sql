@@ -148,7 +148,15 @@ do $$ begin
     pg_temp.u('tv:t9v'), pg_temp.u('t9_out'), 'viewer'), '42501');
   perform pg_temp.expect_ok('T9', format('insert into public.team_vault_members (team_vault_id, user_id, role) values (%L, %L, %L)',
     pg_temp.u('tv:t9v'), pg_temp.u('t9_m'), 'viewer'));
+  perform pg_temp.expect_err('T9b repoint', format('update public.team_vault_members set user_id = %L where team_vault_id = %L and user_id = %L',
+    pg_temp.u('t9_out'), pg_temp.u('tv:t9v'), pg_temp.u('t9_m')), '42501');
+  perform pg_temp.expect_err('T9b move', format('update public.team_vault_members set team_vault_id = %L where team_vault_id = %L and user_id = %L',
+    gen_random_uuid(), pg_temp.u('tv:t9v'), pg_temp.u('t9_m')), '42501');
+  assert pg_temp.affected(format('update public.team_vault_members set role = %L where team_vault_id = %L and user_id = %L',
+    'editor', pg_temp.u('tv:t9v'), pg_temp.u('t9_m'))) = 1, 'T9b: a vault admin can still change a role';
   perform pg_temp.back();
+  assert exists (select 1 from public.team_vault_members where team_vault_id = pg_temp.u('tv:t9v')
+                  and user_id = pg_temp.u('t9_m')), 'T9b: the row did not move';
   perform pg_temp.ok('T9');
 end $$;
 rollback;
@@ -230,6 +238,47 @@ end $$;
 rollback;
 
 begin;
+do $$ declare r record; begin
+  perform pg_temp.mk_user('t12b_a', 'team');
+  perform pg_temp.mk_user('t12b_e', 'team');
+  perform pg_temp.mk_team('t12b', 't12b_a');
+  perform pg_temp.add_member('t12b', 't12b_a', 'admin');
+  perform pg_temp.add_member('t12b', 't12b_e');
+  perform pg_temp.mk_tvault('t12b', 't12bv', 't12b_a');
+  perform pg_temp.add_tv_member('t12bv', 't12b_a', 'admin');
+  perform pg_temp.add_tv_member('t12bv', 't12b_e', 'editor');
+  insert into public.vault_folders (id, vault_id, name) values
+    (pg_temp.u('folder:b-ro'), pg_temp.u('tv:t12bv'), 'Read only'),
+    (pg_temp.u('folder:b-rw'), pg_temp.u('tv:t12bv'), 'Open');
+  insert into public.vault_folder_permissions (vault_id, folder_id, user_id, role)
+  values (pg_temp.u('tv:t12bv'), pg_temp.u('folder:b-ro'), pg_temp.u('t12b_e'), 'viewer');
+  insert into public.vault_entries (id, vault_id, name, entry_type, folder_id, host) values
+    (pg_temp.u('entry:b-ro'), pg_temp.u('tv:t12bv'), 'prod-db', 'ssh', pg_temp.u('folder:b-ro'), '10.0.0.5'),
+    (pg_temp.u('entry:b-rw'), pg_temp.u('tv:t12bv'), 'web', 'ssh', pg_temp.u('folder:b-rw'), '10.0.0.6');
+
+  perform pg_temp.act('t12b_e');
+  assert pg_temp.affected(format('update public.vault_entries set host = %L, updated_by = %L where id = %L',
+    'direct.example', pg_temp.u('t12b_e'), pg_temp.u('entry:b-ro'))) = 0, 'T12b: edited an entry in a viewer-only folder';
+  perform pg_temp.expect_err('T12b move into', format('update public.vault_entries set folder_id = %L, updated_by = %L where id = %L',
+    pg_temp.u('folder:b-ro'), pg_temp.u('t12b_e'), pg_temp.u('entry:b-rw')), '42501');
+  perform pg_temp.expect_err('T12b blame', format('update public.vault_entries set host = %L, updated_by = %L where id = %L',
+    'x.example', pg_temp.u('t12b_a'), pg_temp.u('entry:b-rw')), '42501');
+  perform pg_temp.expect_err('T12b insert into', format('insert into public.vault_entries (vault_id, name, entry_type, folder_id, updated_by) values (%L, %L, %L, %L, %L)',
+    pg_temp.u('tv:t12bv'), 'new', 'ssh', pg_temp.u('folder:b-ro'), pg_temp.u('t12b_e')), '42501');
+  perform pg_temp.expect_err('T12b insert blame', format('insert into public.vault_entries (vault_id, name, entry_type, folder_id, updated_by) values (%L, %L, %L, %L, %L)',
+    pg_temp.u('tv:t12bv'), 'new', 'ssh', pg_temp.u('folder:b-rw'), pg_temp.u('t12b_a')), '42501');
+  perform pg_temp.expect_ok('T12b insert', format('insert into public.vault_entries (vault_id, name, entry_type, folder_id, updated_by) values (%L, %L, %L, %L, %L)',
+    pg_temp.u('tv:t12bv'), 'new', 'ssh', pg_temp.u('folder:b-rw'), pg_temp.u('t12b_e')));
+  assert pg_temp.affected(format('update public.vault_entries set host = %L, updated_by = %L where id = %L',
+    'web2.internal', pg_temp.u('t12b_e'), pg_temp.u('entry:b-rw'))) = 1, 'T12b: an editor can still edit an open folder';
+  perform pg_temp.back();
+  select host, updated_by into r from public.vault_entries where id = pg_temp.u('entry:b-ro');
+  assert r.host = '10.0.0.5' and r.updated_by is null, format('T12b: the viewer-only entry changed: %s', r);
+  perform pg_temp.ok('T12b');
+end $$;
+rollback;
+
+begin;
 do $$ declare n bigint; begin
   perform pg_temp.mk_user('t13_a', 'team');
   perform pg_temp.mk_user('t13_m', 'team');
@@ -286,6 +335,11 @@ do $$ begin
   perform pg_temp.add_tv_member('t14v', 't14_x', 'editor');
   insert into public.vault_key_wraps (team_vault_id, user_id, ephemeral_public_key_b64, encrypted_vek_b64)
   values (pg_temp.u('tv:t14v'), pg_temp.u('t14_x'), 'pk', 'vek');
+  insert into public.vault_folders (id, vault_id, name) values (pg_temp.u('folder:t14'), pg_temp.u('tv:t14v'), 'F');
+  insert into public.vault_folder_permissions (vault_id, folder_id, user_id, role)
+  values (pg_temp.u('tv:t14v'), pg_temp.u('folder:t14'), pg_temp.u('t14_x'), 'viewer');
+  insert into public.vault_password_history (vault_id, entry_id, username, password_encrypted, changed_by)
+  values (pg_temp.u('tv:t14v'), gen_random_uuid(), 'root', 'enc', pg_temp.u('t14_a'));
   -- A row left from before the cleanup trigger existed.
   alter table public.team_members disable trigger trg_cleanup_removed_team_member;
   delete from public.team_members where team_id = pg_temp.u('team:t14') and user_id = pg_temp.u('t14_fa');
@@ -297,6 +351,12 @@ do $$ begin
     pg_temp.u('tv:t14v'), pg_temp.u('t14_x'))) = 0, 'T14: former admin deleted a member';
   assert pg_temp.affected(format('delete from public.vault_key_wraps where team_vault_id = %L and user_id = %L',
     pg_temp.u('tv:t14v'), pg_temp.u('t14_x'))) = 0, 'T14: former admin deleted a key wrap';
+  assert (select count(*) from public.vault_password_history where vault_id = pg_temp.u('tv:t14v')) = 0,
+    'T14b: former member reads the password history';
+  assert (select count(*) from public.vault_folder_permissions where vault_id = pg_temp.u('tv:t14v')) = 0,
+    'T14b: former member reads the folder permissions';
+  perform pg_temp.expect_err('T14b history insert', format('insert into public.vault_password_history (vault_id, entry_id, username, changed_by) values (%L, %L, %L, %L)',
+    pg_temp.u('tv:t14v'), gen_random_uuid(), 'u', pg_temp.u('t14_fa')), '42501');
   perform pg_temp.back();
   perform pg_temp.ok('T14');
 end $$;

@@ -279,3 +279,82 @@ begin
 end $$;
 revoke execute on function public.upsert_vault_entry_versioned(uuid,uuid,text,text,uuid,integer,text,integer,text,text,text,text,text,text,text,text,text,boolean,integer,uuid,text,text,uuid) from public, anon;
 grant execute on function public.upsert_vault_entry_versioned(uuid,uuid,text,text,uuid,integer,text,integer,text,text,text,text,text,text,text,text,text,boolean,integer,uuid,text,text,uuid) to authenticated;
+
+-- 10. A team vault member row never moves to another person or vault. Otherwise a vault admin could
+--     repoint a member row to an account outside the team, which the insert policy above refuses.
+create or replace function public.guard_team_vault_member_update() returns trigger
+language plpgsql set search_path = public, pg_temp as $$
+begin
+  if new.id is distinct from old.id or new.team_vault_id is distinct from old.team_vault_id
+     or new.user_id is distinct from old.user_id then
+    raise exception 'a team vault member row cannot move' using errcode = '42501';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_guard_team_vault_member_update on public.team_vault_members;
+create trigger trg_guard_team_vault_member_update before update on public.team_vault_members
+  for each row execute function public.guard_team_vault_member_update();
+
+-- 11. Direct writes to vault_entries (the iOS app, the desktop's soft delete) follow the rules of
+--     upsert_vault_entry_versioned: folder rights and updated_by = the caller. No uid argument, so a
+--     caller can only ask about itself. UPDATE's USING sees the row before the change (the folder it
+--     leaves), WITH CHECK the row after it.
+create or replace function public.team_vault_folder_writable(p_vault_id uuid, p_folder_id uuid) returns boolean
+language sql stable security definer set search_path = public, pg_temp as $$
+  select p_folder_id is null
+      or coalesce(public.user_can_access_folder(p_vault_id, p_folder_id, (select auth.uid())), 'viewer') in ('admin', 'editor')
+$$;
+revoke execute on function public.team_vault_folder_writable(uuid, uuid) from public, anon;
+grant execute on function public.team_vault_folder_writable(uuid, uuid) to authenticated;
+
+drop policy if exists vault_entries_insert on public.vault_entries;
+create policy vault_entries_insert on public.vault_entries for insert to authenticated
+  with check (
+    exists (select 1 from public.team_vault_members tvm join public.team_vaults tv on tv.id = tvm.team_vault_id
+             where tv.id = vault_entries.vault_id and tvm.user_id = (select auth.uid()) and tvm.role in ('admin', 'editor'))
+    and updated_by = (select auth.uid())
+    and public.team_vault_folder_writable(vault_id, folder_id));
+
+drop policy if exists vault_entries_update on public.vault_entries;
+create policy vault_entries_update on public.vault_entries for update to authenticated
+  using (
+    exists (select 1 from public.team_vault_members tvm join public.team_vaults tv on tv.id = tvm.team_vault_id
+             where tv.id = vault_entries.vault_id and tvm.user_id = (select auth.uid()) and tvm.role in ('admin', 'editor'))
+    and public.team_vault_folder_writable(vault_id, folder_id))
+  with check (
+    exists (select 1 from public.team_vault_members tvm join public.team_vaults tv on tv.id = tvm.team_vault_id
+             where tv.id = vault_entries.vault_id and tvm.user_id = (select auth.uid()) and tvm.role in ('admin', 'editor'))
+    and updated_by = (select auth.uid())
+    and public.team_vault_folder_writable(vault_id, folder_id));
+
+-- 12. Password history and folder permissions checked only team_vault_members; rows left from before
+--     the cleanup trigger must not leak, so they use the helpers that also require team membership.
+drop policy if exists vault_password_history_select on public.vault_password_history;
+create policy vault_password_history_select on public.vault_password_history for select to authenticated
+  using (public.is_team_vault_member(vault_id, (select auth.uid())));
+drop policy if exists vault_password_history_insert on public.vault_password_history;
+create policy vault_password_history_insert on public.vault_password_history for insert to authenticated
+  with check (public.is_team_vault_member(vault_id, (select auth.uid())) and exists (
+    select 1 from public.team_vault_members m where m.team_vault_id = vault_password_history.vault_id
+       and m.user_id = (select auth.uid()) and m.role in ('editor', 'admin')));
+drop policy if exists vault_password_history_update on public.vault_password_history;
+create policy vault_password_history_update on public.vault_password_history for update to authenticated
+  using (public.is_team_vault_member(vault_id, (select auth.uid())) and exists (
+    select 1 from public.team_vault_members m where m.team_vault_id = vault_password_history.vault_id
+       and m.user_id = (select auth.uid()) and m.role in ('editor', 'admin')));
+drop policy if exists vault_password_history_delete on public.vault_password_history;
+create policy vault_password_history_delete on public.vault_password_history for delete to authenticated
+  using (public.is_team_vault_admin(vault_id, (select auth.uid())));
+
+drop policy if exists vfp_select on public.vault_folder_permissions;
+create policy vfp_select on public.vault_folder_permissions for select to authenticated
+  using (public.is_team_vault_member(vault_id, (select auth.uid())));
+drop policy if exists vfp_insert on public.vault_folder_permissions;
+create policy vfp_insert on public.vault_folder_permissions for insert to authenticated
+  with check (public.is_team_vault_admin(vault_id, (select auth.uid())));
+drop policy if exists vfp_update on public.vault_folder_permissions;
+create policy vfp_update on public.vault_folder_permissions for update to authenticated
+  using (public.is_team_vault_admin(vault_id, (select auth.uid())));
+drop policy if exists vfp_delete on public.vault_folder_permissions;
+create policy vfp_delete on public.vault_folder_permissions for delete to authenticated
+  using (public.is_team_vault_admin(vault_id, (select auth.uid())));
