@@ -185,7 +185,6 @@ export async function cloudBackupNow(device, { timeoutMs = 90_000 } = {}) {
 /** cloud_backup_list_all: [{path, vaultId, vaultName, created_at, size}]. */
 export const listCloudBackups = (device) => invoke(device, 'cloud_backup_list_all');
 
-
 /** Settings > Backup > [Manage Backups...] (shown once a cloud backup exists). */
 export async function openBackupManager(device) {
   await backupTab(device);

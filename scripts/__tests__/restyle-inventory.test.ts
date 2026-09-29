@@ -47,7 +47,7 @@ const flows = (await import('../verify/lib/restyle-flows.mjs' as string)) as {
   pickerGlyphResult(markups: (string | null)[]): RuleResult;
 };
 const data = (await import('../verify/lib/restyle-data.mjs' as string)) as {
-  expandFolderInPage(arg: { folder: string; child: string }): string;
+  expandFolderInPage(arg: { folder: string; child: string; twistie: string }): string;
 };
 const capture = (await import('../verify/lib/window-capture.mjs' as string)) as { windowRole(url: string, origin: string): string };
 
@@ -422,7 +422,7 @@ describe('expanding a tree folder', () => {
     document.body.innerHTML = html;
     const clicked: string[] = [];
     document.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => clicked.push(b.outerHTML)));
-    const result = data.expandFolderInPage({ folder: 'Production', child: 'db-01' });
+    const result = data.expandFolderInPage({ folder: 'Production', child: 'db-01', twistie: '[data-cv-tree-twistie]' });
     return { result, clicked };
   }
 

@@ -44,7 +44,7 @@ const syncFlows = (await import('../verify/lib/sync-flows.mjs' as string)) as {
   dialogDetails(d: Device): Promise<{ title: string; text: string }[]>;
   useVersionInReview(d: Device, field: string, value: string, o?: { timeoutMs?: number }): Promise<void>;
 };
-const data = (await import('../verify/lib/restyle-data.mjs' as string)) as { expandFolderInPage(arg: { folder: string; child: string }): string };
+const data = (await import('../verify/lib/restyle-data.mjs' as string)) as { expandFolderInPage(arg: { folder: string; child: string; twistie: string }): string };
 const panels = (await import('../verify/lib/sync-panels.mjs' as string)) as {
   recentlyDeletedItems(d: Device): Promise<unknown>;
   otherCopies(d: Device): Promise<unknown>;
@@ -539,7 +539,7 @@ describe('harness readers on restyled markup, with and without decoys', () => {
 
       it('tree folder twistie', () => {
         render(TREE, variant);
-        expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01' })).toBe('clicked');
+        expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01', twistie: S.treeTwistie })).toBe('clicked');
         expect(clicks).toEqual(['twistie']);
       });
 
@@ -582,7 +582,7 @@ describe('harness readers on markup from before the restyle', () => {
     render(COPIES, 'old');
     expect(await panels.otherCopies(device)).toEqual([]);
     render(TREE, 'old');
-    expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01' })).toBe('no toggle for Production');
+    expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01', twistie: S.treeTwistie })).toBe('no toggle for Production');
     expect(clicks).toEqual([]);
   });
 });

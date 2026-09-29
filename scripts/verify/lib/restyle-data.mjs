@@ -7,6 +7,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { createVault, refreshEntries, waitForScreen, waitForUnlockOutcome } from './flows.mjs';
 import { clickSelector, clickText, invoke, sleep, stubFileDialogs, typeInto, waitFor, waitForText, withTimeout } from './ui.mjs';
+import { SELECTORS } from './selectors.mjs';
 
 export const VAULT_PASSWORD = 'restyle-reference-pw-1';
 export const ACME = 'Acme Infrastructure';
@@ -257,8 +258,8 @@ export function openHome(device) {
   return clickSelector(device, '[data-sidebar-panel] button[title="Home"]');
 }
 
-/** In-page: clicks the twistie of `folder` (B48, data-cv-tree-twistie) unless `child` already shows. */
-export function expandFolderInPage({ folder, child }) {
+/** In-page: clicks the twistie (B48, SELECTORS.treeTwistie) of `folder` unless `child` already shows. */
+export function expandFolderInPage({ folder, child, twistie }) {
   const panel = document.querySelector('[data-sidebar-panel]');
   if (!panel) return 'no side bar';
   const ownText = (e) => [...e.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join('').trim();
@@ -266,7 +267,7 @@ export function expandFolderInPage({ folder, child }) {
   if (visibleText(child)) return 'expanded';
   const label = [...panel.querySelectorAll('span, div')].find((el) => ownText(el) === folder);
   for (let el = label; el && el !== panel; el = el.parentElement) {
-    const toggle = el.querySelector('button[data-cv-tree-twistie]');
+    const toggle = el.querySelector(twistie);
     if (toggle) {
       toggle.click();
       return 'clicked';
@@ -279,7 +280,7 @@ export function expandFolderInPage({ folder, child }) {
 export async function expandFolders(device) {
   for (const [folder, child] of [['Production', 'db-01'], ['Staging', 'Build Mac']]) {
     await waitFor(async () => {
-      const res = await withTimeout(device.page.evaluate(expandFolderInPage, { folder, child }), 10_000, `${device.name}: expand ${folder}`);
+      const res = await withTimeout(device.page.evaluate(expandFolderInPage, { folder, child, twistie: SELECTORS.treeTwistie }), 10_000, `${device.name}: expand ${folder}`);
       if (res === 'expanded') return true;
       if (res !== 'clicked') throw new Error(res);
       return false;
