@@ -128,7 +128,9 @@ export async function buildStartupStatus(state: AppState = AppState.getInstance(
   const store = getAutoUnlockStore();
   const s = store.status();
   const sv = readStartupVault();
-  const savedPath = sv?.kind === 'personal' && sv.lineageId !== null && store.hasEntry(sv.lineageId) ? sv.path : null;
+  // A saved unlock counts only while the file at the path is still that vault (spec 3.7: another vault at the path).
+  const saved = sv?.kind === 'personal' && sv.lineageId !== null && store.hasEntry(sv.lineageId) && (await lineageMatches(state, sv));
+  const savedPath = saved && sv?.kind === 'personal' ? sv.path : null;
   let currentOn = false;
   if (savedPath !== null && sv?.kind === 'personal' && state.vault.isUnlocked() && state.teamVaultManager.getActiveVault() === null) {
     const lineage = state.appSync.currentLineageId();

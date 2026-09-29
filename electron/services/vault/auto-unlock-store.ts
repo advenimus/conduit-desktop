@@ -179,7 +179,7 @@ export function createAutoUnlockStore(deps: AutoUnlockStoreDeps): AutoUnlockStor
       try {
         await deps.excludeFromBackup(d);
       } catch (err) {
-        console.warn(`${LOG} could not exclude the saved unlock folder from Time Machine`, { name: errName(err) });
+        console.warn(`${LOG} could not exclude the saved unlock folder from Time Machine`, { name: errName(err), message: err instanceof Error ? err.message.slice(0, 200) : '' });
       }
     }
   };

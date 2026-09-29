@@ -16,7 +16,12 @@ export function getAutoUnlockStore(): AutoUnlockStore {
     env: process.env,
     dataDir: getDataDir,
     excludeFromBackup: async (dir) => {
-      await execFileAsync('tmutil', ['addexclusion', dir], { timeout: TMUTIL_TIMEOUT_MS });
+      try {
+        await execFileAsync('tmutil', ['addexclusion', dir], { timeout: TMUTIL_TIMEOUT_MS });
+      } catch {
+        // tmutil can be refused without Full Disk Access; the attribute it sets needs none.
+        await execFileAsync('xattr', ['-w', 'com.apple.metadata:com_apple_backup_excludeItem', 'com.apple.backupd', dir], { timeout: TMUTIL_TIMEOUT_MS });
+      }
     },
     now: () => Date.now(),
   });
