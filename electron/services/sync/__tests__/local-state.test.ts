@@ -124,6 +124,19 @@ describe('validateLocalJson (3.2)', () => {
     expect(validateLocalJson(withField(['dropStagedAfterPublish'], 'yes')).ok).toBe(false);
   });
 
+  it('keeps the owner check of plan enforcement 3.3 (optional, validated when present)', () => {
+    const older = Object.fromEntries(Object.entries(defaultLocalJson(LINEAGE, 7, INC)).filter(([k]) => k !== 'ownerCheck'));
+    const res = validateLocalJson(JSON.parse(JSON.stringify(older)));
+    expect(res.ok && res.value.ownerCheck).toBeUndefined();
+    expect(defaultLocalJson(LINEAGE, 7, INC).ownerCheck).toBeNull();
+    const check = { hint: 'ab'.repeat(16), kind: 'grace', untilMs: 1_790_000_000_000, atMs: 1_789_000_000_000 };
+    const set = validateLocalJson(withField(['ownerCheck'], check));
+    expect(set.ok && set.value.ownerCheck).toEqual(check);
+    expect(validateLocalJson(withField(['ownerCheck'], null)).ok).toBe(true);
+    expect(validateLocalJson(withField(['ownerCheck'], { ...check, kind: 'guest' })).ok).toBe(false);
+    expect(validateLocalJson(withField(['ownerCheck'], { ...check, hint: 'short' })).ok).toBe(false);
+  });
+
   it('ignores unknown keys from a newer build', () => {
     const doc = withField(['futureField'], { x: 1 });
     expect(validateLocalJson(doc).ok).toBe(true);
