@@ -9,7 +9,7 @@ import {
 } from "../../lib/icons";
 import { useStartupVaultStore } from "../../stores/startupVaultStore";
 import { INDICATOR_TEXT } from "../../lib/startup-vault-copy";
-import { openRecentVaultMenu } from "./recentVaultMenu";
+import { openRecentVaultMenu, openTeamVaultMenu } from "./recentVaultMenu";
 import { Menu, MenuHeader, MenuSeparator, cx } from "../ui";
 
 interface VaultMenuRowProps extends ComponentPropsWithRef<"button"> {
@@ -141,6 +141,7 @@ export default function VaultSwitcherMenu({
       {currentVaultPath && (
         <VaultMenuRow
           lead={isPersonalActive ? currentMark : null}
+          onContextMenu={(e) => void openRecentVaultMenu(e, currentVaultPath)}
           onClick={() => {
             if (vaultType === "team") {
               handlePersonalVault(currentVaultPath);
@@ -204,6 +205,7 @@ export default function VaultSwitcherMenu({
                     <VaultMenuRow
                       key={vault.id}
                       lead={isActive ? currentMark : null}
+                      onContextMenu={(e) => void openTeamVaultMenu(e, vault)}
                       onClick={() => {
                         if (isActive) {
                           onClose();

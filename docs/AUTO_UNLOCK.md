@@ -297,7 +297,7 @@ Recent rows today: `ListRow` with file name, folder, `PendingBadge` and a finger
 - "Clear All": when it would forget a saved unlock, a `ConfirmDialog` runs first: title "Clear recent vaults?", body "{name} unlocks automatically at startup. Clearing the list turns that off.", buttons "Cancel" / "Clear All". Otherwise it stays one click. When it changed the startup vault, the same toast as Remove.
 - Turning automatic unlock **on** is not offered here: it needs the vault open and a fresh proof. Opening the vault and ticking the checkbox is one step away.
 - Team rows (`VaultHub.tsx:199-221`) [V] get a context menu with only "Open at Startup" / "Stop Opening at Startup".
-- The same recent-vault menu is used by the vault menu in the sidebar (`src/components/vault/VaultSwitcherMenu.tsx:125-138`) [V]. The code moves to one shared helper so the two stay equal.
+- The same recent-vault and team-vault menus are used by the vault menu in the sidebar, on every row including the current vault's (`src/components/vault/VaultSwitcherMenu.tsx:125-138`) [V]. The code moves to one shared helper so the two stay equal.
 - Missing startup vault file at start: the Hub shows with the toast `toast.warning("Couldn't find Work.conduit", { message: "It may have been moved or renamed. Conduit opened the Vault Hub.", actions: [{ label: "Open Vault File...", ... }, { label: "Stop Opening at Startup", ... }] })`. The startup choice stays, so it works again when the file comes back.
 
 ### 2.7 The quiet indicator
