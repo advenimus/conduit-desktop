@@ -180,7 +180,7 @@
 - Independent folder expand/collapse state for all vs. favorites view
 - Favorites filter persisted across app restarts
 - Sort order customization
-- Custom icons (icon picker with library)
+- Custom icons (icon picker with library); icons with a twin in the icon packs follow the active pack (see Appearance)
 - Custom colors (color picker)
 - Tags, descriptions
 - Markdown notes with GitHub-style Write/Preview editor, formatting toolbar, and `!!secret!!` syntax for masking sensitive inline text
@@ -300,7 +300,7 @@ Full design: `docs/MULTI_DEVICE_SYNC.md`. Code: `electron/services/sync/` (merge
 - **Team vault member management**: Full CRUD dialog for vault members — add from team roster, change roles (admin/editor/viewer) via dedicated update IPC, remove members, rotate vault encryption key, and last-admin protection
 - **Identity key onboarding**: Auto-detect new devices that need identity key setup, with recovery passphrase entry or device-to-device authorization
 - **Team vault context bar**: Theme-aware accent bar shown when a team vault is active, displaying sync status, member count, and quick-access buttons for members/audit/settings
-- **Theme-aware team indicators**: Team vault accent colors derived from the active color scheme (Ocean, Ember, Forest, Amethyst, Rose, Midnight) via CSS custom properties
+- **Theme-aware team indicators**: Team vault accent colors derived from the active color scheme (Modern, Ocean, Ember, Forest, Amethyst, Rose, Midnight) via CSS custom properties
 - **Device authorization approval**: Auto-polls for pending device auth requests every 30s, shows approval dialog with approve/deny actions on existing devices
 - **Folder permission editor**: Right-click folders in team vaults to manage per-member permissions (admin only) — add, change role (filtered by vault role ceiling), or remove access
 - **Vault Hub**: Full-screen landing page on launch (like VS Code Welcome) showing team vaults and recent personal vaults; auto-connects to last team vault for team-plan users when online; fallback to hub on offline, error, or personal vault last used; lock/close vault returns to hub instead of showing unlock dialog; offline team vaults shown greyed with "Offline" badge; "Switch Vault..." option in vault dropdown
@@ -592,20 +592,28 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Position validated against connected displays (falls back to centered if saved position is offscreen)
 
 ### Appearance
-- Theme: dark, light, system
-- Color scheme selection: 6 universal schemes (Ocean, Ember, Forest, Amethyst, Rose, Midnight)
-- **Platform themes**: Full platform-native look & feel with 4 selectable themes:
-  - **Default** — Conduit Classic (current styling)
-  - **macOS Tahoe** — Liquid glass translucency with backdrop blur on sidebar/dialogs/menus, large rounded corners, SF Pro font, Phosphor icons (SF Symbols style), thin auto-hide scrollbars
-  - **Windows 11** — Fluent Design with Mica-style surfaces, underline tab indicators, compact density, Segoe UI font, Fluent UI icons, WinUI 3 controls
-  - **Ubuntu** — GNOME/Libadwaita design with bold headerbar, flat surfaces with strong borders, pill-shaped buttons, Ubuntu font, bold-stroke icons
-- **Native color schemes** per platform (only shown when that theme is active):
-  - macOS: System Blue, Graphite
-  - Windows: Windows Blue, Sun Valley
-  - Ubuntu: Yaru Orange, GNOME Blue
-- **3-axis theming**: Platform Theme × Color Scheme × Dark/Light — all axes compose orthogonally
-- **Themed icon system**: Each platform theme swaps the entire icon set (127 icons) via lazy-loaded packs with code splitting
+- **Compact look**: a restyle inspired by the modern VS Code UI, applied to Conduit's unchanged layout. Every control stays where it was; only the styling changes
+  - System UI font at 13px (12px buttons and labels, 11px metadata); terminal fonts are unchanged
+  - 26px buttons and fields with 4px corners, 22px list and tree rows, 8px-radius menus, dialogs and toasts
+  - Neutral gray selection; the accent marks primary buttons, focus rings, links, badges, progress, the 2px accent line and connection state
+  - Visible keyboard focus ring on every control; thin 8px scrollbars
+  - Text meets WCAG AA contrast in every color scheme, in dark and light
+- Settings > Appearance, top to bottom: Icon pack, Color Scheme, then Brightness and UI Scale side by side
+- **Icon pack**: six selectable packs, each card previewing eight of its icons
+  - **Lucide** (default, bundled so it draws on the first frame), Phosphor, **Hugeicons** (new), Material Symbols, Fluent, and Tabler (Classic, the icons Conduit used before)
+  - The other five packs load on demand; picking one previews it live in the main window, the toast overlay and the credential picker; Save keeps it, Cancel reverts it
+  - Popup menus draw their icons from the active pack too
+  - Custom entry icons that have a twin in the packs (30 of the 65 in the icon picker, such as terminal, server, globe, key and folder) follow the active pack; brand logos and the rest stay Tabler in every pack. The stored icon name never changes, so older builds and other devices read the same vault data
+  - Third-party icon licenses ship with the app (`public/licenses/third-party-icons.txt`)
+- **Color Scheme**: 7 universal schemes, each with a dark and a light variant
+  - **Modern** (default): neutral grays with Conduit's sky blue accent
+  - Ocean, Ember, Forest, Amethyst, Rose, Midnight
+- **Brightness**: Dark, Light, or System (default; follows the OS)
 - UI scale slider (75%-150%)
+- The native window background follows the scheme, so resizing never flashes a different color
+- **Platform themes retired**: the macOS, Windows and Ubuntu themes and their six native color schemes are gone
+  - A one-time migration, run before the first paint, moves their users to the new look and keeps the icons they saw: macOS keeps Phosphor, Windows keeps Fluent, Ubuntu keeps Tabler (Classic); Ubuntu's Yaru Orange becomes Ember and the other native schemes become Modern
+  - Users of the old default (Ocean with the default theme) move to Modern with Lucide; any other universal scheme is kept
 
 ### Behavior
 - Default shell (bash, zsh, fish, etc.)
@@ -668,16 +676,20 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Search field shows a clear (✕) button once text is entered; Escape also clears it
 - Context menu: open, edit, duplicate, copy host, move, delete
 - Inline folder creation
+- **Look**: the header row is 33px, level with the pane tab bars and the AI panel header; 22px tree rows with neutral gray selection; favorite stars in their own yellow; the vault switcher menu shares the popup menu look (24px rows, 8px-radius panel)
 
 ### Tab Bar
 - Multi-session tabs
 - Close tab (Cmd+W)
 - Tab navigation: next (Cmd+Tab), previous (Cmd+Shift+Tab)
 - Active tab highlighting
+- **Connected tabs**: the active tab is filled with the session's background and joins the session below it; inactive tabs show a rounded hover fill. The bar is 33px, tabs are 24px with 16px icons
+- Every tab keeps its close button visible, and its status dot (connected, connecting, error) after the title
+- Tabs shrink to fit the pane, the title truncating first, down to a 78px minimum; only then does the strip scroll
 
 ### Split-View Pane Layout
 - **Drag-to-split**: Drag a tab from the tab bar to any edge of the content area to split into side-by-side or stacked panes
-- **Drop zones**: Five drop targets (center, left, right, top, bottom) with theme-aware visual feedback (`conduit-500` accent highlights)
+- **Drop zones**: Five drop targets (center, left, right, top, bottom) with theme-aware visual feedback (accent outline over a tinted fill)
 - **Binary tree layout**: Panes organized as a binary tree (branch = split, leaf = pane) via `react-resizable-panels`
 - **Per-pane tab bars**: Each pane has its own tab bar with close, reorder, and context menu actions
 - **Tab reordering**: Drag tabs within a pane to reorder, or across panes to move sessions
@@ -685,7 +697,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - **Pane auto-collapse**: Closing the last tab in a pane collapses it, promoting the sibling to fill the space
 - **Resize handles**: Draggable dividers between panes with hover-highlight feedback
 - **Restore to full screen**: Closing all split panes returns to single-pane layout
-- **Focused pane tracking**: Click inside a pane to set focus; focused pane has a top accent border
+- **Focused pane tracking**: Click inside a pane to set focus; the focused pane's tab bar holds the AI panel toggle
 - **Session preservation**: Terminal and command sessions (xterm.js instances) preserved across split/collapse via global registries — no loss of scrollback or history
 - **RDP resize**: Immediate CSS scaling on split, followed by debounced native RDPEDISP resize with HiDPI/Retina support
 - **Terminal resize**: FitAddon recomputes rows/cols on container resize; backend notified via `terminal_resize`
@@ -720,6 +732,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Help
 - Import (RDM)
 - MCP approval
+- **Look**: every dialog shares one style (8px corners, 13px semibold title, footer buttons on the right) while keeping its width, content order and controls. Each dialog closes exactly as before: Escape, a click outside and the close button work only where they did
 
 ### Notifications & Indicators
 - Cloud backup status (vault); the dashboard's Cloud Backup and Local Backup rows stay current whether or not the sidebar or Settings > Backup is open
@@ -730,6 +743,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - **Unified toast notification system**: Global `toast.success()`, `toast.error()`, `toast.warning()`, `toast.info()` API
   - Configurable messages with persistent or auto-dismiss (5s default) behavior
   - Action buttons (primary/default variants) with custom click handlers
+  - **Look**: 8px-radius cards on the overlay surface with a 16px icon in the type's color (no colored side bar), compact buttons and a thin progress bar; the window's size and corner position are unchanged
   - Queue management: max 5 visible toasts, oldest non-persistent auto-dismissed on overflow
   - Smooth toast-in/toast-out animations, works from anywhere in the app
   - **Native overlay rendering**: Notifications float above native RDP, VNC, and web sessions in a transparent overlay window
@@ -765,6 +779,9 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 ### Context Menus
 - Theme-aware custom context menus
 - SVG icon support
+- **Look**: 8px-radius panels sized to the longest label, 24px rows, section headers without capitals, icons from the active icon pack; items, order and submenus are unchanged
+- Hardened rendering: labels are escaped, selection is by item index, and icons pass an SVG allowlist
+- Keyboard navigation (arrow keys, Home, End, Enter, Escape)
 - Keyboard shortcut hints
 - Smart screen-bounds positioning
 - **Linked credential support in context menus**: Copy Username, Copy Password, and Auto-type work with linked credentials — entries using a credential reference are treated the same as entries with inline credentials

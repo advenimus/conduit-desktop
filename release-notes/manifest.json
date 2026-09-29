@@ -2,6 +2,35 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.18.0",
+      "date": "2026-09-28",
+      "title": "A Fresh Look",
+      "summary": "Conduit gets a cleaner, more compact look and a choice of icon packs. Everything is still where you left it.",
+      "highlights": [
+        {
+          "text": "**Refreshed tabs and controls**: the active tab joins its session, and buttons, fields, lists, menus and dialogs share one compact style.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Modern color scheme**: a new neutral gray default in dark and light. Ocean, Ember, Forest, Amethyst, Rose and Midnight are still available.",
+          "category": "feature"
+        },
+        {
+          "text": "**Pick your icons**: choose Lucide (the new default), Phosphor, Hugeicons, Material Symbols, Fluent or the classic Tabler icons in Settings > Appearance.",
+          "category": "feature"
+        },
+        {
+          "text": "**Easier to read and use from the keyboard**: stronger text contrast in every color scheme and a visible focus ring on every control.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Platform themes retired**: the macOS, Windows and Ubuntu themes give way to the new look. Your icon style carries over as an icon pack.",
+          "category": "improvement"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.17.0",
       "date": "2026-09-02",
       "title": "More Agents",
