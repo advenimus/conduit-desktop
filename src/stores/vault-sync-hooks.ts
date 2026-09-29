@@ -11,7 +11,7 @@ import type { RestoreResult } from "../types/sync";
 interface UnlockFields {
   isLoading?: boolean;
   error?: string | null;
-  lockedReason?: "open_elsewhere" | null;
+  lockedReason?: "open_elsewhere" | "not_owner" | "update_required" | null;
 }
 
 type SetUnlockFields = (partial: UnlockFields) => void;

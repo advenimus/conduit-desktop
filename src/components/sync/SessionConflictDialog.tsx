@@ -5,7 +5,7 @@ import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
 import type { SessionConflictEvent } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
-import { deviceNameOr, holderActivity } from "./sync-copy";
+import { DEFAULT_DEVICE_CAP, deviceNameOr, holderActivity } from "./sync-copy";
 
 const TICK_MS = 1000;
 
@@ -42,11 +42,12 @@ export default function SessionConflictDialog({ event }: { event: SessionConflic
     }
   };
 
+  const deviceCap = event.cause === "device_cap";
   return (
     <SyncDialogFrame
       icon="devices"
       tone="warn"
-      title={`Also open on ${deviceNameOr(first?.deviceName)}`}
+      title={deviceCap ? "Too many devices" : `Also open on ${deviceNameOr(first?.deviceName)}`}
       footer={
         <>
           <DialogButton onClick={() => void answer("lock-here")} disabled={busy}>Lock here</DialogButton>
@@ -56,9 +57,16 @@ export default function SessionConflictDialog({ event }: { event: SessionConflic
         </>
       }
     >
-      <p className="text-ink">
-        This vault is also open on {first ? holderActivity(first) : "another device"}.
-      </p>
+      {deviceCap ? (
+        <>
+          <p className="text-ink">You're using Conduit on {event.deviceCap ?? DEFAULT_DEVICE_CAP} devices. Close one to use it here.</p>
+          <p>Using it here locks your vaults on {deviceNameOr(first?.deviceName)}.</p>
+        </>
+      ) : (
+        <p className="text-ink">
+          This vault is also open on {first ? holderActivity(first) : "another device"}.
+        </p>
+      )}
       <p>Your changes are saved on this device. If you don't answer, the vault locks here in {left} seconds.</p>
     </SyncDialogFrame>
   );

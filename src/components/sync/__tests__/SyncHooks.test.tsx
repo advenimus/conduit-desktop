@@ -183,7 +183,7 @@ describe("idle lock (B28)", () => {
 describe("busy texts, errors and radios (B8, B35, B46)", () => {
   it("[Use here instead] reads Opening... while busy", () => {
     render(
-      <TakeoverDialog payload={{ code: "VAULT_OPEN_ELSEWHERE", holders: [], limit: 3, fileName: "Vault", locationDiffers: false, via: "server" }} busy onUseHere={vi.fn()} onCancel={vi.fn()} />,
+      <TakeoverDialog payload={{ code: "VAULT_OPEN_ELSEWHERE", holders: [], limit: 3, fileName: "Vault", locationDiffers: false, via: "server", cause: "vault_limit", deviceCap: null, displaceDeviceName: null, alsoLockDeviceName: null }} busy onUseHere={vi.fn()} onCancel={vi.fn()} />,
     );
     const button = screen.getByRole("button", { name: "Opening..." });
     expect(button).toBeDisabled();

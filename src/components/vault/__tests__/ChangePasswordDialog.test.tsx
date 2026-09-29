@@ -20,6 +20,8 @@ function syncState(engine: boolean): SyncStateResponse {
     notices: [],
     pendingVaults: [],
     softLocked: false,
+    ownership: null,
+    deviceCap: null,
   } as unknown as SyncStateResponse;
 }
 

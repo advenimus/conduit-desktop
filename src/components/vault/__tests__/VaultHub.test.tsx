@@ -24,6 +24,8 @@ function pendingState(path: string): SyncStateResponse {
     notices: [],
     pendingVaults: [{ lineageId: "L", sharedPath: path, fileName: "Acme Infrastructure.conduit" }],
     softLocked: false,
+    ownership: null,
+    deviceCap: null,
   } as unknown as SyncStateResponse;
 }
 
