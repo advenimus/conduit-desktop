@@ -216,9 +216,12 @@ export function deviceCapText(n: number | null): string | null {
   return `Up to ${n} devices at once across your vaults.`;
 }
 
-/** S11: the owner line in Sync settings; null with no personal vault open. */
-export function ownerLineText(ownership: VaultOwnership | null): string | null {
-  if (ownership === null) return null;
+/**
+ * S11: the owner line in Sync settings; null with no personal vault open, and null when signed in
+ * without a confirmed answer (offline or a server problem: signing in would not help).
+ */
+export function ownerLineText(ownership: VaultOwnership | null, signedIn: boolean): string | null {
+  if (ownership === null || (ownership.kind === "unknown" && signedIn)) return null;
   switch (ownership.kind) {
     case "owner":
       return "Owner: this account.";

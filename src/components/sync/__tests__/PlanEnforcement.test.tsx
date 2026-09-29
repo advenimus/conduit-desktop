@@ -234,12 +234,16 @@ describe("banners (S7, S7b, S21, S22)", () => {
 
 describe("Sync settings copy (S11)", () => {
   it("owner lines and the device cap sentence", () => {
-    expect(ownerLineText({ kind: "owner", releaseAfterMs: null, sharedUntilMs: null })).toBe("Owner: this account.");
-    expect(ownerLineText({ kind: "unowned" })).toBe("Owner: not set yet.");
-    expect(ownerLineText({ kind: "unknown" })).toBe("Owner: sign in to check.");
-    expect(ownerLineText({ kind: "grace", untilMs: new Date(2026, 9, 13).getTime() })).toMatch(/^Owner: another account\. You can use it until .+\.$/);
-    expect(ownerLineText(null)).toBeNull();
+    expect(ownerLineText({ kind: "owner", releaseAfterMs: null, sharedUntilMs: null }, true)).toBe("Owner: this account.");
+    expect(ownerLineText({ kind: "unowned" }, true)).toBe("Owner: not set yet.");
+    expect(ownerLineText({ kind: "unknown" }, false)).toBe("Owner: sign in to check.");
+    expect(ownerLineText({ kind: "grace", untilMs: new Date(2026, 9, 13).getTime() }, true)).toMatch(/^Owner: another account\. You can use it until .+\.$/);
+    expect(ownerLineText(null, true)).toBeNull();
     expect(deviceCapText(5)).toBe("Up to 5 devices at once across your vaults.");
     expect(deviceCapText(-1)).toBeNull();
+  });
+
+  it("signed in without a confirmed answer (offline, server error): no owner line, not 'sign in'", () => {
+    expect(ownerLineText({ kind: "unknown" }, true)).toBeNull();
   });
 });

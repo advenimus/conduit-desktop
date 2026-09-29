@@ -72,7 +72,7 @@ function StatusBlock() {
 function OwnerBlock() {
   const ownership = useSyncStore((s) => s.state?.ownership ?? null);
   const signedIn = useAuthStore((s) => s.isAuthenticated);
-  const line = ownerLineText(ownership);
+  const line = ownerLineText(ownership, signedIn);
   if (line === null) return null;
   const owner = ownership?.kind === "owner" ? ownership : null;
   const tooSoon = owner !== null && owner.releaseAfterMs !== null && owner.releaseAfterMs > Date.now();
