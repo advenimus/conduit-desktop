@@ -19,6 +19,8 @@ import { startVaultIdleLock } from './ipc/vault-idle.js';
 import { appQuitFlush } from './services/vault/app-quit-flush.js';
 import { devServerUrl } from './services/env-config.js';
 import { describeDeepLink } from './services/deep-link-log.js';
+import { attachStartupWindow, initStartupVault, noteLaunchUrl, noteSecondInstance } from './ipc/startup-vault.js';
+import { SKIP_SWITCH } from './services/vault/startup-modifiers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -97,6 +99,7 @@ function handleDeepLink(url: string) {
   if (!appReady) {
     console.log('[main] App not ready yet, queuing deep link');
     pendingDeepLinkUrl = url;
+    noteLaunchUrl();
     return;
   }
 
@@ -167,6 +170,7 @@ if (!gotTheLock) {
     // File association: check for .conduit file in command line args
     const fileArg = commandLine.find(arg => arg.endsWith('.conduit'));
     if (fileArg) handleFileOpen(fileArg);
+    noteSecondInstance(commandLine);
 
     // Focus existing window, or recreate if it was destroyed
     const win = mainWindowRef;
@@ -767,9 +771,10 @@ function createWindow(): BrowserWindow {
     if (!isQuitting()) {
       event.preventDefault();
       // Lock the vault (backend) before hiding, then notify renderer
-      lockVaultFromMain().then(() => {
-        if (!mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('vault-locked-by-system');
+      lockVaultFromMain('window-close').then((closed) => {
+        const teamOpen = AppState.getInstance().teamVaultManager.getActiveVault() !== null;
+        if (!mainWindow.isDestroyed() && (closed || teamOpen)) {
+          mainWindow.webContents.send('vault-locked-by-system', { reason: 'window-closed' });
         }
         mainWindow.hide();
       }).catch((err) => {
@@ -778,6 +783,8 @@ function createWindow(): BrowserWindow {
       });
     }
   });
+
+  attachStartupWindow(mainWindow);
 
   if (isDev) {
     mainWindow.loadURL(devServerUrl());
@@ -794,6 +801,9 @@ app.whenReady().then(async () => {
   if (logFile) {
     console.log(`[main] Logging to: ${logFile}`);
   }
+
+  initStartupVault({ switchSet: app.commandLine.hasSwitch(SKIP_SWITCH) });
+  if (process.argv.some((arg) => arg.startsWith('conduit://'))) noteLaunchUrl();
 
   // Personal-vault sync needs app 'ready' (powerMonitor, window focus) and must exist before IPC.
   try {

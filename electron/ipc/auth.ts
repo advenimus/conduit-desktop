@@ -8,6 +8,8 @@ import { AppState } from '../services/state.js';
 import { getEnvConfig } from '../services/env-config.js';
 import { readSettings, writeSettings } from './settings.js';
 import { signOutReleasingVault } from './sign-out-flow.js';
+import { forgetAll } from './auto-unlock-lifecycle.js';
+import { lifecycleDeps } from './startup-vault.js';
 
 export function registerAuthHandlers(): void {
   const state = AppState.getInstance();
@@ -103,6 +105,9 @@ export function registerAuthHandlers(): void {
     await signOutReleasingVault({
       releaseVault: () => state.appSync.signedOut(),
       signOut: () => state.authService.signOut(),
+      forgetSavedUnlocks: () => {
+        forgetAll(lifecycleDeps(state), 'sign-out');
+      },
     });
     writeSettings({ ...readSettings(), local_mode_accepted_version: null });
   });

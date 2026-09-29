@@ -31,6 +31,7 @@ import { registerCommandHandlers } from './command.js';
 import { registerPasswordHistoryHandlers } from './password-history.js';
 import { registerAutotypeHandlers } from './autotype.js';
 import { registerBiometricHandlers } from './biometric.js';
+import { registerStartupVaultHandlers } from './startup-vault.js';
 import { registerSyncHandlers } from './sync.js';
 import { registerSyncReviewHandlers } from './sync-review.js';
 
@@ -121,6 +122,9 @@ export function registerIpcHandlers(): void {
 
   // ── Biometric (Touch ID / Windows Hello) commands ────────
   registerBiometricHandlers();
+
+  // ── Startup vault and automatic unlock ───────────────────
+  registerStartupVaultHandlers();
 
   // ── Global auto-type commands ─────────────────────────────
   registerAutotypeHandlers();

@@ -20,10 +20,10 @@ export function startVaultIdleLock(getMainWindow: () => BrowserWindow | null): (
     minutes: () => idleLockMinutes(readSettings() as unknown as RawSettings),
     idleSeconds: () => powerMonitor.getSystemIdleTime(),
     canLock: () => state.vault.isUnlocked() && state.teamVaultManager.getActiveVault() === null,
-    lock: async () => {
+    lock: async (trigger) => {
       await lockVaultFromMain();
       const win = getMainWindow();
-      if (win && !win.isDestroyed()) win.webContents.send(LOCKED_BY_SYSTEM_EVENT);
+      if (win && !win.isDestroyed()) win.webContents.send(LOCKED_BY_SYSTEM_EVENT, { reason: trigger });
     },
     onLockScreen: (listener) => {
       powerMonitor.on('lock-screen', listener);

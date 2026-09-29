@@ -42,11 +42,12 @@ export {
 } from './open-errors.js';
 export type { OpenCollaborators } from './open-deps.js';
 
-/** The nine unlock paths of desktop-vault-lifecycle section 1. */
+/** The ten unlock paths of desktop-vault-lifecycle section 1, plus docs/AUTO_UNLOCK.md. */
 export type UnlockSource =
   | 'vault_initialize'
   | 'vault_unlock'
   | 'biometric_unlock'
+  | 'auto_unlock'
   | 'vault_create'
   | 'vault_rename'
   | 'migrate_legacy_vault'

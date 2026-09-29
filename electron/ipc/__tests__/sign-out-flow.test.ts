@@ -39,6 +39,35 @@ describe('signOutReleasingVault', () => {
     errors.mockRestore();
   });
 
+  it('forgets saved automatic unlocks after signing out', async () => {
+    const order: string[] = [];
+    await signOutReleasingVault({
+      releaseVault: async () => undefined,
+      signOut: async () => {
+        order.push('sign-out');
+      },
+      forgetSavedUnlocks: () => {
+        order.push('forget');
+      },
+    });
+    expect(order).toEqual(['sign-out', 'forget']);
+  });
+
+  it('a failed forget is logged and never blocks sign-out', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await expect(
+      signOutReleasingVault({
+        releaseVault: async () => undefined,
+        signOut: async () => undefined,
+        forgetSavedUnlocks: () => {
+          throw new Error('fs');
+        },
+      }),
+    ).resolves.toBeUndefined();
+    expect(errors).toHaveBeenCalled();
+    errors.mockRestore();
+  });
+
   it('passes a sign-out failure on to the caller', async () => {
     await expect(
       signOutReleasingVault({ releaseVault: async () => undefined, signOut: () => Promise.reject(new Error('no network')) }),

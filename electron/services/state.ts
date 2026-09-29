@@ -22,6 +22,7 @@ import { AuthService, type AuthState } from './auth/supabase.js';
 import { AppSyncManager } from './sync/app-sync-manager.js';
 import { VAULT_PATH_CHANGED_EVENT, type SharedPathChange } from './sync/app-sync-binding.js';
 import { withMovedRecentVault } from '../ipc/recent-vaults.js';
+import { withStartupPathMoved } from '../ipc/startup-vault-core.js';
 import { VaultAccessProxy } from './vault/vault-access-proxy.js';
 import type { LockedReason } from './vault-session/host.js';
 import { EngineManager } from './ai/engines/engine-manager.js';
@@ -247,7 +248,7 @@ export class AppState {
     this.vault.rebindSharedPath(to);
     this.currentVaultPath = to;
     try {
-      writeSettings(withMovedRecentVault(readSettings(), from, to));
+      writeSettings(withStartupPathMoved(withMovedRecentVault(readSettings(), from, to), from, to));
     } catch (err) {
       console.error('[vault] could not record the moved vault file in settings', { name: err instanceof Error ? err.name : 'Error' });
     }

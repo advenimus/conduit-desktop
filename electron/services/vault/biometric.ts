@@ -46,6 +46,9 @@ export interface BiometricService {
    */
   retrievePassword(vaultKey: string, reason: string): Promise<string>;
 
+  /** Touch ID (or the device passcode) confirms the person, with no stored password involved. */
+  authenticate(reason: string): Promise<boolean>;
+
   /** Remove stored biometric data for a specific vault. */
   removePassword(vaultKey: string): void;
 
@@ -243,6 +246,14 @@ class MacOSBiometricService implements BiometricService {
     }
   }
 
+  async authenticate(reason: string): Promise<boolean> {
+    try {
+      return (await runAuthHelper('auth', reason)) === 'success';
+    } catch {
+      return false;
+    }
+  }
+
   removePassword(vaultKey: string): void {
     const filePath = getEncFilePath(vaultKey);
     try {
@@ -276,6 +287,10 @@ class StubBiometricService implements BiometricService {
 
   async retrievePassword(_vaultKey: string, _reason: string): Promise<string> {
     throw new Error('Biometric unlock is not supported on this platform');
+  }
+
+  async authenticate(_reason: string): Promise<boolean> {
+    return false;
   }
 
   removePassword(_vaultKey: string): void {

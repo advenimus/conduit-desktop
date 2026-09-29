@@ -18,8 +18,8 @@ export interface IdleLockDeps {
   idleSeconds(): number;
   /** A personal vault is unlocked and no team vault is active. */
   canLock(): boolean;
-  /** Lock the vault and tell the renderer. */
-  lock(): Promise<void>;
+  /** Lock the vault and tell the renderer why. */
+  lock(trigger: IdleLockTrigger): Promise<void>;
   /** Subscribe to the OS screen lock; returns the unsubscribe function. */
   onLockScreen(listener: () => void): () => void;
 }
@@ -47,7 +47,7 @@ export function startIdleLock(deps: IdleLockDeps): () => void {
     if (locking || !shouldIdleLock(deps, trigger)) return;
     locking = true;
     try {
-      await deps.lock();
+      await deps.lock(trigger);
       console.info(`${LOG} vault locked automatically`, { trigger });
     } catch (err) {
       console.error(`${LOG} automatic lock failed`, { trigger, name: errName(err) });

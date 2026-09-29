@@ -116,3 +116,16 @@ describe('vault access proxy', () => {
     expect(seen).toEqual(['block:open_elsewhere', 'soft:open_elsewhere', 'open:/a.conduit', 'create:/b.conduit']);
   });
 });
+
+describe('lock result and notice (docs/AUTO_UNLOCK.md 4.6)', () => {
+  it('returns whether it locked something and tells listeners with the cause', async () => {
+    const { onPersonalLocked } = await import('../vault-events.js');
+    const causes: string[] = [];
+    const stop = onPersonalLocked(({ cause }) => causes.push(cause));
+    expect(await lockPersonalVault(asFlow(fakeState()), 'window-close')).toBe(true);
+    expect(await lockPersonalVault(asFlow(fakeState({ unlocked: false, open: false })))).toBe(false);
+    expect(await lockPersonalVault(asFlow(fakeState()))).toBe(true);
+    stop();
+    expect(causes).toEqual(['window-close', 'other']);
+  });
+});

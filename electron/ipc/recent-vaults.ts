@@ -1,12 +1,16 @@
 /**
  * Removing vaults from the recent list, with their stored biometric passwords. Entries are keyed
  * by vault lineage, with the legacy path key as fallback (spec 5.9), so removing one vault drops
- * both keys; clearing the list drops every stored entry.
+ * both keys; clearing the list drops every stored entry. A personal startup vault that leaves the
+ * list stops opening at startup and its saved unlock is forgotten (docs/AUTO_UNLOCK.md 3.7).
  */
 
 import type { AppSettings } from './settings.js';
+import { withStartupCleared } from './startup-vault-core.js';
 
-type RecentFields = Pick<AppSettings, 'recent_vaults' | 'last_vault_path'>;
+const LOG = '[settings]';
+
+type RecentFields = Pick<AppSettings, 'recent_vaults' | 'last_vault_path'> & Partial<Pick<AppSettings, 'startup_vault'>>;
 
 export interface RecentVaultDeps<S extends RecentFields> {
   read(): S;
@@ -14,9 +18,22 @@ export interface RecentVaultDeps<S extends RecentFields> {
   /** biometric-lineage removeBiometricForPath: the lineage key and the path key. */
   removeBiometric(vaultPath: string): Promise<void>;
   removeAllBiometric(): void;
+  /** Saved unlocks belong only to the startup vault, so forgetting one forgets them all. */
+  forgetAllAutoUnlock(): number;
 }
 
-const LOG = '[settings]';
+function isStartupVault(settings: RecentFields, vaultPath: string | null): boolean {
+  const sv = settings.startup_vault;
+  return sv?.kind === 'personal' && (vaultPath === null || sv.path === vaultPath);
+}
+
+function forgetAutoUnlock<S extends RecentFields>(deps: RecentVaultDeps<S>): void {
+  try {
+    deps.forgetAllAutoUnlock();
+  } catch (err) {
+    console.warn(`${LOG} forgetting the saved unlock failed`, { name: errName(err) });
+  }
+}
 
 function errName(err: unknown): string {
   return err instanceof Error ? err.name : 'Error';
@@ -39,8 +56,11 @@ export function withMovedRecentVault<S extends RecentFields>(settings: S, from: 
 
 /** Returns the new recent list. A failed biometric cleanup is logged and never fails the removal. */
 export async function removeRecentVault<S extends RecentFields>(deps: RecentVaultDeps<S>, vaultPath: string): Promise<string[]> {
-  const next = withoutRecentVault(deps.read(), vaultPath);
+  const current = deps.read();
+  const wasStartup = isStartupVault(current, vaultPath);
+  const next = withStartupCleared(withoutRecentVault(current, vaultPath), vaultPath);
   deps.write(next);
+  if (wasStartup) forgetAutoUnlock(deps);
   try {
     await deps.removeBiometric(vaultPath);
   } catch (err) {
@@ -50,8 +70,9 @@ export async function removeRecentVault<S extends RecentFields>(deps: RecentVaul
 }
 
 export function clearRecentVaults<S extends RecentFields>(deps: RecentVaultDeps<S>): string[] {
-  const next = { ...deps.read(), recent_vaults: [], last_vault_path: null };
+  const next = withStartupCleared({ ...deps.read(), recent_vaults: [], last_vault_path: null }, null);
   deps.write(next);
+  forgetAutoUnlock(deps);
   try {
     deps.removeAllBiometric();
   } catch (err) {

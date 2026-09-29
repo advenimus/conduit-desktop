@@ -15,6 +15,7 @@ import { PersonalVaultOpenError } from '../services/vault-session/open-personal-
 import { completePersonalUnlock } from './vault-wiring.js';
 import { lockPersonalVault } from './vault-lock-flow.js';
 import { updateRecentVaults } from './settings.js';
+import { emitPersonalUnlocked } from './vault-events.js';
 
 const MASTER_PASSWORD_REQUIRED_MESSAGE = 'Master password is required';
 const VAULT_PATH_REQUIRED_MESSAGE = 'Choose a vault file first';
@@ -103,6 +104,7 @@ export async function openPersonalAndFinish(
     console.error('[vault] post-unlock setup failed', { source: req.source, name: errName(err) });
   }
   console.info('[vault] personal vault unlocked', { source: req.source, shared: outcome.shared, engine: outcome.engine });
+  emitPersonalUnlocked({ source: req.source, lineageId: outcome.lineageId });
   return outcome;
 }
 
