@@ -323,10 +323,10 @@ export default function Sidebar() {
           >
             <span className="min-w-0 truncate">{vaultName}</span>
             {autoUnlockOn && (
-              <>
-                <LockOpenIcon data-cv-auto-unlock-indicator="" size={12} className="shrink-0 text-ink-faint" />
+              <span data-cv-auto-unlock-indicator="" className="inline-flex shrink-0">
+                <LockOpenIcon size={12} className="text-ink-faint" />
                 <span className="sr-only">{INDICATOR_TEXT}</span>
-              </>
+              </span>
             )}
             <ChevronDownIcon size={16} className="shrink-0 text-ink-muted" />
           </button>
