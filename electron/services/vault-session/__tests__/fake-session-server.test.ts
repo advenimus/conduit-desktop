@@ -220,6 +220,8 @@ describe('FakeSessionServer (9.5)', () => {
     const w = world();
     const c = w.client();
     w.server.setLimit(USER, -1);
+    // Refused acquires write no row, so the device cap must be off to reach the daily guard.
+    w.server.plan.setDeviceCap(USER, -1);
     for (let i = 0; i < 201; i++) {
       const dev = `aaaaaaaa-1111-4111-8111-${i.toString(16).padStart(12, '0')}`;
       await c.acquire(acquireArgs(dev, `D${i}`));

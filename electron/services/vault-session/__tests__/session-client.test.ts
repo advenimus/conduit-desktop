@@ -345,4 +345,28 @@ describe('SessionClient', () => {
       expect(await client.abandon({ vaultKey: VAULT, deviceId: DEVICE, targetDeviceId: OTHER })).toMatchObject({ kind: 'unconfirmed', reason: 'auth' });
     });
   });
+
+  describe('plan enforcement', () => {
+    it('sends p_claim false for a background re-acquire', async () => {
+      rpc.enqueue('vault_session_acquire', rpcOk({ granted: true, lease_id: LEASE, limit: 1, sessions: [], server_now: TS, ownership: 'unowned' }));
+      const res = await client.acquire(acquireArgs({ claim: false }));
+      expect(rpc.calls[0]?.args).toMatchObject({ p_claim: false, p_takeover: false });
+      expect(res).toMatchObject({ kind: 'granted', ownership: { kind: 'unowned' } });
+    });
+
+    it('releaseOwnership sends the vault key and reads the answer', async () => {
+      rpc.enqueue('vault_owner_release', rpcOk({ released: false, reason: 'too_soon', retry_after: TS }));
+      expect(await client.releaseOwnership(VAULT)).toEqual({ released: false, reason: 'too_soon', retryAfterMs: TS_MS });
+      expect(rpc.calls).toEqual([{ fn: 'vault_owner_release', timeoutMs: RPC_TIMEOUT_MS, args: { p_vault_key: VAULT } }]);
+    });
+
+    it('releaseOwnership is unconfirmed on a transport error, a malformed answer or signed out', async () => {
+      rpc.enqueue('vault_owner_release', rpcFail({ kind: 'network' }));
+      expect(await client.releaseOwnership(VAULT)).toEqual({ released: false, reason: 'unconfirmed' });
+      rpc.enqueue('vault_owner_release', rpcOk({ released: 'yes' }));
+      expect(await client.releaseOwnership(VAULT)).toEqual({ released: false, reason: 'unconfirmed' });
+      t.knobs.userId = null;
+      expect(await client.releaseOwnership(VAULT)).toEqual({ released: false, reason: 'unconfirmed' });
+    });
+  });
 });
