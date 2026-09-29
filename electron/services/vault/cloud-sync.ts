@@ -10,6 +10,16 @@ import { packVaultForCloud, decryptFromCloud } from './cloud-crypto.js';
 import { readBackupBytes, type SnapshotWriter } from './backup-snapshot.js';
 import { cloudBackupPlanAllows, CLOUD_BACKUP_PLAN_MESSAGE } from './cloud-backup-plan.js';
 import { snapshotFileName } from './cloud-backup-name.js';
+import { readCloudManifest, writeManifestEntry, type CloudManifest } from './cloud-manifest.js';
+import {
+  countPruneTargets,
+  isPolicyRefusal,
+  MAX_CLOUD_BACKUP_VAULTS_FEATURE,
+  MAX_CLOUD_BACKUPS_FEATURE,
+  noticeMessage,
+  tierLimit,
+  type CloudBackupNotice,
+} from './cloud-backup-limits.js';
 import { AppState } from '../state.js';
 import type { AuthService } from '../auth/supabase.js';
 import { readSettings } from '../../ipc/settings.js';
@@ -33,6 +43,8 @@ export interface CloudSyncState {
   lastSyncedAt: string | null;
   error: string | null;
   enabled: boolean;
+  /** The server refused the last upload (plan, snapshot cap, vault cap); shown in the status line. */
+  notice: CloudBackupNotice | null;
 }
 
 export interface CloudBackupEntry {
@@ -44,16 +56,7 @@ export interface CloudBackupEntry {
   vaultName: string;
 }
 
-/** Manifest tracking all backed-up vaults for a user. */
-export interface CloudManifest {
-  vaults: Record<string, {
-    name: string;
-    lastSyncedAt: string | null;
-    size: number;
-  }>;
-}
-
-const MANIFEST_FILENAME = 'manifest.json';
+export type { CloudManifest } from './cloud-manifest.js';
 
 export class CloudSyncService {
   private authService: AuthService;
@@ -72,6 +75,7 @@ export class CloudSyncService {
     lastSyncedAt: null,
     error: null,
     enabled: false,
+    notice: null,
   };
 
   constructor(authService: AuthService) {
@@ -103,14 +107,14 @@ export class CloudSyncService {
 
     if (opts.enabled && !this.enabled) {
       console.warn('[cloud-sync] Not started: the plan does not include cloud backup');
-      this.updateState({ status: 'disabled', enabled: false, error: CLOUD_BACKUP_PLAN_MESSAGE });
+      this.updateState({ status: 'disabled', enabled: false, error: CLOUD_BACKUP_PLAN_MESSAGE, notice: { kind: 'plan' } });
     } else if (opts.enabled) {
-      this.updateState({ status: 'idle', enabled: true, error: null });
+      this.updateState({ status: 'idle', enabled: true, error: null, notice: null });
       this.confirmPlanInBackground();
       // Fire-and-forget: hydrate lastSyncedAt from cloud metadata
       this.hydrateLastSyncedAt().catch(() => {});
     } else {
-      this.updateState({ status: 'disabled', enabled: false, error: null });
+      this.updateState({ status: 'disabled', enabled: false, error: null, notice: null });
     }
   }
 
@@ -129,7 +133,7 @@ export class CloudSyncService {
     this.vaultId = null;
     this.vaultPath = null;
     this.snapshot = null;
-    this.updateState({ status: 'disabled', enabled: false, error: null });
+    this.updateState({ status: 'disabled', enabled: false, error: null, notice: null });
   }
 
   /**
@@ -475,6 +479,11 @@ export class CloudSyncService {
     return 0;
   }
 
+  /** A cap from the tier features (max_cloud_backups, max_cloud_backup_vaults); null unknown, -1 unlimited. */
+  private tierCap(key: string): number | null {
+    return tierLimit(this.authService.getAuthState().profile?.tier?.features, key);
+  }
+
   /**
    * Get the current sync state.
    */
@@ -494,81 +503,18 @@ export class CloudSyncService {
     return filename.replace(/\.conduit$/, '') || 'Vault';
   }
 
-  /**
-   * Try to read the cloud manifest (manifest.json) for the given user.
-   * Returns null if the manifest doesn't exist or can't be parsed.
-   */
-  private async readManifest(userId: string): Promise<CloudManifest | null> {
-    const supabase = this.authService.getSupabaseClient();
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .download(`${userId}/${MANIFEST_FILENAME}`);
-
-    if (error || !data) return null;
-
-    try {
-      const text = await data.text();
-      return JSON.parse(text) as CloudManifest;
-    } catch {
-      console.warn('[cloud-sync] Failed to parse manifest.json');
-      return null;
-    }
+  private readManifest(userId: string): Promise<CloudManifest | null> {
+    return readCloudManifest(this.authService.getSupabaseClient(), BUCKET, userId);
   }
 
-  /**
-   * Create or update the manifest with the current vault's info.
-   */
-  private async updateManifest(
-    userId: string,
-    vaultId: string,
-    vaultName: string,
-    lastSyncedAt: string,
-    size: number,
-  ): Promise<void> {
-    // Read existing manifest or create new
-    const manifest = (await this.readManifest(userId)) ?? { vaults: {} };
-
-    manifest.vaults[vaultId] = { name: vaultName, lastSyncedAt, size };
-
-    const supabase = this.authService.getSupabaseClient();
-    const blob = Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8');
-
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(`${userId}/${MANIFEST_FILENAME}`, blob, {
-        upsert: true,
-        contentType: 'application/octet-stream',
-      });
-
-    if (error) {
-      console.warn('[cloud-sync] Failed to update manifest:', error.message);
-    } else {
-      console.log('[cloud-sync] Manifest updated for vault:', vaultName);
-    }
+  /** Records the vault in manifest.json; a policy refusal is handled like a refused vault.enc. */
+  private async updateManifest(userId: string, vaultId: string, vaultName: string, lastSyncedAt: string, size: number): Promise<void> {
+    const error = await writeManifestEntry(this.authService.getSupabaseClient(), BUCKET, userId, vaultId, { name: vaultName, lastSyncedAt, size });
+    if (error !== null && isPolicyRefusal(error)) await this.handleRefusal(userId, vaultId);
   }
 
-  /**
-   * Remove a vault entry from the manifest.
-   */
   private async removeFromManifest(userId: string, vaultId: string): Promise<void> {
-    const manifest = await this.readManifest(userId);
-    if (!manifest) return;
-
-    delete manifest.vaults[vaultId];
-
-    const supabase = this.authService.getSupabaseClient();
-    const blob = Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8');
-
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(`${userId}/${MANIFEST_FILENAME}`, blob, {
-        upsert: true,
-        contentType: 'application/octet-stream',
-      });
-
-    if (error) {
-      console.warn('[cloud-sync] Failed to update manifest after removal:', error.message);
-    }
+    await writeManifestEntry(this.authService.getSupabaseClient(), BUCKET, userId, vaultId, null);
   }
 
   /**
@@ -617,26 +563,56 @@ export class CloudSyncService {
     }
   }
 
-  /**
-   * Upload a timestamped backup snapshot after the main vault.enc upload.
-   * Uses per-vault path: {userId}/{vaultId}/backups/
-   */
+  /** Uploads a timestamped snapshot ({userId}/{vaultId}/backups/); a policy refusal is the snapshot cap (S17). */
   private async uploadVersionedSnapshot(userId: string, vaultId: string, blob: Buffer): Promise<void> {
-    const filename = snapshotFileName(new Date());
-    const storagePath = `${userId}/${vaultId}/${BACKUPS_FOLDER}/${filename}`;
-
-    const supabase = this.authService.getSupabaseClient();
-    const { error } = await supabase.storage
+    const storagePath = `${userId}/${vaultId}/${BACKUPS_FOLDER}/${snapshotFileName(new Date())}`;
+    const { error } = await this.authService.getSupabaseClient().storage
       .from(BUCKET)
-      .upload(storagePath, blob, {
-        contentType: 'application/octet-stream',
-      });
-
-    if (error) {
-      throw new Error(`Snapshot upload failed: ${error.message}`);
+      .upload(storagePath, blob, { contentType: 'application/octet-stream' });
+    if (error && isPolicyRefusal(error)) {
+      console.warn('[cloud-sync] Snapshot refused: the backup snapshot limit is reached');
+      this.updateState({ notice: { kind: 'full' } });
+      return;
     }
-
+    if (error) throw new Error(`Snapshot upload failed: ${error.message}`);
+    if (this.state.notice?.kind === 'full') this.updateState({ notice: null });
     console.log('[cloud-sync] Versioned snapshot uploaded:', storagePath);
+  }
+
+  /** Before a snapshot: remove the oldest so at most max_cloud_backups - 1 remain (the server refuses more). */
+  private async pruneBackupsByCount(): Promise<void> {
+    const toDelete = countPruneTargets(await this.listBackups(), this.tierCap(MAX_CLOUD_BACKUPS_FEATURE));
+    if (toDelete.length === 0) return;
+    const { error } = await this.authService.getSupabaseClient().storage.from(BUCKET).remove([...toDelete]);
+    if (error) console.warn('[cloud-sync] Failed to prune backups by count:', error.message);
+    else console.log(`[cloud-sync] Pruned ${toDelete.length} backup(s) over the snapshot limit`);
+  }
+
+  /** Manifest, then the count prune and the snapshot; the age prune runs even when the snapshot fails. */
+  private async afterUpload(userId: string, vaultId: string, lastSyncedAt: string, blob: Buffer): Promise<void> {
+    await this.updateManifest(userId, vaultId, this.getCurrentVaultName(), lastSyncedAt, blob.length);
+    try {
+      await this.pruneBackupsByCount();
+      await this.uploadVersionedSnapshot(userId, vaultId, blob);
+    } finally {
+      await this.pruneOldBackups();
+    }
+  }
+
+  /**
+   * A policy refused vault.enc or manifest.json (S16, S24). The server is the truth: when the
+   * plan still allows backup, a vault folder that does not exist yet means the vault-folder cap.
+   */
+  private async handleRefusal(userId: string, vaultId: string): Promise<void> {
+    if (!(await this.planStillAllowsBackup())) {
+      this.stopForPlan();
+      return;
+    }
+    const { data } = await this.authService.getSupabaseClient().storage.from(BUCKET).list(`${userId}/${vaultId}`, { limit: 1 });
+    const notice: CloudBackupNotice =
+      data !== null && data.length === 0 ? { kind: 'vaults-full', vaults: this.tierCap(MAX_CLOUD_BACKUP_VAULTS_FEATURE) } : { kind: 'plan' };
+    console.warn('[cloud-sync] Upload refused by the server', { notice: notice.kind });
+    this.updateState({ status: 'error', error: noticeMessage(notice), notice });
   }
 
   /**
@@ -704,7 +680,7 @@ export class CloudSyncService {
     console.warn('[cloud-sync] Upload skipped: the plan no longer includes cloud backup');
     this.clearDebounce();
     this.enabled = false;
-    this.updateState({ status: 'disabled', enabled: false, error: CLOUD_BACKUP_PLAN_MESSAGE });
+    this.updateState({ status: 'disabled', enabled: false, error: CLOUD_BACKUP_PLAN_MESSAGE, notice: { kind: 'plan' } });
   }
 
   private async doUpload(): Promise<void> {
@@ -748,20 +724,20 @@ export class CloudSyncService {
           contentType: 'application/octet-stream',
         });
 
+      if (error && isPolicyRefusal(error)) {
+        await this.handleRefusal(userId, vaultId);
+        return;
+      }
       if (error) {
         throw new Error(error.message);
       }
 
       const now = new Date().toISOString();
-      this.updateState({ status: 'synced', lastSyncedAt: now, error: null });
+      const keepFull = this.state.notice?.kind === 'full' ? this.state.notice : null;
+      this.updateState({ status: 'synced', lastSyncedAt: now, error: null, notice: keepFull });
       console.log('[cloud-sync] Upload complete at', now, `(vault: ${vaultId})`);
 
-      // Update manifest + versioned snapshot + prune (async, best-effort)
-      const vaultName = this.getCurrentVaultName();
-      this.updateManifest(userId, vaultId, vaultName, now, blob.length)
-        .then(() => this.uploadVersionedSnapshot(userId, vaultId, blob))
-        .then(() => this.pruneOldBackups())
-        .catch((err) => console.warn('[cloud-sync] Manifest/snapshot/prune failed:', err));
+      this.afterUpload(userId, vaultId, now, blob).catch((err) => console.warn('[cloud-sync] Manifest/snapshot/prune failed:', err));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Upload failed';
       console.error('[cloud-sync] Upload error:', msg);
