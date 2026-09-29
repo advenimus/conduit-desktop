@@ -202,10 +202,22 @@ const appearanceAfter = (withPacks: boolean): Control[] => [
 describe('allowed deltas', () => {
   const deltas = ref.loadDeltas();
 
-  it('has the settings-appearance entry with its reasons', () => {
-    expect(deltas.map((d) => d.screen)).toEqual(['settings-appearance']);
+  it('has the settings-appearance and home-dashboard-full-window entries with their reasons', () => {
+    expect(deltas.map((d) => d.screen)).toEqual(['settings-appearance', 'home-dashboard-full-window']);
     expect(deltas[0].reason).toMatch(/OD-7/);
-    for (const c of deltas[0].changes) expect(c.reason).toBeTruthy();
+    expect(deltas[1].reason).toMatch(/8\.4 rule 1/);
+    for (const d of deltas) for (const c of d.changes) expect(c.reason).toBeTruthy();
+  });
+
+  it('passes the Home dashboard with the Favorites type label in title case, and nothing else', () => {
+    const reference = ref.loadBeforeInventory().screens['home-dashboard-full-window'];
+    const before = { screen: 'home-dashboard-full-window', kind: 'controls', items: reference.items } as Inventory;
+    const items = reference.items as Control[];
+    expect(items.filter((c) => c.text === 'Intranet Status WEB')).toHaveLength(1);
+    const after = (text: string) => ({ ...before, items: items.map((c) => (c.text === 'Intranet Status WEB' ? { ...c, text } : c)) });
+    expect(inv.compareInventory(before, after('Intranet Status Web'), deltas)).toEqual({ ok: true, lines: [] });
+    expect(inv.compareInventory(before, after('Intranet Status Website'), deltas).ok).toBe(false);
+    expect(inv.compareInventory({ ...before, screen: 'other' }, { ...after('Intranet Status Web'), screen: 'other' }, deltas).ok).toBe(false);
   });
 
   it('passes the Appearance tab with the Icon pack section in the Platform Theme slot', () => {
