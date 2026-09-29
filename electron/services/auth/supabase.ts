@@ -504,7 +504,7 @@ export class AuthService {
    * Called by the main process when the OS opens a conduit:// URL.
    */
   async handleDeepLinkTokens(accessToken: string, refreshToken: string): Promise<void> {
-    console.log('[auth] handleDeepLinkTokens called, access_token length:', accessToken.length, 'refresh_token:', refreshToken);
+    console.log('[auth] handleDeepLinkTokens called, access_token length:', accessToken.length, 'refresh_token length:', refreshToken.length);
 
     const { data, error } = await this.supabase.auth.setSession({
       access_token: accessToken,

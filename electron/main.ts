@@ -18,6 +18,7 @@ import { lockVaultFromMain } from './ipc/vault.js';
 import { startVaultIdleLock } from './ipc/vault-idle.js';
 import { appQuitFlush } from './services/vault/app-quit-flush.js';
 import { devServerUrl } from './services/env-config.js';
+import { describeDeepLink } from './services/deep-link-log.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,7 +92,7 @@ let appReady = false;
 
 /** Handle incoming deep link URL (conduit://auth/callback#access_token=...) */
 function handleDeepLink(url: string) {
-  console.log('[main] Deep link received:', url);
+  console.log('[main] Deep link received:', describeDeepLink(url));
 
   if (!appReady) {
     console.log('[main] App not ready yet, queuing deep link');
