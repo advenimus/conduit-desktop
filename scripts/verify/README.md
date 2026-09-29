@@ -663,6 +663,11 @@ and a test device is rarely the active app, so the launcher keeps them open unti
 The launcher also records global shortcuts instead of registering them (`globalThis.__cvShortcut`) and
 tracks the native views attached to a window (`globalThis.__cvAttachedWebViews`, rule G9).
 
+Every device runs in quiet mode: its windows are invisible and click-through, it never takes keyboard
+focus, and on macOS it has no Dock icon, so a run does not interrupt whoever is using the machine. The
+harness drives pages over CDP, which needs neither. To watch a run, set `CV_QUIET=0`
+(`CV_QUIET=0 npm run verify -- sync`).
+
 ## Gotchas
 
 - Playwright locator clicks time out in this app. Use `ui.clickText` / `ui.clickSelector` (DOM clicks);
