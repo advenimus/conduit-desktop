@@ -49,8 +49,11 @@ export async function openSharedVault(
   try {
     if (peek.damagedW) await parkDamagedWorkingCopy(ctx, peek.lineageId);
     const plan = await planBinding(ctx, loc, peek);
-    const source: TicketSource = peek.hasW ? { kind: 'working', lineageId: peek.lineageId } : { kind: 'shared', path: ctx.sharedPath };
-    const acquire = await acquireLease(ctx, loc, peek.lineageId, plan.binding.fileId, rollback, { source, key: unlock.key });
+    const source: TicketSource = peek.hasW
+      ? { kind: 'working', lineageId: peek.lineageId, sharedPath: ctx.sharedPath }
+      : { kind: 'shared', path: ctx.sharedPath };
+    const keys = unlock.previousKey === null ? [unlock.key] : [unlock.key, unlock.previousKey];
+    const acquire = await acquireLease(ctx, loc, peek.lineageId, plan.binding.fileId, rollback, { source, keys });
     const seeded = await chooseSeed(ctx, peek, unlock, acquire, plan);
     const opened = await ctx.c.openReplica(
       {

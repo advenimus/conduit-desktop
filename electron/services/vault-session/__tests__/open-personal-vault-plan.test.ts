@@ -95,10 +95,11 @@ describe('acquire refusals (after the password)', () => {
     expect(h.client.of('acquire')[0]?.args).toMatchObject({ claim: true, takeover: false });
     expect(h.replicas.opened).toHaveLength(0);
     expect(h.client.of('release')).toHaveLength(0);
-    const ticket = tickets.take('ticket-1', h.t.clock.now());
+    const ticket = tickets.get('ticket-1', h.t.clock.now());
     expect(ticket?.source).toEqual({ kind: 'shared', path: vaultPath });
     expect(ticket?.lineageId).toBe(LINEAGE);
-    expect(ticket?.key.equals(h.kdf.deriveKey('pw1', 'salt1'))).toBe(true);
+    expect(ticket?.keys).toHaveLength(1);
+    expect(ticket?.keys[0]?.equals(h.kdf.deriveKey('pw1', 'salt1'))).toBe(true);
   });
 
   it('not owner with a working copy: the ticket forks W; released carries S8b', async () => {
@@ -106,7 +107,7 @@ describe('acquire refusals (after the password)', () => {
     h.client.acquireResult = { kind: 'not-owner', graceEndedMs: null, released: true, serverNowMs: null };
     const err = await refusal(openPersonalVault(openInput(vaultPath), h.deps));
     expect(payloadOf(err)).toMatchObject({ code: 'VAULT_NOT_OWNER', released: true, copyTicket: 'ticket-1' });
-    expect(tickets.take('ticket-1', h.t.clock.now())?.source).toEqual({ kind: 'working', lineageId: LINEAGE });
+    expect(tickets.get('ticket-1', h.t.clock.now())?.source).toEqual({ kind: 'working', lineageId: LINEAGE, sharedPath: vaultPath });
   });
 
   it('update required at acquire', async () => {

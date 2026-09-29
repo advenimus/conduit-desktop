@@ -117,11 +117,11 @@ function checkClaimsAtUnlock(ctx: OpenContext, loc: VaultLocation, g: GateInput)
   }
 }
 
-/** What "Make my own copy" forks after a not-owner refusal, and the verified key that opens it. */
+/** What "Make my own copy" forks after a not-owner refusal, and the verified keys that may open it. */
 export interface CopySource {
   readonly source: TicketSource;
-  /** null: no copy can be offered (a private file without a salt). */
-  readonly key: Buffer | null;
+  /** The accepted key first, then W's previous-epoch key; empty: no copy can be offered (a private file without a salt). */
+  readonly keys: readonly Buffer[];
 }
 
 /**
@@ -172,7 +172,7 @@ export async function acquireLease(
         offline: false,
         graceEndedMs: res.graceEndedMs,
         released: res.released,
-        copyTicket: copy.key === null ? null : ctx.tickets.register({ source: copy.source, key: copy.key, lineageId, nowMs: ctx.host.clock.now() }),
+        copyTicket: copy.keys.length === 0 ? null : ctx.tickets.register({ source: copy.source, keys: copy.keys, lineageId, nowMs: ctx.host.clock.now() }),
         copyDir: path.dirname(ctx.sharedPath),
       });
     case 'update-required':

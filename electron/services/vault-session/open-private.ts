@@ -46,7 +46,7 @@ function startPrivateSession(ctx: OpenContext, lineageId: string, acquire: Acqui
 
 /** A private file is its own copy source; its key is PBKDF2 of the password with the file's salt. */
 function privateCopySource(ctx: OpenContext, salt: string | null): CopySource {
-  return { source: { kind: 'shared', path: ctx.sharedPath }, key: salt === null ? null : ctx.kdf(ctx.input.password, salt) };
+  return { source: { kind: 'shared', path: ctx.sharedPath }, keys: salt === null ? [] : [ctx.kdf(ctx.input.password, salt)] };
 }
 
 /** Private vault: early check, password (PBKDF2 + verification token), acquire, then the existing in-place unlock. */
@@ -94,7 +94,7 @@ async function createShared(ctx: OpenContext, loc: VaultLocation): Promise<Opene
   const binding: FileBinding = { sharedPath: ctx.sharedPath, realpath: loc.realpath, fileId: random.uuid() };
   const rollback = new Rollback(ctx.host.logger);
   try {
-    const acquire = await acquireLease(ctx, loc, lineageId, binding.fileId, rollback, { source: { kind: 'shared', path: ctx.sharedPath }, key });
+    const acquire = await acquireLease(ctx, loc, lineageId, binding.fileId, rollback, { source: { kind: 'shared', path: ctx.sharedPath }, keys: [key] });
     const lineageDir = lineagePaths(ctx.config.machineDir, lineageId).dir;
     rollback.push('remove new lineage folder', () => ctx.host.fs.rm(lineageDir, { recursive: true, force: true }));
     const opened = await ctx.c.openReplica(
