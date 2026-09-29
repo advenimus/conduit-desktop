@@ -26,6 +26,7 @@
     "verify:sync": "node scripts/verify/run.mjs sync",
     "verify:mcp": "node scripts/verify/run.mjs mcp",
     "verify:data": "node scripts/verify/run.mjs backup copies lifecycle password resilience",
+    "test:sql": "node scripts/verify/run-sql-tests.mjs",
     "postinstall": "patch-package && node -e \"require('fs').rmSync('node_modules/.vite',{recursive:true,force:true})\" && install-electron && npx @electron/rebuild --only better-sqlite3,node-pty,koffi,sharp && node scripts/stamp-electron-dev.cjs",
     "supabase:start": "cd ../conduit && supabase start",
     "supabase:stop": "cd ../conduit && supabase stop",

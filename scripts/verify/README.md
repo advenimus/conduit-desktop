@@ -103,17 +103,31 @@ Nothing touches the user's dev profile (`~/Library/Application Support/conduit/c
 - applies `20260501000000_add_parent_entry_id.sql` and every migration dated `20260926000000` or later on every run, so repo
   changes are picked up (they are idempotent);
 - then applies `scripts/verify/sql/local-parity.sql` (`lib/supabase-parity.mjs`), in one transaction
-  behind an advisory lock so parallel runs never replace the same function at once. It mirrors
-  production: the team-sync RPC `upsert_vault_entry_versioned` with the 23-argument
-  `p_parent_entry_id` signature (EXECUTE for `authenticated` only), the private `vaults` storage bucket
-  with its four `storage.objects` policies (cloud backup), and the `get_team_members_with_email` grant;
-- checks tiers (free `vault_max_open_devices=1`, pro and team `-1`, `mcp_daily_quota=-1`), the
+  behind an advisory lock so parallel runs never replace the same function at once. It adds what no
+  migration creates: the private `vaults` storage bucket and the `get_team_members_with_email` grant.
+  The migrations create the guarded team-sync RPC `upsert_vault_entry_versioned` (23 arguments,
+  `20260929150000`) and the bucket's four `storage.objects` policies (`20260929150300`);
+- checks tiers (free `vault_max_open_devices=1`, pro and team `-1`, `account_max_active_devices=5` on all
+  three, `max_cloud_backup_vaults` free `0`, pro `10`, team `-1`, `mcp_daily_quota=-1`), the
   `vault_session_*` functions, the bucket, all four policies, the 23-argument RPC, and that
   `authenticated` can execute the team RLS helpers (`is_team_member`, `is_team_admin`,
   `is_team_vault_member`, `is_team_vault_admin`, `team_vault_has_members`, `shares_team_as_admin`,
   granted by `20260927020444_team_rls_helper_execute.sql`) and `get_team_members_with_email`;
+- `createTeam` gives each team a dummy `stripe_subscription_id`: the seat trigger of `20260929150000`
+  refuses members of a team without one;
 - the stale-user sweep first deletes teams owned by stale `verify-*` users (a team blocks its owner's
   deletion).
+
+## Database tests (`npm run test:sql`)
+
+`run-sql-tests.mjs` runs the plan enforcement tests of `docs/PLAN_ENFORCEMENT.md` 7.1 without the app
+(about 20 seconds): `ensureLocalSupabase()`, then every `supabase/pending/<version>_*.sql` (migrations that
+wait for a client release), then `supabase/tests/plan_enforcement.sql` (one `begin ... rollback` per case,
+`ok <id>` per passed case, stops at the first failed assert), `supabase/tests/plan_enforcement_rollback.sql`
+(the rollback files applied and checked inside a rolled-back transaction), the two-connection races
+T4 and O9 (`lib/sql-test-races.mjs`) and the PostgREST cases H1 and H2 with a real user's JWT. Logs go
+to `.verify/sql-tests/<time>/`. Applying `supabase/pending/` leaves those migrations on the local stack
+until the next `/verify` run re-applies `20260929150300`.
 
 ## Writing a suite
 
