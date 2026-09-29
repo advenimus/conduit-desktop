@@ -173,8 +173,9 @@ Strings:
   - Another personal vault: "Conduit will open {name} instead of {otherFile}."
   - A team vault: "Conduit will open {name} instead of the team vault {teamName}."
   - Already this vault: the line is left out.
+- Another vault's saved unlock: when a different vault unlocks automatically, one more line says "{otherName} will stop unlocking automatically." After Turn On, or "Use Touch ID Instead" when it forgot that saved unlock, the toast "Automatic unlock is off" / "{otherName} asks for the master password again." comes before the success toast, as in 2.4.
 - Touch ID line: "Safer: open {name} at startup and unlock it with Touch ID." Button: "Use Touch ID Instead". It sets the startup vault to this vault, turns on Quick Unlock for it when it is off, seals nothing, and closes with the toast "{name} opens at startup" / "Touch ID unlocks it."
-- Password proof hint: "Enter your master password to turn this on." Wrong password: `Callout tone="danger"` "That password didn't work."
+- Password proof hint: "Enter your master password to turn this on." Opened from the unlock dialog, the recent-unlock proof lasts 120 s (5.4). When main answers that it ran out, the dialog shows the password field (and Touch ID) in place, with the hint "It's been a while since you unlocked. Enter your master password to turn this on.", never a dead-end error. Wrong password: `Callout tone="danger"` "That password didn't work."
 - Buttons: "Cancel", "Turn On" (primary). "Turn On" is disabled until the password field has text when a password is required.
 - Escape and the scrim act as Cancel.
 - Success toast: `toast.success("Automatic unlock is on", "{name} opens when Conduit starts. Hold Shift while Conduit starts to skip it.")` On macOS the message says "Hold Shift or Option".
@@ -658,7 +659,7 @@ Short form, used in Settings > Security:
 
 | Proof | Accepted when |
 |---|---|
-| `{ kind: 'recent-unlock' }` (from the unlock dialog checkbox) | Main recorded an interactive unlock of the current vault less than 120 s ago, with source `vault_unlock`, `biometric_unlock`, `vault_create` or `vault_initialize`. Never `auto_unlock`. The record is cleared on lock and on use. |
+| `{ kind: 'recent-unlock' }` (from the unlock dialog checkbox) | Main recorded an interactive unlock of the current vault less than 120 s ago, with source `vault_unlock`, `biometric_unlock`, `vault_create` or `vault_initialize`. Never `auto_unlock`. The record is cleared on lock and once the unlock is saved; a refused or failed save keeps it, so Turn On can be tried again. |
 | `{ kind: 'password', password }` (Settings) | `crypto.timingSafeEqual` of SHA-256 digests of the given password and `state.currentMasterPassword` (set on every unlock by `wireBackupServices`, `vault-wiring.ts:124-134`) [V]. |
 | `{ kind: 'biometric' }` (Settings, Quick Unlock on) | The LAContext helper returns `success` (`biometric.ts:219-244`, reason "Turn on automatic unlock for Conduit") [V per fact sheet]. |
 

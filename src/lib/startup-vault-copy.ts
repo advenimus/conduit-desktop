@@ -26,6 +26,9 @@ export const AUTO_UNLOCK_WARNING =
 export const AUTO_UNLOCK_SHORT_WARNING =
   "Anyone who can use this computer while you are logged in can open this vault. Locking still asks for the password, but closing or quitting Conduit and opening it again does not.";
 
+/** Mirrors PROOF_EXPIRED_MESSAGE in electron/ipc/auto-unlock-enable.ts. */
+export const PROOF_EXPIRED_MESSAGE = "Unlock the vault again to turn this on.";
+
 export const INDICATOR_TEXT = "Unlocks automatically on this computer";
 
 export function toastAutoUnlockOn(name: string, platform: string | null | undefined): void {

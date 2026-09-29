@@ -5,7 +5,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { useStartupVaultStore, type EnableProof, type StartupVault } from "../../stores/startupVaultStore";
 import { errorText } from "../../lib/errorText";
 import { toast } from "../common/Toast";
-import { AUTO_UNLOCK_WARNING, isMacPlatform, toastAutoUnlockOn, vaultFileName, vaultName } from "../../lib/startup-vault-copy";
+import { AUTO_UNLOCK_WARNING, PROOF_EXPIRED_MESSAGE, isMacPlatform, toastAutoUnlockOff, toastAutoUnlockOn, vaultFileName, vaultName } from "../../lib/startup-vault-copy";
 import { Button, Callout, Dialog, FormField, PasswordInput, type DialogLayer } from "../ui";
 
 interface AutoUnlockWarningDialogProps {
@@ -40,13 +40,15 @@ export default function AutoUnlockWarningDialog({ mode, layer, onClose }: AutoUn
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The unlock proof from the unlock dialog lasts 120 s; after that the password is asked for here.
+  const [needsPassword, setNeedsPassword] = useState(mode === "settings");
 
   const path = currentVaultPath ?? "";
   const name = vaultName(path);
   const platform = status?.platform ?? null;
   const storeName = status?.store.storeName ?? "system keychain";
   const touchIdHere = isMacPlatform(platform) && biometricAvailable;
-  const needsPassword = mode === "settings";
+  const otherSaved = status?.savedPath != null && status.savedPath !== path ? status.savedPath : null;
   const replacement = replacementLine({
     startup: status?.startupVault ?? null,
     currentPath: path,
@@ -60,10 +62,13 @@ export default function AutoUnlockWarningDialog({ mode, layer, onClose }: AutoUn
     setError(null);
     try {
       await useStartupVaultStore.getState().enable(proof);
+      if (otherSaved) toastAutoUnlockOff(vaultName(otherSaved));
       toastAutoUnlockOn(name, platform);
       onClose(true);
     } catch (err) {
-      setError(errorText(err, "Couldn't turn on automatic unlock."));
+      const message = errorText(err, "Couldn't turn on automatic unlock.");
+      if (proof.kind === "recent-unlock" && message === PROOF_EXPIRED_MESSAGE) setNeedsPassword(true);
+      else setError(message);
     } finally {
       setBusy(false);
     }
@@ -73,7 +78,8 @@ export default function AutoUnlockWarningDialog({ mode, layer, onClose }: AutoUn
     setBusy(true);
     setError(null);
     try {
-      await useStartupVaultStore.getState().setStartup({ kind: "personal", path });
+      const { forgot } = await useStartupVaultStore.getState().setStartup({ kind: "personal", path });
+      if (forgot && otherSaved) toastAutoUnlockOff(vaultName(otherSaved));
       if (!biometricEnabled) await enableBiometric();
       toast.success(`${name} opens at startup`, "Touch ID unlocks it.");
       onClose(false);
@@ -123,9 +129,12 @@ export default function AutoUnlockWarningDialog({ mode, layer, onClose }: AutoUn
       </p>
       <Callout tone="warning">{AUTO_UNLOCK_WARNING}</Callout>
       {replacement && <p className="text-ink-muted">{replacement}</p>}
+      {otherSaved && <p className="text-ink-muted">{vaultName(otherSaved)} will stop unlocking automatically.</p>}
       {needsPassword && (
         <>
-          <p className="text-ink-muted">Enter your master password to turn this on.</p>
+          <p className="text-ink-muted">
+            {mode === "settings" ? "Enter your master password to turn this on." : "It's been a while since you unlocked. Enter your master password to turn this on."}
+          </p>
           <FormField label="Master Password">
             <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter master password" autoFocus disabled={busy} />
           </FormField>
