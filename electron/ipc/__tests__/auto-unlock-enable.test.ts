@@ -46,10 +46,9 @@ function deps(): EnableDeps {
     currentPath: () => '/v/Work.conduit',
     currentLineage: async () => 'L1',
     masterPassword: () => (w.unlocked ? 'held-pw' : null),
-    consumeRecentUnlock: (l) => {
-      const ok = w.recent === l;
+    hasRecentUnlock: (l) => w.recent === l,
+    clearRecentUnlock: () => {
       w.recent = null;
-      return ok;
     },
     biometricEnabledForCurrent: async () => w.bioOn,
     authenticateBiometric: async () => w.bioOk,
@@ -80,6 +79,20 @@ describe('auto_unlock_enable proofs (spec 5.4)', () => {
     expect(w.sealed).toEqual([{ lineageId: 'L1', userId: 'user-a', password: 'held-pw' }]);
     expect(w.startup).toEqual({ kind: 'personal', path: '/v/Work.conduit', lineageId: 'L1' });
     await expect(enableAutoUnlock(deps(), { kind: 'recent-unlock' })).rejects.toThrow(PROOF_EXPIRED_MESSAGE);
+  });
+
+  it('a failed save keeps the recent unlock so Turn On can be tried again', async () => {
+    w.sealResult = { ok: false, reason: 'write-failed' };
+    await expect(enableAutoUnlock(deps(), { kind: 'recent-unlock' })).rejects.toThrow("Conduit couldn't save the unlock. Try again.");
+    expect(w.recent).toBe('L1');
+    w.status = { usable: false, reason: 'weak', backend: 'basic_text', storeName: 'system keyring' };
+    await expect(enableAutoUnlock(deps(), { kind: 'recent-unlock' })).rejects.toThrow('system keyring');
+    expect(w.recent).toBe('L1');
+    w.status = { usable: true, reason: 'ok', backend: 'keychain', storeName: 'system keychain' };
+    w.sealResult = { ok: true };
+    await enableAutoUnlock(deps(), { kind: 'recent-unlock' });
+    expect(w.sealed).toHaveLength(1);
+    expect(w.recent).toBeNull();
   });
 
   it('the password proof compares with the held password and seals the held one', async () => {

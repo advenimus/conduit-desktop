@@ -206,10 +206,9 @@ function enableDeps(state: AppState) {
       }
     },
     masterPassword: () => state.currentMasterPassword,
-    consumeRecentUnlock: (lineageId: string) => {
-      const rec = recentUnlock;
+    hasRecentUnlock: (lineageId: string) => recentUnlock !== null && recentUnlock.lineageId === lineageId && Date.now() - recentUnlock.at < PROOF_WINDOW_MS,
+    clearRecentUnlock: () => {
       recentUnlock = null;
-      return rec !== null && rec.lineageId === lineageId && Date.now() - rec.at < PROOF_WINDOW_MS;
     },
     biometricEnabledForCurrent: () => isBiometricEnabledForPath(state, state.currentVaultPath),
     authenticateBiometric: (reason: string) => getBiometricService().authenticate(reason),

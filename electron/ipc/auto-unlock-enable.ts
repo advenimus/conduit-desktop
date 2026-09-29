@@ -26,8 +26,10 @@ export interface EnableDeps {
   currentPath(): string;
   currentLineage(): Promise<string | null>;
   masterPassword(): string | null;
-  /** True (and used up) when a person unlocked this lineage in the last 120 s. */
-  consumeRecentUnlock(lineageId: string): boolean;
+  /** True when a person unlocked this lineage in the last 120 s. */
+  hasRecentUnlock(lineageId: string): boolean;
+  /** Used up only once the unlock is saved, so a failed save can be retried. */
+  clearRecentUnlock(): void;
   biometricEnabledForCurrent(): Promise<boolean>;
   authenticateBiometric(reason: string): Promise<boolean>;
   userId(): string | null;
@@ -54,7 +56,7 @@ function storeRefusal(reason: string, storeName: string): string {
 
 async function checkProof(deps: EnableDeps, proof: EnableProof, lineageId: string, held: string): Promise<void> {
   if (proof.kind === 'recent-unlock') {
-    if (!deps.consumeRecentUnlock(lineageId)) throw new Error(PROOF_EXPIRED_MESSAGE);
+    if (!deps.hasRecentUnlock(lineageId)) throw new Error(PROOF_EXPIRED_MESSAGE);
     return;
   }
   if (proof.kind === 'password') {
@@ -76,5 +78,6 @@ export async function enableAutoUnlock(deps: EnableDeps, proof: EnableProof): Pr
   const sealed = await deps.store.sealPassword(lineageId, deps.userId(), held);
   if (!sealed.ok) throw new Error(storeRefusal(sealed.reason, status.storeName));
   deps.writeStartup({ kind: 'personal', path: deps.currentPath(), lineageId });
+  deps.clearRecentUnlock();
   console.info('[auto-unlock] turned on', { proof: proof.kind });
 }
