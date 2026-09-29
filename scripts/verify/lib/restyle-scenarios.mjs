@@ -18,6 +18,7 @@ import {
   closePicker,
   iconPackAttributes,
   launchInMode,
+  waitForMode,
   menuItemIcon,
   openMenu,
   openPicker,
@@ -113,7 +114,8 @@ async function signedInMode(ctx, mode, rs, { testSite }) {
 
   await ctx.quitDevice(d);
   proxy.cut();
-  d = await ctx.launchDevice(name, { env: proxy.env });
+  d = await ctx.launchDevice(name, { env: proxy.env, colorScheme: mode });
+  await waitForMode(d, mode);
   const auth = await waitFor(async () => {
     const s = await invoke(d, 'auth_get_state', undefined, { timeoutMs: 10_000 });
     return s?.authMode ? s : null;

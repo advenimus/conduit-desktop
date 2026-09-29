@@ -86,6 +86,18 @@ async function mainWindow(app, devUrl) {
   throw new Error(`No main window loaded ${devUrl} within ${LAUNCH_TIMEOUT_MS / 1000} s`);
 }
 
+const COLOR_SCHEMES = [null, 'light', 'dark', 'no-preference'];
+
+/**
+ * Playwright's electron.launch option for opts.colorScheme. Left out, Playwright emulates 'light', so a
+ * device never sees dark mode or the machine's own mode; null turns the emulation off.
+ */
+export function colorSchemeOption(opts) {
+  if (!Object.hasOwn(opts, 'colorScheme')) return {};
+  if (!COLOR_SCHEMES.includes(opts.colorScheme)) throw new Error(`colorScheme must be one of ${COLOR_SCHEMES.map(String).join(', ')}, not ${JSON.stringify(opts.colorScheme)}`);
+  return { colorScheme: opts.colorScheme };
+}
+
 function attachRendererLog(page, file) {
   const write = (line) => fs.appendFileSync(file, `${redact(line)}\n`);
   page.on('console', (m) => write(`[${m.type()}] ${m.text()}`));
@@ -95,11 +107,13 @@ function attachRendererLog(page, file) {
 
 /**
  * Launches device `name`. opts.env adds environment (for example CONDUIT_DEV_VAULT_DEVICE_LIMIT),
- * opts.settings overrides seeded settings.json keys, opts.args adds Electron switches.
+ * opts.settings overrides seeded settings.json keys, opts.args adds Electron switches, opts.colorScheme
+ * sets the emulated system mode ('light', 'dark', 'no-preference', or null for the machine's own).
  * Returns {name, app, page, root, home, dataDir, socketPath, mainLog, rendererLog, pid, run}.
  */
 export async function launchDevice(run, env, name, opts = {}) {
   if (liveDevices.has(name)) throw new Error(`Device "${name}" is already running`);
+  const scheme = colorSchemeOption(opts);
   const root = run.deviceRoot(name);
   const home = path.join(root, 'home');
   const appData = path.join(root, 'appData');
@@ -125,6 +139,7 @@ export async function launchDevice(run, env, name, opts = {}) {
       ...(opts.env ?? {}),
     }),
     timeout: LAUNCH_TIMEOUT_MS,
+    ...scheme,
   });
   dropForeignSignalHandlers();
   const pid = app.process().pid;

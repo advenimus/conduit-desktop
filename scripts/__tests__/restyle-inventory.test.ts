@@ -41,11 +41,13 @@ const screens = (await import('../verify/lib/restyle-screens.mjs' as string)) as
 type FakePage = { url(): string; evaluate(fn: unknown): Promise<unknown> };
 const flows = (await import('../verify/lib/restyle-flows.mjs' as string)) as {
   lookSettings(mode: string, env: Record<string, string | undefined>): Record<string, unknown>;
+  launchInMode(ctx: { launchDevice(name: string, opts: Record<string, unknown>): Promise<unknown> }, prefix: string, mode: string, opts?: Record<string, unknown>): Promise<unknown>;
+  drawnInModeInPage(mode: string): boolean;
   iconPackAttributes(device: { name: string; page: FakePage; app: { windows(): FakePage[] } }): Promise<Record<string, string | null>>;
   pickerGlyphResult(markups: (string | null)[]): RuleResult;
 };
 const data = (await import('../verify/lib/restyle-data.mjs' as string)) as {
-  expandFolderInPage(arg: { folder: string; child: string }): string;
+  expandFolderInPage(arg: { folder: string; child: string; twistie: string }): string;
 };
 const capture = (await import('../verify/lib/window-capture.mjs' as string)) as { windowRole(url: string, origin: string): string };
 
@@ -335,16 +337,14 @@ describe('popup menu reader', () => {
     { kind: 'item', label: 'Delete' },
   ];
 
-  it('reads the original menu markup, icons ignored', () => {
+  it('no longer reads the menu markup from before the restyle', () => {
     document.body.innerHTML = `<div class="m" style="width:210px"><div class="i"><svg><path d="M0"/></svg><span>Open Session</span></div>
-      <div class="i" data-submenu="open_with"><svg></svg><span style="flex:1">Open With</span><svg></svg></div>
-      <div style="height:1px;margin:4px 8px"></div><div style="text-transform:uppercase">Local Shell</div>
-      <div class="i" style="color:red"><svg></svg><span>Delete</span></div></div>
-      <div class="sm" data-for="open_with"><div class="i"><span>Open External</span></div><div class="i"><span>Open with Credential…</span></div></div><script>1</script>`;
-    expect(inv.readMenuInPage()).toEqual(EXPECTED);
+      <div class="i" data-submenu="open_with"><svg></svg><span style="flex:1">Open With</span><svg></svg></div></div>
+      <div class="sm" data-for="open_with"><div class="i"><span>Open External</span></div></div><script>1</script>`;
+    expect(inv.readMenuInPage()).toBeNull();
   });
 
-  it('reads the hardened menu markup', () => {
+  it('reads the menu markup, icons ignored', () => {
     document.body.innerHTML = `<div class="m" role="menu"><div class="i" role="menuitem" data-i="0"><span class="ic"><svg></svg></span><span class="l">Open Session</span></div>
       <div class="i" role="menuitem" aria-haspopup="menu" data-sub="0"><span class="ic"></span><span class="l">Open With</span><span class="ch"></span></div>
       <div class="sep" role="separator"></div><div class="hd" role="presentation">Local Shell</div>
@@ -422,7 +422,7 @@ describe('expanding a tree folder', () => {
     document.body.innerHTML = html;
     const clicked: string[] = [];
     document.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => clicked.push(b.outerHTML)));
-    const result = data.expandFolderInPage({ folder: 'Production', child: 'db-01' });
+    const result = data.expandFolderInPage({ folder: 'Production', child: 'db-01', twistie: '[data-cv-tree-twistie]' });
     return { result, clicked };
   }
 
@@ -432,10 +432,10 @@ describe('expanding a tree folder', () => {
     expect(clicked).toEqual(['<button data-cv-tree-twistie="" aria-label="Expand" title="Expand"></button>']);
   });
 
-  it('still finds the unnamed twistie of markup without the hook', () => {
+  it('no longer takes the unnamed button of markup without the hook', () => {
     const { result, clicked } = clicks(row('<button></button>'));
-    expect(result).toBe('clicked');
-    expect(clicked).toEqual(['<button></button>']);
+    expect(result).toBe('no toggle for Production');
+    expect(clicked).toEqual([]);
   });
 
   it('reports a folder without a twistie', () => {
@@ -613,6 +613,41 @@ describe('the reference look', () => {
   it('pins Ocean, Tabler and the migration version only when recording', () => {
     expect(flows.lookSettings('dark', {})).toEqual({ theme: 'dark' });
     expect(flows.lookSettings('light', { CONDUIT_RESTYLE_REFERENCE_LOOK: '1' })).toEqual({ theme: 'light', color_scheme: 'ocean', icon_pack: 'tabler', appearance_version: 2 });
+  });
+});
+
+describe('the mode of a restyle device', () => {
+  const matchMedia = window.matchMedia;
+  const emulate = (mode: string) => {
+    window.matchMedia = ((q: string) => ({ matches: q === `(prefers-color-scheme: ${mode})` })) as unknown as typeof window.matchMedia;
+  };
+  afterEach(() => {
+    window.matchMedia = matchMedia;
+    document.documentElement.className = '';
+  });
+
+  it('launches with the system mode emulated as the mode, unless a caller sets it', async () => {
+    const launched: [string, Record<string, unknown>][] = [];
+    const ctx = {
+      launchDevice: async (name: string, opts: Record<string, unknown>) => {
+        launched.push([name, opts]);
+        return { name, page: { evaluate: async () => true } };
+      },
+    };
+    await flows.launchInMode(ctx, 'rsc', 'dark', { settings: { theme: 'system' } });
+    await flows.launchInMode(ctx, 'rsc', 'light', { colorScheme: null });
+    expect(launched.map(([name, o]) => [name, o.colorScheme, (o.settings as { theme: string }).theme])).toEqual([['rsc-d', 'dark', 'system'], ['rsc-l', null, 'light']]);
+  });
+
+  it('is drawn in a mode only when the page and the emulated system mode both say so', () => {
+    document.documentElement.className = 'dark';
+    emulate('dark');
+    expect(flows.drawnInModeInPage('dark')).toBe(true);
+    emulate('light');
+    expect(flows.drawnInModeInPage('dark')).toBe(false);
+    document.documentElement.className = 'light';
+    expect(flows.drawnInModeInPage('light')).toBe(true);
+    expect(flows.drawnInModeInPage('dark')).toBe(false);
   });
 });
 

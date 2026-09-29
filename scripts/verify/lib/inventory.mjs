@@ -98,26 +98,24 @@ export async function captureInventory(device, screen) {
 }
 
 /**
- * In-page, inside a popup menu window: the menu as [{kind, label, children}]. Reads both the original
- * markup (.m panel, .i items, .sm[data-for] submenus) and the hardened one (role=menu, .hd, .sep,
- * [data-sub] and #s<k> submenus). Icons and styles are ignored.
+ * In-page, inside a popup menu window (electron/ipc/menu.ts): the menu as [{kind, label, children}].
+ * The first role=menu panel is the main one; items are role=menuitem with their label in .l, a
+ * submenu item names its #s<k> panel in data-sub. Icons and styles are ignored.
  */
 export function readMenuInPage() {
   const clean = (s) => (s ?? '').replace(/\s+/g, ' ').trim();
-  const panel = document.querySelector('.m') ?? document.querySelector('[role=menu]');
+  const panel = document.querySelector('[role=menu]');
   if (!panel) return null;
-  const submenuPanel = (id) => document.querySelector(`.sm[data-for="${CSS.escape(id)}"]`) ?? document.getElementById(`s${id}`);
   const entry = (el) => {
-    if (el.matches('[role=separator], .sep')) return { kind: 'separator' };
-    if (!el.matches('.i, [role=menuitem]')) {
+    if (el.matches('[role=separator]')) return { kind: 'separator' };
+    if (!el.matches('[role=menuitem]')) {
       const text = clean(el.textContent);
       return text ? { kind: 'header', label: text } : { kind: 'separator' };
     }
-    const labelEl = el.querySelector('.l') ?? el.querySelector('span');
-    const label = clean((labelEl ?? el).textContent);
-    const sub = el.getAttribute('data-submenu') ?? el.getAttribute('data-sub');
+    const label = clean((el.querySelector('.l') ?? el).textContent);
+    const sub = el.getAttribute('data-sub');
     if (sub === null) return { kind: 'item', label };
-    const subPanel = submenuPanel(sub);
+    const subPanel = document.getElementById(`s${sub}`);
     return { kind: 'submenu', label, children: subPanel ? read(subPanel) : [] };
   };
   const read = (root) => [...root.children].filter((el) => el.tagName !== 'SCRIPT').map(entry);

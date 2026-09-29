@@ -186,3 +186,24 @@ describe('verify run context', () => {
     }
   });
 });
+
+const { colorSchemeOption } = (await import('../verify/lib/app.mjs' as string)) as {
+  colorSchemeOption(opts: Record<string, unknown>): { colorScheme?: string | null };
+};
+
+describe('the emulated system mode of a device', () => {
+  it("leaves Playwright's default light when no colorScheme is asked for", () => {
+    expect(colorSchemeOption({})).toEqual({});
+  });
+
+  it('passes a mode, or null for the machine mode, to electron.launch', () => {
+    expect(colorSchemeOption({ colorScheme: 'dark' })).toEqual({ colorScheme: 'dark' });
+    expect(colorSchemeOption({ colorScheme: 'light' })).toEqual({ colorScheme: 'light' });
+    expect(colorSchemeOption({ colorScheme: null })).toEqual({ colorScheme: null });
+  });
+
+  it('rejects anything else', () => {
+    expect(() => colorSchemeOption({ colorScheme: 'sepia' })).toThrow('colorScheme must be one of');
+    expect(() => colorSchemeOption({ colorScheme: undefined })).toThrow('colorScheme must be one of');
+  });
+});

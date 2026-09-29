@@ -44,6 +44,8 @@ import { clickText, clickSelector, dispatchDocumentEvent, exists, sleep, typeInt
 import { packsScenario, signedInScenario } from '../lib/restyle-scenarios.mjs';
 
 export const MODES = Object.freeze(['dark', 'light']);
+// The first screens follow the emulated system mode, as a new install's default theme does.
+const SYSTEM_THEME = Object.freeze({ theme: 'system' });
 
 let site = null;
 /** The run's test page for the web entry, started once. */
@@ -52,12 +54,15 @@ async function testSite(ctx) {
   return site;
 }
 
-/** Runs `body(device, mode, rs)` for dark and light, each on its own device, then finish(). */
-function perMode(id, prefix, body) {
+/**
+ * Runs `body(device, mode, rs)` for dark and light, each on its own device, then finish(). `settings`
+ * overrides the device's seeded settings.
+ */
+function perMode(id, prefix, body, { settings } = {}) {
   return async (ctx) => {
     const rs = createRestyleSession(ctx, id, SCENARIOS[id]);
     for (const mode of MODES) {
-      const device = await launchInMode(ctx, prefix, mode);
+      const device = await launchInMode(ctx, prefix, mode, { settings });
       await body(ctx, device, mode, rs);
       await ctx.quitDevice(device);
     }
@@ -398,7 +403,7 @@ export default {
   title: 'Layout reference: before and after composites, inventories and geometry rules',
   optIn: true,
   scenarios: [
-    scenario('screens', 'Sign-in, vault hub, create and unlock dialogs, the empty vault welcome', perMode('screens', 'rsc', screensBody)),
+    scenario('screens', 'Sign-in, vault hub, create and unlock dialogs, the empty vault welcome', perMode('screens', 'rsc', screensBody, { settings: SYSTEM_THEME })),
     scenario('sidebar', 'Side bar floating and docked, header and footer, vault menu, search, favorites', perMode('sidebar', 'rsb', sidebarBody)),
     scenario('sidebar-signed-in', 'Signed-in side bar: account row, sign-out confirm, cached mode, team vault, trial card and strip', signedInScenario({ testSite }), true),
     scenario('tabs', 'Pane tab bars in every side bar mode, the web toolbar, Home dashboard, document tab', perMode('tabs', 'rst', tabsBody)),

@@ -136,7 +136,7 @@ export async function copyRowAction(device, name, label, { targetPath } = {}) {
   const res = await evaluateIn(device, ({ root, name, label }, cv) => {
     const panel = document.querySelector(root);
     const title = cv.pickAll(panel, cv.S.copyTitle).find((p) => p.innerText.trim() === name);
-    const row = title ? cv.pickClosest(title, panel, cv.S.copyRowOf) : null;
+    const row = title ? cv.pickClosest(title, panel, cv.S.copyRow) : null;
     const button = [...(row?.querySelectorAll('button') ?? [])].find((b) => b.innerText.trim() === label);
     if (!button) return row ? 'no button' : 'no row';
     if (button.disabled) return 'disabled';

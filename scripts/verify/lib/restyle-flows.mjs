@@ -28,12 +28,31 @@ export function lookSettings(mode, env = process.env) {
   return { theme: mode, color_scheme: 'ocean', icon_pack: 'tabler', appearance_version: 2 };
 }
 
-/** Launches device `${prefix}-${mode[0]}` in `mode`, with popup menus kept open while unfocused. */
-export function launchInMode(ctx, prefix, mode, opts = {}) {
-  return ctx.launchDevice(`${prefix}-${mode[0]}`, {
+/**
+ * Launches device `${prefix}-${mode[0]}` in `mode`, with popup menus kept open while unfocused. The
+ * emulated system mode is `mode` too, so the web page and a 'system' theme agree with the look.
+ */
+export async function launchInMode(ctx, prefix, mode, opts = {}) {
+  const device = await ctx.launchDevice(`${prefix}-${mode[0]}`, {
+    colorScheme: mode,
     ...opts,
     env: { CV_KEEP_POPUPS: '1', ...(opts.env ?? {}) },
     settings: { ...lookSettings(mode), ...(opts.settings ?? {}) },
+  });
+  await waitForMode(device, mode);
+  return device;
+}
+
+/** In-page: whether the page is drawn in `mode` and the system mode it sees is `mode` too. */
+export function drawnInModeInPage(mode) {
+  return document.documentElement.classList.contains(mode) && window.matchMedia(`(prefers-color-scheme: ${mode})`).matches;
+}
+
+/** Waits until the main window is drawn in `mode` with the system mode emulated as `mode`. */
+export function waitForMode(device, mode, { timeoutMs = 15_000 } = {}) {
+  return waitFor(() => withTimeout(device.page.evaluate(drawnInModeInPage, mode), 5_000, `${device.name}: read the mode`), {
+    timeoutMs,
+    label: `${device.name}: drawn in ${mode} mode`,
   });
 }
 
@@ -126,7 +145,7 @@ export async function hoverMenuItem(device, label) {
   const page = menuPage(device);
   if (!page) throw new Error(`${device.name}: no popup menu to hover`);
   const box = await withTimeout(page.evaluate((text) => {
-    const el = [...document.querySelectorAll('.i, [role=menuitem]')].find((e) => (e.querySelector('.l') ?? e.querySelector('span') ?? e).textContent.trim() === text);
+    const el = [...document.querySelectorAll('[role=menuitem]')].find((e) => (e.querySelector('.l') ?? e).textContent.trim() === text);
     if (!el) return null;
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
@@ -141,7 +160,7 @@ export async function menuItemIcon(device, label) {
   const page = menuPage(device);
   if (!page) return null;
   return withTimeout(page.evaluate((text) => {
-    const el = [...document.querySelectorAll('.i, [role=menuitem]')].find((e) => (e.querySelector('.l') ?? e.querySelector('span') ?? e).textContent.trim() === text);
+    const el = [...document.querySelectorAll('[role=menuitem]')].find((e) => (e.querySelector('.l') ?? e).textContent.trim() === text);
     return el?.querySelector('svg')?.outerHTML ?? null;
   }, label), 5_000, `${device.name}: menu icon`);
 }
@@ -219,7 +238,7 @@ function scrollInPage({ part, target }) {
   const dialogs = [...document.querySelectorAll('[data-dialog-content]')].filter((d) => d.getClientRects().length > 0);
   const root = dialogs[dialogs.length - 1];
   if (!root) return 'no dialog';
-  const nav = root.querySelector('[data-cv-settings-nav]') ?? root.querySelector('.w-52');
+  const nav = root.querySelector('[data-cv-settings-nav]');
   const scrollable = (el) => el.scrollHeight > el.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(el).overflowY);
   const all = [...root.querySelectorAll('*')].filter(scrollable);
   const el = target === 'nav' ? all.find((e) => nav && (e === nav || nav.contains(e) || e.contains(nav))) : all.find((e) => !(nav && (e === nav || nav.contains(e) || e.contains(nav))));

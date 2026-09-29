@@ -8,23 +8,15 @@ import { SELECTORS, clickIn, evaluateIn, existsIn, textIn } from './selectors.mj
 
 /** Settings dialog tab ids (src/components/settings/SettingsNav.tsx). */
 export const SETTINGS_TABS = ['general', 'appearance', 'security', 'sessions/terminal', 'sessions/ssh', 'sessions/rdp', 'sessions/vnc', 'sessions/web', 'ai/agent', 'backup', 'sync', 'mobile', 'team', 'account'];
-const SETTINGS_ROOT = '[data-cv-settings]';
+const SETTINGS_ROOT = SELECTORS.settingsRoot.hook;
 const IDLE_LOCK_SELECT = 'select[aria-label="Lock the vault when idle"]';
 const SYNC_TOOL_BUTTONS = ['Review changes', 'Recently deleted', 'Other copies'];
 const CHANGE_PW_TITLE = 'Change Password';
 export const ERASE_DELETED_TEXT = 'Also permanently delete items in Recently deleted';
 
-/** B1: R3-SETTINGS puts data-cv-settings on the panel; until then the harness marks it. */
-function markSettingsInPage() {
-  if (document.querySelector('[data-cv-settings]')) return true;
-  const root = [...document.querySelectorAll('[data-dialog-content]')].find((el) => el.querySelector('h2')?.innerText?.trim() === 'Settings');
-  if (!root) return false;
-  root.setAttribute('data-cv-settings', '');
-  return true;
-}
-
+/** B1: the Settings panel carries data-cv-settings. */
 export async function settingsOpen(device) {
-  return withTimeout(device.page.evaluate(markSettingsInPage), 10_000, `${device.name}: find Settings`);
+  return withTimeout(device.page.evaluate((css) => document.querySelector(css) !== null, SETTINGS_ROOT), 10_000, `${device.name}: find Settings`);
 }
 
 /**
@@ -76,8 +68,6 @@ function readSyncTabInPage(root, cv) {
   const read = (node) => node?.innerText?.trim() ?? null;
   const sections = [...el.querySelectorAll('h3')].map((h) => h.innerText.trim());
   const statusBox = cv.pickOne(el, S.syncStatus);
-  const plans = cv.pickAll(el, S.syncPlan).map((p) => p.innerText.trim());
-  const plan = (cv.usesHook(el, S.syncPlan) ? plans[0] : plans.find((t) => t.startsWith('Your plan:'))) ?? null;
   const devices = cv.pickAll(el, S.deviceRow).map((row) => ({
     name: read(cv.pickOne(row, S.deviceName)) ?? '',
     line: read(cv.pickOne(row, S.deviceLine)) ?? '',
@@ -91,7 +81,7 @@ function readSyncTabInPage(root, cv) {
     sections,
     status: read(cv.pickOne(statusBox, S.syncStatusLabel)),
     detail: read(cv.pickOne(statusBox, S.syncStatusDetail)),
-    plan,
+    plan: read(cv.pickOne(el, S.syncPlan)),
     devices,
     notices,
     paused,
