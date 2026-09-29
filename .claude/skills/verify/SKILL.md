@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Run every live end-to-end suite (backup, copies, lifecycle, mcp, ownership, password, resilience, smoke, sync; 50 scenarios) against the real Conduit app and a local Supabase, then summarize pass or fail. Use before shipping or after changing vault sync, device leases, vault open or lock, master passwords, backups, sign-in, tiers, or the MCP server, and whenever asked to "verify", "run the live tests" or "prove it works in the real app". Fully isolated from the user's dev app and data; takes about 12 minutes.
+description: Run every live end-to-end suite (backup, copies, lifecycle, mcp, ownership, password, resilience, smoke, sync; 50 scenarios) against the real Conduit app and a local Supabase, then summarize pass or fail. Use only when the user explicitly asks for every live suite (for example "run all the live tests" or "run the full verify") or for a release candidate. For a change in one area, use the targeted skill instead: verify-sync, verify-mcp, verify-ownership or verify-data. Fully isolated from the user's dev app and data; takes about 12 minutes and opens many app windows.
 ---
 
 # /verify: all live suites
@@ -8,8 +8,11 @@ description: Run every live end-to-end suite (backup, copies, lifecycle, mcp, ow
 Runs `npm run verify`. The harness in `scripts/verify/` builds the app, launches real Electron
 devices side by side, drives them like a user (and over MCP), checks the server state in the local
 Supabase, and cleans up after itself. You can run it start to finish without asking the user for
-anything. The harness reference is `scripts/verify/README.md`. For a narrower run use a suite skill;
-they add per-scenario detail and suite-specific troubleshooting:
+anything. The harness reference is `scripts/verify/README.md`.
+
+Run every suite only when the user asks for it or for a release candidate. For any other change, run
+only the suite that covers it, with its skill below; they add per-scenario detail and suite-specific
+troubleshooting:
 
 | Skill | Suites | Command |
 |---|---|---|
@@ -166,7 +169,8 @@ node -e "const d=require('fs').readdirSync('.verify').filter(n=>/^\d{8}-/.test(n
    a timeout without a measured reason. If a check disagrees with the spec
    (`docs/MULTI_DEVICE_SYNC.md`), say so and cite the section instead of quietly changing it.
 5. If a scenario passes only sometimes, treat it as a real race and report it.
-6. Finish with the full `npm run verify` again.
+6. Finish by re-running the fixed scenario with `--only`, then the one suite it belongs to. Do not
+   re-run every suite unless the user asks for it.
 
 ## Cleanup guarantees
 
