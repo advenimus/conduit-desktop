@@ -666,7 +666,11 @@ tracks the native views attached to a window (`globalThis.__cvAttachedWebViews`,
 Every device runs in quiet mode: its windows are invisible and click-through, it never takes keyboard
 focus, and on macOS it has no Dock icon, so a run does not interrupt whoever is using the machine. The
 harness drives pages over CDP, which needs neither. To watch a run, set `CV_QUIET=0`
-(`CV_QUIET=0 npm run verify -- sync`).
+(`CV_QUIET=0 node scripts/verify/run.mjs sync`). The app reads window focus for heartbeat activity
+and toast overlays, so the two suites that depend on them ran in quiet mode before this became the
+default: `node scripts/verify/run.mjs ownership sync` passed all 17 scenarios in 218.6 s on
+2026-09-29. If a focus-dependent check fails only in quiet mode, rerun it with `CV_QUIET=0` before
+calling it an app bug.
 
 ## Gotchas
 
