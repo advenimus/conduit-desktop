@@ -15,7 +15,7 @@ import { useTeamStore } from "../stores/teamStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { classifyUnlockError } from "../stores/vault-unlock-errors";
 import { unlockSucceeded } from "../stores/vault-sync-hooks";
-import { useStartupVaultStore, type AutoUnlockOutcome, type StartupChoice } from "../stores/startupVaultStore";
+import { useStartupVaultStore, type AutoUnlockOutcome, type StartupChoice, type StartupFallback } from "../stores/startupVaultStore";
 import { toastAccountChanged, toastAutoUnlockOff, toastSkipped, toastStartupCleared, vaultFileName, vaultName } from "./startup-vault-copy";
 
 export type StartupPlan =
@@ -73,10 +73,11 @@ function toastMissing(fileName: string, name: string): void {
 }
 
 /** Cancel on a fallback dialog of an automatic attempt: the Hub, and a way to stop it for good. */
-export function toastStartupOpenCancelled(name: string): void {
+export function toastStartupOpenCancelled(name: string, kind: StartupFallback["kind"]): void {
   void invoke("vault_startup_done").catch(() => undefined);
   toast.info(`${name} didn't open`, {
-    message: "It will try again at the next start.",
+    // A stale saved password was already forgotten, so the next start asks instead of trying again.
+    message: kind === "stale" ? "Automatic unlock is off. Conduit will ask for the master password at the next start." : "It will try again at the next start.",
     actions: [{ label: "Stop Opening at Startup", onClick: () => void stopOpeningAtStartup(name) }],
   });
 }

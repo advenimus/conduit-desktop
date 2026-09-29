@@ -11,7 +11,7 @@ vi.mock("../../components/common/Toast", () => {
   return { toast: { success: add("success"), info: add("info"), warning: add("warning"), error: add("error"), dismiss: vi.fn(), update: vi.fn() } };
 });
 
-const { runStartupVault, goToVaultHubFromStartup } = await import("../startup-vault");
+const { runStartupVault, goToVaultHubFromStartup, toastStartupOpenCancelled } = await import("../startup-vault");
 const { useVaultStore } = await import("../../stores/vaultStore");
 const { useStartupVaultStore } = await import("../../stores/startupVaultStore");
 const { useSyncStore } = await import("../../stores/syncStore");
@@ -161,5 +161,19 @@ describe("the opening screen (spec 2.3)", () => {
     expect(button).toHaveFocus();
     fireEvent.keyDown(button, { key: "Escape" });
     expect(onGoToHub).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Cancel on a fallback of an automatic attempt", () => {
+  it("says it tries again only when the saved unlock was kept", () => {
+    toastStartupOpenCancelled("Work", "saved");
+    toastStartupOpenCancelled("Work", "unreadable");
+    toastStartupOpenCancelled("Work", "stale");
+    expect(toasts.map((t) => [t.title, (t.message as { message: string }).message])).toEqual([
+      ["Work didn't open", "It will try again at the next start."],
+      ["Work didn't open", "It will try again at the next start."],
+      ["Work didn't open", "Automatic unlock is off. Conduit will ask for the master password at the next start."],
+    ]);
+    expect(calls.filter((c) => c === "vault_startup_done")).toHaveLength(3);
   });
 });

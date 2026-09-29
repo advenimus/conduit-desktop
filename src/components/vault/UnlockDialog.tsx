@@ -89,7 +89,7 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     const f = useStartupVaultStore.getState().fallback;
     useStartupVaultStore.getState().setFallback(null);
     onCancel();
-    if (f) toastStartupOpenCancelled(f.name);
+    if (f) toastStartupOpenCancelled(f.name, f.kind);
   };
 
   /** After any successful unlock: the warning when the checkbox asks for it, else done. */

@@ -326,7 +326,7 @@ While the open vault has a saved unlock, a 12px `LockOpenIcon` in `text-ink-fain
 | Startup vault set | success "{name} opens at startup" |
 | Startup vault cleared (Stop Opening, Remove, Clear All) | info "{name} won't open at startup" (+ "Automatic unlock is off too." when one was forgotten) |
 | Skipped (escape hatch or Go to Vault Hub) | info "Startup vault skipped" / "Conduit opened the Vault Hub. {name} opens next time." |
-| Startup open cancelled (Cancel on a fallback dialog) | info "{name} didn't open" / "It will try again at the next start." [Stop Opening at Startup] |
+| Startup open cancelled (Cancel on a fallback dialog) | info "{name} didn't open" / "It will try again at the next start." [Stop Opening at Startup]. After a stale saved password (already forgotten) the message is "Automatic unlock is off. Conduit will ask for the master password at the next start." |
 | Startup file missing | warning "Couldn't find {file}" / "It may have been moved or renamed. Conduit opened the Vault Hub." [Open Vault File...] [Stop Opening at Startup] |
 | Sign-out or account change forgot it | info "Automatic unlock is off" / "Signing out turns it off on this computer." (account change: "Another account signed in, so it was turned off on this computer.") |
 | Release or own copy changed it | info "Automatic unlock is off" / "{name} is no longer yours to open at startup." (release) or "Your copy opens at startup. Turn automatic unlock on again from the unlock screen." (own copy) |
