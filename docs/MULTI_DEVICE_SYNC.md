@@ -2,6 +2,8 @@
 
 Status: final spec, 2026-09-25. It merges the synthesized design with the red-team review (35 findings, all addressed in section 2.3).
 
+**See also:** `docs/PLAN_ENFORCEMENT.md` (2026-09-29) adds vault ownership, the per-account device cap, the in-file owner tag `_sync/owner/account`, the minimum app version and new lease answers (`not_owner`, `device_cap`, `update_required`). Where the two differ, that spec wins for those topics.
+
 **Scope.** Personal `.conduit` vaults on desktop (Electron, better-sqlite3) and iOS (GRDB). Team vaults keep their Supabase team sync and do not change. Removing the MCP quota is a separate change (section 8.3).
 
 **Path roots used in citations.**
@@ -939,7 +941,7 @@ If the publish failed, the changes stay in this device's working copy and publis
 - Enforcement is client-side. A modified client, or edited local state, can skip it.
 - Signed-out and unconfirmed enforcement is best effort, with cloud latency.
 - Older apps (iOS 1.0.5, desktop 0.17 or older) are not enforced.
-- Two Conduit accounts on one vault are separate on the server; the in-file claim still displaces between them, best effort.
+- Two Conduit accounts on one vault are separate on the server; the in-file claim still displaces between them, best effort. Superseded by vault ownership in `docs/PLAN_ENFORCEMENT.md`.
 - Two devices on different copies while signed out cannot be detected.
 
 ---
