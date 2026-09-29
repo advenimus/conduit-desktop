@@ -82,7 +82,7 @@ export function clickInDialog(device, title, label, opts = {}) {
 function readBannersInPage(_, cv) {
   return [...document.querySelectorAll('[role=status]')]
     .filter((el) => el.getClientRects().length > 0)
-    .map((el) => ({ text: (cv.queryOne(el, cv.S.bannerText)?.innerText ?? el.innerText ?? '').trim(), actions: [...el.querySelectorAll('button')].map((b) => b.innerText.trim()) }));
+    .map((el) => ({ text: (cv.pickOne(el, cv.S.bannerText)?.innerText ?? el.innerText ?? '').trim(), actions: [...el.querySelectorAll('button')].map((b) => b.innerText.trim()) }));
 }
 
 /** Text of each visible sync banner (role=status strip) with its button labels. */

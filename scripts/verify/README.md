@@ -474,17 +474,19 @@ classes, so a later restyle does not break the suites.
 
 ### Stable `data-cv-*` hooks (`lib/selectors.mjs`)
 
-- `SELECTORS` maps each thing the harness reads to its hook: a `data-cv-*` attribute (or
-  `data-sidebar-panel`), as the Appendix B "Final" column lists them. The class selectors the harness
-  used before the restyle, and the `pickSelector` choice between them and the hooks, are gone.
+- `SELECTORS` maps each thing the harness reads to `{hook}`: a `data-cv-*` attribute (or
+  `data-sidebar-panel`), as the Appendix B "Final" column lists them. Wave 1 paired each hook with the
+  class selector of the markup before the restyle and picked one per scope (`pickSelector`); the class
+  halves and that choice are gone, and the helpers kept their names.
 - Page code gets the helpers as its second argument and the hooks as `cv.S`:
-  `evaluateIn(d, (root, cv) => cv.queryAll(document.querySelector(root), cv.S.deviceRow).length, root)`.
-  `queryAll(scope, css)` and `queryOne(scope, css)` return nothing for a missing scope, and
-  `closestIn(el, scope, css)` is `el.closest(css)` limited to ancestors inside `scope`. The function
-  travels to the renderer as source text (`inPage`), so it may use only its arguments and page
-  globals, never a constant of its module. Node-side helpers: `existsIn(d, css, {scope})`,
-  `textIn(d, css, {scope})` and `clickIn(d, label, css, {scope, exact, index})`, which clicks like
-  `ui.clickText` and queries again on every try. `scope` is a CSS selector; each matching element is
+  `evaluateIn(d, (root, cv) => cv.pickAll(document.querySelector(root), cv.S.deviceRow).length, root)`.
+  `pickAll(scope, p)` and `pickOne(scope, p)` return nothing for a missing scope, `usesHook(scope, p)`
+  says whether the scope holds the hook, and `pickClosest(el, scope, p)` is `el.closest(p.hook)`
+  limited to ancestors inside `scope`. The function travels to the renderer as source text
+  (`inPage`), so it may use only its arguments and page globals, never a constant of its module.
+  Node-side helpers: `existsIn(d, p, {scope})`, `textIn(d, p, {scope})` and
+  `clickIn(d, label, p, {scope, exact, index})`, which clicks like `ui.clickText` and queries again on
+  every try. `scope` is a CSS selector; each matching element is
   its own scope (one per dialog for `[data-dialog-content]`).
 - Markup puts a hook on the element the harness reads or clicks: the button itself for the review
   button, the side bar toggle and the vault switcher, the text element for the banner text, the plan
@@ -500,7 +502,7 @@ classes, so a later restyle does not break the suites.
   hooked one, earlier in the document or nearer as an ancestor. The readers must ignore them, and on
   markup without the hooks they find nothing.
 - The review panel's version lines (B47): `reviewVersion` finds the line of a `Use this` button with
-  `closestIn(button, panel, cv.S.reviewVersion)`; the line holds the value, the `In use now` badge and
+  `pickClosest(button, panel, cv.S.reviewVersion)`; the line holds the value, the `In use now` badge and
   the button. `useVersionInReview` and the MCP suite's pick both read the panel as
   `[role=dialog][aria-label="Review changes"]`.
 

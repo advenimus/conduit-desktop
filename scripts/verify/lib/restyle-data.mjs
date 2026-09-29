@@ -280,7 +280,7 @@ export function expandFolderInPage({ folder, child, twistie }) {
 export async function expandFolders(device) {
   for (const [folder, child] of [['Production', 'db-01'], ['Staging', 'Build Mac']]) {
     await waitFor(async () => {
-      const res = await withTimeout(device.page.evaluate(expandFolderInPage, { folder, child, twistie: SELECTORS.treeTwistie }), 10_000, `${device.name}: expand ${folder}`);
+      const res = await withTimeout(device.page.evaluate(expandFolderInPage, { folder, child, twistie: SELECTORS.treeTwistie.hook }), 10_000, `${device.name}: expand ${folder}`);
       if (res === 'expanded') return true;
       if (res !== 'clicked') throw new Error(res);
       return false;

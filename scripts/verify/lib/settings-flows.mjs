@@ -8,7 +8,7 @@ import { SELECTORS, clickIn, evaluateIn, existsIn, textIn } from './selectors.mj
 
 /** Settings dialog tab ids (src/components/settings/SettingsNav.tsx). */
 export const SETTINGS_TABS = ['general', 'appearance', 'security', 'sessions/terminal', 'sessions/ssh', 'sessions/rdp', 'sessions/vnc', 'sessions/web', 'ai/agent', 'backup', 'sync', 'mobile', 'team', 'account'];
-const SETTINGS_ROOT = SELECTORS.settingsRoot;
+const SETTINGS_ROOT = SELECTORS.settingsRoot.hook;
 const IDLE_LOCK_SELECT = 'select[aria-label="Lock the vault when idle"]';
 const SYNC_TOOL_BUTTONS = ['Review changes', 'Recently deleted', 'Other copies'];
 const CHANGE_PW_TITLE = 'Change Password';
@@ -67,21 +67,21 @@ function readSyncTabInPage(root, cv) {
   if (!el) return null;
   const read = (node) => node?.innerText?.trim() ?? null;
   const sections = [...el.querySelectorAll('h3')].map((h) => h.innerText.trim());
-  const statusBox = cv.queryOne(el, S.syncStatus);
-  const devices = cv.queryAll(el, S.deviceRow).map((row) => ({
-    name: read(cv.queryOne(row, S.deviceName)) ?? '',
-    line: read(cv.queryOne(row, S.deviceLine)) ?? '',
+  const statusBox = cv.pickOne(el, S.syncStatus);
+  const devices = cv.pickAll(el, S.deviceRow).map((row) => ({
+    name: read(cv.pickOne(row, S.deviceName)) ?? '',
+    line: read(cv.pickOne(row, S.deviceLine)) ?? '',
   }));
-  const notices = cv.queryAll(el, S.syncNotice).map((n) => ({
-    text: read(cv.queryOne(n, S.syncNoticeText)) ?? '',
+  const notices = cv.pickAll(el, S.syncNotice).map((n) => ({
+    text: read(cv.pickOne(n, S.syncNoticeText)) ?? '',
     actions: [...n.querySelectorAll('button')].map((b) => b.innerText.trim()),
   }));
-  const paused = cv.queryAll(el, S.syncPaused).map((p) => p.innerText.trim());
+  const paused = cv.pickAll(el, S.syncPaused).map((p) => p.innerText.trim());
   return {
     sections,
-    status: read(cv.queryOne(statusBox, S.syncStatusLabel)),
-    detail: read(cv.queryOne(statusBox, S.syncStatusDetail)),
-    plan: read(cv.queryOne(el, S.syncPlan)),
+    status: read(cv.pickOne(statusBox, S.syncStatusLabel)),
+    detail: read(cv.pickOne(statusBox, S.syncStatusDetail)),
+    plan: read(cv.pickOne(el, S.syncPlan)),
     devices,
     notices,
     paused,

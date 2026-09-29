@@ -27,9 +27,9 @@ function readDeletedInPage(root, cv) {
   const panel = document.querySelector(root);
   if (!panel) return null;
   if (panel.innerText.includes('Loading...')) return null;
-  return cv.queryAll(panel, S.deletedRow).map((row) => ({
-    title: cv.queryOne(row, S.deletedTitle)?.innerText?.trim() ?? '',
-    detail: cv.queryOne(row, S.deletedDetail)?.innerText?.trim() ?? '',
+  return cv.pickAll(panel, S.deletedRow).map((row) => ({
+    title: cv.pickOne(row, S.deletedTitle)?.innerText?.trim() ?? '',
+    detail: cv.pickOne(row, S.deletedDetail)?.innerText?.trim() ?? '',
     checked: row.querySelector('input')?.checked ?? false,
     erased: row.querySelector('input')?.disabled ?? false,
   }));
@@ -98,10 +98,10 @@ function readCopiesInPage(root, cv) {
   const { S } = cv;
   const panel = document.querySelector(root);
   if (!panel || panel.innerText.includes('Looking for copies...')) return null;
-  return cv.queryAll(panel, S.copyRow).map((row) => ({ row, title: cv.queryOne(row, S.copyTitle) })).filter(({ title }) => title).map(({ row, title }) => ({
+  return cv.pickAll(panel, S.copyRow).map((row) => ({ row, title: cv.pickOne(row, S.copyTitle) })).filter(({ title }) => title).map(({ row, title }) => ({
     name: title.innerText?.trim() ?? '',
     path: title.getAttribute('title') ?? '',
-    text: cv.queryOne(row, S.copyDetail)?.innerText?.trim() ?? '',
+    text: cv.pickOne(row, S.copyDetail)?.innerText?.trim() ?? '',
     actions: [...row.querySelectorAll('button')].map((b) => b.innerText.trim()),
   }));
 }
@@ -135,8 +135,8 @@ export async function copyRowAction(device, name, label, { targetPath } = {}) {
   }
   const res = await evaluateIn(device, ({ root, name, label }, cv) => {
     const panel = document.querySelector(root);
-    const title = cv.queryAll(panel, cv.S.copyTitle).find((p) => p.innerText.trim() === name);
-    const row = title ? cv.closestIn(title, panel, cv.S.copyRow) : null;
+    const title = cv.pickAll(panel, cv.S.copyTitle).find((p) => p.innerText.trim() === name);
+    const row = title ? cv.pickClosest(title, panel, cv.S.copyRow) : null;
     const button = [...(row?.querySelectorAll('button') ?? [])].find((b) => b.innerText.trim() === label);
     if (!button) return row ? 'no button' : 'no row';
     if (button.disabled) return 'disabled';
@@ -193,7 +193,7 @@ export async function massChangeDetails(device, { timeoutMs = 30_000 } = {}) {
     return found && !found.text.includes('Loading...') ? found : null;
   }, { timeoutMs, label: `${device.name}: mass-change dialog` });
   const rows = await evaluateIn(device, (root, cv) => [...(document.querySelector(root)?.querySelectorAll('label') ?? [])].map((l) => ({
-    title: cv.queryOne(l, cv.S.massChangeTitle)?.innerText?.trim() ?? '',
+    title: cv.pickOne(l, cv.S.massChangeTitle)?.innerText?.trim() ?? '',
     checked: l.querySelector('input')?.checked ?? false,
     disabled: l.querySelector('input')?.disabled ?? false,
   })), dialogSelector(d.title), { label: 'read mass change' });

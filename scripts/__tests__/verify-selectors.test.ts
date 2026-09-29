@@ -8,10 +8,12 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 // markup to nothing. [data-expect~=<key>] marks what a selector must resolve to, [data-from~=<key>]
 // where a closest() lookup starts, [data-root] the scope.
 
+type Hook = { hook: string };
 type Helpers = {
-  queryAll(scope: ParentNode | null, css: string): Element[];
-  queryOne(scope: ParentNode | null, css: string): Element | null;
-  closestIn(el: Element, scope: ParentNode | null, css: string): Element | null;
+  usesHook(scope: ParentNode | null, p: Hook): boolean;
+  pickAll(scope: ParentNode | null, p: Hook): Element[];
+  pickOne(scope: ParentNode | null, p: Hook): Element | null;
+  pickClosest(el: Element, scope: ParentNode | null, p: Hook): Element | null;
 };
 type Device = { name: string; page: { evaluate(fn: unknown, arg?: unknown): Promise<unknown> } };
 type Variant = 'old' | 'clean' | 'decoys';
@@ -19,12 +21,12 @@ interface Screen { old: string; next: string }
 
 // The harness is plain .mjs without type declarations.
 const sel = (await import('../verify/lib/selectors.mjs' as string)) as {
-  SELECTORS: Record<string, string>;
+  SELECTORS: Record<string, Hook>;
   SYNC_DIALOG: string;
   helpers: Helpers;
   inPage(fn: unknown, arg?: unknown): string;
-  existsIn(d: Device, css: string, opts?: { scope?: string }): Promise<boolean>;
-  clickIn(d: Device, label: string | null, css: string, opts?: { scope?: string; exact?: boolean; timeoutMs?: number }): Promise<string>;
+  existsIn(d: Device, p: Hook, opts?: { scope?: string }): Promise<boolean>;
+  clickIn(d: Device, label: string | null, p: Hook, opts?: { scope?: string; exact?: boolean; timeoutMs?: number }): Promise<string>;
 };
 const settings = (await import('../verify/lib/settings-flows.mjs' as string)) as {
   settingsOpen(d: Device): Promise<boolean>;
@@ -385,11 +387,11 @@ const CASES: Record<string, HookCase[]> = {
 };
 
 function resolveCase(key: string, c: HookCase): (Element | null)[] {
-  const css = S[key];
+  const p = S[key];
   const scopes = c.scopes();
-  if (c.mode === 'closest') return all(`[data-from~="${key}"]`).map((f) => h.closestIn(f, scopes[0], css));
-  if (c.mode === 'first') return scopes.map((s) => h.queryOne(s, css));
-  return scopes.flatMap((s) => h.queryAll(s, css));
+  if (c.mode === 'closest') return all(`[data-from~="${key}"]`).map((f) => h.pickClosest(f, scopes[0], p));
+  if (c.mode === 'first') return scopes.map((s) => h.pickOne(s, p));
+  return scopes.flatMap((s) => h.pickAll(s, p));
 }
 
 function wanted(key: string, c: HookCase): (Element | null)[] {
@@ -404,9 +406,10 @@ const KEPT_ATTRIBUTES = new Set(['sidebarOpen']);
 describe('hooks (Appendix B, "Final")', () => {
   it('has fixtures for every hook and reads only hooks', () => {
     expect(Object.keys(CASES).sort()).toEqual(Object.keys(S).sort());
-    for (const css of Object.values(S)) {
-      expect(css).toMatch(/data-(cv|sidebar)-/);
-      expect(css).not.toMatch(/(^|[\s>])[a-z]*\.[a-z]/);
+    for (const p of Object.values(S)) {
+      expect(Object.keys(p)).toEqual(['hook']);
+      expect(p.hook).toMatch(/data-(cv|sidebar)-/);
+      expect(p.hook).not.toMatch(/(^|[\s>])[a-z]*\.[a-z]/);
     }
   });
 
@@ -432,22 +435,27 @@ describe('hooks (Appendix B, "Final")', () => {
 });
 
 describe('page helpers', () => {
+  const row = { hook: '[data-cv-row]' };
+
   it('keeps closest() inside the scope', () => {
     document.body.innerHTML = '<div data-cv-row><section id="s"><button>b</button></section></div>';
-    expect(h.closestIn(one('button'), one('#s'), '[data-cv-row]')).toBeNull();
-    expect(h.closestIn(one('button'), document.body, '[data-cv-row]')).toBe(one('[data-cv-row]'));
+    expect(h.pickClosest(one('button'), one('#s'), row)).toBeNull();
+    expect(h.pickClosest(one('button'), document.body, row)).toBe(one('[data-cv-row]'));
   });
 
-  it('finds nothing in a missing scope', () => {
-    expect(h.queryAll(null, '[data-cv-row]')).toEqual([]);
-    expect(h.queryOne(null, '[data-cv-row]')).toBeNull();
+  it('finds nothing in a missing scope, and tells a scope with the hook from one without', () => {
+    document.body.innerHTML = '<div id="a"><p class="row">old</p></div><div id="b"><p data-cv-row>new</p></div>';
+    expect(h.pickAll(null, row)).toEqual([]);
+    expect(h.pickOne(null, row)).toBeNull();
+    expect([h.usesHook(one('#a'), row), h.usesHook(one('#b'), row), h.usesHook(null, row)]).toEqual([false, true, false]);
+    expect(h.pickAll(one('#a'), row)).toEqual([]);
   });
 
   it('ships as self-contained page code', () => {
     document.body.innerHTML = '<div id="a"><p class="x">1</p><p data-cv-y>2</p></div>';
-    const fn = (arg: { id: string }, cv: Helpers) => cv.queryOne(document.getElementById(arg.id), '[data-cv-y]')?.textContent;
+    const fn = (arg: { id: string }, cv: Helpers) => cv.pickOne(document.getElementById(arg.id), { hook: '[data-cv-y]' })?.textContent;
     expect((0, eval)(sel.inPage(fn, { id: 'a' }))).toBe('2');
-    expect((0, eval)(sel.inPage((_: null, cv: { S: Record<string, string> }) => Object.keys(cv.S).length))).toBe(Object.keys(S).length);
+    expect((0, eval)(sel.inPage((_: null, cv: { S: Record<string, Hook> }) => Object.keys(cv.S).length))).toBe(Object.keys(S).length);
   });
 });
 
@@ -539,7 +547,7 @@ describe('harness readers on restyled markup, with and without decoys', () => {
 
       it('tree folder twistie', () => {
         render(TREE, variant);
-        expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01', twistie: S.treeTwistie })).toBe('clicked');
+        expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01', twistie: S.treeTwistie.hook })).toBe('clicked');
         expect(clicks).toEqual(['twistie']);
       });
 
@@ -582,7 +590,7 @@ describe('harness readers on markup from before the restyle', () => {
     render(COPIES, 'old');
     expect(await panels.otherCopies(device)).toEqual([]);
     render(TREE, 'old');
-    expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01', twistie: S.treeTwistie })).toBe('no toggle for Production');
+    expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01', twistie: S.treeTwistie.hook })).toBe('no toggle for Production');
     expect(clicks).toEqual([]);
   });
 });

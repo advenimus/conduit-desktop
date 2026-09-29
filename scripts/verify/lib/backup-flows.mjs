@@ -8,14 +8,14 @@ import { retryUntil, stubDialogs } from './ui-forms.mjs';
 import { openSettings, settingsOpen } from './settings-flows.mjs';
 import { SELECTORS, clickIn, evaluateIn } from './selectors.mjs';
 
-const SETTINGS_ROOT = SELECTORS.settingsRoot;
-const MANAGER_ROOT = SELECTORS.backupManager;
+const SETTINGS_ROOT = SELECTORS.settingsRoot.hook;
+const MANAGER_ROOT = SELECTORS.backupManager.hook;
 
 /** B22 and B39: the toggle of the row whose title label reads `label`. */
 export function clickToggleInPage({ root, label }, cv) {
   const scope = document.querySelector(root);
   const el = [...(scope?.querySelectorAll('label') ?? [])].find((l) => l.innerText.trim() === label);
-  const button = el ? cv.queryOne(cv.closestIn(el, scope, cv.S.toggleRow), cv.S.toggle) : null;
+  const button = el ? cv.pickOne(cv.pickClosest(el, scope, cv.S.toggleRow), cv.S.toggle) : null;
   if (!button) return el ? 'no toggle' : 'no label';
   if (button.disabled) return 'disabled';
   button.click();
@@ -74,9 +74,9 @@ export async function localBackupNow(device, { timeoutMs = 60_000 } = {}) {
 
 function readBackupRowsInPage(root, cv) {
   const { S } = cv;
-  const list = cv.queryOne(document.querySelector(root), S.backupFiles);
-  const read = (row, css) => cv.queryOne(row, css)?.innerText?.trim() ?? '';
-  return cv.queryAll(list, S.backupRow).map((r) => ({ name: read(r, S.backupName), meta: read(r, S.backupMeta) }));
+  const list = cv.pickOne(document.querySelector(root), S.backupFiles);
+  const read = (row, p) => cv.pickOne(row, p)?.innerText?.trim() ?? '';
+  return cv.pickAll(list, S.backupRow).map((r) => ({ name: read(r, S.backupName), meta: read(r, S.backupMeta) }));
 }
 
 /** The "Backup Files (N)" list as the Backup tab shows it: [{name, meta}]. */
@@ -116,11 +116,11 @@ function readCloudSectionInPage(root, cv) {
   const { S } = cv;
   const scope = document.querySelector(root);
   const label = [...(scope?.querySelectorAll('label') ?? [])].find((l) => l.innerText.trim() === 'Cloud Backup');
-  const section = label ? cv.closestIn(label, scope, S.cloudBackupSection) : null;
+  const section = label ? cv.pickClosest(label, scope, S.cloudBackupSection) : null;
   if (!section) return null;
-  const toggle = cv.queryOne(cv.closestIn(label, scope, S.toggleRow), S.toggle);
+  const toggle = cv.pickOne(cv.pickClosest(label, scope, S.toggleRow), S.toggle);
   return {
-    badge: cv.queryOne(section, S.cloudBackupBadge)?.innerText?.trim() ?? null,
+    badge: cv.pickOne(section, S.cloudBackupBadge)?.innerText?.trim() ?? null,
     toggleDisabled: toggle?.disabled ?? null,
     text: section.innerText,
   };

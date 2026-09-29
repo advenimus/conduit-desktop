@@ -227,9 +227,9 @@ export function pickVersionNotInUseInPage(_, cv) {
   const panel = document.querySelector('[role=dialog][aria-label="Review changes"]');
   if (!panel) return null;
   const buttons = [...panel.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'Use this');
-  const row = buttons.map((b) => ({ b, row: cv.closestIn(b, panel, cv.S.reviewVersion) })).find(({ row }) => row && !row.innerText.includes('In use now'));
+  const row = buttons.map((b) => ({ b, row: cv.pickClosest(b, panel, cv.S.reviewVersion) })).find(({ row }) => row && !row.innerText.includes('In use now'));
   if (!row) return null;
-  const value = cv.queryOne(row.row, cv.S.reviewValue)?.innerText.trim() ?? null;
+  const value = cv.pickOne(row.row, cv.S.reviewValue)?.innerText.trim() ?? null;
   row.b.click();
   return value;
 }

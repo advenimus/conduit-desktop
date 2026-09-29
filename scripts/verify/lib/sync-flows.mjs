@@ -137,10 +137,10 @@ function clickVersionInPage({ field, value }, cv) {
   if (!panel) return 'no panel';
   const buttons = [...panel.querySelectorAll('button')].filter((b) => (b.innerText ?? '').trim() === 'Use this');
   for (const button of buttons) {
-    const row = cv.closestIn(button, panel, cv.S.reviewField);
-    const line = cv.closestIn(button, panel, cv.S.reviewVersion);
+    const row = cv.pickClosest(button, panel, cv.S.reviewField);
+    const line = cv.pickClosest(button, panel, cv.S.reviewVersion);
     if (!row || !line) continue;
-    const label = cv.queryOne(row, cv.S.reviewFieldLabel)?.innerText?.trim();
+    const label = cv.pickOne(row, cv.S.reviewFieldLabel)?.innerText?.trim();
     if (label !== field || !(line.innerText ?? '').includes(value)) continue;
     if (button.disabled) return 'disabled';
     button.scrollIntoView({ block: 'center' });
