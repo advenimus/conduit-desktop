@@ -1552,7 +1552,7 @@ Rules each package can meet before `--strict`:
 
 | Scenario (`--only`) | Reference shots | Inventory screens |
 |---|---|---|
-| `screens` | 00, 01, 02, 03, 41, 42 | `auth-screen`, `vault-hub-empty`, `vault-hub-with-recent`, `vault-hub-with-recent-2`, `unlock-dialog`, `main-empty-vault-welcome`, `sidebar-empty-vault-just-created` |
+| `screens` (theme `system`) | 00, 01, 02, 03, 41, 42 | `auth-screen`, `vault-hub-empty`, `vault-hub-with-recent`, `vault-hub-with-recent-2`, `unlock-dialog`, `main-empty-vault-welcome`, `sidebar-empty-vault-just-created` |
 | `sidebar` | 04, 06, 07, 08, 09, 21, 38, 39 | `main-sidebar-local-mode`, `vault-switcher-menu-open`, `sidebar-search-active`, `sidebar-favorites-only` |
 | `sidebar-signed-in` (`needsSupabase: true`) | 44 to 49 | `sidebar-signed-in`, `sidebar-sign-out-confirm`, `sidebar-cached-offline`, `sidebar-team-vault`, `sidebar-trial-card`, `sidebar-trial-strip`: a Free user who can start a trial and the same user in a Pro trial (`createTestUser`, `setTier` in `lib/supabase.mjs` [V exports]), a team with one team vault (`createTeam`, `createTeamVault`, `openTeamVaultInUi` in `lib/team.mjs` and `lib/team-flows.mjs` [V exports]), and cached mode by cutting the network the way the resilience suite does (`lib/net-proxy.mjs`) [A: that this reaches cached auth; if not, R1-HARNESS finds the way the app enters it] |
 | `tabs` | 05, 06, 07, 10, 10b, 40, 43 | `main-tabbars-split-ai-open`, `web-session-toolbar`, `home-dashboard-full-window`, `document-view-runbook`; plus the twelve-tab check of G10 |
@@ -1561,7 +1561,9 @@ Rules each package can meet before `--strict`:
 | `settings` | 20-01 to 20-14 | the 14 `settings-*` screens |
 | `dialogs` | 22 to 35 | `new-entry-dialog`, `new-entry-ssh-form`, the six `edit-entry-rdp-*`, `new-folder-dialog`, `quick-connect-dialog`, `confirm-delete-dialog`, the three `sync-panel-*` |
 | `toasts` | 36, 37 | none (screenshots; the four toasts come from View > Trigger Test Toast, or from the toast API) |
-| `packs` | none (sheets for owner gate 1) | none; for each of the six packs in dark and light it picks the pack in Settings > Appearance (live preview, then Save), captures the Appearance tab with its six cards, the side bar, both tab bars, the tree entry context menu window, a test toast and the credential picker window (opened the way its global shortcut opens it [A]), and asserts that `<html data-cv-icon-pack>` equals the pack id in the main, overlay and picker windows and that the menu's Edit icon markup differs from pack to pack; it also compares the picker window's icon markup across the six packs: six different markups pass, one markup for every pack (the picker's own inline SVGs, before R3-PICKER) reports `deferred`, which is listed but never fails, not even with `--strict`, and anything else fails; it writes one six-column sheet per mode under `.verify/<runId>/restyle/packs/`, then restarts the device and checks that the saved pack still applies |
+| `packs` | none (sheets for owner gate 1) | none; for each of the six packs in dark and light it picks the pack in Settings > Appearance (live preview, then Save), captures the Appearance tab with its six cards, the side bar, both tab bars, the tree entry context menu window, a test toast and the credential picker window (opened the way its global shortcut opens it [A]), and asserts that `<html data-cv-icon-pack>` equals the pack id in the main, overlay and picker windows and that the menu's Edit icon markup differs from pack to pack; it also compares the picker window's icon markup across the six packs: six different markups pass, one markup for every pack (the picker's own inline SVGs, before R3-PICKER) reports `deferred`, which is listed but never fails, not even with `--strict`, and anything else fails; it writes one six-column sheet per mode under `.verify/<runId>/restyle/packs/`, then restarts the device and checks that the saved pack still applies. **(wave 4)** Since R3-PICKER moved the picker onto the icon registry, its six markups differ and the check passes, so the `deferred` allowance is unused; the comparator keeps it |
+
+**(wave 4)** Every restyle device runs with its emulated system mode (`launchDevice(name, {colorScheme})`) set to the scenario's mode. The `screens` scenario also leaves the theme at `system`, a new install's default, so its dark and light shots come from the system mode and prove that the look follows it; the other scenarios set the theme to the mode.
 
 Output also includes `inventory.json` and `inventory-diff.txt` per scenario. Pixels are not diffed: styling changes sizes by design; the inventory and geometry rules decide pass or fail, and the owner reviews the composites at the gates.
 
@@ -2202,7 +2204,7 @@ Wave 4 starts when R3-FOUNDATION has closed wave 3. R4-HARNESS and R4-DOCS run i
 
 #### R4-DOCS: FEATURES.md, What's New and spec status
 
-**Owns:** `docs/FEATURES.md`, `release-notes/manifest.json`, `docs/VISUAL_REDESIGN.md`
+**Owns:** `docs/FEATURES.md`, `release-notes/manifest.json`, `docs/VISUAL_REDESIGN.md`, `.claude/commands/notification.md`
 
 **Deliverables:**
 

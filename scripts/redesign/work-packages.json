@@ -786,7 +786,8 @@
       "owns": [
         "docs/FEATURES.md",
         "release-notes/manifest.json",
-        "docs/VISUAL_REDESIGN.md"
+        "docs/VISUAL_REDESIGN.md",
+        ".claude/commands/notification.md"
       ],
       "deliverables": [
         "`docs/FEATURES.md`: the Appearance section (Modern default with the sky accent, the six icon packs with Lucide as default and Hugeicons new, custom entry icons following the pack where a twin exists (5.11), platform themes retired), and the look lines of the Sidebar, Tab Bar, Dialogs, Context Menus and Notifications sections; no layout feature is described as changed",
