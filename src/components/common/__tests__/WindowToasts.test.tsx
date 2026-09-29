@@ -5,11 +5,12 @@ import { toast } from "../Toast";
 
 type Listener = (data: unknown) => void;
 let listeners: Map<string, Listener>;
-let send: ReturnType<typeof vi.fn>;
+type Send = (channel: string, ...args: unknown[]) => void;
+let send: ReturnType<typeof vi.fn<Send>>;
 
 beforeEach(() => {
   listeners = new Map();
-  send = vi.fn();
+  send = vi.fn<Send>();
   window.electron = {
     platform: "darwin",
     invoke: vi.fn(async () => null),
@@ -28,6 +29,7 @@ afterEach(() => {
 });
 
 const pushes = () => send.mock.calls.filter(([channel]) => channel === "overlay:push-state").map(([, state]) => state);
+const lastPush = () => pushes()[pushes().length - 1];
 
 describe("WindowToasts", () => {
   it("sends the window's toasts to its overlay, with no update card", () => {
@@ -35,7 +37,7 @@ describe("WindowToasts", () => {
     act(() => {
       toast.success("Password copied");
     });
-    expect(pushes().at(-1)).toEqual({
+    expect(lastPush()).toEqual({
       toasts: [expect.objectContaining({ type: "success", title: "Password copied" })],
       update: null,
     });
@@ -48,13 +50,13 @@ describe("WindowToasts", () => {
     act(() => {
       toast.error("Copy failed", { actions: [{ label: "Retry", onClick }] });
     });
-    const [shown] = (pushes().at(-1) as { toasts: Array<{ id: string; actions: Array<{ id: string }> }> }).toasts;
+    const [shown] = (lastPush() as { toasts: Array<{ id: string; actions: Array<{ id: string }> }> }).toasts;
     act(() => listeners.get("overlay:action-clicked")?.({ actionId: shown.actions[0].id }));
     expect(onClick).toHaveBeenCalledTimes(1);
     act(() => {
       vi.advanceTimersByTime(250);
     });
-    expect(pushes().at(-1)).toEqual({ toasts: [], update: null });
+    expect(lastPush()).toEqual({ toasts: [], update: null });
   });
 
   it("stops sending once unmounted", () => {
