@@ -96,6 +96,8 @@ export class PersonalVaultRuntime {
   private conflictHolders: readonly Holder[] = [];
   private readonly claims: ClaimsWatch;
   private beatTimer: TimerHandle | null = null;
+  /** The ownership last reported to the renderer (JSON), so only changes are sent. */
+  private reportedOwnership = 'null';
   private signOutRelease: Promise<void> | null = null;
 
   constructor(private readonly deps: RuntimeDeps) {
@@ -157,6 +159,7 @@ export class PersonalVaultRuntime {
     if (acquire?.kind === 'granted') {
       recordLastLimit(replica, host, acquire.limit);
       recordOwnerCheck(replica, host, acquire.ownership, this.hint());
+      this.reportedOwnership = JSON.stringify(acquire.ownership);
     }
     this.serverFlagSeen = this.serverSideFilesFlag(host.clock.now());
     const signedIn = host.account.userId() !== null;
@@ -244,6 +247,7 @@ export class PersonalVaultRuntime {
     lease.ownershipReleased();
     clearOwnerCheck(replica, host);
     await writeReleasedTag(host, replica, this.engine);
+    this.reportOwnership(lease.ownership());
     return result;
   }
 
@@ -328,7 +332,17 @@ export class PersonalVaultRuntime {
   private async onOwnership(ownership: Ownership | null): Promise<void> {
     if (!this.deps.shared || this.inactive()) return;
     recordOwnerCheck(this.deps.replica, this.deps.host, ownership, this.hint());
+    this.reportOwnership(ownership);
     await writeOwnerTag(this.deps.host, this.deps.replica, this.engine, ownership);
+  }
+
+  private reportOwnership(ownership: Ownership | null): void {
+    const json = JSON.stringify(ownership);
+    if (ownership === null || json === this.reportedOwnership) return;
+    this.reportedOwnership = json;
+    guarded(this.deps.host.logger, 'ownership event', () =>
+      this.deps.host.sessionEvents.emit('vault:session-ownership', { lineageId: this.deps.lineageId }),
+    );
   }
 
   /** This device's owner hint for the signed-in account; null signed out. */

@@ -154,6 +154,11 @@ async function graceEnds(ctx) {
 // ---------- L3 ----------
 
 async function releaseFromSettings(ctx, device) {
+  // The backdated owner_since reaches the app with its next heartbeat (release_after).
+  await ctx.waitFor(async () => {
+    const o = (await ctx.ui.readSyncState(device))?.ownership ?? null;
+    return o?.kind === 'owner' && o.releaseAfterMs !== null && o.releaseAfterMs <= Date.now();
+  }, { timeoutMs: HEARTBEAT_MS, intervalMs: 1_000, label: `${device.name}: release allowed` });
   await openSettings(device, 'sync');
   const tab = await readSyncTab(device, { reopen: false });
   ctx.check(tab.text.includes('Owner: this account.'), `owner line: ${tab.text.slice(0, 400)}`);

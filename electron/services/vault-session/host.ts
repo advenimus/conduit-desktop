@@ -196,7 +196,13 @@ export interface SessionConflictEvent {
   readonly deviceCap: number | null;
 }
 
+/** `vault:session-ownership`: the confirmed ownership changed (banners and Sync settings refresh). */
+export interface SessionOwnershipEvent {
+  readonly lineageId: string;
+}
+
 export interface SessionEventMap {
+  'vault:session-ownership': SessionOwnershipEvent;
   'vault:session-displacing': SessionDisplacingEvent;
   'vault:session-displaced': SessionDisplacedEvent;
   'vault:session-conflict': SessionConflictEvent;

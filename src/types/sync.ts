@@ -189,6 +189,11 @@ export interface TakeoverHolder {
   readonly vaults?: number | null;
 }
 
+/** Payload of `vault:session-ownership`: the confirmed owner answer changed; read sync_get_state again. */
+export interface OwnershipChangedEvent {
+  readonly lineageId: string;
+}
+
 /** Payload of `vault:session-displacing`: vault access is blocked while the last changes save. */
 export interface DisplacingEvent {
   readonly lineageId: string;

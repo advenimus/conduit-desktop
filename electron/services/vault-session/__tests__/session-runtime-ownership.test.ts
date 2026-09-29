@@ -90,6 +90,24 @@ describe('ownerCheck (3.3)', () => {
   });
 });
 
+describe('ownership events', () => {
+  it('a changed ownership reaches the renderer once; an unchanged one is not sent again', async () => {
+    const r = rig();
+    r.runtime.start(granted(OWNER));
+    r.t.rpc.handle('vault_session_heartbeat', () =>
+      rpcOk({ status: 'ok', limit: -1, sessions: [], server_now: TS, ownership: 'owner', release_after: null, shared_until: TS }),
+    );
+    await r.t.clock.advance(HEARTBEAT_MS);
+    await flushAsync();
+    await r.t.clock.advance(HEARTBEAT_MS);
+    await flushAsync();
+    expect(r.t.sessionEvents.events.filter((e) => e.channel === 'vault:session-ownership')).toEqual([
+      { channel: 'vault:session-ownership', payload: { lineageId: LINEAGE } },
+    ]);
+    await r.runtime.lock();
+  });
+});
+
 describe('owner tag while running (3.2)', () => {
   it('a heartbeat ok as owner writes the tag once, grace never', async () => {
     const r = rig();
