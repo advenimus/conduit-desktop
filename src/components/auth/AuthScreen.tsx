@@ -87,15 +87,15 @@ export default function AuthScreen() {
           <p className="text-label text-ink-faint mb-2">Free accounts include</p>
           <div className="flex justify-center gap-6 text-label text-ink-muted">
             <span className="flex items-center gap-1.5">
-              <ServerIcon size={13} className="text-link" />
+              <ServerIcon size={16} className="text-link" />
               SSH · RDP · VNC · Web
             </span>
             <span className="flex items-center gap-1.5">
-              <ShieldLockIcon size={13} className="text-link" />
+              <ShieldLockIcon size={16} className="text-link" />
               Encrypted Vault
             </span>
             <span className="flex items-center gap-1.5">
-              <BoltIcon size={13} className="text-link" />
+              <BoltIcon size={16} className="text-link" />
               Unlimited MCP Tools
             </span>
           </div>

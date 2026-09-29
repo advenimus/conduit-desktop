@@ -87,9 +87,9 @@ export default function TeamSettingsTab() {
             <div key={member.id} className="flex items-center gap-3 px-3 py-2">
               <div className="flex size-7 items-center justify-center rounded-full bg-selected">
                 {member.role === 'admin' ? (
-                  <CrownIcon size={14} className="text-warning" />
+                  <CrownIcon size={16} className="text-warning" />
                 ) : (
-                  <UserIcon size={14} className="text-ink-muted" />
+                  <UserIcon size={16} className="text-ink-muted" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -134,7 +134,7 @@ export default function TeamSettingsTab() {
               return (
                 <div key={vault.id} className="flex items-center gap-3 px-3 py-2">
                   <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-selected">
-                    <LockIcon size={14} className="text-(--c-accent)" />
+                    <LockIcon size={16} className="text-(--c-accent)" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-label font-semibold text-ink">

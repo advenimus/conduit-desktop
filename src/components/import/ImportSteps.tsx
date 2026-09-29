@@ -97,30 +97,30 @@ export function PreviewStep({
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3">
         <span className="flex items-center gap-1 text-success">
-          <CheckIcon size={14} />
+          <CheckIcon size={16} />
           {readyCount} ready
         </span>
         {decryptFailedCount > 0 && (
           <span className="flex items-center gap-1 text-warning">
-            <AlertTriangleIcon size={14} />
+            <AlertTriangleIcon size={16} />
             {decryptFailedCount} credential{decryptFailedCount !== 1 ? "s" : ""} could not be decrypted
           </span>
         )}
         {duplicateCount > 0 && (
           <span className="flex items-center gap-1 text-warning">
-            <CopyIcon size={14} />
+            <CopyIcon size={16} />
             {duplicateCount} duplicate{duplicateCount !== 1 ? "s" : ""}
           </span>
         )}
         {unsupportedCount > 0 && (
           <span className="flex items-center gap-1 text-ink-muted">
-            <BanIcon size={14} />
+            <BanIcon size={16} />
             {unsupportedCount} unsupported
           </span>
         )}
         {tierLimitCount > 0 && (
           <span className="flex items-center gap-1 text-danger">
-            <BanIcon size={14} />
+            <BanIcon size={16} />
             {tierLimitCount} tier limit
           </span>
         )}
@@ -150,7 +150,7 @@ export function PreviewStep({
         {Array.from(groupedEntries.entries()).map(([folder, entries]) => (
           <div key={folder}>
             <div className="mb-1 flex items-center gap-1.5 font-medium text-ink-muted">
-              <FolderIcon size={14} />
+              <FolderIcon size={16} />
               {folder || "Root"}
             </div>
             <div className="ml-4 space-y-0.5">
@@ -170,7 +170,7 @@ function PreviewEntryRow({ entry }: { entry: ImportPreviewEntry }) {
 
   return (
     <div className="flex h-row items-center gap-2 rounded px-2 hover:bg-hover">
-      <TypeIcon size={14} className="shrink-0 text-ink-muted" />
+      <TypeIcon size={16} className="shrink-0 text-ink-muted" />
       <span className="flex-1 truncate">{entry.name}</span>
       {entry.host && <span className="max-w-[140px] truncate text-label text-ink-muted">{entry.host}</span>}
       <StatusBadge status={entry.status} />
@@ -248,13 +248,13 @@ export function ResultsStep({ result }: { result: ImportResult }) {
 function ResultIcon({ status }: { status: ImportEntryResult["status"] }) {
   switch (status) {
     case "imported":
-      return <CheckIcon size={14} className="shrink-0 text-success" />;
+      return <CheckIcon size={16} className="shrink-0 text-success" />;
     case "overwritten":
-      return <CopyIcon size={14} className="shrink-0 text-info" />;
+      return <CopyIcon size={16} className="shrink-0 text-info" />;
     case "skipped":
-      return <BanIcon size={14} className="shrink-0 text-warning" />;
+      return <BanIcon size={16} className="shrink-0 text-warning" />;
     case "error":
-      return <AlertTriangleIcon size={14} className="shrink-0 text-danger" />;
+      return <AlertTriangleIcon size={16} className="shrink-0 text-danger" />;
   }
 }
 

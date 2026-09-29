@@ -102,7 +102,7 @@ export default function WhatsNewDialog({ onClose, initialVersion }: WhatsNewDial
         <div className="flex h-[480px] items-center justify-center">
           <div className="flex flex-col items-center gap-4 px-8 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-well">
-              <WifiOffIcon size={28} className="text-ink-faint" />
+              <WifiOffIcon size={24} className="text-ink-faint" />
             </div>
             <div>
               <h3 className="text-title text-ink">Release notes unavailable</h3>

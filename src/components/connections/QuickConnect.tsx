@@ -147,7 +147,7 @@ export default function QuickConnect({ onClose }: QuickConnectProps) {
 
   const credentialLabel = (
     <span className="flex items-center gap-1.5">
-      <KeyIcon size={14} />
+      <KeyIcon size={16} />
       Stored Credential
     </span>
   );
