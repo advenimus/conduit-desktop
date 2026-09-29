@@ -40,6 +40,16 @@ extraResources:
   - from: mcp/package.json
     to: mcp/package.json
 afterPack: scripts/afterPack.cjs
+# Other programs must not run Conduit's signed binary with a debugger, a preload or a loose app
+# folder: that would read the secret store (saved unlocks, Quick Unlock) with no prompt
+# (docs/AUTO_UNLOCK.md 6.0). runAsNode stays on because the packaged Claude Code engine spawns
+# process.execPath with ELECTRON_RUN_AS_NODE.
+electronFuses:
+  runAsNode: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
 mac:
   category: public.app-category.developer-tools
   icon: build/icons/icon.icns
