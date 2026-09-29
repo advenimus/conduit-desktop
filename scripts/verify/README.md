@@ -125,7 +125,8 @@ Nothing touches the user's dev profile (`~/Library/Application Support/conduit/c
 
 `run-sql-tests.mjs` runs the plan enforcement tests of `docs/PLAN_ENFORCEMENT.md` 7.1 without the app
 (about 20 seconds): `ensureLocalSupabase()`, then every `supabase/pending/<version>_*.sql` (migrations that
-wait for a client release), then `supabase/tests/plan_enforcement.sql` (one `begin ... rollback` per case,
+wait for a client release), then `supabase/tests/plan_enforcement_team.sql` and `plan_enforcement.sql` (sharing
+`_plan_enforcement_helpers.sql`; one `begin ... rollback` per case,
 `ok <id>` per passed case, stops at the first failed assert), `supabase/tests/plan_enforcement_rollback.sql`
 (the rollback files applied and checked inside a rolled-back transaction), the two-connection races
 T4 and O9 (`lib/sql-test-races.mjs`) and the PostgREST cases H1 and H2 with a real user's JWT. Logs go

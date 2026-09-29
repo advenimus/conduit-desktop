@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Plan enforcement database tests (docs/PLAN_ENFORCEMENT.md 7.1) against the local Supabase stack:
-// the repo migrations, then supabase/pending/*.sql, then supabase/tests/plan_enforcement.sql (psql),
-// the rollback check, the two-connection races (T4, O9) and the PostgREST cases (H1, H2).
+// the repo migrations, then supabase/pending/*.sql, then the psql files in supabase/tests (team cases,
+// then ownership, device cap, version and cloud cases, then the rollback check), the two-connection
+// races (T4, O9) and the PostgREST cases (H1, H2).
 // Usage: npm run test:sql
 
 import fs from 'node:fs';
@@ -14,7 +15,7 @@ import { runRaceCases } from './lib/sql-test-races.mjs';
 
 const PENDING_DIR = path.join(REPO, 'supabase', 'pending');
 const TESTS_DIR = path.join(REPO, 'supabase', 'tests');
-const SQL_FILES = ['plan_enforcement.sql', 'plan_enforcement_rollback.sql'];
+const SQL_FILES = ['plan_enforcement_team.sql', 'plan_enforcement.sql', 'plan_enforcement_rollback.sql'];
 const VERSIONED = /^\d{14}_.+\.sql$/;
 const OK_NOTICE = /NOTICE:\s+ok (\S+)/g;
 const SCHEMA_RELOAD_TRIES = 10;
