@@ -276,6 +276,19 @@ Full design: `docs/MULTI_DEVICE_SYNC.md`. Code: `electron/services/sync/` (merge
 - **Dev testing**: `CONDUIT_DEV_VAULT_DEVICE_LIMIT` (for example `-1`) forces the device limit in unpackaged builds when no confirmed server answer applies, so two signed-out dev builds can test concurrent sync without Supabase. Packaged builds ignore it
 - **Dev testing offline**: `CONDUIT_DEV_SUPABASE_URL` (an http(s) loopback URL such as a local proxy) replaces the preview Supabase URL in unpackaged builds, so one test instance can lose Supabase while others keep it (`scripts/verify` uses it). Packaged builds and the production environment ignore it
 
+### Vault Ownership and Plan Limits (Personal Vaults)
+Full design: `docs/PLAN_ENFORCEMENT.md`. The server decides every limit; the app shows the answer.
+- **One owner per vault**: the first account that opens a personal vault online owns it. Another account can use it for 14 days (per vault and per pair of accounts), with a banner: "This vault belongs to another Conduit account. You can use it until {date}." and [Switch account], [Try Team free], [Make my own copy]
+  - The owner sees "Another Conduit account is using this vault until {date}." with [Release this vault...]. Both banners hide with [Later] for the rest of the day
+  - After the 14 days the other account gets "This vault belongs to another account" at unlock (no access, not even read only). An open vault locks with "This vault belongs to another Conduit account. Your open connections keep running."
+- **Make my own copy**: from the not-owner dialog, forks this device's working copy (with edits that never reached the shared file) or the shared file into a new vault with a new lineage. The Save dialog opens next to the original, so the copy syncs like the original did. The verified key is kept in memory for 10 minutes only
+- **Release this vault**: Settings > Sync shows "Owner: this account." and [Release this vault...]. The next account that opens it becomes the owner; opening it again first keeps it yours. Allowed 7 days after becoming owner ("You can release this vault on {date}.")
+- **Owner tag in the file**: `_sync/owner/account` holds a hash of the owner's account (never the email). Offline, a device of another account gets "Connect to the internet so Conduit can check who owns this vault"; signed out, "Sign in to open this vault". The owner's own devices keep opening offline through a cached owner check
+- **Device cap**: at most 5 devices with any personal vault open per account (Free, Pro and Team; team vaults do not count). A sixth device sees "Too many devices" and [Use here instead] locks the least recently used device ("Your plan allows 5 devices at once, so your vaults locked here." on that device)
+  - A Free take-over that would also pass the cap says which other device locks too
+- **Minimum app version**: the server can require a newer app. Unlock shows "Update required" with [Update Conduit]; an open vault locks with "Update Conduit to use this vault." MCP calls get `VAULT_LOCKED` with reason `not_owner` or `update_required`
+- **Team invite accept** goes through the website (bearer token), which reserves the seat and updates billing. A full team or ended plan shows the website's reason in a toast
+
 ### Team & Shared Vaults (Zero-Knowledge)
 - **Zero-knowledge encryption**: X25519 identity key pairs per user-device, ECIES VEK wrapping
 - **Vault Encryption Key (VEK)**: Per-vault 256-bit AES key, wrapped individually for each authorized user
@@ -330,7 +343,10 @@ Whole-file encrypted backups to Supabase Storage. This is a backup, not the sync
 - Backup snapshot names carry milliseconds and a random tag, so two uploads in the same second each keep a snapshot
 - Cloud backup status indicator (idle, syncing, synced, error)
 - Time-based backup retention: 14 days (Pro), 6 months (Team)
-- Automatic pruning of backups older than retention period
+- Automatic pruning of backups older than retention period, also when a snapshot upload fails
+- Snapshot cap per vault (`max_cloud_backups`: Pro 25, Team unlimited): the oldest snapshots are removed before a new one, so at most the cap remain. A refused snapshot shows "Cloud backup is full. Conduit removes the oldest backup before the next one."
+- Vault cap per account (`max_cloud_backup_vaults`: Pro 10, Team unlimited): a new vault past it shows "Cloud backup is full: your plan backs up 10 vaults. Remove an old vault's backups to back up this one."
+- The server refuses uploads from a plan without cloud backup; the status line reads "Cloud backup needs Pro or Team. Your earlier backups are still here." with [Upgrade]. Team members may back up whatever their tier row says
 - Cross-vault backup history: view and restore backups from all cloud-backed vaults, grouped by vault name
 - Dedicated Backup Manager dialog with vault sidebar, date-grouped backup list, and cross-vault restore
 
@@ -525,6 +541,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Invitation emails sent via Resend with branded dark-theme template
 - Acceptance flow: validates token, checks expiration, prevents multi-team membership
 - On accept: adds member, sets tier to Team, increments Stripe seat quantity
+- The desktop app accepts through the same route with a bearer token (no direct `team_members` insert); the database refuses any member past `teams.max_seats` or in a team without a live plan
 - Decline and admin revoke supported
 - Pending invitations shown to recipients on their account page with accept/decline
 
