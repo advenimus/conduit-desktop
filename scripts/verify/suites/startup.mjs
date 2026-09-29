@@ -147,7 +147,7 @@ async function lockAsksAgain(ctx) {
   await ctx.ui.waitForText(dev, AFTER_LOCK_LINE);
   await ctx.ui.typeInto(dev, PASSWORD_INPUT, PW);
   await ctx.ui.clickSelector(dev, SUBMIT);
-  await waitUnlocked(dev);
+  ctx.checkEqual((await ctx.flows.waitForUnlockOutcome(dev)).outcome, 'unlocked', 'the typed unlock opened the vault');
   await dev.page.evaluate(async () => {
     const { useSidebarStore } = await import('/src/stores/sidebarStore.ts');
     useSidebarStore.getState().expand();
