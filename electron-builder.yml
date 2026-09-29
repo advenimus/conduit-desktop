@@ -42,6 +42,10 @@ extraResources:
 afterPack: scripts/afterPack.cjs
 mac:
   category: public.app-category.developer-tools
+  # icon.icns is the flat icon for macOS 15 and older. macOS 26+ uses the Liquid Glass icon in
+  # Assets.car (CFBundleIconName below), which has the light, dark, clear and tinted looks. Both come
+  # from resources/icons/icon-macos.icon via `npm run icons:mac`, which needs Xcode 26; the outputs are
+  # committed so the macos-14 release runner does not.
   icon: build/icons/icon.icns
   darkModeSupport: true
   # All modern Macs are Apple Silicon — build arm64 only. CI also passes
@@ -61,7 +65,10 @@ mac:
   notarize: true
   extendInfo:
     NSLocalNetworkUsageDescription: "Conduit needs access to your local network to connect to devices via SSH, RDP, VNC, and web sessions."
+    CFBundleIconName: Icon
   extraResources:
+    - from: build/icons/Assets.car
+      to: Assets.car
     - from: freerdp-helper/bundle/darwin/
       to: freerdp/
       filter:

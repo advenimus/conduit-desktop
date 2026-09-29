@@ -1,0 +1,3 @@
+# Byte-for-byte on every OS: build/icons/Assets.car.source-sha256 hashes these files, so a
+# line-ending conversion on checkout would make the icon check fail on a clean copy.
+resources/icons/icon-macos.icon/** -text
