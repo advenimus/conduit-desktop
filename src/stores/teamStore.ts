@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '../lib/electron';
+import { errorText } from '../lib/errorText';
+import { toast } from '../components/common/Toast';
 
 // ---------- Types ----------
 
@@ -230,6 +232,7 @@ export const useTeamStore = create<TeamStoreState>((set, get) => ({
     } catch (err) {
       console.error('[team] Failed to accept invitation:', err);
       set({ isLoading: false, error: 'Failed to accept invitation' });
+      toast.error('Could not join the team', errorText(err, 'Try again.'));
     }
   },
 
