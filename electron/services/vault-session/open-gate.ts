@@ -11,11 +11,15 @@
 
 import path from 'node:path';
 import { SESSION_LOG_PREFIX } from '../sync/host.js';
+import { serializeLocalJson } from '../sync/local-state.js';
+import { lineagePaths } from '../sync/paths.js';
 import type { LocalJson, SyncState } from '../sync/types.js';
 import { UNLIMITED } from './effective-limit.js';
 import type { Rollback } from './open-async.js';
 import { raceTimeout } from '../sync/sync-engine-timers.js';
 import type { OpenContext } from './open-deps.js';
+import { readLocalQuietly } from './open-peek.js';
+import { errCode } from './open-staging.js';
 import { holderFromClaim, notOwnerError, openElsewhereError, signInRequiredError, updateRequiredError } from './open-errors.js';
 import type { TicketSource } from './own-copy-tickets.js';
 import { evaluateOwnerTag, readOwnerTag } from './owner-tag.js';
@@ -167,6 +171,7 @@ export async function acquireLease(
         alsoLockDeviceName: res.alsoLocks === null ? null : (res.alsoLocks.deviceName ?? ''),
       });
     case 'not-owner':
+      await forgetOwnerCheck(ctx, lineageId);
       throw notOwnerError({
         fileName: ctx.fileName,
         offline: false,
@@ -183,6 +188,24 @@ export async function acquireLease(
     default:
       logUnconfirmed(ctx, 'acquire', res);
       return res;
+  }
+}
+
+/**
+ * 3.3: a confirmed not-owner answer clears this device's ownerCheck, so a later offline or
+ * signed-out unlock cannot pass on a stale owner record. W is closed during the acquire, so
+ * local.json is written here directly. A private vault has no local.json. Never fails the open.
+ */
+async function forgetOwnerCheck(ctx: OpenContext, lineageId: string): Promise<void> {
+  const localPath = lineagePaths(ctx.config.machineDir, lineageId).local;
+  try {
+    const local = await readLocalQuietly(localPath, ctx);
+    if ((local?.ownerCheck ?? null) === null || local === null) return;
+    const tmp = `${localPath}.${ctx.host.random.bytes(6).toString('hex')}.tmp`;
+    await ctx.host.fs.writeFileDurable(tmp, serializeLocalJson({ ...local, ownerCheck: null }));
+    await ctx.host.fs.rename(tmp, localPath);
+  } catch (err) {
+    ctx.host.logger.warn(`${SESSION_LOG_PREFIX} open: could not clear the owner check after a not-owner answer`, { code: errCode(err) });
   }
 }
 

@@ -110,6 +110,16 @@ describe('acquire refusals (after the password)', () => {
     expect(tickets.get('ticket-1', h.t.clock.now())?.source).toEqual({ kind: 'working', lineageId: LINEAGE, sharedPath: vaultPath });
   });
 
+  it('D7: a confirmed not-owner answer clears this device\'s ownerCheck (3.3)', async () => {
+    withW(h);
+    localWith({ hint: ownerHint(LINEAGE, USER), kind: 'owner', untilMs: null, atMs: 1_000 });
+    h.client.acquireResult = { kind: 'not-owner', graceEndedMs: null, released: true, serverNowMs: null };
+    await refusal(openPersonalVault(openInput(vaultPath), h.deps));
+    const local = JSON.parse(fs.readFileSync(lineagePaths(h.config.machineDir, LINEAGE).local, 'utf8')) as { ownerCheck: unknown; lineageId: string };
+    expect(local.ownerCheck).toBeNull();
+    expect(local.lineageId).toBe(LINEAGE);
+  });
+
   it('update required at acquire', async () => {
     h.client.acquireResult = { kind: 'update-required', minVersion: '1.0.0', serverNowMs: null };
     const err = await refusal(openPersonalVault(openInput(vaultPath), h.deps));
