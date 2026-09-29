@@ -1,31 +1,30 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
-// Fixtures: `old` is today's markup (classes copied from the components). `next` is redesigned
-// markup with the data-cv-* hooks plus decoys: [data-decoy] elements and [data-decoy-class] class
-// tokens that carry a legacy class next to (earlier than, or nearer than) the hooked element. The
-// "new" variant strips the decoys; "mixed" keeps them. [data-expect~=<pair>] marks what a pair must
-// resolve to, [data-from~=<pair>] where a closest() lookup starts, [data-root] the scope.
+// Fixtures: `old` is the markup from before the restyle (classes copied from the components, no
+// hooks). `next` is the restyled markup with the data-cv-* hooks plus decoys: [data-decoy] elements
+// and [data-decoy-class] class tokens that keep an old styling class next to (earlier than, or nearer
+// than) the hooked element. The "clean" variant strips the decoys; "decoys" keeps them. The harness
+// reads hooks only (Appendix B, "Final"), so both variants resolve to the hooked elements and the old
+// markup to nothing. [data-expect~=<key>] marks what a selector must resolve to, [data-from~=<key>]
+// where a closest() lookup starts, [data-root] the scope.
 
-type Pair = { hook: string; legacy: string | null; probe?: string };
 type Helpers = {
-  usesHook(scope: ParentNode | null, pair: Pair): boolean;
-  pickSelector(scope: ParentNode | null, hook: string, legacy: string | null, probe?: string): string | null;
-  pickAll(scope: ParentNode | null, pair: Pair): Element[];
-  pickOne(scope: ParentNode | null, pair: Pair, legacyScope?: ParentNode | null): Element | null;
-  pickClosest(el: Element, scope: ParentNode, pair: Pair): Element | null;
+  queryAll(scope: ParentNode | null, css: string): Element[];
+  queryOne(scope: ParentNode | null, css: string): Element | null;
+  closestIn(el: Element, scope: ParentNode | null, css: string): Element | null;
 };
 type Device = { name: string; page: { evaluate(fn: unknown, arg?: unknown): Promise<unknown> } };
-type Variant = 'old' | 'new' | 'mixed';
+type Variant = 'old' | 'clean' | 'decoys';
 interface Screen { old: string; next: string }
 
 // The harness is plain .mjs without type declarations.
 const sel = (await import('../verify/lib/selectors.mjs' as string)) as {
-  SELECTORS: Record<string, Pair>;
+  SELECTORS: Record<string, string>;
   SYNC_DIALOG: string;
   helpers: Helpers;
   inPage(fn: unknown, arg?: unknown): string;
-  existsIn(d: Device, pair: Pair, opts?: { scope?: string }): Promise<boolean>;
-  clickIn(d: Device, label: string | null, pair: Pair, opts?: { scope?: string; exact?: boolean; timeoutMs?: number }): Promise<string>;
+  existsIn(d: Device, css: string, opts?: { scope?: string }): Promise<boolean>;
+  clickIn(d: Device, label: string | null, css: string, opts?: { scope?: string; exact?: boolean; timeoutMs?: number }): Promise<string>;
 };
 const settings = (await import('../verify/lib/settings-flows.mjs' as string)) as {
   settingsOpen(d: Device): Promise<boolean>;
@@ -36,6 +35,7 @@ const settings = (await import('../verify/lib/settings-flows.mjs' as string)) as
 const backup = (await import('../verify/lib/backup-flows.mjs' as string)) as {
   localBackupRows(d: Device): Promise<unknown>;
   cloudBackupSection(d: Device): Promise<{ badge: string | null; toggleDisabled: boolean | null; text: string }>;
+  openBackupManager(d: Device): Promise<void>;
   pressCloudBackupToggle(d: Device): Promise<string>;
   clickToggleInPage(arg: { root: string; label: string }, cv: unknown): string;
 };
@@ -44,6 +44,7 @@ const syncFlows = (await import('../verify/lib/sync-flows.mjs' as string)) as {
   dialogDetails(d: Device): Promise<{ title: string; text: string }[]>;
   useVersionInReview(d: Device, field: string, value: string, o?: { timeoutMs?: number }): Promise<void>;
 };
+const data = (await import('../verify/lib/restyle-data.mjs' as string)) as { expandFolderInPage(arg: { folder: string; child: string }): string };
 const panels = (await import('../verify/lib/sync-panels.mjs' as string)) as {
   recentlyDeletedItems(d: Device): Promise<unknown>;
   otherCopies(d: Device): Promise<unknown>;
@@ -57,7 +58,7 @@ const mcpSuite = (await import('../verify/suites/mcp.mjs' as string)) as { pickV
 
 const S = sel.SELECTORS;
 const h = sel.helpers;
-const VARIANTS: Variant[] = ['old', 'new', 'mixed'];
+const VARIANTS: Variant[] = ['clean', 'decoys'];
 const all = (css: string) => [...document.querySelectorAll(css)];
 const one = (css: string) => document.querySelector(css) as Element;
 let clicks: string[] = [];
@@ -70,7 +71,7 @@ const device: Device = {
 
 function render(screen: Screen, variant: Variant): void {
   document.body.innerHTML = variant === 'old' ? screen.old : screen.next;
-  if (variant === 'new') {
+  if (variant === 'clean') {
     all('[data-decoy]').forEach((el) => el.remove());
     all('[data-decoy-class]').forEach((el) => el.classList.remove(...el.getAttribute('data-decoy-class')!.split(' ')));
   }
@@ -117,7 +118,8 @@ const SETTINGS: Screen = {
     </div></div></div></div></div>
   <div class="flex justify-end gap-2 px-4 py-3 border-t"><button data-expect="settingsFooterButton">Cancel</button><button data-expect="settingsFooterButton" data-click="save">Save</button></div>
 </div></div>`,
-  next: `<div class="fixed inset-0"><div data-dialog-content data-cv-settings data-root role="dialog" aria-labelledby="st">
+  next: `<div data-decoy data-dialog-content><h2>Settings</h2><div class="w-52"><button data-click="decoy">Backup</button></div></div>
+<div class="fixed inset-0"><div data-dialog-content data-cv-settings data-expect="settingsRoot" data-root role="dialog" aria-labelledby="st">
   <div class="flex h-9 items-center"><h2 id="st">Settings</h2><div data-decoy class="w-52"><button data-click="decoy">Backup</button></div><button aria-label="Close">x</button></div>
   <div class="flex"><div class="w-52" data-cv-settings-nav>
     <button data-expect="settingsNavButton">General</button><button data-expect="settingsNavButton" data-click="nav-backup">Backup</button><button data-expect="settingsNavButton">Sync</button></div>
@@ -178,14 +180,14 @@ const BACKUP: Screen = {
 
 const ERRORS: Screen = {
   old: `<div data-dialog-content class="w-full max-w-sm"><form><h2>Unlock Vault</h2><input placeholder="Enter master password">
-    <div class="p-3 bg-red-500/10 border rounded"><p data-expect="dialogError unlockError" class="text-sm text-red-400">Wrong password</p></div><button type="submit">Unlock</button></form></div>
-  <div data-dialog-content><h2>Change Password</h2><div class="flex items-start gap-2 p-3 rounded-md"><svg data-expect="unlockError" class="text-red-400"></svg>
+    <div class="p-3 bg-red-500/10 border rounded"><p data-expect="dialogError" class="text-sm text-red-400">Wrong password</p></div><button type="submit">Unlock</button></form></div>
+  <div data-dialog-content><h2>Change Password</h2><div class="flex items-start gap-2 p-3 rounded-md"><svg class="text-red-400"></svg>
     <p data-expect="dialogError" class="text-sm text-red-400">Current password is wrong</p></div></div>`,
   next: `<div data-dialog-content role="dialog" aria-labelledby="u"><form data-cv-dialog-form><h2 id="u">Unlock Vault</h2><input placeholder="Enter master password">
-    <p data-decoy class="text-xs text-red-400">Caps Lock is on</p><div class="callout"><p data-cv-error data-expect="dialogError unlockError">Wrong password</p></div>
+    <p data-decoy class="text-xs text-red-400">Caps Lock is on</p><div class="callout"><p data-cv-error data-expect="dialogError">Wrong password</p></div>
     <div data-cv-dialog-footer><button type="submit">Unlock</button></div></form></div>
-  <div data-dialog-content><h2>Change Password</h2><div class="flex items-start gap-2 p-3 rounded-md"><svg data-expect="unlockError" class="text-red-400"></svg>
-    <p data-expect="dialogError" class="text-sm text-red-400">Current password is wrong</p></div></div>`,
+  <div data-dialog-content role="dialog" aria-labelledby="c"><h2 id="c">Change Password</h2><div class="callout"><svg data-decoy class="text-red-400"></svg>
+    <p data-cv-error data-expect="dialogError">Current password is wrong</p></div></div>`,
 };
 
 // In the redesigned line a wrapper nearer the button than the line carries the legacy line classes.
@@ -280,11 +282,11 @@ const DELETED: Screen = {
     <div data-cv-dialog-footer><button data-expect="stackedConfirmButton">Cancel</button><button data-expect="stackedConfirmButton" data-click="confirm-delete">Delete permanently</button></div></div></div>`,
 };
 
-const copyRowOld = (name: string, path: string, text: string) => `<div data-expect="copyRow copyRowOf" class="flex items-start gap-3 py-2.5 border-b border-stroke-dim last:border-b-0"><svg></svg>
-  <div class="flex-1 min-w-0"><p data-from="copyRowOf" data-expect="copyTitle" class="text-sm text-ink truncate" title="${path}">${name}</p><p data-expect="copyDetail" class="text-xs text-ink-muted">${text}</p></div>
+const copyRowOld = (name: string, path: string, text: string) => `<div data-expect="copyRow" class="flex items-start gap-3 py-2.5 border-b border-stroke-dim last:border-b-0"><svg></svg>
+  <div class="flex-1 min-w-0"><p data-from="copyRow" data-expect="copyTitle" class="text-sm text-ink truncate" title="${path}">${name}</p><p data-expect="copyDetail" class="text-xs text-ink-muted">${text}</p></div>
   <div class="flex gap-1.5"><button data-click="${name}:merge">Merge them...</button><button>Ignore</button></div></div>`;
-const copyRowNew = (name: string, path: string, text: string) => `<div data-cv-copy-row data-expect="copyRow copyRowOf" class="row border-b"><svg></svg>
-  <div class="flex items-start" data-decoy-class="flex items-start"><p data-decoy class="text-sm">f</p><p data-cv-row-title data-from="copyRowOf" data-expect="copyTitle" title="${path}">${name}</p>
+const copyRowNew = (name: string, path: string, text: string) => `<div data-cv-copy-row data-expect="copyRow" class="row border-b"><svg></svg>
+  <div class="flex items-start" data-decoy-class="flex items-start"><p data-decoy class="text-sm">f</p><p data-cv-row-title data-from="copyRow" data-expect="copyTitle" title="${path}">${name}</p>
     <p data-decoy class="text-xs">-</p><p data-cv-row-detail data-expect="copyDetail">${text}</p></div>
   <div><button data-click="${name}:merge">Merge them...</button><button>Ignore</button></div></div>`;
 
@@ -308,28 +310,38 @@ const MASS: Screen = {
     <label data-root class="checkbox"><input type="checkbox" disabled><span data-cv-row-title data-expect="massChangeTitle">Server 2</span><span>(already back)</span></label></div>`,
 };
 
-interface PairCase {
+const BACKUP_MANAGER: Screen = {
+  old: `<div data-dialog-content><h2>Backup Manager</h2><button>Restore</button><button>Close</button></div>`,
+  next: `<div data-decoy data-dialog-content><h2>Backup Manager</h2></div>
+    <div data-dialog-content data-cv-backup-manager data-expect="backupManager" role="dialog" aria-labelledby="bm"><h2 id="bm">Backup Manager</h2><button>Restore</button><button>Close</button></div>`,
+};
+
+const TREE: Screen = {
+  old: `<div data-sidebar-panel><div class="flex items-center"><button class="w-4 h-4"><svg></svg></button><span>Production</span><span>3</span></div></div>`,
+  next: `<div data-sidebar-panel><div class="flex items-center"><button data-decoy data-click="decoy"></button>
+    <button data-cv-tree-twistie data-expect="treeTwistie" data-click="twistie" aria-label="Expand" title="Expand"><svg></svg></button><span>Production</span><span>3</span></div></div>`,
+};
+
+interface HookCase {
   screen: Screen;
   mode: 'all' | 'first' | 'closest';
   scopes: () => ParentNode[];
-  legacyScope?: () => ParentNode | null;
-  /** Why the mixed fixture has no legacy decoy for this pair. */
-  noDecoy?: string;
-  /** The reader's text filter on top of the selector (B36). */
-  filter?: (el: Element) => boolean;
+  /** Why this screen has nothing for the hook to find. */
+  empty?: string;
 }
 
 const root = () => all('[data-root]');
 const doc = () => [document];
 const expected = (key: string) => () => all(`[data-expect~="${key}"]`);
 
-const CASES: Record<string, PairCase[]> = {
+const CASES: Record<string, HookCase[]> = {
+  settingsRoot: [{ screen: SETTINGS, mode: 'all', scopes: doc }],
   settingsNavButton: [{ screen: SETTINGS, mode: 'all', scopes: root }],
   settingsFooterButton: [{ screen: SETTINGS, mode: 'all', scopes: root }],
   syncStatus: [{ screen: SETTINGS, mode: 'first', scopes: root }],
   syncStatusLabel: [{ screen: SETTINGS, mode: 'first', scopes: expected('syncStatus') }],
   syncStatusDetail: [{ screen: SETTINGS, mode: 'first', scopes: expected('syncStatus') }],
-  syncPlan: [{ screen: SETTINGS, mode: 'all', scopes: root, filter: (el) => (el.textContent ?? '').startsWith('Your plan:') }],
+  syncPlan: [{ screen: SETTINGS, mode: 'first', scopes: root }],
   deviceRow: [{ screen: SETTINGS, mode: 'all', scopes: root }],
   deviceName: [{ screen: SETTINGS, mode: 'first', scopes: expected('deviceRow') }],
   deviceLine: [{ screen: SETTINGS, mode: 'first', scopes: expected('deviceRow') }],
@@ -337,7 +349,6 @@ const CASES: Record<string, PairCase[]> = {
   syncNoticeText: [{ screen: SETTINGS, mode: 'first', scopes: expected('syncNotice') }],
   syncPaused: [{ screen: SETTINGS, mode: 'all', scopes: root }],
   dialogError: [{ screen: ERRORS, mode: 'first', scopes: () => all('[data-dialog-content]') }],
-  unlockError: [{ screen: ERRORS, mode: 'first', scopes: () => all('[data-dialog-content]') }],
   reviewField: [{ screen: REVIEW, mode: 'closest', scopes: root }],
   reviewFieldLabel: [{ screen: REVIEW, mode: 'first', scopes: expected('reviewField') }],
   reviewValue: [{ screen: REVIEW, mode: 'first', scopes: () => all('[data-line]') }],
@@ -346,107 +357,97 @@ const CASES: Record<string, PairCase[]> = {
   bannerText: [{ screen: BANNERS, mode: 'first', scopes: () => all('[role=status]') }],
   sidebarOpener: [
     { screen: SHELL_CLOSED, mode: 'all', scopes: doc },
-    { screen: SHELL_OPEN, mode: 'all', scopes: doc, noDecoy: 'nothing opens an open side bar' },
+    { screen: SHELL_OPEN, mode: 'all', scopes: doc, empty: 'nothing opens an open side bar' },
   ],
   sidebarOpen: [
     { screen: SHELL_OPEN, mode: 'all', scopes: doc },
-    { screen: SHELL_CLOSED, mode: 'all', scopes: doc, noDecoy: 'a closed side bar has no panel' },
+    { screen: SHELL_CLOSED, mode: 'all', scopes: doc, empty: 'a closed side bar has no panel' },
   ],
   vaultSwitcher: [{ screen: SHELL_OPEN, mode: 'all', scopes: doc }],
   deletedRow: [{ screen: DELETED, mode: 'all', scopes: root }],
   deletedTitle: [{ screen: DELETED, mode: 'first', scopes: expected('deletedRow') }],
   deletedDetail: [{ screen: DELETED, mode: 'first', scopes: expected('deletedRow') }],
   stackedConfirmButton: [{ screen: DELETED, mode: 'all', scopes: doc }],
-  copyRow: [{ screen: COPIES, mode: 'all', scopes: root }],
-  copyRowOf: [{ screen: COPIES, mode: 'closest', scopes: root }],
+  copyRow: [{ screen: COPIES, mode: 'all', scopes: root }, { screen: COPIES, mode: 'closest', scopes: root }],
   copyTitle: [{ screen: COPIES, mode: 'first', scopes: expected('copyRow') }],
   copyDetail: [{ screen: COPIES, mode: 'first', scopes: expected('copyRow') }],
   massChangeTitle: [{ screen: MASS, mode: 'first', scopes: root }],
   toggleRow: [{ screen: BACKUP, mode: 'closest', scopes: root }],
   toggle: [{ screen: BACKUP, mode: 'first', scopes: expected('toggleRow') }],
-  backupFiles: [{ screen: BACKUP, mode: 'first', scopes: root, noDecoy: 'the legacy half is structural (the label parent), read by localBackupRows' }],
-  backupRow: [{ screen: BACKUP, mode: 'all', scopes: () => all('[data-cv-backup-files], .max-h-32') }],
+  backupFiles: [{ screen: BACKUP, mode: 'first', scopes: root }],
+  backupRow: [{ screen: BACKUP, mode: 'all', scopes: expected('backupFiles') }],
   backupName: [{ screen: BACKUP, mode: 'first', scopes: expected('backupRow') }],
   backupMeta: [{ screen: BACKUP, mode: 'first', scopes: expected('backupRow') }],
   cloudBackupSection: [{ screen: BACKUP, mode: 'closest', scopes: root }],
-  cloudBackupBadge: [{
-    screen: BACKUP, mode: 'first', scopes: root,
-    legacyScope: () => [...document.querySelectorAll('label')].find((l) => l.textContent === 'Cloud Backup')?.parentElement ?? null,
-  }],
+  cloudBackupBadge: [{ screen: BACKUP, mode: 'first', scopes: expected('cloudBackupSection') }],
+  backupManager: [{ screen: BACKUP_MANAGER, mode: 'all', scopes: doc }],
+  treeTwistie: [{ screen: TREE, mode: 'all', scopes: doc }],
 };
 
-function render3(screen: Screen, variant: Variant) {
-  render(screen, variant);
-  return variant;
-}
-
-function resolveCase(key: string, c: PairCase, union = false): (Element | null)[] {
-  const pair = S[key];
-  const css = union ? `${pair.hook}, ${pair.legacy}` : null;
-  const from = all(`[data-from~="${key}"]`);
+function resolveCase(key: string, c: HookCase): (Element | null)[] {
+  const css = S[key];
   const scopes = c.scopes();
-  if (c.mode === 'closest') return from.map((f) => (css ? f.closest(css) : h.pickClosest(f, scopes[0], pair)));
-  if (c.mode === 'first') return scopes.map((s) => (css ? (c.legacyScope?.() ?? s).querySelector(css) : h.pickOne(s, pair, c.legacyScope?.() ?? s)));
-  return scopes.flatMap((s) => (css ? [...s.querySelectorAll(css)] : h.pickAll(s, pair))).filter(c.filter ?? (() => true));
+  if (c.mode === 'closest') return all(`[data-from~="${key}"]`).map((f) => h.closestIn(f, scopes[0], css));
+  if (c.mode === 'first') return scopes.map((s) => h.queryOne(s, css));
+  return scopes.flatMap((s) => h.queryAll(s, css));
 }
 
-function wanted(key: string, c: PairCase): (Element | null)[] {
+function wanted(key: string, c: HookCase): (Element | null)[] {
   if (c.mode === 'closest') return all(`[data-from~="${key}"]`).map((f) => f.closest(`[data-expect~="${key}"]`));
   return all(`[data-expect~="${key}"]`);
 }
 
 const same = (a: (Element | null)[], b: (Element | null)[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+// Attributes the markup carried before the restyle, which the old fixtures therefore still match.
+const KEPT_ATTRIBUTES = new Set(['sidebarOpen']);
 
-describe('selector pairs (Appendix B)', () => {
-  it('has fixtures for every pair and no pair without a hook', () => {
+describe('hooks (Appendix B, "Final")', () => {
+  it('has fixtures for every hook and reads only hooks', () => {
     expect(Object.keys(CASES).sort()).toEqual(Object.keys(S).sort());
-    for (const pair of Object.values(S)) expect(pair.hook).toMatch(/data-(cv|sidebar)-/);
+    for (const css of Object.values(S)) {
+      expect(css).toMatch(/data-(cv|sidebar)-/);
+      expect(css).not.toMatch(/(^|[\s>])[a-z]*\.[a-z]/);
+    }
   });
 
   for (const [key, cases] of Object.entries(CASES)) {
     cases.forEach((c, n) => {
       for (const variant of VARIANTS) {
-        it(`${key} (${n + 1}) resolves on ${variant} markup`, () => {
-          render3(c.screen, variant);
+        it(`${key} (${n + 1}) resolves on restyled markup, ${variant}`, () => {
+          render(c.screen, variant);
           const got = resolveCase(key, c).filter(Boolean);
           const want = wanted(key, c).filter(Boolean);
-          expect(want.length > 0 || variant === 'old' || c.noDecoy !== undefined).toBe(true);
+          expect(want.length > 0 || c.empty !== undefined).toBe(true);
           expect(same(got, want)).toBe(true);
         });
       }
-      if (!c.noDecoy && S[key].legacy) {
-        it(`${key} (${n + 1}) mixed markup would fool a comma union`, () => {
-          render3(c.screen, 'mixed');
-          expect(same(resolveCase(key, c, true).filter(Boolean), wanted(key, c).filter(Boolean))).toBe(false);
+      if (!KEPT_ATTRIBUTES.has(key)) {
+        it(`${key} (${n + 1}) finds nothing on markup from before the restyle`, () => {
+          render(c.screen, 'old');
+          expect(resolveCase(key, c).filter(Boolean)).toEqual([]);
         });
       }
     });
   }
 });
 
-describe('pickSelector', () => {
-  it('uses the hook when the scope holds one, else the legacy selector', () => {
-    document.body.innerHTML = '<div id="a"><p class="x">1</p></div><div id="b"><p class="x">2</p><p data-cv-y>3</p></div>';
-    expect(h.pickSelector(one('#a'), '[data-cv-y]', 'p.x')).toBe('p.x');
-    expect(h.pickSelector(one('#b'), '[data-cv-y]', 'p.x')).toBe('[data-cv-y]');
-    expect(h.pickSelector(null, '[data-cv-y]', 'p.x')).toBe('p.x');
-  });
-
-  it('decides on the probe when one is given', () => {
-    document.body.innerHTML = '<div id="a" data-cv-list><p class="x">legacy look</p></div>';
-    expect(h.pickSelector(one('body'), '[data-cv-row]', 'p.x', '[data-cv-list]')).toBe('[data-cv-row]');
-  });
-
+describe('page helpers', () => {
   it('keeps closest() inside the scope', () => {
-    document.body.innerHTML = '<div class="row"><section id="s"><button>b</button></section></div>';
-    expect(h.pickClosest(one('button'), one('#s'), { hook: '[data-cv-row]', legacy: '.row' })).toBeNull();
+    document.body.innerHTML = '<div data-cv-row><section id="s"><button>b</button></section></div>';
+    expect(h.closestIn(one('button'), one('#s'), '[data-cv-row]')).toBeNull();
+    expect(h.closestIn(one('button'), document.body, '[data-cv-row]')).toBe(one('[data-cv-row]'));
+  });
+
+  it('finds nothing in a missing scope', () => {
+    expect(h.queryAll(null, '[data-cv-row]')).toEqual([]);
+    expect(h.queryOne(null, '[data-cv-row]')).toBeNull();
   });
 
   it('ships as self-contained page code', () => {
     document.body.innerHTML = '<div id="a"><p class="x">1</p><p data-cv-y>2</p></div>';
-    const fn = (arg: { id: string }, cv: Helpers & { S: Record<string, Pair> }) => cv.pickOne(document.getElementById(arg.id), { hook: '[data-cv-y]', legacy: 'p.x' })?.textContent;
+    const fn = (arg: { id: string }, cv: Helpers) => cv.queryOne(document.getElementById(arg.id), '[data-cv-y]')?.textContent;
     expect((0, eval)(sel.inPage(fn, { id: 'a' }))).toBe('2');
-    expect((0, eval)(sel.inPage((_: null, cv: { S: Record<string, Pair> }) => Object.keys(cv.S).length))).toBe(Object.keys(S).length);
+    expect((0, eval)(sel.inPage((_: null, cv: { S: Record<string, string> }) => Object.keys(cv.S).length))).toBe(Object.keys(S).length);
   });
 });
 
@@ -460,7 +461,7 @@ describe('dialog detection (8.3)', () => {
   });
 });
 
-describe('harness readers on old, new and mixed markup', () => {
+describe('harness readers on restyled markup, with and without decoys', () => {
   for (const variant of VARIANTS) {
     describe(variant, () => {
       it('Settings: root, Sync tab, nav and footer', async () => {
@@ -497,7 +498,7 @@ describe('harness readers on old, new and mixed markup', () => {
       it('dialog error lines', async () => {
         render(ERRORS, variant);
         expect(await passwords.unlockErrorLine(device)).toBe('Wrong password');
-        expect(await sel.existsIn(device, S.unlockError, { scope: '[data-dialog-content]' })).toBe(true);
+        expect(await sel.existsIn(device, S.dialogError, { scope: '[data-dialog-content]' })).toBe(true);
       });
 
       it('review panel: [Use this] by field and value, and the MCP suite pick', async () => {
@@ -536,6 +537,12 @@ describe('harness readers on old, new and mixed markup', () => {
         expect(clicks).toEqual(['confirm-delete']);
       });
 
+      it('tree folder twistie', () => {
+        render(TREE, variant);
+        expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01' })).toBe('clicked');
+        expect(clicks).toEqual(['twistie']);
+      });
+
       it('Other copies rows and a row action', async () => {
         render(COPIES, variant);
         expect(await panels.otherCopies(device)).toEqual([
@@ -556,9 +563,26 @@ describe('harness readers on old, new and mixed markup', () => {
     });
   }
 
-  it('settingsOpen returns early on the data-cv-settings hook', async () => {
+  it('settingsOpen reads the data-cv-settings hook and marks nothing', async () => {
     document.body.innerHTML = '<div data-cv-settings><h3>General</h3></div><div data-dialog-content><h2>Settings</h2></div>';
     expect(await settings.settingsOpen(device)).toBe(true);
     expect(all('[data-cv-settings]')).toHaveLength(1);
+    render(SETTINGS, 'old');
+    expect(await settings.settingsOpen(device)).toBe(false);
+    expect(all('[data-cv-settings]')).toEqual([]);
+  });
+});
+
+describe('harness readers on markup from before the restyle', () => {
+  it('find no error line, no deleted rows, no copies and no twistie', async () => {
+    render(ERRORS, 'old');
+    expect(await passwords.unlockErrorLine(device)).toBeNull();
+    render(DELETED, 'old');
+    expect(await panels.recentlyDeletedItems(device)).toEqual([]);
+    render(COPIES, 'old');
+    expect(await panels.otherCopies(device)).toEqual([]);
+    render(TREE, 'old');
+    expect(data.expandFolderInPage({ folder: 'Production', child: 'db-01' })).toBe('no toggle for Production');
+    expect(clicks).toEqual([]);
   });
 });

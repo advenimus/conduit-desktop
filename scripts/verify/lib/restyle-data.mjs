@@ -257,10 +257,7 @@ export function openHome(device) {
   return clickSelector(device, '[data-sidebar-panel] button[title="Home"]');
 }
 
-/**
- * In-page: clicks the twistie of `folder` unless `child` already shows. B48: the hooked twistie
- * (data-cv-tree-twistie, which has a name), else the row's only unnamed button (markup before the hook).
- */
+/** In-page: clicks the twistie of `folder` (B48, data-cv-tree-twistie) unless `child` already shows. */
 export function expandFolderInPage({ folder, child }) {
   const panel = document.querySelector('[data-sidebar-panel]');
   if (!panel) return 'no side bar';
@@ -268,12 +265,8 @@ export function expandFolderInPage({ folder, child }) {
   const visibleText = (t) => [...panel.querySelectorAll('span, div')].some((el) => ownText(el) === t && el.getClientRects().length > 0);
   if (visibleText(child)) return 'expanded';
   const label = [...panel.querySelectorAll('span, div')].find((el) => ownText(el) === folder);
-  const hooked = panel.querySelector('[data-cv-tree-twistie]') !== null;
-  const isTwistie = hooked
-    ? (b) => b.hasAttribute('data-cv-tree-twistie')
-    : (b) => !b.title && !b.getAttribute('aria-label') && !(b.innerText ?? b.textContent).trim();
   for (let el = label; el && el !== panel; el = el.parentElement) {
-    const toggle = [...el.querySelectorAll('button')].find(isTwistie);
+    const toggle = el.querySelector('button[data-cv-tree-twistie]');
     if (toggle) {
       toggle.click();
       return 'clicked';

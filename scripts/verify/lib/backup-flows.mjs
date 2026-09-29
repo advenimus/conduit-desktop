@@ -8,14 +8,14 @@ import { retryUntil, stubDialogs } from './ui-forms.mjs';
 import { openSettings, settingsOpen } from './settings-flows.mjs';
 import { SELECTORS, clickIn, evaluateIn } from './selectors.mjs';
 
-const SETTINGS_ROOT = '[data-cv-settings]';
-const MANAGER_ROOT = '[data-cv-backup-manager]';
+const SETTINGS_ROOT = SELECTORS.settingsRoot;
+const MANAGER_ROOT = SELECTORS.backupManager;
 
 /** B22 and B39: the toggle of the row whose title label reads `label`. */
 export function clickToggleInPage({ root, label }, cv) {
   const scope = document.querySelector(root);
   const el = [...(scope?.querySelectorAll('label') ?? [])].find((l) => l.innerText.trim() === label);
-  const button = el ? cv.pickOne(cv.pickClosest(el, scope, cv.S.toggleRow), cv.S.toggle) : null;
+  const button = el ? cv.queryOne(cv.closestIn(el, scope, cv.S.toggleRow), cv.S.toggle) : null;
   if (!button) return el ? 'no toggle' : 'no label';
   if (button.disabled) return 'disabled';
   button.click();
@@ -74,11 +74,9 @@ export async function localBackupNow(device, { timeoutMs = 60_000 } = {}) {
 
 function readBackupRowsInPage(root, cv) {
   const { S } = cv;
-  const scope = document.querySelector(root);
-  const label = [...(scope?.querySelectorAll('label') ?? [])].find((l) => /^Backup Files \(\d+\)$/.test(l.innerText.trim()));
-  const list = cv.usesHook(scope, S.backupFiles) ? scope.querySelector(S.backupFiles.hook) : label?.parentElement;
-  const read = (row, p) => cv.pickOne(row, p)?.innerText?.trim() ?? '';
-  return cv.pickAll(list, S.backupRow).map((r) => ({ name: read(r, S.backupName), meta: read(r, S.backupMeta) }));
+  const list = cv.queryOne(document.querySelector(root), S.backupFiles);
+  const read = (row, css) => cv.queryOne(row, css)?.innerText?.trim() ?? '';
+  return cv.queryAll(list, S.backupRow).map((r) => ({ name: read(r, S.backupName), meta: read(r, S.backupMeta) }));
 }
 
 /** The "Backup Files (N)" list as the Backup tab shows it: [{name, meta}]. */
@@ -118,11 +116,11 @@ function readCloudSectionInPage(root, cv) {
   const { S } = cv;
   const scope = document.querySelector(root);
   const label = [...(scope?.querySelectorAll('label') ?? [])].find((l) => l.innerText.trim() === 'Cloud Backup');
-  const section = label ? cv.pickClosest(label, scope, S.cloudBackupSection) : null;
+  const section = label ? cv.closestIn(label, scope, S.cloudBackupSection) : null;
   if (!section) return null;
-  const toggle = cv.pickOne(cv.pickClosest(label, scope, S.toggleRow), S.toggle);
+  const toggle = cv.queryOne(cv.closestIn(label, scope, S.toggleRow), S.toggle);
   return {
-    badge: cv.pickOne(scope, S.cloudBackupBadge, label.parentElement)?.innerText?.trim() ?? null,
+    badge: cv.queryOne(section, S.cloudBackupBadge)?.innerText?.trim() ?? null,
     toggleDisabled: toggle?.disabled ?? null,
     text: section.innerText,
   };
@@ -187,20 +185,13 @@ export async function cloudBackupNow(device, { timeoutMs = 90_000 } = {}) {
 /** cloud_backup_list_all: [{path, vaultId, vaultName, created_at, size}]. */
 export const listCloudBackups = (device) => invoke(device, 'cloud_backup_list_all');
 
-/** B25: R3-VAULT puts data-cv-backup-manager on the panel; until then the harness marks it. */
-function markManagerInPage() {
-  if (document.querySelector('[data-cv-backup-manager]')) return true;
-  const root = [...document.querySelectorAll('[data-dialog-content]')].find((el) => el.querySelector('h2')?.innerText?.trim() === 'Backup Manager');
-  if (!root) return false;
-  root.setAttribute('data-cv-backup-manager', '');
-  return true;
-}
 
 /** Settings > Backup > [Manage Backups...] (shown once a cloud backup exists). */
 export async function openBackupManager(device) {
   await backupTab(device);
   await clickText(device, 'Manage Backups...', { exact: true, selector: `${SETTINGS_ROOT} button` });
-  await waitFor(() => withTimeout(device.page.evaluate(markManagerInPage), 10_000, 'find Backup Manager'), { timeoutMs: 15_000, label: `${device.name}: Backup Manager` });
+  // B25: the Backup Manager panel carries data-cv-backup-manager.
+  await waitFor(() => withTimeout(device.page.evaluate((css) => document.querySelector(css) !== null, MANAGER_ROOT), 10_000, 'find Backup Manager'), { timeoutMs: 15_000, label: `${device.name}: Backup Manager` });
 }
 
 /**

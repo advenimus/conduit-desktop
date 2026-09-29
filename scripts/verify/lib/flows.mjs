@@ -98,7 +98,7 @@ export function waitForUnlockOutcome(device, { timeoutMs = UNLOCK_TIMEOUT_MS } =
     const dialogs = await openDialogs(device);
     // `text` was read before the dialog check and can predate the dialog: read it again.
     if (dialogs.length > 0) return { outcome: 'dialog', dialogs, text: await bodyText(device, { timeoutMs: 10_000 }) };
-    if (!text.includes('Please wait...') && (await existsIn(device, SELECTORS.unlockError, { scope: '[data-dialog-content]' }))) {
+    if (!text.includes('Please wait...') && (await existsIn(device, SELECTORS.dialogError, { scope: '[data-dialog-content]' }))) {
       return { outcome: 'error', text };
     }
     return null;

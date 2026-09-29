@@ -152,7 +152,7 @@ that runs without the local Supabase stack says `needsSupabase: false`; a suite 
 
 | Member | What it does |
 |---|---|
-| `launchDevice(name, {env, settings, args})` | Launch an isolated device (a name another scenario of the run used is refused). `env` adds variables (for example `CONDUIT_DEV_VAULT_DEVICE_LIMIT: '-1'`, or a Supabase proxy's `proxy.env`), `settings` overrides `settings.json` keys (onboarding, What's New, engine picker and telemetry are pre-dismissed; on a relaunch of the same name the keys the app saved before are kept and `settings` is merged over them), `args` adds Electron switches. Returns `{name, app, page, root, home, dataDir, socketPath, mainLog, rendererLog, pid}`. A relaunch returns a new object; the old one no longer counts as live. |
+| `launchDevice(name, {env, settings, args, colorScheme})` | Launch an isolated device (a name another scenario of the run used is refused). `env` adds variables (for example `CONDUIT_DEV_VAULT_DEVICE_LIMIT: '-1'`, or a Supabase proxy's `proxy.env`), `settings` overrides `settings.json` keys (onboarding, What's New, engine picker and telemetry are pre-dismissed; on a relaunch of the same name the keys the app saved before are kept and `settings` is merged over them), `args` adds Electron switches, `colorScheme` sets the emulated system mode (`'light'` when left out, `'dark'`, `'no-preference'`, or `null` for the machine's own). Returns `{name, app, page, root, home, dataDir, socketPath, mainLog, rendererLog, pid}`. A relaunch returns a new object; the old one no longer counts as live. |
 | `quitDevice(d)` / `killDevice(d)` | Normal quit (quit flush, lease release), SIGKILL after 25 s. `killDevice` simulates a crash. |
 | `createUser('free'\|'pro'\|'team')` | Confirmed user `verify-<runId>-<n>@conduit.local`, random password, plan set in `user_profiles`. Returns `{id, email, password, role}`. Deleted at cleanup. |
 | `setTier(userId, role)` | Change a user's plan mid-scenario. |
@@ -468,44 +468,39 @@ reloads). The importer only creates folders and entries (new ids); it never writ
 
 ## UI hooks and the text the harness reads
 
-The visual redesign (`docs/VISUAL_REDESIGN.md` 8.2 to 8.4 and Appendix B) restyles every screen the
-harness drives. These rules keep the suites working while it lands, one directory at a time.
+The visual restyle (`docs/VISUAL_REDESIGN.md` 8.2 to 8.4 and Appendix B) restyled every screen the
+harness drives. The harness reads the restyled markup through stable hooks, never through styling
+classes, so a later restyle does not break the suites.
 
 ### Stable `data-cv-*` hooks (`lib/selectors.mjs`)
 
-- Every harness selector that matched a Tailwind class is a pair in `SELECTORS`: `{hook, legacy}`.
-  `hook` is a `data-cv-*` attribute (the Appendix B "Hook added by" column says which package adds it);
-  `legacy` is the class selector today's markup matches.
-- `pickSelector(scope, hook, legacy)` picks one half per scope: the hook when any element inside the
-  scope carries it, else the legacy selector. The halves are never joined into one comma list:
-  `querySelector` would return whichever match comes first and `closest()` whichever ancestor is
-  nearest, so a restyled Card that still has `rounded-md`, or the first `<span>` of a row, would win
-  over the hooked element. `pickClosest(el, scope, pair)` replaces `el.closest(css)` the same way and
-  stays inside the scope. A pair with a `probe` decides on that selector instead of the hook: for an
-  element that is not always rendered (the Cloud Backup badge, the rows of an empty list), the probe
-  is a hook of the same component that always is.
-- Page code gets the helpers as its second argument and the pairs as `cv.S`:
-  `evaluateIn(d, (root, cv) => cv.pickAll(document.querySelector(root), cv.S.deviceRow).length, root)`.
-  The function travels to the renderer as source text (`inPage`), so it may use only its arguments and
-  page globals, never a constant of its module. Node-side helpers: `existsIn(d, pair, {scope})`,
-  `textIn(d, pair, {scope})` and `clickIn(d, label, pair, {scope, exact, index})`, which clicks like
-  `ui.clickText` and resolves the pair again on every try. `scope` is a CSS selector; each matching
-  element is its own scope (one decision per dialog for `[data-dialog-content]`).
-- Markup that adds a hook puts it on the element the harness reads or clicks: the button itself for
-  the review button, the side bar toggle and the vault switcher, the text element for the banner text,
-  the plan line and the notice text. Keep the attributes other code relies on (`data-dialog-content`,
+- `SELECTORS` maps each thing the harness reads to its hook: a `data-cv-*` attribute (or
+  `data-sidebar-panel`), as the Appendix B "Final" column lists them. The class selectors the harness
+  used before the restyle, and the `pickSelector` choice between them and the hooks, are gone.
+- Page code gets the helpers as its second argument and the hooks as `cv.S`:
+  `evaluateIn(d, (root, cv) => cv.queryAll(document.querySelector(root), cv.S.deviceRow).length, root)`.
+  `queryAll(scope, css)` and `queryOne(scope, css)` return nothing for a missing scope, and
+  `closestIn(el, scope, css)` is `el.closest(css)` limited to ancestors inside `scope`. The function
+  travels to the renderer as source text (`inPage`), so it may use only its arguments and page
+  globals, never a constant of its module. Node-side helpers: `existsIn(d, css, {scope})`,
+  `textIn(d, css, {scope})` and `clickIn(d, label, css, {scope, exact, index})`, which clicks like
+  `ui.clickText` and queries again on every try. `scope` is a CSS selector; each matching element is
+  its own scope (one per dialog for `[data-dialog-content]`).
+- Markup puts a hook on the element the harness reads or clicks: the button itself for the review
+  button, the side bar toggle and the vault switcher, the text element for the banner text, the plan
+  line and the notice text. Keep the attributes other code relies on (`data-dialog-content`,
   `data-tabbar`, `data-sidebar-panel`, `data-docked`, `data-content-area`, `data-context-menu`,
   `data-popover`, `data-toast`, `data-bare`, `data-session-keyboard`), the placeholders the flows type
   into (B30), the recent vault `title` paths (B26, B44), the `Close` and idle-lock `aria-label`s (B12,
   B28), and `label > input` for checkboxes and radios (B29, B46).
 - Hover-revealed actions hide with `opacity: 0` only. Clicks skip elements that are
   `visibility: hidden` or have no layout box (B45).
-- A new pair needs old, new and mixed fixtures in `scripts/__tests__/verify-selectors.test.ts`; the
-  test fails for a pair without them. The mixed fixture puts an element with the legacy class next to
-  the hooked one, earlier in the document or nearer as an ancestor, and the test proves that a comma
-  union would pick it. R4-HARNESS deletes the legacy halves once every hook has landed.
+- A new hook needs a fixture in `scripts/__tests__/verify-selectors.test.ts`; the test fails for a
+  hook without one. Each fixture holds decoys: elements that keep the old styling classes next to the
+  hooked one, earlier in the document or nearer as an ancestor. The readers must ignore them, and on
+  markup without the hooks they find nothing.
 - The review panel's version lines (B47): `reviewVersion` finds the line of a `Use this` button with
-  `pickClosest(button, panel, cv.S.reviewVersion)`; the line holds the value, the `In use now` badge and
+  `closestIn(button, panel, cv.S.reviewVersion)`; the line holds the value, the `In use now` badge and
   the button. `useVersionInReview` and the MCP suite's pick both read the panel as
   `[role=dialog][aria-label="Review changes"]`.
 
@@ -595,7 +590,7 @@ order: `h1`-`h3`, buttons, inputs, selects, textareas, labels and anything with 
 `value` and `options`, which are not compared). A label's text leaves out the controls nested in it.
 Regions (`lib/restyle-screens.mjs`) use what the restyle keeps: `[data-sidebar-panel]`, `[data-tabbar]`,
 `[data-content-area]`, the topmost `[data-dialog-content]`, titles and aria-labels. Popup menus are read
-from the menu window as `{kind, label, children}` (both the original and the hardened menu markup), the
+from the menu window as `{kind, label, children}` (the `role=menu` markup of `electron/ipc/menu.ts`), the
 application menu from `Menu.getApplicationMenu()`. `fixtures/restyle/before-inventory.json` is the
 reference: `INVENTORY-raw.json` normalized, the menus read on the base branch (unchanged since the
 reference commit) and checked item by item against it, and screens 44 to 49. Both sides are normalized:
@@ -608,8 +603,11 @@ ignores icons and the case of headers in menus. Anything else is a difference.
 **Allowed deltas.** `fixtures/restyle/allowed-deltas.json` holds intended differences per screen, each
 with its reason. A change removes a run of reference controls and inserts its replacement, or inserts
 before a reference control; with `insertWhen` the inserted controls are expected exactly when that
-selector matches on the screen. Today it holds one entry, `settings-appearance`: the Platform Theme block
-removed, the Icon pack section in its place (required: a tab without it fails), Modern before Ocean. A failure is never fixed by editing the reference; a new delta goes in through the wave's
+selector matches on the screen. It holds what the final UI needs and nothing else, since a delta the
+screen does not show fails too: `settings-appearance` (the Platform Theme block removed, the Icon pack
+section in its place, Modern before Ocean) and `home-dashboard-full-window` (the Favorites row's type
+label in title case once CSS `uppercase` is gone). A failure is never fixed by editing the reference; a
+new delta goes in through the wave's
 owner of `scripts/verify` (R1-HARNESS, R2-FOUNDATION, R3-FOUNDATION, R4-HARNESS), signed off by the
 wave's integrator and recorded in 8.6 of the spec.
 
@@ -618,9 +616,8 @@ wave's integrator and recorded in 8.6 of the spec.
 G6 the three top rows, G7 side bar order (the accent line and the `[data-cv-sidebar-resize]` handle are
 not rows), G8 the AI divider and panel, G9 dialogs over a web session
 hold a freeze and detach the web view, G10 tabs inside their bar (and twelve tabs at least 78px wide in
-a scrolling row). A rule whose hooks are not in the markup yet reports `pending`, which passes unless
-`--strict`. On today's layout G1, G2, G4 and G9 pass and the others are pending; from R2-SHELL on,
-every run uses `--strict`. The clone's selectors are named only in `lib/clone-selectors.mjs`.
+a scrolling row). A rule whose hooks are not in the markup reports `pending`, which passes unless
+`--strict`. Every hook has landed, so no rule may be pending: run the suite with `--strict`. The clone's selectors are named only in `lib/clone-selectors.mjs`.
 
 **Packs (owner gate 1).** For each pack card in Settings > Appearance (`[data-cv-appearance="icon-pack"]
 [data-cv-choice]`), dark and light: the card is picked (live preview) and the tab captured, Save, then
@@ -636,7 +633,12 @@ picker exists the scenario reports `pending`.
 **Owner gates** (8.5): gate 1 (R1-MENUS) approves the pack sheets; gate 2 (R2-SHELL) the composites of
 shots 04 to 10b, 18, 19, 21 and 44 to 49; gate 3 (R4-CLEANUP) every composite, dark and light.
 
-Restyle devices launch with `CV_KEEP_POPUPS=1`: popup menus and the picker close when they lose focus,
+Restyle devices launch with the emulated system mode set to the scenario's mode (`launchDevice(name,
+{colorScheme})`; left out, Playwright emulates `light`, and `null` turns the emulation off), and the
+suite waits until the page is drawn in that mode. The `screens` scenario uses the theme `system`, a new
+install's default, so its shots prove that the look follows the system mode.
+
+Restyle devices also launch with `CV_KEEP_POPUPS=1`: popup menus and the picker close when they lose focus,
 and a test device is rarely the active app, so the launcher keeps them open until the suite closes them.
 The launcher also records global shortcuts instead of registering them (`globalThis.__cvShortcut`) and
 tracks the native views attached to a window (`globalThis.__cvAttachedWebViews`, rule G9).

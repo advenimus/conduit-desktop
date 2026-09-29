@@ -1,10 +1,6 @@
-// Harness hook contract (docs/VISUAL_REDESIGN.md 8.2 and Appendix B). Each class-based selector the
-// harness used before the redesign is paired with the stable data-cv-* hook that replaces it, and
-// pickSelector() picks one half per scope: the hook when any element in the scope carries it, else
-// the legacy selector. The halves are never joined into one comma list: querySelector() returns
-// whichever match comes first in the document and closest() whichever ancestor is nearest, so an
-// unrelated element that keeps a legacy class after a restyle could win over the hooked one.
-// R4-HARNESS deletes the legacy halves.
+// Harness hook contract (docs/VISUAL_REDESIGN.md 8.2 and Appendix B, "Final" column). Every
+// selector is a stable data-cv-* hook (or data-sidebar-panel). The class selectors the harness read
+// before the restyle, and the per-scope choice between them and the hooks, are gone.
 
 import { waitFor, withTimeout } from './ui.mjs';
 
@@ -14,78 +10,72 @@ const PAGE_CALL_TIMEOUT_MS = 10_000;
 /** Sync-style dialogs. The Dialog primitive names every other dialog with aria-labelledby (8.3). */
 export const SYNC_DIALOG = '[role=dialog][aria-label]';
 
-/**
- * `probe` (default: the hook) is what decides the half: a hook on an element that is not always
- * rendered (an optional badge, the rows of a list that can be empty) is probed through a sibling
- * hook of the same component that is.
- */
-function pair(hook, legacy, probe) {
-  return Object.freeze(probe ? { hook, legacy, probe } : { hook, legacy });
-}
-
 export const SELECTORS = Object.freeze({
+  // B1: the Settings panel
+  settingsRoot: '[data-cv-settings]',
   // B2, scope: the Settings root
-  settingsNavButton: pair('[data-cv-settings-nav] button', '.w-52 button'),
+  settingsNavButton: '[data-cv-settings-nav] button',
   // B3, scope: the Settings root
-  settingsFooterButton: pair('[data-cv-dialog-footer] button', ':scope > div:last-child button'),
+  settingsFooterButton: '[data-cv-dialog-footer] button',
   // B4, scopes: the Settings root, then the status box
-  syncStatus: pair('[data-cv-sync-status]', '.bg-well.border'),
-  syncStatusLabel: pair('[data-cv-sync-status-label]', 'p.font-medium'),
-  syncStatusDetail: pair('[data-cv-sync-status-detail]', 'p.text-xs'),
-  // B36: the legacy half is the first <p> whose text starts with "Your plan:"
-  syncPlan: pair('[data-cv-sync-plan]', 'p'),
+  syncStatus: '[data-cv-sync-status]',
+  syncStatusLabel: '[data-cv-sync-status-label]',
+  syncStatusDetail: '[data-cv-sync-status-detail]',
+  // B36
+  syncPlan: '[data-cv-sync-plan]',
   // B5, scopes: the Settings root, then each row
-  deviceRow: pair('[data-cv-device-row]', '.divide-y > div'),
-  deviceName: pair('[data-cv-device-name]', 'p.text-sm'),
-  deviceLine: pair('[data-cv-device-line]', 'p.text-xs'),
+  deviceRow: '[data-cv-device-row]',
+  deviceName: '[data-cv-device-name]',
+  deviceLine: '[data-cv-device-line]',
   // B6 and B38, scopes: the Settings root (or any root), then each notice
-  syncNotice: pair('[data-cv-sync-notice]', '.bg-amber-500\\/10'),
-  syncNoticeText: pair('[data-cv-sync-notice-text]', 'p'),
+  syncNotice: '[data-cv-sync-notice]',
+  syncNoticeText: '[data-cv-sync-notice-text]',
   // B7
-  syncPaused: pair('[data-cv-sync-paused]', 'p.text-amber-400'),
-  // B8, scope: one [data-dialog-content] or one sync dialog. unlockError is flows.mjs's wider match.
-  dialogError: pair('[data-cv-error]', 'p.text-red-400'),
-  unlockError: pair('[data-cv-error]', '.text-red-400'),
+  syncPaused: '[data-cv-sync-paused]',
+  // B8, scope: one [data-dialog-content] or one sync dialog
+  dialogError: '[data-cv-error]',
   // B11: the field row (closest from its [Use this]), its label, and a version line's value
-  reviewField: pair('[data-cv-review-field]', '.rounded-md'),
-  reviewFieldLabel: pair('[data-cv-review-field-label]', 'span'),
-  reviewValue: pair('[data-cv-review-value]', '.font-mono'),
+  reviewField: '[data-cv-review-field]',
+  reviewFieldLabel: '[data-cv-review-field-label]',
+  reviewValue: '[data-cv-review-value]',
   // B47: a version line (closest from its [Use this]) holds the value, the In use now badge and the button
-  reviewVersion: pair('[data-cv-review-version]', '.items-start.gap-3'),
+  reviewVersion: '[data-cv-review-version]',
   // B13
-  reviewButton: pair('[data-cv-review-button]', 'button[title="Review changes from your other devices"]'),
+  reviewButton: '[data-cv-review-button]',
   // B15, scope: each [role=status] banner
-  bannerText: pair('[data-cv-banner-text]', 'span.flex-1'),
+  bannerText: '[data-cv-banner-text]',
   // B16: the toggle that opens a closed side bar, and the proof that it is open
-  sidebarOpener: pair('[data-cv-sidebar-toggle][aria-expanded="false"]', 'button[title="Open sidebar (Ctrl+B)"]', '[data-cv-sidebar-toggle]'),
-  sidebarOpen: pair('[data-sidebar-panel]', 'button[title="Close sidebar (Ctrl+B)"]'),
+  sidebarOpener: '[data-cv-sidebar-toggle][aria-expanded="false"]',
+  sidebarOpen: '[data-sidebar-panel]',
   // B17
-  vaultSwitcher: pair('[data-cv-vault-switcher]', 'button[title]'),
+  vaultSwitcher: '[data-cv-vault-switcher]',
   // B18, scopes: the panel, then each row
-  deletedRow: pair('[data-cv-deleted-list] label', '.max-h-80 label', '[data-cv-deleted-list]'),
-  deletedTitle: pair('[data-cv-row-title]', 'p.text-sm'),
-  deletedDetail: pair('[data-cv-row-detail]', 'p.text-xs'),
+  deletedRow: '[data-cv-deleted-list] label',
+  deletedTitle: '[data-cv-row-title]',
+  deletedDetail: '[data-cv-row-detail]',
   // B19
-  stackedConfirmButton: pair('[data-cv-layer="stacked"] [data-dialog-content] button', '.z-\\[70\\] [data-dialog-content] button'),
-  // B20: rows of the panel, the row of a title (closest), and each row's title and detail
-  copyRow: pair('[data-cv-copy-row]', '.border-b'),
-  copyRowOf: pair('[data-cv-copy-row]', '.flex.items-start'),
-  copyTitle: pair('[data-cv-row-title]', 'p.text-sm'),
-  copyDetail: pair('[data-cv-row-detail]', 'p.text-xs'),
+  stackedConfirmButton: '[data-cv-layer="stacked"] [data-dialog-content] button',
+  // B20: the rows of the panel (and the row of a title, by closest), and each row's title and detail
+  copyRow: '[data-cv-copy-row]',
+  copyTitle: '[data-cv-row-title]',
+  copyDetail: '[data-cv-row-detail]',
   // B21, scope: each row label
-  massChangeTitle: pair('[data-cv-row-title]', 'span.text-ink'),
+  massChangeTitle: '[data-cv-row-title]',
   // B22 (closest from the title label) and B39 (scope: the row)
-  toggleRow: pair('[data-cv-toggle-row]', '.justify-between'),
-  toggle: pair('[data-cv-toggle]', ':scope > button'),
-  // B40: the legacy half is structural (the "Backup Files (N)" label's parent), so the reader supplies it
-  backupFiles: pair('[data-cv-backup-files]', null),
-  // B23, scopes: the files list, then each row
-  backupRow: pair('[data-cv-backup-row]', '.border-b'),
-  backupName: pair('[data-cv-backup-name]', 'span.block'),
-  backupMeta: pair('[data-cv-backup-meta]', 'span.text-\\[10px\\]'),
-  // B24 (closest from the title label) and B41 (decided on the section, legacy read in the label's parent)
-  cloudBackupSection: pair('[data-cv-cloud-backup-section]', '.space-y-3'),
-  cloudBackupBadge: pair('[data-cv-cloud-backup-badge]', 'span', '[data-cv-cloud-backup-section]'),
+  toggleRow: '[data-cv-toggle-row]',
+  toggle: '[data-cv-toggle]',
+  // B40 and B23, scopes: the Settings root, the files list, then each row
+  backupFiles: '[data-cv-backup-files]',
+  backupRow: '[data-cv-backup-row]',
+  backupName: '[data-cv-backup-name]',
+  backupMeta: '[data-cv-backup-meta]',
+  // B24 (closest from the title label) and B41 (scope: the section)
+  cloudBackupSection: '[data-cv-cloud-backup-section]',
+  cloudBackupBadge: '[data-cv-cloud-backup-badge]',
+  // B25: the Backup Manager panel
+  backupManager: '[data-cv-backup-manager]',
+  // B48: a tree folder's expand button
+  treeTwistie: '[data-cv-tree-twistie]',
 });
 
 /**
@@ -93,34 +83,22 @@ export const SELECTORS = Object.freeze({
  * (see inPage), so its body must not use anything from this module's scope.
  */
 export function pageHelpers(S) {
-  const usesHook = (scope, p) => Boolean(scope?.querySelector(p.probe ?? p.hook));
-  const pickSelector = (scope, hook, legacy, probe = hook) => (scope?.querySelector(probe) ? hook : legacy);
-  const pick = (scope, p) => pickSelector(scope, p.hook, p.legacy, p.probe ?? p.hook);
-  const pickAll = (scope, p) => {
-    const css = pick(scope, p);
-    return scope && css ? [...scope.querySelectorAll(css)] : [];
-  };
-  /** The first match. `legacyScope` is where the legacy half is read when it differs from `scope`. */
-  const pickOne = (scope, p, legacyScope = scope) => {
-    if (usesHook(scope, p)) return scope.querySelector(p.hook);
-    return p.legacy ? (legacyScope?.querySelector(p.legacy) ?? null) : null;
-  };
-  /** closest() on the half `scope` picks, limited to ancestors inside `scope`. */
-  const pickClosest = (el, scope, p) => {
-    const css = pick(scope, p);
+  const queryAll = (scope, css) => (scope && css ? [...scope.querySelectorAll(css)] : []);
+  const queryOne = (scope, css) => (scope && css ? scope.querySelector(css) : null);
+  /** closest(), limited to ancestors inside `scope`. */
+  const closestIn = (el, scope, css) => {
     const hit = el && css ? el.closest(css) : null;
-    return hit && scope.contains(hit) ? hit : null;
+    return hit && scope?.contains(hit) ? hit : null;
   };
   const scopes = (css) => (css ? [...document.querySelectorAll(css)] : [document]);
-  const find = (scopeCss, p) => scopes(scopeCss).flatMap((s) => pickAll(s, p));
+  const find = (scopeCss, css) => scopes(scopeCss).flatMap((s) => queryAll(s, css));
   const visible = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
   const text = (el) => (el?.innerText ?? el?.textContent ?? '').trim();
-  return { S, usesHook, pickSelector, pick, pickAll, pickOne, pickClosest, scopes, find, visible, text };
+  return { S, queryAll, queryOne, closestIn, scopes, find, visible, text };
 }
 
 /** The helpers bound to SELECTORS, for Node-side DOM code such as jsdom tests. */
 export const helpers = pageHelpers(SELECTORS);
-export const { pickSelector } = helpers;
 
 /**
  * Page source that calls `fn(arg, cv)` with cv = pageHelpers(SELECTORS). `fn` must be
@@ -135,24 +113,22 @@ export function evaluateIn(device, fn, arg, { timeoutMs = PAGE_CALL_TIMEOUT_MS, 
   return withTimeout(device.page.evaluate(inPage(fn, arg)), timeoutMs, `${device.name}: ${label}`);
 }
 
-const pairLabel = (p) => p.hook;
-
-/** True when a visible element matches `p` inside any element matching `scope` (default: the page). */
-export function existsIn(device, p, { scope } = {}) {
-  return evaluateIn(device, ({ scope, p }, cv) => cv.find(scope, p).some(cv.visible), { scope, p }, { label: `query ${pairLabel(p)}` });
+/** True when a visible element matches `css` inside any element matching `scope` (default: the page). */
+export function existsIn(device, css, { scope } = {}) {
+  return evaluateIn(device, ({ scope, css }, cv) => cv.find(scope, css).some(cv.visible), { scope, css }, { label: `query ${css}` });
 }
 
-/** innerText of the first element matching `p` inside the first matching scope, or null. */
-export function textIn(device, p, { scope } = {}) {
-  const read = ({ scope, p }, cv) => {
-    const el = cv.find(scope, p)[0];
+/** innerText of the first element matching `css` inside the first matching scope, or null. */
+export function textIn(device, css, { scope } = {}) {
+  const read = ({ scope, css }, cv) => {
+    const el = cv.find(scope, css)[0];
     return el ? (el.innerText ?? el.textContent ?? '') : null;
   };
-  return evaluateIn(device, read, { scope, p }, { label: `read ${pairLabel(p)}` });
+  return evaluateIn(device, read, { scope, css }, { label: `read ${css}` });
 }
 
-function clickPairInPage({ scope, p, label, exact, index }, cv) {
-  const els = cv.find(scope, p).filter(cv.visible);
+function clickHookInPage({ scope, css, label, exact, index }, cv) {
+  const els = cv.find(scope, css).filter(cv.visible);
   const match = label === null ? els : els.filter((el) => (exact ? cv.text(el) === label : cv.text(el).includes(label)));
   const el = match[index];
   if (!el) return null;
@@ -163,14 +139,14 @@ function clickPairInPage({ scope, p, label, exact, index }, cv) {
 }
 
 /**
- * ui.clickText for a selector pair: clicks the first (or index-th) visible element matching `p`
- * whose text contains (or equals, with exact) `label`; label null clicks the first match. The pair
- * is resolved again on every try, so markup that renders late is still seen.
+ * ui.clickText for a hook: clicks the first (or index-th) visible element matching `css` whose text
+ * contains (or equals, with exact) `label`; label null clicks the first match. The query runs again
+ * on every try, so markup that renders late is still seen.
  */
-export function clickIn(device, label, p, { scope, exact = false, index = 0, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
-  const what = label === null ? pairLabel(p) : `"${label}"`;
+export function clickIn(device, label, css, { scope, exact = false, index = 0, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const what = label === null ? css : `"${label}"`;
   return waitFor(async () => {
-    const res = await evaluateIn(device, clickPairInPage, { scope, p, label, exact, index }, { label: `click ${what}` });
+    const res = await evaluateIn(device, clickHookInPage, { scope, css, label, exact, index }, { label: `click ${what}` });
     return res && res !== 'disabled' ? res : null;
   }, { timeoutMs, label: `${device.name}: clickable ${what}` });
 }
