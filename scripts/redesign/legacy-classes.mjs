@@ -25,15 +25,11 @@ export const DEAD_FILES = Object.freeze([
   'src/components/upgrade/UpgradeGate.tsx',
 ]);
 
-/** Appendix B classes the harness still reads. `tag` narrows an entry to one element type. */
-export const APPENDIX_B_ALLOWLIST = Object.freeze([
-  { ref: 'B6', file: 'src/components/sync/SyncNoticeList.tsx', token: 'bg-amber-500/10', hook: 'data-cv-sync-notice' },
-  { ref: 'B7', file: 'src/components/settings/tabs/SyncTab.tsx', token: 'text-amber-400', tag: 'p', hook: 'data-cv-sync-paused' },
-  { ref: 'B8', file: 'src/components/vault/UnlockDialog.tsx', token: 'text-red-400', hook: 'data-cv-error' },
-  { ref: 'B8', file: 'src/components/vault/ChangePasswordDialog.tsx', token: 'text-red-400', tag: 'p', hook: 'data-cv-error' },
-  { ref: 'B8', file: 'src/components/sync/PasswordFields.tsx', token: 'text-red-400', tag: 'p', hook: 'data-cv-error' },
-  { ref: 'B23', file: 'src/components/settings/tabs/BackupTab.tsx', token: 'text-[10px]', tag: 'span', hook: 'data-cv-backup-meta' },
-]);
+/**
+ * Appendix B classes the harness still reads: {ref, file, token, tag?, hook}, `tag` narrowing an entry
+ * to one element type. Empty since the wave-3 integration: every entry's class is gone and its hook landed.
+ */
+export const APPENDIX_B_ALLOWLIST = Object.freeze([]);
 
 const FAMILIES = 'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
 const colorUtility = (families) =>
@@ -187,8 +183,8 @@ export function parseToken(token) {
   return { variants: parts, utility: current.replace(/^!/, '').replace(/!$/, '').replace(/^-/, '') };
 }
 
-function allowEntry(file, token, tag, source) {
-  return APPENDIX_B_ALLOWLIST.find((e) => e.file === file && e.token === token && (!e.tag || e.tag === tag) && !source.includes(e.hook));
+function allowEntry(allowlist, file, token, tag, source) {
+  return allowlist.find((e) => e.file === file && e.token === token && (!e.tag || e.tag === tag) && !source.includes(e.hook));
 }
 
 function matchesIn(str) {
@@ -207,7 +203,7 @@ function matchesIn(str) {
 }
 
 /** Findings of one file. `file` is the repo-relative path the allowlist and the report use. */
-export function scanSource(source, { file }) {
+export function scanSource(source, { file, allowlist = APPENDIX_B_ALLOWLIST }) {
   const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKind(file));
   const findings = [];
   const allowlisted = [];
@@ -215,7 +211,7 @@ export function scanSource(source, { file }) {
     for (const { token, offset, rule } of matchesIn(str)) {
       const { line, character } = sf.getLineAndCharacterOfPosition(str.start + offset);
       const finding = { file, line: line + 1, column: character + 1, token, rule: rule.id, suggestion: rule.suggestion };
-      (allowEntry(file, token, str.tag, source) ? allowlisted : findings).push(finding);
+      (allowEntry(allowlist, file, token, str.tag, source) ? allowlisted : findings).push(finding);
     }
   }
   const byPosition = (a, b) => a.line - b.line || a.column - b.column;

@@ -7,13 +7,15 @@ import path from 'node:path';
 
 interface Finding { file: string; line: number; column: number; token: string; rule: string; suggestion: string }
 interface ScanResult { findings: Finding[]; allowlisted: Finding[] }
+interface AllowEntry { ref: string; file: string; token: string; tag?: string; hook: string }
 
 // The redesign scripts are plain .mjs without type declarations.
 const legacy = (await import('../redesign/legacy-classes.mjs' as string)) as {
-  scanSource(source: string, opts: { file: string }): ScanResult;
+  scanSource(source: string, opts: { file: string; allowlist?: AllowEntry[] }): ScanResult;
   scanPaths(paths: string[], opts?: { cwd?: string }): ScanResult & { files: number };
   formatReport(result: ScanResult & { files: number }): string;
   DEAD_FILES: string[];
+  APPENDIX_B_ALLOWLIST: AllowEntry[];
 };
 
 const SCRIPT = path.resolve(__dirname, '../redesign/legacy-classes.mjs');
@@ -157,22 +159,32 @@ describe('where class strings are read', () => {
 });
 
 describe('exclusions', () => {
+  // The real allowlist is empty since the wave-3 integration; these fixtures keep the mechanism tested.
+  const allowlist: AllowEntry[] = [
+    { ref: 'B6', file: 'src/components/sync/SyncNoticeList.tsx', token: 'bg-amber-500/10', hook: 'data-cv-sync-notice' },
+    { ref: 'B7', file: 'src/components/settings/tabs/SyncTab.tsx', token: 'text-amber-400', tag: 'p', hook: 'data-cv-sync-paused' },
+  ];
+
+  it('has no Appendix B entries left: every allowlisted class is gone', () => {
+    expect(legacy.APPENDIX_B_ALLOWLIST).toEqual([]);
+  });
+
   it('allows Appendix B classes until the file carries the matching hook', () => {
     const file = 'src/components/sync/SyncNoticeList.tsx';
-    const before = legacy.scanSource('const A = () => <div className="p-2 bg-amber-500/10" />;', { file });
+    const before = legacy.scanSource('const A = () => <div className="p-2 bg-amber-500/10" />;', { file, allowlist });
     expect(before.findings).toEqual([]);
     expect(before.allowlisted.map((f) => f.token)).toEqual(['bg-amber-500/10']);
 
-    const after = legacy.scanSource('const A = () => <div data-cv-sync-notice className="p-2 bg-amber-500/10" />;', { file });
+    const after = legacy.scanSource('const A = () => <div data-cv-sync-notice className="p-2 bg-amber-500/10" />;', { file, allowlist });
     expect(after.findings.map((f) => f.token)).toEqual(['bg-amber-500/10']);
 
-    const elsewhere = legacy.scanSource('const A = () => <div className="bg-amber-500/10" />;', { file: 'src/components/sync/Other.tsx' });
+    const elsewhere = legacy.scanSource('const A = () => <div className="bg-amber-500/10" />;', { file: 'src/components/sync/Other.tsx', allowlist });
     expect(elsewhere.findings.map((f) => f.token)).toEqual(['bg-amber-500/10']);
   });
 
   it('limits a tag-bound allowlist entry to that element (B7 is p.text-amber-400)', () => {
     const file = 'src/components/settings/tabs/SyncTab.tsx';
-    const res = legacy.scanSource('const A = () => <><p className="text-amber-400" /><span className="text-amber-400" /></>;', { file });
+    const res = legacy.scanSource('const A = () => <><p className="text-amber-400" /><span className="text-amber-400" /></>;', { file, allowlist });
     expect(res.allowlisted).toHaveLength(1);
     expect(res.findings).toHaveLength(1);
   });
