@@ -35,7 +35,9 @@ in all); each suite alone adds about 8 s of setup.
 | `password` | 4 | 50 s | `verify-data` | Master-password change on a synced vault |
 | `resilience` | 5 | 148 s | `verify-data` | Offline open and reconnect, cached tier, team vaults, export and import |
 | `smoke` | 2 | 4 s | none | Harness health |
+| `startup` | 12 | 200 s | `verify-data` | Startup vault and automatic unlock (`docs/AUTO_UNLOCK.md` 8.2): relaunch, lock keeps asking, escape hatch, Go to Vault Hub, stale saved password, no automatic take-over, missing file, sign-out and account switch, MCP hold, team startup vault |
 | `sync` | 8 | 61 s | `verify-sync` | Take-over, merge and conflicts, plan changes, leases, owner claims, legacy writer, file safety |
+| `auto-unlock-shots` (opt-in) | 2 | about 45 s | none | Screenshots of every automatic unlock control in light and dark, saved to `.verify/auto-unlock-shots/` |
 | `restyle` (opt-in) | 10 | about 6 min | none | Layout reference of the visual restyle: before and after composites, control inventories, geometry rules, the icon pack sheets (see below) |
 
 A suite with `optIn: true` runs only when it is named; `all` (the default) leaves it out. `--help` lists
@@ -242,6 +244,7 @@ Makes one device lose Supabase while the shared stack keeps serving every other 
 const proxy = await ctx.supabaseProxy();              // 127.0.0.1:<free port> -> 127.0.0.1:54321
 const d = await ctx.launchDevice('o1', { env: proxy.env });  // CONDUIT_DEV_SUPABASE_URL
 proxy.cut();      // resets open connections (HTTP keep-alive and the Realtime websocket) and new ones
+proxy.stall();    // resets open connections; new ones are accepted and never answered (an open that hangs)
 proxy.restore();  // lets connections through again
 proxy.stats();    // {accepted, refused, reset, open}
 ```
@@ -254,6 +257,15 @@ unconfirmed (`status.sessionBadge` `'offline-device-check'`) only at the next fa
 opens while cut shows the badge at once. After `restore()` a device with a lease clears the badge at its
 next heartbeat (about 30 s); a device that opened offline (no lease id) acquires at its next 60 s retry
 (spec 6.2; measured 59.6 to 60.5 s). `startNetProxy(port)` is exported for other targets.
+
+### Startup vault (`lib/startup-flows.mjs`)
+
+`openVaultWithAutoUnlock(d, file, pw)` (unlock dialog checkbox, then Turn On in the warning),
+`autoUnlockFiles(d)` (the sealed `auto-unlock/*.auto.enc` names), `closeWindow(d)` (the close button:
+lock, then hide; waits for the hide) and `showWindow(d)` (reopening from the Dock or tray),
+`watchScreens(d, done)` (every screen seen until `done`), `waitUnlocked(d)`, `recentRowMenu(d, file, id)`
+(the Hub row menu with the popup answered `id`), `mainLogText(d)`. Relaunch with
+`ctx.launchDevice(name, {args: ['--no-startup-vault']})` for the escape hatch.
 
 ### Settings file (`lib/settings-file.mjs`)
 

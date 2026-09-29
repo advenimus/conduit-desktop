@@ -1,6 +1,6 @@
 # Startup vault and automatic unlock
 
-Status: spec for review, 2026-09-29, revised the same day after a code review (section 11). Branch `advenimus/auto-unlock` at b072690. Nothing is built yet.
+Status: built on `advenimus/auto-unlock`, 2026-09-29 (spec revised the same day after a code review, section 11). Owner decisions 10.6 to 10.9 follow the recommendations: the password is sealed, MCP waits for a person, a toast follows each automatic open, and the other fuses ship while `RunAsNode` stays on. Section 12 lists where the build differs from this spec.
 
 **Owner request.** "A way to store auth for vaults in system so that you can set a default vault and just open the app without the need for auth or unlock. A warning should be shown obviously. Think about good UI UX in doing this."
 
@@ -906,3 +906,20 @@ A code review raised 23 findings on the first draft. Each was checked against th
 | Opening screen accessibility; no cancel for a chosen team vault | Confirmed (`App.tsx:114-123, 999-1001`) | 2.3: `role="status"`, autofocused button, button for a chosen team vault. |
 | `NoticeCard` always shows a fingerprint | Confirmed (`SecurityTab.tsx:117-123`) | `icon` prop. |
 | No word about automatic unlock after a lock | Confirmed (`UnlockDialog.tsx:257-265`) | 2.1 status line. |
+
+---
+
+## 12. Build notes
+
+Where the implementation differs from the text above, and why:
+
+- **Fuses** are set with electron-builder's own `electronFuses` in `electron-builder.yml` instead of `scripts/afterPack.cjs`: electron-builder flips them right before signing, which is the order the fuses need. `disable-library-validation` stays in the entitlements until a signed build shows nothing (FreeRDP helper dylibs, native modules) needs it.
+- **Stale saved password on a synced vault.** When this device still has its working copy, the old password opens that copy and sync pauses with "Syncing paused"; entering the new password there re-seals the saved unlock (3.6). The stale prompt of 2.1 shows when the old password opens nothing (for example without a working copy). The live scenario `stale-after-change-elsewhere` removes the working copy to reach it; the password-changed dialog in its saved form is covered by unit tests.
+- **A saved unlock counts only while its vault is at the path.** The Hub, Settings and the unlock dialog treat the startup vault as having a saved unlock only when the file at the path still has the saved lineage (3.7 "Another vault now at the startup path"), so they never claim automatic unlock for another file.
+- **The Startup badge** is a plain badge inside the row: the row is already a button, so a button inside it would nest. The row's context menu opens from the keyboard with Shift+F10 or the context menu key.
+- **Clear All / Remove** return the recent list as before; the renderer derives the toasts from the startup status it already holds.
+- **Idle lock payload.** `vault-locked-by-system` carries `{ reason: 'idle' | 'lock-screen' | 'window-closed' }`. The close handler still tells the renderer when a team vault is open, as before.
+- **Time Machine.** `tmutil addexclusion` can be refused for an app without Full Disk Access; the store then sets the `com.apple.metadata:com_apple_backup_excludeItem` attribute itself.
+- **One toast controller.** App renders one `NotificationStack` for every screen, so a toast raised on the opening screen or the Hub survives the switch to the main window.
+- **Live coverage.** `lock-asks-again` uses the screen lock (the idle lock's code path) instead of waiting for the idle timer. Shift and Option at launch, Windows, Linux backends and the fuses remain manual checks (section 9).
+

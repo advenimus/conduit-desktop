@@ -210,6 +210,25 @@
 - Zero new npm dependencies — uses Electron built-in + compiled Swift binary
 - Windows Hello support planned as follow-up
 
+### Startup Vault and Automatic Unlock
+- **Open at startup** (Settings > General): show the Vault Hub, one personal vault or one team vault when Conduit starts. "Last team vault used" (team members) keeps the old rule: reconnect to the last team vault used
+- A personal startup vault goes straight to its unlock prompt; Touch ID starts by itself when Quick Unlock is on
+- **Unlock automatically at startup** (checkbox in the unlock dialog, or Settings > Security): the startup vault opens with no password
+  - Turning it on needs the master password or Touch ID at that moment and shows a warning first
+  - The master password is sealed with the operating system's secret store (macOS Keychain, Windows DPAPI, GNOME Keyring or KWallet on Linux), keyed by vault identity (lineage) and tied to the Conduit account that turned it on; never in settings.json. The folder is `{dataDir}/auto-unlock/` on macOS and Linux (excluded from Time Machine) and under `%LOCALAPPDATA%` on Windows (never roams)
+  - Not offered, and never re-saved, when the secret store is missing, or on Linux without a real keyring (`basic_text`)
+  - At most one vault per computer: choosing another startup vault turns it off for the old one
+  - Runs once per start, and when the window opens again after being closed while an automatically opened vault was open; after Lock, the idle lock or the screen lock, the password or Touch ID is needed until Conduit starts again
+  - Never takes over: every device limit, ownership, sign-in and update check shows its normal dialog; Cancel there goes to the Vault Hub
+  - A saved password that no longer works (changed on another device) is deleted at once; the normal prompt shows with a note and a checkbox to save the new one
+  - Re-saved after a password change on this device or learned through sync; follows renames and moves
+  - Turned off by Remove from Recents, Clear All, Sign Out, any change of signed-in account, releasing the vault and Make my own copy (the copy becomes the startup vault)
+  - After an automatic unlock, MCP calls get the locked error until you click or type in Conduit
+  - A small open-lock icon beside the vault name while it is on, a short toast after each automatic open, and a "Startup" badge with the same icon in the Vault Hub
+  - Hold Shift (or Option on a Mac) as Conduit starts, click "Go to Vault Hub" on the opening screen, or start with `--no-startup-vault` to skip it once
+  - All plans; desktop only (iOS already reopens with Face ID). Uninstalling Conduit leaves the data folder, and the sealed entry, in place
+- Packaged builds turn off the Electron debugger and `NODE_OPTIONS` fuses and require an integrity-checked `app.asar`, so another program cannot run Conduit's signed binary to read the secret store
+
 ### Vault Management
 - **Rename Vault**: Rename personal or team vaults from File > Rename Vault while unlocked; personal vaults rename the `.conduit` file on disk, team vaults update the name in Supabase (vault admin or team admin required)
 - **Manual Save**: File > Vault Management > Save Vault (Ctrl+S / Cmd+S) forces a WAL checkpoint, flushing all data into the `.conduit` file for portable backup; shows informational toast for team vaults (saved to cloud automatically)
@@ -641,8 +660,12 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - **Mobile settings tab**: QR code for downloading Conduit on iPhone & iPad from the App Store
 - Vault sync info: keep the vault file in iCloud Drive, OneDrive or Dropbox to use it on every device; Conduit merges the changes. On Free a vault can be open on one device at a time
 
+### General
+- Open at startup (see Startup Vault and Automatic Unlock)
+
 ### Security
 - Quick Unlock toggle (macOS)
+- Automatic unlock at startup, with its warning (see Startup Vault and Automatic Unlock)
 - "Lock the vault when idle" (off by default; see Auto-Lock)
 
 ### Sync
@@ -837,7 +860,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Submit Feedback — lightweight suggestion/feature request form
 
 ### System Tray
-- **Close to tray/dock**: Clicking the close button (red X on macOS, X on Windows) hides the window instead of quitting — the app stays running in the system tray (Windows) or dock (macOS). Vault is automatically locked and all sessions closed on hide. Reopening from the dock, tray, or a second-instance launch requires vault re-unlock. Cmd+Q / tray Quit fully exits the app.
+- **Close to tray/dock**: Clicking the close button (red X on macOS, X on Windows) hides the window instead of quitting — the app stays running in the system tray (Windows) or dock (macOS). Vault is automatically locked and all sessions closed on hide. Reopening from the dock, tray, or a second-instance launch requires vault re-unlock, except that a vault set to unlock automatically opens again by itself when it had opened automatically and was not locked before the window closed. Cmd+Q / tray Quit fully exits the app.
 - Show Conduit, Credential Picker, Quit
 - **Credential Picker**: Tray popup window for quick credential access without opening the full app
   - Global shortcut: Cmd/Ctrl+Shift+Space (also available from tray context menu)
