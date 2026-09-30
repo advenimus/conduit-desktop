@@ -684,6 +684,17 @@ default: `node scripts/verify/run.mjs ownership sync` passed all 17 scenarios in
 2026-09-29. If a focus-dependent check fails only in quiet mode, rerun it with `CV_QUIET=0` before
 calling it an app bug.
 
+## One-off screenshots
+
+`node scripts/verify/capture-spacing.mjs <before|after> [--mode dark|light]` launches one quiet device
+per mode and walks it through every screen with no scenarios and no checks (about 2 minutes a mode):
+sign-in, the Vault Hub with four recent vaults (one with the Startup badge, automatic unlock and a Quick
+Unlock fingerprint), the unlock dialogs, the side bar, panes and tab bars, the AI panel, popup menus,
+entry dialogs, every Settings tab, the sync panels, toasts and the automatic unlock fallbacks
+(`lib/spacing-screens.mjs`). Shots are page screenshots at CSS scale, since a quiet window captures
+empty, and go to `.verify/spacing/<set>/<mode>-<nn>-<name>.png` with an `INDEX.md`; the same command
+gives the same names, so a before and an after set line up file for file.
+
 ## Gotchas
 
 - Playwright locator clicks time out in this app. Use `ui.clickText` / `ui.clickSelector` (DOM clicks);

@@ -73,11 +73,12 @@ async function screencapture(cg, file) {
 /**
  * Captures the main window with the given child window roles laid over it, into `file`.
  * Returns {file, method: 'window' | 'page', scale, main, missing}: `missing` lists the open child
- * windows of those roles that a page screenshot leaves out.
+ * windows of those roles that a page screenshot leaves out. `method: 'page'` always takes the page screenshot.
  */
-export async function captureWindow(device, file, { overlays = ['menu', 'overlay'] } = {}) {
+export async function captureWindow(device, file, { overlays = ['menu', 'overlay'], method = 'window' } = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  if (process.platform === 'darwin') {
+  // A quiet device's windows are invisible, so a macOS window capture of them comes back empty.
+  if (process.platform === 'darwin' && method === 'window') {
     try {
       return await captureMacWindows(device, file, overlays);
     } catch (err) {
