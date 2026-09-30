@@ -11,7 +11,7 @@ interface InformationTabProps {
 
 export default function InformationTab({ tags, setTags, notes, setNotes }: InformationTabProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Field label="Tags">
         <TextInput value={tags} onChange={(e) => setTags(e.target.value)} placeholder="production, linux (comma-separated)" />
       </Field>

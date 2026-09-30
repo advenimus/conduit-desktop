@@ -372,7 +372,7 @@ export default function AuditLogViewer({ teamVaultId, embedded, onClose }: Audit
         {logPanel}
       </div>
 
-      <DialogFooter className="mt-2">
+      <DialogFooter divided>
         <Button onClick={close}>Close</Button>
       </DialogFooter>
     </Dialog>

@@ -302,32 +302,35 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
         </>
       }
     >
-      <div className="space-y-1">
-        {currentVaultPath && (
-          <p className="text-meta text-ink-faint truncate" title={currentVaultPath}>
-            {currentVaultPath.split(/[/\\]/).pop()}
-          </p>
-        )}
-        {choice.keepMode ? (
-          <AutoUnlockFallbackNote
-            onTurnOff={() => {
-              const name = fallback?.name ?? "";
-              useStartupVaultStore.getState().setFallback(null);
-              void turnOffAutoUnlock(name);
-            }}
-          />
-        ) : (
-          <p className="text-body text-ink-muted">
-            {isInitializing
-              ? "Set a master password to protect your credentials"
-              : biometricUnlockInProgress
-              ? "Authenticating..."
-              : takeoverMode
-              ? "Unlock to use this vault here. It locks on the other device."
-              : (choice.afterLockLine ?? "Enter your master password to access credentials")}
-          </p>
-        )}
-      </div>
+      {(currentVaultPath || !choice.keepMode) && (
+        <div className="space-y-1">
+          {currentVaultPath && (
+            <p className="text-meta text-ink-faint truncate" title={currentVaultPath}>
+              {currentVaultPath.split(/[/\\]/).pop()}
+            </p>
+          )}
+          {!choice.keepMode && (
+            <p className="text-body text-ink-muted">
+              {isInitializing
+                ? "Set a master password to protect your credentials"
+                : biometricUnlockInProgress
+                ? "Authenticating..."
+                : takeoverMode
+                ? "Unlock to use this vault here. It locks on the other device."
+                : (choice.afterLockLine ?? "Enter your master password to access credentials")}
+            </p>
+          )}
+        </div>
+      )}
+      {choice.keepMode && (
+        <AutoUnlockFallbackNote
+          onTurnOff={() => {
+            const name = fallback?.name ?? "";
+            useStartupVaultStore.getState().setFallback(null);
+            void turnOffAutoUnlock(name);
+          }}
+        />
+      )}
 
       <FormField label="Master Password">
         <TextInput

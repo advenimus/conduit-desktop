@@ -75,7 +75,7 @@ export default function PasswordChangedElsewhereDialog({
       )}
       {fromSavedUnlock && (
         <Checkbox checked={keep} onChange={setKeep} description="Saves the password you enter now.">
-          Keep unlocking automatically at startup
+          <span className="font-medium text-ink">Keep unlocking automatically at startup</span>
         </Checkbox>
       )}
       <InlineError message={error} />

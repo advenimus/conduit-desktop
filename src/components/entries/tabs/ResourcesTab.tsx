@@ -46,7 +46,7 @@ export default function ResourcesTab({ config, onChange, globalDefaults }: Resou
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Sound */}
       <Field label="Sound">
         <DefaultableSelect<string>

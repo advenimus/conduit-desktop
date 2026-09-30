@@ -34,7 +34,7 @@ export default function SecurityTab({
     };
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         {/* NLA */}
         <DefaultableCheckbox
           value={rdpConfig.enableNla}
@@ -78,16 +78,18 @@ export default function SecurityTab({
   if (entryType === "web") {
     const isWindows = navigator.userAgent.includes("Windows");
     return (
-      <div className="space-y-3">
-        <DefaultableCheckbox
-          value={webConfig.ignoreCertErrors}
-          defaultValue={webGlobalDefaults.ignoreCertErrors}
-          label="Ignore certificate errors"
-          onChange={(v) => onWebConfigChange({ ...webConfig, ignoreCertErrors: v })}
-        />
-        <p className="text-meta text-ink-muted">
-          Trust self-signed or expired SSL certificates. Use for internal services on trusted networks.
-        </p>
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <DefaultableCheckbox
+            value={webConfig.ignoreCertErrors}
+            defaultValue={webGlobalDefaults.ignoreCertErrors}
+            label="Ignore certificate errors"
+            onChange={(v) => onWebConfigChange({ ...webConfig, ignoreCertErrors: v })}
+          />
+          <p className="text-meta text-ink-muted">
+            Trust self-signed or expired SSL certificates. Use for internal services on trusted networks.
+          </p>
+        </div>
 
         {/* Browser Engine — Windows only */}
         {isWindows && (

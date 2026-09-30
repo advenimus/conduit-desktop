@@ -41,7 +41,7 @@ export default function GeneralTab({
   const colorResult = getEntryColor(entryType, customColor);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <Field label="Name" required>
         <TextInput
           value={name}

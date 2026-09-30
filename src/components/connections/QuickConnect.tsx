@@ -226,9 +226,9 @@ export default function QuickConnect({ onClose }: QuickConnectProps) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="password"
-                    className="pr-12"
+                    className="pr-14"
                   />
-                  <span className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                  <span className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
                     <PasswordGenerateButton onPasswordGenerated={setPassword} />
                     <IconButton
                       size="sm"

@@ -202,7 +202,7 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
           )}
         </div>
       </div>
-      <DialogFooter>
+      <DialogFooter divided>
         <Button variant="secondary" onClick={handleCancel}>
           Cancel
         </Button>

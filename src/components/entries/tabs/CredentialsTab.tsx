@@ -42,7 +42,7 @@ interface CredentialsTabProps extends TotpSectionProps {
 
 
 /** Room for the buttons inside the field's right edge. */
-const TRAILING_PADDING = 72;
+const TRAILING_PADDING = 80;
 
 const DEFAULT_AUTH = "default";
 
@@ -105,7 +105,7 @@ export default function CredentialsTab({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {showUsername && !isSshKey && (
         <Field label={usernameRequired ? "Username *" : "Username"}>
           <TextInput
@@ -126,7 +126,7 @@ export default function CredentialsTab({
               onChange={(e) => setPassword(e.target.value)}
               style={{ paddingRight: TRAILING_PADDING }}
             />
-            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
               <PasswordGenerateButton onPasswordGenerated={setPassword} />
               {isEditing && entryId && (
                 <IconButton size="sm" icon="history" label="Password history" onClick={() => setShowPasswordHistory(true)} />
@@ -161,7 +161,7 @@ export default function CredentialsTab({
               className={`font-mono ${!showPrivateKey && privateKey ? "blur-sm select-none focus:blur-none focus:select-auto" : ""}`}
               style={{ resize: "none", paddingRight: TRAILING_PADDING }}
             />
-            <div className="absolute right-1 top-1 flex items-center gap-0.5">
+            <div className="absolute right-1 top-1 flex items-center gap-1">
               <SshKeyGenerateButton
                 onKeyGenerated={setPrivateKey}
                 onFullKeyGenerated={(result) => {

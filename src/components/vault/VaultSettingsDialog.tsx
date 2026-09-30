@@ -724,7 +724,7 @@ export default function VaultSettingsDialog({
         </div>
       </div>
 
-      <DialogFooter className="mt-2">
+      <DialogFooter divided>
         <Button onClick={onClose}>Done</Button>
       </DialogFooter>
     </Dialog>
