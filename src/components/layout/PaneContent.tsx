@@ -1,6 +1,5 @@
 import { useSessionStore } from "../../stores/sessionStore";
-import { useEntryStore } from "../../stores/entryStore";
-import { useLayoutStore, findLeaf, getAllLeaves } from "../../stores/layoutStore";
+import { useLayoutStore, findLeaf } from "../../stores/layoutStore";
 import {
   TerminalView,
   RdpView,
@@ -13,7 +12,7 @@ import {
 import EntryDashboard from "../dashboard/EntryDashboard";
 import FolderDashboard from "../dashboard/FolderDashboard";
 import DashboardOverview from "../dashboard/DashboardOverview";
-import { Button, Spinner } from "../ui";
+import { Spinner } from "../ui";
 import { dashboardViewOf } from "../../lib/dashboardSessions";
 
 interface PaneContentProps {
@@ -30,12 +29,8 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
     const pane = findLeaf(s.root, paneId);
     return pane?.activeSessionId ?? null;
   });
-  const isOnlyPane = useLayoutStore((s) => {
-    return getAllLeaves(s.root).length === 1;
-  });
 
   const sessions = useSessionStore((s) => s.sessions);
-  const { entries, folders, selectedEntryId } = useEntryStore();
 
   const paneSessions = paneSessionIds
     .map((id) => sessions.find((s) => s.id === id))
@@ -164,50 +159,5 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
     );
   }
 
-  // Empty pane — show dashboard only if this is the only pane
-  if (!isOnlyPane) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-editor text-ink-muted">
-        <p className="text-body">Drag a tab here or open a new session</p>
-      </div>
-    );
-  }
-
-  // Single pane, no sessions — show dashboard
-  if (selectedEntryId) {
-    const isFolder = folders.some((f) => f.id === selectedEntryId);
-    if (isFolder) {
-      return <FolderDashboard folderId={selectedEntryId} />;
-    }
-    return <EntryDashboard entryId={selectedEntryId} />;
-  }
-
-  if (entries.length > 0 || folders.length > 0) {
-    return <DashboardOverview />;
-  }
-
-  return (
-    <div className="flex-1 flex items-center justify-center bg-editor h-full">
-      <div className="text-center max-w-md">
-        <h2 className="text-title text-ink mb-2">Welcome to Conduit</h2>
-        <p className="text-body text-ink-muted mb-6">
-          Get started by creating your first entry or connecting to a remote host.
-        </p>
-        <div className="flex gap-3 justify-center">
-          <Button
-            variant="primary"
-            onClick={() => document.dispatchEvent(new CustomEvent("conduit:new-entry"))}
-          >
-            New Entry
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => document.dispatchEvent(new CustomEvent("conduit:quick-connect"))}
-          >
-            Quick Connect
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
+  return <DashboardOverview />;
 }

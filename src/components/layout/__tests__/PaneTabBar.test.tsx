@@ -4,11 +4,12 @@ import { resolve } from "node:path";
 import { render, fireEvent, act, waitFor } from "@testing-library/react";
 import PaneTabBar from "../PaneTabBar";
 import { useSessionStore, type Session } from "../../../stores/sessionStore";
-import { useLayoutStore } from "../../../stores/layoutStore";
+import { findLeaf, useLayoutStore } from "../../../stores/layoutStore";
 import { useSidebarStore } from "../../../stores/sidebarStore";
 import { useEntryStore } from "../../../stores/entryStore";
 import { useTierStore } from "../../../stores/tierStore";
 import { showContextMenu, type PopupMenuItem } from "../../../utils/contextMenu";
+import { HOME_SESSION_ID, folderViewSessionId } from "../../../lib/dashboardSessions";
 
 vi.mock("../../../utils/contextMenu", () => ({ showContextMenu: vi.fn() }));
 vi.mock("../../common/Toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -35,10 +36,17 @@ function setSidebar(mode: SidebarMode) {
   });
 }
 
-function setup({ active = "s-term", sidebar = "closed" as SidebarMode, rightSlot }: { active?: string; sidebar?: SidebarMode; rightSlot?: React.ReactNode } = {}) {
-  useSessionStore.setState({ sessions: SESSIONS, updateSessionTitle: vi.fn(), closeSession: vi.fn(async () => undefined) });
+interface SetupOptions {
+  active?: string;
+  sidebar?: SidebarMode;
+  rightSlot?: React.ReactNode;
+  sessions?: Session[];
+}
+
+function setup({ active = "s-term", sidebar = "closed", rightSlot, sessions = SESSIONS }: SetupOptions = {}) {
+  useSessionStore.setState({ sessions, updateSessionTitle: vi.fn(), closeSession: vi.fn(async () => undefined) });
   useLayoutStore.setState({
-    root: { type: "leaf", id: PANE, sessionIds: SESSIONS.map((s) => s.id), activeSessionId: active },
+    root: { type: "leaf", id: PANE, sessionIds: sessions.map((s) => s.id), activeSessionId: active },
     focusedPaneId: PANE,
   });
   useEntryStore.setState({ entries: [] });
@@ -266,5 +274,79 @@ describe("PaneTabBar menus", () => {
       ["home", "home"],
       ["browse", "folder"],
     ]);
+  });
+});
+
+const HOME: Session = { id: HOME_SESSION_ID, type: "dashboard", title: "Home", status: "connected" };
+const WITH_HOME = [HOME, ...SESSIONS];
+
+describe("PaneTabBar Home tab", () => {
+  it("shows the house icon and label with no dot and no close button", () => {
+    const { tab } = setup({ sessions: WITH_HOME, active: HOME_SESSION_ID });
+    const home = tab(HOME_SESSION_ID);
+    expect(home.hasAttribute("data-cv-home-tab")).toBe(true);
+    expect(home.getAttribute("data-cv-home-tab")).toBe("");
+    expect([...home.children].map((c) => c.className)).toEqual(["cv-tab-fill", "flex", "cv-tab-label"]);
+    expect(home.querySelector(".cv-tab-label")!.textContent).toBe("Home");
+    expect(home.querySelector("svg")!.getAttribute("class")).toContain("text-link");
+    expect(home.querySelector(".cv-tab-close")).toBeNull();
+    expect(tab("s-term").hasAttribute("data-cv-home-tab")).toBe(false);
+  });
+
+  it("names the shortcut in its tooltip for this platform", () => {
+    const { tab } = setup({ sessions: WITH_HOME });
+    const isMac = navigator.platform.toUpperCase().includes("MAC");
+    expect(tab(HOME_SESSION_ID).getAttribute("title")).toBe(isMac ? "Home (Cmd+Shift+H)" : "Home (Ctrl+Shift+H)");
+    expect(tab("s-term").hasAttribute("title")).toBe(false);
+  });
+
+  it("is not draggable while other tabs are", () => {
+    const { tab } = setup({ sessions: WITH_HOME });
+    expect(tab(HOME_SESSION_ID).getAttribute("draggable")).toBe("false");
+    expect(tab("s-term").getAttribute("draggable")).toBe("true");
+  });
+
+  it("shows no menu on right-click and blocks the browser menu", () => {
+    const { tab } = setup({ sessions: WITH_HOME });
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    tab(HOME_SESSION_ID).dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(menu).not.toHaveBeenCalled();
+  });
+
+  it("still selects Home on click", () => {
+    const { tab } = setup({ sessions: WITH_HOME });
+    fireEvent.click(tab(HOME_SESSION_ID));
+    expect(tab(HOME_SESSION_ID).hasAttribute("data-active")).toBe(true);
+  });
+
+  it("lands a tab dropped on Home right after it and marks that slot", () => {
+    const { tab } = setup({ sessions: WITH_HOME });
+    const dataTransfer = { setData: vi.fn(), getData: vi.fn(() => "s-rdp"), effectAllowed: "", dropEffect: "" };
+    fireEvent.dragStart(tab("s-rdp"), { dataTransfer });
+    fireEvent.dragOver(tab(HOME_SESSION_ID), { dataTransfer });
+    expect(tab(HOME_SESSION_ID).hasAttribute("data-drop-target")).toBe(false);
+    expect(tab("s-term").hasAttribute("data-drop-target")).toBe(true);
+    fireEvent.drop(tab(HOME_SESSION_ID), { dataTransfer });
+    expect(findLeaf(useLayoutStore.getState().root, PANE)?.sessionIds).toEqual([HOME_SESSION_ID, "s-rdp", "s-term", "s-doc", "s-web"]);
+  });
+});
+
+describe("PaneTabBar folder view tab", () => {
+  it("shows the folder icon in the folder's color", () => {
+    useEntryStore.setState({ folders: [{ id: "f1", name: "Production", icon: null, color: "#ff0000" }] as never });
+    const folderTab: Session = {
+      id: folderViewSessionId("f1"),
+      type: "dashboard",
+      title: "Production",
+      status: "connected",
+      metadata: { folderId: "f1" },
+    };
+    const { tab } = setup({ sessions: [folderTab], active: folderTab.id });
+    const icon = tab(folderTab.id).querySelector("svg")!;
+    expect(icon.getAttribute("class")).toContain("lucide-folder");
+    expect(icon.getAttribute("class")).not.toContain("text-link");
+    expect(icon.getAttribute("style")).toContain("color: rgb(255, 0, 0)");
+    expect(tab(folderTab.id).querySelector(".cv-tab-close")).not.toBeNull();
   });
 });
