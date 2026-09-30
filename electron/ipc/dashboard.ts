@@ -20,6 +20,7 @@ import {
   type AiActivityResponse,
   type ConnectionHistoryEvent,
   type HistoryClearResponse,
+  type HistoryInterruptResponse,
   type HistoryStartResponse,
   type PasswordAgeItem,
   type ReachabilityResult,
@@ -74,7 +75,25 @@ export interface IpcRegistrar {
 
 type Handler = (args: DashboardArgs) => unknown;
 
-function wrapVault(vault: { listPasswordAges(): PasswordAgeItem[]; getEntryMeta(id: string): ReachabilityEntry }, key: string): DashboardVault {
+/** The vault methods the dashboard reads. */
+export interface DashboardVaultSource {
+  isUnlocked(): boolean;
+  peekVaultId(): string | null;
+  getFilePath(): string;
+  listPasswordAges(): PasswordAgeItem[];
+  getEntryMeta(id: string): ReachabilityEntry;
+}
+
+/** The part of AppState the default deps read (tests pass a fake). */
+export interface DashboardAppState {
+  readonly vault: DashboardVaultSource;
+  readonly teamVaultManager: {
+    getActiveVault(): DashboardVaultSource | null;
+    getActiveVaultId(): string | null;
+  };
+}
+
+export function wrapVault(vault: Pick<DashboardVaultSource, 'listPasswordAges' | 'getEntryMeta'>, key: string): DashboardVault {
   return {
     key,
     listPasswordAges: () => {
@@ -97,8 +116,8 @@ function wrapVault(vault: { listPasswordAges(): PasswordAgeItem[]; getEntryMeta(
   };
 }
 
-function defaultDeps(): DashboardDeps {
-  const state = AppState.getInstance();
+/** A sync-blocked (soft-locked) personal vault reads as locked: peekVaultId throws VaultLockedError. */
+export function defaultDeps(state: DashboardAppState = AppState.getInstance()): DashboardDeps {
   let store: ConnectionHistoryStore | null = null;
   return {
     activeVault: () => {
@@ -176,11 +195,17 @@ export function registerDashboardHandlers(deps: DashboardDeps = defaultDeps(), i
     return { deleted: vault === null ? 0 : deps.historyStore().clear(vault.key) };
   });
 
+  on(DASHBOARD_CHANNELS.historyInterruptOpen, (): HistoryInterruptResponse => ({
+    interrupted: deps.historyStore().interruptOpenRows(),
+  }));
+
   on(DASHBOARD_CHANNELS.passwordAges, (): PasswordAgeItem[] => deps.activeVault()?.listPasswordAges() ?? []);
 
-  on(DASHBOARD_CHANNELS.aiActivity, (a): Promise<AiActivityResponse> =>
-    deps.aiActivity(clampLimit(a.limit, AI_ACTIVITY_DEFAULT, AI_ACTIVITY_MAX)),
-  );
+  on(DASHBOARD_CHANNELS.aiActivity, async (a): Promise<AiActivityResponse> => {
+    const limit = clampLimit(a.limit, AI_ACTIVITY_DEFAULT, AI_ACTIVITY_MAX);
+    if (deps.activeVault() === null) return { items: [], logFound: false };
+    return deps.aiActivity(limit);
+  });
 
   on(DASHBOARD_CHANNELS.reachabilityCheck, (a): Promise<ReachabilityResult> => {
     const { entryId } = parseReachability(a);

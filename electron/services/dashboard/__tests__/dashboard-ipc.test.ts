@@ -7,7 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('electron', () => ({ app: { on: vi.fn() }, ipcMain: { handle: vi.fn() } }));
 vi.mock('../../state.js', () => ({ AppState: { getInstance: () => ({}) } }));
 
-const { registerDashboardHandlers, ENTRY_NOT_FOUND_MESSAGE, VAULT_LOCKED_MESSAGE } = await import('../../../ipc/dashboard.js');
+const { registerDashboardHandlers, defaultDeps, wrapVault, ENTRY_NOT_FOUND_MESSAGE, VAULT_LOCKED_MESSAGE } = await import('../../../ipc/dashboard.js');
+const { VaultLockedError } = await import('../../vault/vault.js');
 const { ConnectionHistoryStore } = await import('../connection-history-store.js');
 const { ReachabilityChecker } = await import('../reachability.js');
 const { DASHBOARD_CHANNELS } = await import('../dashboard-dto.js');
@@ -68,7 +69,10 @@ beforeEach(() => {
   unlocked = true;
   quitFns = [];
   aiLimits = [];
-  probeFn = vi.fn(async () => ({ status: 'reachable', latencyMs: 3 }));
+  probeFn = vi.fn(() => {
+    const result = Promise.resolve({ status: 'reachable', latencyMs: 3 });
+    return { result, idle: result.then(() => undefined) };
+  });
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -103,6 +107,8 @@ describe('dashboard IPC channels', () => {
     await expect(ipc.invoke('connection_history_for_entry', { entryId: 'e1' })).resolves.toEqual([]);
     await expect(ipc.invoke('connection_history_clear', {})).resolves.toEqual({ deleted: 0 });
     await expect(ipc.invoke('password_age_list', {})).resolves.toEqual([]);
+    await expect(ipc.invoke('ai_activity_recent', {})).resolves.toEqual({ items: [], logFound: false });
+    expect(aiLimits).toEqual([]);
     await expect(ipc.invoke('reachability_check', { entryId: 'e1' })).rejects.toThrow(VAULT_LOCKED_MESSAGE);
     unlocked = true;
     expect(store.forEntry('vault:v1', 'e1', 5)[0]).toMatchObject({ id: open.id, outcome: 'closed' });
@@ -167,11 +173,120 @@ describe('dashboard IPC channels', () => {
     expect(JSON.stringify((console.error as unknown as ReturnType<typeof vi.fn>).mock.calls)).not.toContain('web01');
   });
 
+  it('marks open rows interrupted for a renderer that started again, locked or not', async () => {
+    const ipc = setup();
+    const a = (await ipc.invoke('connection_history_start', { entryId: 'e1', protocol: 'ssh' })) as { id: string };
+    unlocked = false;
+    await expect(ipc.invoke('connection_history_interrupt_open', {})).resolves.toEqual({ interrupted: 1 });
+    await expect(ipc.invoke('connection_history_interrupt_open', {})).resolves.toEqual({ interrupted: 0 });
+    expect(store.forEntry('vault:v1', 'e1', 5)[0]).toMatchObject({ id: a.id, outcome: 'interrupted' });
+  });
+
   it('closes open rows when the app quits', async () => {
     const ipc = setup();
     await ipc.invoke('connection_history_start', { entryId: 'e1', protocol: 'rdp' });
     expect(quitFns).toHaveLength(1);
     quitFns[0]();
     expect(store.forEntry('vault:v1', 'e1', 5)[0]).toMatchObject({ outcome: 'closed' });
+  });
+});
+
+describe('defaultDeps and wrapVault', () => {
+  interface FakeVault {
+    isUnlocked(): boolean;
+    peekVaultId(): string | null;
+    getFilePath(): string;
+    listPasswordAges(): never[];
+    getEntryMeta(id: string): { id: string; entry_type: string; host: string | null; port: number | null };
+  }
+
+  function vault(overrides: Partial<FakeVault> = {}): FakeVault {
+    return {
+      isUnlocked: () => true,
+      peekVaultId: () => 'vid-1',
+      getFilePath: () => '/tmp/personal.conduit',
+      listPasswordAges: () => [],
+      getEntryMeta: (id) => ({ id, entry_type: 'ssh', host: 'h', port: 22 }),
+      ...overrides,
+    };
+  }
+
+  function appState(personal: FakeVault, team: FakeVault | null = null, teamId: string | null = null) {
+    return { vault: personal, teamVaultManager: { getActiveVault: () => team, getActiveVaultId: () => teamId } };
+  }
+
+  it('keys a personal vault by its vault id, else by its path', () => {
+    expect(defaultDeps(appState(vault())).activeVault()?.key).toBe('vault:vid-1');
+    const byPath = defaultDeps(appState(vault({ peekVaultId: () => null }))).activeVault()?.key;
+    expect(byPath).toMatch(/^path:[0-9a-f]{32}$/);
+  });
+
+  it('keys the active team vault by its team vault id and never peeks its vault id', () => {
+    const peek = vi.fn(() => 'should-not-read');
+    const deps = defaultDeps(appState(vault(), vault({ peekVaultId: peek }), 'tv-9'));
+    expect(deps.activeVault()?.key).toBe('team:tv-9');
+    expect(peek).not.toHaveBeenCalled();
+  });
+
+  it('gives null for a locked vault and for a sync-blocked one', () => {
+    expect(defaultDeps(appState(vault({ isUnlocked: () => false }))).activeVault()).toBeNull();
+    const blocked = vault({
+      peekVaultId: () => {
+        throw new VaultLockedError();
+      },
+    });
+    expect(defaultDeps(appState(blocked)).activeVault()).toBeNull();
+  });
+
+  it('rethrows other errors from reading the vault id', () => {
+    const broken = vault({
+      peekVaultId: () => {
+        throw new Error('disk');
+      },
+    });
+    expect(() => defaultDeps(appState(broken)).activeVault()).toThrow('disk');
+  });
+
+  it('maps entry lookups: locked gives Vault is locked, anything else Entry not found', () => {
+    const locked = wrapVault(
+      vault({
+        getEntryMeta: () => {
+          throw new VaultLockedError();
+        },
+      }),
+      'k',
+    );
+    expect(() => locked.entryForCheck('e1')).toThrow(VAULT_LOCKED_MESSAGE);
+    const missing = wrapVault(
+      vault({
+        getEntryMeta: () => {
+          throw new Error('Entry not found: e1 at /secret/path');
+        },
+      }),
+      'k',
+    );
+    expect(() => missing.entryForCheck('e1')).toThrow(new Error(ENTRY_NOT_FOUND_MESSAGE));
+    expect(wrapVault(vault(), 'k').entryForCheck('e1')).toEqual({ id: 'e1', entry_type: 'ssh', host: 'h', port: 22 });
+  });
+
+  it('gives no password ages while locked and rethrows other errors', () => {
+    const locked = wrapVault(
+      vault({
+        listPasswordAges: () => {
+          throw new VaultLockedError();
+        },
+      }),
+      'k',
+    );
+    expect(locked.listPasswordAges()).toEqual([]);
+    const broken = wrapVault(
+      vault({
+        listPasswordAges: () => {
+          throw new Error('disk');
+        },
+      }),
+      'k',
+    );
+    expect(() => broken.listPasswordAges()).toThrow('disk');
   });
 });

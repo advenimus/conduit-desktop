@@ -7,6 +7,7 @@ import {
   type HistoryClearResponse,
   type HistoryEndRequest,
   type HistoryForEntryRequest,
+  type HistoryInterruptResponse,
   type HistoryRecentRequest,
   type HistoryStartRequest,
   type HistoryStartResponse,
@@ -30,6 +31,8 @@ export const dashboardApi = {
     invoke<ConnectionHistoryEvent[]>(DASHBOARD_CHANNELS.historyForEntry, args(request)),
   historyClear: () =>
     invoke<HistoryClearResponse>(DASHBOARD_CHANNELS.historyClear, {}),
+  historyInterruptOpen: () =>
+    invoke<HistoryInterruptResponse>(DASHBOARD_CHANNELS.historyInterruptOpen, {}),
   passwordAges: () =>
     invoke<PasswordAgeItem[]>(DASHBOARD_CHANNELS.passwordAges, {}),
   aiActivity: (request: AiActivityRequest = {}) =>

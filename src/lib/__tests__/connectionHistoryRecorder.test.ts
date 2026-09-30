@@ -3,7 +3,7 @@ import type { Session } from "../../stores/sessionStore";
 import type { HistoryEndRequest, HistoryStartRequest } from "../../types/dashboard";
 
 vi.mock("../dashboardApi", () => ({
-  dashboardApi: { historyStart: vi.fn(), historyEnd: vi.fn() },
+  dashboardApi: { historyStart: vi.fn(), historyEnd: vi.fn(), historyInterruptOpen: vi.fn() },
 }));
 
 const { createConnectionHistoryRecorder, installConnectionHistoryRecorder } = await import("../connectionHistoryRecorder");
@@ -38,18 +38,29 @@ function session(id: string, status: Session["status"], extra: Partial<Session> 
 let starts: HistoryStartRequest[];
 let ends: HistoryEndRequest[];
 let nextId: number;
-let api: { historyStart: ReturnType<typeof vi.fn>; historyEnd: ReturnType<typeof vi.fn> };
+let calls: string[];
+let api: {
+  historyStart: ReturnType<typeof vi.fn>;
+  historyEnd: ReturnType<typeof vi.fn>;
+  historyInterruptOpen: ReturnType<typeof vi.fn>;
+};
 
 async function flush(): Promise<void> {
-  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+  for (let i = 0; i < 10; i += 1) await Promise.resolve();
 }
 
 beforeEach(() => {
   starts = [];
   ends = [];
   nextId = 0;
+  calls = [];
   api = {
+    historyInterruptOpen: vi.fn(async () => {
+      calls.push("interrupt");
+      return { interrupted: 0 };
+    }),
     historyStart: vi.fn(async (req: HistoryStartRequest) => {
+      calls.push("start");
       starts.push(req);
       nextId += 1;
       return { id: `row-${nextId}` };
@@ -205,8 +216,53 @@ describe("connection history recorder", () => {
   });
 });
 
+describe("recorder start-up and missing lists", () => {
+  it("marks rows a previous renderer left open as interrupted before its first start", async () => {
+    let finishInterrupt: () => void = () => {};
+    api.historyInterruptOpen.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishInterrupt = () => {
+            calls.push("interrupt");
+            resolve({ interrupted: 2 });
+          };
+        }),
+    );
+    const src = setup();
+    src.set([session("e1", "connecting")]);
+    await flush();
+    expect(api.historyStart).not.toHaveBeenCalled();
+    finishInterrupt();
+    await flush();
+    expect(calls).toEqual(["interrupt", "start"]);
+    expect(api.historyInterruptOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("still records when the interrupt call fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    api.historyInterruptOpen.mockRejectedValue(new Error("boom"));
+    const src = setup();
+    src.set([session("e1", "connecting")]);
+    await flush();
+    expect(starts).toEqual([{ entryId: "e1", protocol: "ssh" }]);
+    expect(warn).toHaveBeenCalledWith("[history] connection_history_interrupt_open failed", "boom");
+  });
+
+  it("treats a missing sessions list as empty", async () => {
+    const src = setup();
+    src.set([session("e1", "connected")]);
+    expect(() => src.set(null as never)).not.toThrow();
+    await flush();
+    expect(ends).toEqual([{ id: "row-1", outcome: "closed" }]);
+    expect(() => src.set([session("e2", "connecting", { entryId: "e2" })])).not.toThrow();
+    await flush();
+    expect(starts).toHaveLength(2);
+  });
+});
+
 describe("installConnectionHistoryRecorder", () => {
   it("records through the real session store and dashboardApi", async () => {
+    vi.mocked(dashboardApi.historyInterruptOpen).mockResolvedValue({ interrupted: 0 });
     const start = vi.mocked(dashboardApi.historyStart).mockResolvedValue({ id: "store-row" });
     const end = vi.mocked(dashboardApi.historyEnd).mockResolvedValue(undefined);
     const stop = installConnectionHistoryRecorder();

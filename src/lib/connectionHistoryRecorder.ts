@@ -28,15 +28,24 @@ function isRecordable(s: Session): s is RecordableSession {
 export interface RecorderApi {
   historyStart: typeof dashboardApi.historyStart;
   historyEnd: typeof dashboardApi.historyEnd;
+  historyInterruptOpen: typeof dashboardApi.historyInterruptOpen;
 }
+
+/** Starts wait for this, so rows left open by a previous renderer are interrupted first. */
+interface Recorder {
+  readonly api: RecorderApi;
+  readonly ready: Promise<void>;
+}
+
+type SessionList = readonly Session[] | null | undefined;
 
 export interface SessionSource {
-  getState(): { sessions: Session[] };
-  subscribe(listener: (state: { sessions: Session[] }, prev: { sessions: Session[] }) => void): () => void;
+  getState(): { sessions: SessionList };
+  subscribe(listener: (state: { sessions: SessionList }, prev: { sessions: SessionList }) => void): () => void;
 }
 
-function startRow(api: RecorderApi, entryId: string, protocol: HistoryProtocol): Promise<string | null> {
-  return api.historyStart({ entryId, protocol }).then(
+function startRow({ api, ready }: Recorder, entryId: string, protocol: HistoryProtocol): Promise<string | null> {
+  return ready.then(() => api.historyStart({ entryId, protocol })).then(
     (res) => res?.id ?? null,
     (err: unknown) => {
       console.warn("[history] connection_history_start failed", err instanceof Error ? err.message : err);
@@ -45,7 +54,7 @@ function startRow(api: RecorderApi, entryId: string, protocol: HistoryProtocol):
   );
 }
 
-function endRow(api: RecorderApi, t: Tracked, outcome: HistoryEndOutcome): void {
+function endRow({ api }: Recorder, t: Tracked, outcome: HistoryEndOutcome): void {
   void t.rowId.then((id) => {
     if (id === null) return;
     return api.historyEnd({ id, outcome }).catch((err: unknown) => {
@@ -54,42 +63,37 @@ function endRow(api: RecorderApi, t: Tracked, outcome: HistoryEndOutcome): void 
   });
 }
 
-function track(api: RecorderApi, s: RecordableSession): Tracked {
+function track(rec: Recorder, s: RecordableSession): Tracked {
   return {
     entryId: s.entryId,
     protocol: s.type,
-    rowId: startRow(api, s.entryId, s.type),
+    rowId: startRow(rec, s.entryId, s.type),
     reachedConnected: s.status === "connected",
     lastStatus: s.status,
   };
 }
 
 /** Rules 3 to 5 for a tracked session that is still present. Returns false when it stops being tracked. */
-function applyStatus(api: RecorderApi, t: Tracked, s: RecordableSession): boolean {
+function applyStatus(rec: Recorder, t: Tracked, s: RecordableSession): boolean {
   if (t.lastStatus === "connected" && s.status === "connecting") {
-    endRow(api, t, "closed");
-    t.rowId = startRow(api, t.entryId, t.protocol);
+    endRow(rec, t, "closed");
+    t.rowId = startRow(rec, t.entryId, t.protocol);
     t.reachedConnected = false;
   }
   if (s.status === "connected") t.reachedConnected = true;
   if (s.status === "disconnected") {
-    endRow(api, t, !t.reachedConnected ? "failed" : s.error ? "dropped" : "closed");
+    endRow(rec, t, !t.reachedConnected ? "failed" : s.error ? "dropped" : "closed");
     return false;
   }
   t.lastStatus = s.status;
   return true;
 }
 
-/** Pure step over one store change; `tracked` is the recorder's own map. */
-export function recordChange(
-  api: RecorderApi,
-  tracked: Map<string, Tracked>,
-  sessions: readonly Session[],
-  prevSessions: readonly Session[],
-): void {
+/** Pure step over one store change; `tracked` is the recorder's own map. A missing list counts as empty. */
+function recordChange(rec: Recorder, tracked: Map<string, Tracked>, sessions: SessionList, prevSessions: SessionList): void {
   const current = new Map<string, RecordableSession>();
-  for (const s of sessions) if (isRecordable(s)) current.set(s.id, s);
-  const prevIds = new Set(prevSessions.map((s) => s.id));
+  for (const s of sessions ?? []) if (isRecordable(s)) current.set(s.id, s);
+  const prevIds = new Set((prevSessions ?? []).map((s) => s.id));
 
   // Rule 1: an id swap moves the tracking (replaceSessionId).
   const fresh = [...current.values()].filter((s) => !tracked.has(s.id) && !prevIds.has(s.id));
@@ -98,7 +102,7 @@ export function recordChange(
     const i = fresh.findIndex((s) => s.entryId === t.entryId && s.type === t.protocol);
     if (i === -1) {
       // Rule 6: removed.
-      endRow(api, t, "closed");
+      endRow(rec, t, "closed");
       tracked.delete(id);
       continue;
     }
@@ -111,19 +115,30 @@ export function recordChange(
     const t = tracked.get(s.id);
     if (t === undefined) {
       // Rule 2: start.
-      if (s.status === "connecting" || s.status === "connected") tracked.set(s.id, track(api, s));
+      if (s.status === "connecting" || s.status === "connected") tracked.set(s.id, track(rec, s));
       continue;
     }
-    if (!applyStatus(api, t, s)) tracked.delete(s.id);
+    if (!applyStatus(rec, t, s)) tracked.delete(s.id);
   }
 }
 
+/**
+ * A new recorder (app start or a renderer reload) cannot end rows an earlier one left open, so it
+ * marks them interrupted before its first start.
+ */
 export function createConnectionHistoryRecorder(source: SessionSource, api: RecorderApi): () => void {
+  const ready = api.historyInterruptOpen().then(
+    () => undefined,
+    (err: unknown) => {
+      console.warn("[history] connection_history_interrupt_open failed", err instanceof Error ? err.message : err);
+    },
+  );
+  const rec: Recorder = { api, ready };
   const tracked = new Map<string, Tracked>();
-  recordChange(api, tracked, source.getState().sessions, []);
+  recordChange(rec, tracked, source.getState().sessions, []);
   return source.subscribe((state, prev) => {
     if (state.sessions === prev.sessions) return;
-    recordChange(api, tracked, state.sessions, prev.sessions);
+    recordChange(rec, tracked, state.sessions, prev.sessions);
   });
 }
 

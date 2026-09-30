@@ -14,6 +14,7 @@ export const DASHBOARD_CHANNELS = {
   historyRecent: 'connection_history_recent',
   historyForEntry: 'connection_history_for_entry',
   historyClear: 'connection_history_clear',
+  historyInterruptOpen: 'connection_history_interrupt_open',
   passwordAges: 'password_age_list',
   aiActivity: 'ai_activity_recent',
   reachabilityCheck: 'reachability_check',
@@ -97,6 +98,11 @@ export interface HistoryForEntryRequest {
 
 export interface HistoryClearResponse {
   readonly deleted: number;
+}
+
+/** Rows still open when the renderer started; they can no longer be ended, so they read as interrupted. */
+export interface HistoryInterruptResponse {
+  readonly interrupted: number;
 }
 
 // ---------- Password age ----------
