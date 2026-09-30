@@ -29,8 +29,8 @@ export function formatStartedAt(iso: string): string {
   return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-/** "Sep 29, 2:14 PM · 1 h 5 min", the duration only when known. */
-export function historyMeta(event: Pick<ConnectionHistoryEvent, "startedAt" | "durationMs">): string {
+/** "Sep 29, 2:14 PM · 1 h 5 min", the duration only when known and the session connected (a failed row's time is the attempt). */
+export function historyMeta(event: Pick<ConnectionHistoryEvent, "startedAt" | "durationMs" | "outcome">): string {
   const when = formatStartedAt(event.startedAt);
-  return event.durationMs === null ? when : `${when} · ${formatDuration(event.durationMs)}`;
+  return event.durationMs === null || event.outcome === "failed" ? when : `${when} · ${formatDuration(event.durationMs)}`;
 }

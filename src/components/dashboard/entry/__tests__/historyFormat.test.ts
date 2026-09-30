@@ -18,8 +18,12 @@ describe("historyMeta", () => {
 
   it("shows the date and time, plus the duration when known", () => {
     expect(formatStartedAt(startedAt)).toBe("Sep 29, 2:14 PM");
-    expect(historyMeta({ startedAt, durationMs: 65 * 60_000 })).toBe("Sep 29, 2:14 PM · 1 h 5 min");
-    expect(historyMeta({ startedAt, durationMs: null })).toBe("Sep 29, 2:14 PM");
+    expect(historyMeta({ startedAt, durationMs: 65 * 60_000, outcome: "closed" })).toBe("Sep 29, 2:14 PM · 1 h 5 min");
+    expect(historyMeta({ startedAt, durationMs: null, outcome: "interrupted" })).toBe("Sep 29, 2:14 PM");
+  });
+
+  it("leaves out the duration of a connection that never connected", () => {
+    expect(historyMeta({ startedAt, durationMs: 180, outcome: "failed" })).toBe("Sep 29, 2:14 PM");
   });
 });
 
