@@ -7,9 +7,14 @@ import { useAiStore } from "../../../stores/aiStore";
 import BackupHistoryPanel from "../../vault/BackupHistoryPanel";
 import BackupManagerDialog from "../../vault/BackupManagerDialog";
 import { formatFileSize } from "../SettingsHelpers";
+import { toast } from "../../common/Toast";
 import {
   CloudIcon, CloudOffIcon, FloppyIcon, FolderIcon, TrashIcon
 } from "../../../lib/icons";
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
 
 export default function BackupTab() {
   const { user, authMode } = useAuthStore();
@@ -28,7 +33,6 @@ export default function BackupTab() {
 
   // Local backup UI state
   const [localBackupBusy, setLocalBackupBusy] = useState(false);
-  const [localBackupError, setLocalBackupError] = useState<string | null>(null);
   const [localBackupFolder, setLocalBackupFolder] = useState<string | null>(null);
   const [localRetentionDays, setLocalRetentionDays] = useState(30);
   const [showDeleteLocalConfirm, setShowDeleteLocalConfirm] = useState<string | null>(null);
@@ -69,7 +73,6 @@ export default function BackupTab() {
             <button
               onClick={async () => {
                 setLocalBackupBusy(true);
-                setLocalBackupError(null);
                 try {
                   if (localBackupState?.enabled) {
                     await disableLocalBackup();
@@ -83,8 +86,7 @@ export default function BackupTab() {
                     await enableLocalBackup(folder);
                   }
                 } catch (err) {
-                  const msg = err instanceof Error ? err.message : "Failed to toggle local backup";
-                  setLocalBackupError(msg);
+                  toast.error("Could not change local backup", errorMessage(err, "Try again."));
                 } finally {
                   setLocalBackupBusy(false);
                 }
@@ -115,14 +117,12 @@ export default function BackupTab() {
                       const folder = await selectLocalBackupFolder();
                       if (folder) {
                         setLocalBackupBusy(true);
-                        setLocalBackupError(null);
                         try {
                           await disableLocalBackup();
                           setLocalBackupFolder(folder);
                           await enableLocalBackup(folder);
                         } catch (err) {
-                          const msg = err instanceof Error ? err.message : "Failed to change folder";
-                          setLocalBackupError(msg);
+                          toast.error("Could not change the backup folder", errorMessage(err, "Try again."));
                         } finally {
                           setLocalBackupBusy(false);
                         }
@@ -172,10 +172,8 @@ export default function BackupTab() {
                 <button
                   onClick={async () => {
                     setLocalBackupBusy(true);
-                    setLocalBackupError(null);
                     try { await localBackupNow(); } catch (err) {
-                      const msg = err instanceof Error ? err.message : "Backup failed";
-                      setLocalBackupError(msg);
+                      toast.error("Backup failed", errorMessage(err, "Try again."));
                     } finally { setLocalBackupBusy(false); }
                   }}
                   disabled={localBackupBusy}
@@ -203,7 +201,9 @@ export default function BackupTab() {
                           <div className="flex items-center gap-1 ml-2">
                             <button
                               onClick={async () => {
-                                try { await deleteLocalBackup(backup.fullPath); } catch {}
+                                try { await deleteLocalBackup(backup.fullPath); } catch (err) {
+                                  toast.error("Could not delete the backup", errorMessage(err, "Try again."));
+                                }
                                 setShowDeleteLocalConfirm(null);
                               }}
                               className="px-1.5 py-0.5 text-[10px] text-white bg-red-600 hover:bg-red-700 rounded"
@@ -233,10 +233,6 @@ export default function BackupTab() {
             </>
           )}
 
-          {localBackupError && (
-            <p className="text-xs text-red-400">{localBackupError}</p>
-          )}
-
           <p className="text-xs text-ink-muted">
             Backups are encrypted with your master password using AES-256-GCM before writing to disk. No account required.
           </p>
@@ -259,9 +255,9 @@ export default function BackupTab() {
               ) : (
                 <CloudOffIcon size={16} className="text-ink-muted" />
               )}
-              <label className="text-sm font-medium">Cloud Sync</label>
+              <label className="text-sm font-medium">Cloud Backup</label>
               {!cloudSyncAllowed && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Pro</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conduit-600/20 text-conduit-400 rounded">Pro and Team</span>
               )}
             </div>
             <button
@@ -275,7 +271,8 @@ export default function BackupTab() {
                     await enableCloudSync();
                   }
                 } catch (err) {
-                  console.error("Failed to toggle cloud sync:", err);
+                  console.error("[backup] Failed to toggle cloud backup:", err);
+                  toast.error("Could not change cloud backup", errorMessage(err, "Try again."));
                 } finally {
                   setCloudSyncing(false);
                 }
@@ -298,25 +295,27 @@ export default function BackupTab() {
               <div className="flex items-center justify-between text-xs text-ink-muted">
                 <span>
                   {cloudSyncState.status === "synced" && cloudSyncState.lastSyncedAt
-                    ? `Last synced: ${new Date(cloudSyncState.lastSyncedAt).toLocaleString()}`
+                    ? `Last backup: ${new Date(cloudSyncState.lastSyncedAt).toLocaleString()}`
                     : cloudSyncState.status === "syncing"
-                    ? "Syncing..."
+                    ? "Backing up..."
                     : cloudSyncState.status === "error"
                     ? `Error: ${cloudSyncState.error}`
-                    : "Not synced yet"}
+                    : "No cloud backup yet"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={async () => {
                     setCloudSyncing(true);
-                    try { await syncNow(); } catch { /* shown in state */ }
+                    try { await syncNow(); } catch (err) {
+                      toast.error("Cloud backup failed", errorMessage(err, "Try again."));
+                    }
                     finally { setCloudSyncing(false); }
                   }}
                   disabled={cloudSyncing}
                   className="px-3 py-1.5 text-xs bg-raised hover:bg-well rounded disabled:opacity-50"
                 >
-                  {cloudSyncing ? "Syncing..." : "Sync Now"}
+                  {cloudSyncing ? "Backing up..." : "Back Up Now"}
                 </button>
                 {showDeleteCloudConfirm ? (
                   <div className="flex items-center gap-1">
@@ -326,7 +325,8 @@ export default function BackupTab() {
                           await deleteCloudVault();
                           await disableCloudSync();
                         } catch (err) {
-                          console.error("Failed to delete cloud vault:", err);
+                          console.error("[backup] Failed to delete cloud backup:", err);
+                          toast.error("Could not delete the cloud backup", errorMessage(err, "Try again."));
                         }
                         setShowDeleteCloudConfirm(false);
                       }}
@@ -357,8 +357,8 @@ export default function BackupTab() {
 
           <p className="text-xs text-ink-muted">
             {cloudSyncAllowed
-              ? "Your vault is encrypted before upload. Zero-knowledge architecture — your data cannot be read by anyone but you."
-              : "Upgrade to Pro or Team to sync your vault across devices with zero-knowledge encryption."}
+              ? "Your vault is encrypted before upload. Only you can read it. To use a vault on several devices, keep it in a synced folder."
+              : "Upgrade to Pro or Team to back up your vault to the cloud. It is encrypted before upload."}
           </p>
         </div>
       )}

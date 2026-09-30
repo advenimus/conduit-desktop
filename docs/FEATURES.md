@@ -1,7 +1,7 @@
 # Conduit Features
 
 > **Auto-maintained**: This document is updated whenever a new feature is implemented.
-> Last updated: 2026-09-02
+> Last updated: 2026-09-26
 
 ---
 
@@ -186,10 +186,12 @@
 - Markdown notes with GitHub-style Write/Preview editor, formatting toolbar, and `!!secret!!` syntax for masking sensitive inline text
 
 ### Auto-Lock
-- Configurable inactivity timeout (0 to unlimited minutes, default 5)
-- Automatic vault lock after inactivity
 - Manual lock via menu or Cmd+Shift+L
-- UI notification on auto-lock
+- Optional "Lock the vault when idle" in Settings > Security: Off (default), 5, 15 or 30 minutes, or 1 hour
+  - Any other whole number of minutes stored in settings.json shows as "Custom (N min)" and is kept when Settings is saved
+- While it is on, the personal vault also locks when the computer's screen locks
+- Uses system idle time (checked every 30 s); applies to personal vaults only, never to an active team vault
+- An automatic lock is a normal lock: open connections close and the app returns to the locked state
 
 ### Quick Unlock (Biometric)
 - **Touch ID / Apple Watch unlock** (macOS): Unlock personal vaults using Touch ID, Apple Watch, or system password instead of re-entering the master password
@@ -201,7 +203,9 @@
 - Fingerprint badge on biometric-enabled vaults in Vault Hub
 - Settings > Security tab with Quick Unlock toggle (macOS only)
 - Auto-updates stored password on vault password change
-- Cleans up biometric data when removing vaults from recents
+- Stored per vault identity (lineage), with the old per-path key as a fallback, so a synced vault keeps Quick Unlock after a rename or move
+- A stored password made stale by a password change on another device is removed, and the user is asked for the new password
+- Cleans up biometric data when removing vaults from recents (both the vault-identity key and the old per-path key); "Clear All" removes every stored entry
 - Team vaults excluded (VEK-based, no master password)
 - Zero new npm dependencies — uses Electron built-in + compiled Swift binary
 - Windows Hello support planned as follow-up
@@ -222,6 +226,55 @@
 - Descriptive error states (ENOENT, EACCES, ENOSPC)
 - No authentication required — works with just the master password
 - Dedicated "Backup" settings tab consolidating all backup functionality
+
+### Multi-Device Sync (Personal Vaults)
+Full design: `docs/MULTI_DEVICE_SYNC.md`. Code: `electron/services/sync/` (merge engine) and `electron/services/vault-session/` (device leases and limits).
+- **The vault file is the transport**: keep a personal `.conduit` vault in iCloud Drive, OneDrive, Dropbox, Google Drive or a network share and open it on several devices. Sync data lives inside the file; Conduit's servers never hold vault content
+- **Private working copy**: each device edits a private copy in app storage and publishes whole-file snapshots to the shared file, so no `-wal`/`-shm` files are left in cloud folders
+  - A publish keeps the shared file's permission bits (a new shared file is owner-only), and the local sync folder is owner-only. Windows ACLs set on the shared file are not copied
+- **Per-field merge on every plan**: edits from different devices merge field by field. Plans only limit how many devices can have a vault open at once
+- **Conflict queue**: two devices setting the same field differently creates a conflict for the user to pick. Sidebar shows "N to review", tree items get an amber dot, and the entry view and editor show each conflicted field inline
+- **Conflict review panel**: pick a value per field; appearance fields (icon, color and similar) come preselected to "Keep newest"
+  - Notes and documents show every version in full with line breaks; locations and linked credentials show folder and item names; favorites and tags read Yes/No and Tagged/Not tagged
+  - "Enter a different value" is offered for text fields only; a document or setting typed here is stored as valid JSON
+  - Saving from the entry editor sends only the fields you changed, so a choice made in the review panel meanwhile is kept
+- **Recently deleted**: deleted items keep a tombstone until "Delete permanently" (with a confirm); they can be restored
+  - "Delete all permanently" is off when every listed item is already erased
+- **Safety nets**: pre-merge snapshots with a targeted undo for large changes, a preview before restoring a backup into a synced vault, and a preview before merging any copy that could revert or delete data
+  - Undo reports what it restored: one change per item brought back plus one per field set back ("Undid 13 changes." for a folder and its 12 entries)
+  - A large delete that arrives together with a master password change (entering the new password, a change found at unlock, a change by an older app, or picking between two changes) is snapshotted the same way, so Undo works for it too
+  - A backup rollback counts the same way, as its preview lists it: one per item deleted or brought back and one per value replaced ("Rolled back 2 changes." for one entry and one password)
+  - The merge preview says what Merge will do: for a copy with sync history it applies the copy's edits and deletions, and only items your vault also changed come back for review
+- **Other copies**: cloud "conflicted copy" files and duplicates are found and merged only when that is safe; everything else is offered for review. No file is moved or deleted without a click
+  - A copy that only another device had open (its presence, no edits) counts as "Nothing new": listed under Other copies, no notice. A copy this device cannot count (another password) says it "may hold changes" instead of "0 changes"
+- **Older desktops' side files** (`-wal`/`-shm` next to the shared file) pause publishing until "Conduit is closed on my other computers"; publishing resumes right after that click, even while other devices' session rows still show the side-files flag they reported before it. A flag reported after the click (timed by the row's heartbeat, so also from an idle device) pauses again, and a flag that clears at a heartbeat starts a sync at once
+- **Where a device syncs**: the devices list names the provider ("syncs in iCloud Drive"); a macOS `/Volumes/...` path or a Windows network share reads "syncs on an external or network drive"
+- **Moved or renamed shared file**: after 30 s missing, a device rebinds by itself when exactly one file of the same vault with a normal name is in the folder (toast with Undo); otherwise it offers Locate, Keep working and Save a new copy here. The app's vault path, the recent vaults list and the window follow the new file, so a relaunch opens it. Renaming from File > Rename Vault renames only the shared file
+- **Older apps**: edits made by older Conduit builds (desktop 0.17 and earlier, iOS 1.0.5) are absorbed on the next read
+- **Master password changes**: a change on one device reaches the others; they ask for the new password, and for the previous one when needed. After "Later", a banner keeps "Enter password" one click away while syncing is paused
+  - Change Password on a synced vault offers "Also permanently delete items in Recently deleted", which erases them on every device (recommended when the old password may have leaked)
+  - After a password change, made here or adopted from another device, the private copies this device keeps beside the working copy no longer open with the old password: undo snapshots are re-encrypted with the new one (Undo keeps working; their full copies are dropped), copies waiting for review are re-encrypted or sealed with it (they still merge), and the first-sync baseline, quarantined damaged files, moved-aside side files and staged copies of the shared file are removed. A copy waiting for review that no key on the device opens any more is removed with a notice
+- **Waiting for the drive**: while the cloud drive has not delivered another device's latest changes, a dialog or banner says so
+- **Settings > Sync**: plan line, Sync now, devices list and review tools. Sync is always on; there is no user-facing on/off switch, because turning the engine off would let a signed-out Free device skip the one-device rule
+  - Support can still turn sync off on one device (`personal_sync_enabled: false` in settings.json, or the `sync_set_enabled` channel, which refuses while changes are unpublished). Vault Hub then marks recent vaults with "Changes not yet synced" and warns at start when changes exist only on this device (Turn sync back on / Export them)
+- **Server kill switch**: the `personal_sync` plan key set to `paused` stops merging and publishing; every edit stays in the working copy
+- **Backups of synced vaults** are taken from a snapshot of the working copy
+- Team vaults are unchanged: they keep team sync and never use the personal engine or device leases
+
+### Device Limits (Personal Vaults)
+- **Rule**: a personal vault can be open (unlocked) on `vault_max_open_devices` devices at once. Free (also signed-out and local mode) = 1; Pro and Team = unlimited
+- **Signed in**: a server lease in `personal_vault_sessions` (90 s time limit, 30 s heartbeat, Realtime for fast notice). Signed out: an owner claim stored inside the vault file
+- **Open on another device**: the unlock shows which device has it and offers "Use here instead"
+- **Soft lock when displaced**: the other device shows "Opened on iPhone. Saving your last changes..." while it saves and publishes, then locks the vault. Its open terminals, RDP, VNC, web sessions and running commands keep running. MCP vault calls get a locked error with reason `open_elsewhere`
+  - The notice names the device that took over, also on its first take-over (the name is asked from the server when this device has not seen that device yet), and says what keeps running ("Your 1 open connection and 1 AI task are still running.")
+  - Busy counts shown to other devices: open connections, and AI tasks only while they run (a chat turn in progress, or an agent terminal that had input and then input or output in the last 2 minutes). An idle agent panel is not a running task
+- **Offline never locks anyone out**: without a server answer the app uses the last confirmed limit; a cached Pro plan is honored for up to 7 days offline
+- **Plan downgrade**: extra devices are displaced, keeping busy devices first, then the most recently active
+- **Session conflict on reconnect**: a dialog with a 60 s countdown; with no answer this device soft-locks. If the server cannot be reached, the device keeps working
+- The lease is released on lock, window close, quit (also before an update installs, since the Windows installer does not wait) and sign-out (released before the account signs out, while the server can still be reached)
+  - A lock or quit during an unlock cancels its waits and closes what it opened, so the vault never ends up unlocked after a lock. A lock during a displaced save waits for that save
+- **Dev testing**: `CONDUIT_DEV_VAULT_DEVICE_LIMIT` (for example `-1`) forces the device limit in unpackaged builds when no confirmed server answer applies, so two signed-out dev builds can test concurrent sync without Supabase. Packaged builds ignore it
+- **Dev testing offline**: `CONDUIT_DEV_SUPABASE_URL` (an http(s) loopback URL such as a local proxy) replaces the preview Supabase URL in unpackaged builds, so one test instance can lose Supabase while others keep it (`scripts/verify` uses it). Packaged builds and the production environment ignore it
 
 ### Team & Shared Vaults (Zero-Knowledge)
 - **Zero-knowledge encryption**: X25519 identity key pairs per user-device, ECIES VEK wrapping
@@ -265,15 +318,18 @@
 - **Team vault empty state**: Fresh team vaults display a dedicated empty state with guidance text instead of the generic "No entries yet"
 - **Team vault tier skip**: Team vault entries are exempt from personal tier connection limits
 
-### Cloud Backup & Sync
-- Encrypted vault sync to Supabase backend
-- Periodic automatic sync
-- Manual sync trigger
-- Mutation tracking for incremental sync
+### Cloud Backup
+Whole-file encrypted backups to Supabase Storage. This is a backup, not the sync transport (see Multi-Device Sync).
+- Pro and Team only (`cloud_sync_enabled` plan key); the Backup tab shows a "Pro and Team" badge
+- Plan checked on enable, on every restore, when the service starts at unlock, and before each upload, so a downgraded account stops uploading. Each check reads the plan from Supabase again (the profile loaded at sign-in can be an hour old), so a downgrade while the app is open stops uploads at the next upload or unlock and a press of the toggle is refused with "Cloud backup needs the Pro or Team plan."
+- Periodic automatic backup and manual trigger
+- Mutation tracking for incremental backups
 - Restore from cloud backup with master password validation
-- Enable/disable toggle (persisted in vault metadata)
-- Cloud sync status indicator (idle, syncing, synced, error)
-- Time-based backup retention: 14 days (Pro), 6 months (Team), 1 day (Free)
+- Restoring into the vault the sync engine is running offers a preview, a rollback, or restore as a new vault (a plain file overwrite would be undone by the next merge). A synced vault that is not open is refused with "Open and unlock this vault first". Private vaults (inside the data folder) keep the whole-file replace
+- Enable/disable toggle (persisted in vault metadata); the new-vault form's "cloud backup" box (checked by default on Pro and Team) turns it on at creation, and a vault turned on while empty uploads its first backup after its first edit, so no backup is of an empty vault
+- Backup snapshot names carry milliseconds and a random tag, so two uploads in the same second each keep a snapshot
+- Cloud backup status indicator (idle, syncing, synced, error)
+- Time-based backup retention: 14 days (Pro), 6 months (Team)
 - Automatic pruning of backups older than retention period
 - Cross-vault backup history: view and restore backups from all cloud-backed vaults, grouped by vault name
 - Dedicated Backup Manager dialog with vault sidebar, date-grouped backup list, and cross-vault restore
@@ -315,9 +371,11 @@ bring their own agent subscription.
 
 ### Tier System
 - `cli_agents_enabled`: CLI agent access (all tiers — under the user's own agent subscription)
-- `mcp_enabled`: MCP tool access (all tiers — Free is daily-quota capped at 50/day)
-- `mcp_daily_quota`: per-day MCP tool call cap (Free = 50, Pro/Team = -1 unlimited)
-- `cloud_sync_enabled`: vault cloud sync across devices (Pro + Team)
+- `mcp_enabled`: MCP tool access (all tiers, unlimited tool calls)
+- `mcp_daily_quota`: retired. Every tier is `-1` (unlimited) so older clients that still read it stay uncapped
+- `cloud_sync_enabled`: whole-file cloud backup (Pro + Team). The name is kept for older clients; it does not gate multi-device sync
+- `vault_max_open_devices`: how many devices can have a personal vault open at once (Free = 1, Pro/Team = -1 unlimited). Team members get -1 server-side
+- `personal_sync`: `on` or `paused`. Server kill switch for the personal sync engine; `paused` stops merging and publishing and keeps every edit on the device
 - `shared_vaults`: multi-user shared vaults (Team only)
 - `is_team_member`: team membership flag (UI/team vault logic only)
 - Cached tier capabilities for offline mode
@@ -337,11 +395,8 @@ bring their own agent subscription.
   - Server starts/stops dynamically on auth state changes (sign in, sign out, tier change)
   - Socket file deleted on stop to prevent external connection attempts
   - Defense-in-depth: tier check on all IPC requests
-- MCP daily quota (WS2a): rolling 24-hour counter enforced in the MCP server
-  - Free tier: 50 tool calls / day; Pro and Team: unlimited
-  - Storage: `{userData}/conduit[-dev]/mcp-quota.json`, atomic writes
-  - Structured quota-exceeded error with `upgradeUrl` and `resetAt`
-- Local mode: MCP enabled with Free-tier (50/day) quota
+- MCP tool calls are unlimited on every plan, including local mode (the old Free daily quota was removed)
+- Personal vault device limit: on a downgrade to Free, extra devices with the vault open are displaced (soft lock) on their next heartbeat
 - Team members: unlimited everything
 - **30-day free trial**: CC-required trial for Pro and Team plans
   - One trial per user (Pro OR Team, not both); `has_used_trial` flag prevents re-trials
@@ -389,14 +444,15 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 - **Connections**: list (active and saved), open (SSH/RDP/VNC by manual host/port/credential params), open from vault entry (`connection_open_entry` — opens a saved ssh/rdp/vnc entry by its `entry_id`; resolves host, port, and credentials server-side from the entry, honoring stored RDP settings and SSH auth-method preference, so the agent never handles secrets), close (also drops cached coordinate scale factors so a reopen under the same id can't reuse stale scale)
 - **Entry**: get metadata for any vault entry with optional notes (!!secret!! values auto-redacted), update entry notes, list entries (filter by `entry_type` / `folder_id` / `tags`), search entries (case-insensitive substring on name and host)
 - **Document**: read, create, and update markdown document entries (!!secret!! values auto-redacted on read)
+- **Sync conflicts**: `entry_info` and `credential_read` return `has_conflict: true` while the item has an unresolved multi-device sync conflict; the values returned are the provisional ones. MCP writes, imports and autofill-selector saves replace only the provisional value, so an open conflict stays open for the user
+- **Tool errors**: a failed call returns `{"error", "code", "reason"}`. `code` is the app's error code (for example `VAULT_LOCKED`), and `reason` is `open_elsewhere` when another device took the vault over, so agents can tell a locked vault from one that is open elsewhere
 
 ### Safety & Controls
 - **Local-socket isolation**: MCP server speaks over a Unix socket (or named pipe on Windows) created with `0o600` permissions — only the user that owns the Conduit process can connect. Nothing is exposed over the network.
 - **Per-tool rate limiting**: Token-bucket limits sized per tool (e.g. screenshots 30/min, click/type 60/min, ssh_key_generate 6/min). Every registered tool has an explicit limit; nothing falls through to a generic default.
-- **Daily quota enforcement**: Free tier capped at 50 tool calls / day, enforced inside the MCP process. Pro and Team get unlimited. Quota state lives at `{userData}/conduit[-dev]/mcp-quota.json`.
 - **Tier-aware gatekeeper**: IPC server only accepts connections when `mcp_enabled` is true (or in local mode). Socket file is removed on stop; defense-in-depth tier check on every IPC request.
 - **Credential approval**: `credential_read` still requires explicit user approval with a `purpose` reason — this is the one tool that reveals raw secrets, so the approval dialog is preserved.
-- **Audit logging**: Every tool invocation (success, error, rate-limited, quota-exceeded) is logged with timing, args summary, and caller.
+- **Audit logging**: Every tool invocation (success, error, rate-limited) is logged with timing, args summary, and caller.
 - **Secret redaction**: `!!secret!!…!!secret!!` blocks in entry notes and document content are redacted to `********` before being returned by `entry_info` / `document_read`.
 - Standalone operation fallback (MCP server stays alive if the main app's connection blips — reconnects on next request)
 
@@ -552,7 +608,6 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - UI scale slider (75%-150%)
 
 ### Behavior
-- Auto-lock timeout (configurable minutes)
 - Default shell (bash, zsh, fish, etc.)
 - Default AI engine: icon grid for Claude Code, Codex, Grok Build, Cursor Agent, OpenClaw, Gemini CLI, GitHub Copilot, and OpenCode
 - Default working directory for agent sessions
@@ -560,7 +615,14 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 
 ### Mobile
 - **Mobile settings tab**: QR code for downloading Conduit on iPhone & iPad from the App Store
-- Vault sync info: supports Conduit Cloud Sync, iCloud Drive, OneDrive, Dropbox
+- Vault sync info: keep the vault file in iCloud Drive, OneDrive or Dropbox to use it on every device; Conduit merges the changes. On Free a vault can be open on one device at a time
+
+### Security
+- Quick Unlock toggle (macOS)
+- "Lock the vault when idle" (off by default; see Auto-Lock)
+
+### Sync
+- Plan line (marks the dev override), paused notice, Sync now, devices list and review tools (see Multi-Device Sync). No on/off switch
 
 ### Vault
 - Recent vaults tracking (last 10)
@@ -580,8 +642,8 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 
 ### Onboarding
 - Tier-aware onboarding wizard for first-time authenticated users
-- Free tier: 4 steps (Welcome, Vault, Connections, Organization)
-- Pro tier: 7 steps (adds AI Assistant, MCP Tools, Cloud Sync)
+- Free tier: 5 steps (Welcome, Vault, Connections, Organization, MCP Tools)
+- Pro tier: 7 steps (adds AI Assistant, Multi-Device Sync)
 - Teams tier: 10 steps (adds Team Vaults, Permissions, Audit Trail)
 - Full-screen wizard with GIF placeholder areas, dot indicators, prev/next navigation
 - Skip option available at any point
@@ -660,7 +722,9 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - MCP approval
 
 ### Notifications & Indicators
-- Cloud sync status (vault)
+- Cloud backup status (vault); the dashboard's Cloud Backup and Local Backup rows stay current whether or not the sidebar or Settings > Backup is open
+- Personal vault sync status in the sidebar, with "N to review" when conflicts are queued
+- Sync banners above the main area (soft lock, side files paused, file missing, different vault or newer format, held changes from an older app, copy to review, changes need review)
 - Offline mode banner
 - Auto-update notification
 - **Unified toast notification system**: Global `toast.success()`, `toast.error()`, `toast.warning()`, `toast.info()` API

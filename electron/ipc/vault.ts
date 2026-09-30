@@ -1,174 +1,40 @@
 /**
  * IPC handlers for the credential vault.
  *
- * Supports both the new unified vault and legacy credential operations.
+ * Supports both the new unified vault and legacy credential operations. The personal-vault
+ * lifecycle (unlock paths, lock, rename, password change) lives in vault-unlock.ts,
+ * vault-manage.ts, vault-wiring.ts and vault-lock-flow.ts; this module registers them.
  */
 
 import { ipcMain, dialog } from 'electron';
-import path from 'node:path';
-import fs from 'node:fs';
 import { AppState } from '../services/state.js';
 import { logAudit } from '../services/audit.js';
-import type { VaultMutation } from '../services/vault/vault.js';
-import { migrateToConduit } from '../services/vault/migration.js';
-import { NetworkVaultWatcher } from '../services/vault/network-watcher.js';
-import { updateRecentVaults, readSettings, writeSettings, updateLastVaultContext } from './settings.js';
+import { completePersonalUnlock, installVaultAccessHandlers } from './vault-wiring.js';
+import { lockPersonalVault } from './vault-lock-flow.js';
+import { registerPersonalUnlockHandlers } from './vault-unlock.js';
+import { registerVaultManageHandlers } from './vault-manage.js';
 
-/**
- * Compose all active backup mutation listeners into a single callback.
- * Call this whenever cloud sync or local backup is enabled/disabled.
- *
- * The mutation callback receives structured mutation data (type, action, id, name)
- * which can be used by team sync and audit services. Existing services (cloud sync,
- * local backup) only need to know "something changed" and ignore the mutation details.
- */
-export function rebuildMutationCallback(state: AppState): void {
-  const callbacks: ((mutation: VaultMutation) => void)[] = [];
+export { rebuildMutationCallback, wireBackupServices } from './vault-wiring.js';
+export { teardownBackupServices } from './vault-lock-flow.js';
 
-  if (state.cloudSync.getState().enabled) {
-    callbacks.push(() => state.cloudSync.notifyMutation());
-  }
-
-  if (state.localBackup.getState().enabled) {
-    callbacks.push(() => state.localBackup.notifyMutation());
-  }
-
-  state.vault.setOnMutation(
-    callbacks.length > 0 || state.vaultWatcher
-      ? (mutation) => {
-          // Suppress file watcher during our own writes
-          state.vaultWatcher?.setWriteLock(true);
-          callbacks.forEach((cb) => cb(mutation));
-          setTimeout(() => state.vaultWatcher?.setWriteLock(false), 500);
-        }
-      : null,
-  );
-}
-
-/** Start watching the vault file for external changes (e.g. iCloud Drive sync from mobile). */
-function startVaultWatcher(state: AppState): void {
-  // Stop any existing watcher
-  state.vaultWatcher?.stop();
-
-  const vaultPath = state.vault.getFilePath();
-  let reloadTimer: ReturnType<typeof setTimeout> | null = null;
-
-  console.log(`[vault-watcher] Starting watcher for: ${vaultPath}`);
-  state.vaultWatcher = new NetworkVaultWatcher(vaultPath, () => {
-    // Debounce: iCloud sync can fire multiple rapid change events.
-    // Wait 1s after the last event before reloading.
-    if (reloadTimer) clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(() => {
-      reloadTimer = null;
-      console.log('[vault-watcher] External change detected, reloading from disk');
-      state.vault.reloadFromDisk();
-      const win = state.getMainWindow();
-      if (win && !win.isDestroyed()) {
-        win.webContents.send('vault:entry-changed');
-      }
-    }, 1000);
-  });
-  state.vaultWatcher.start();
-}
-
-/** After vault is unlocked, configure backup services if enabled. */
-export function wireBackupServices(state: AppState, masterPassword: string): void {
-  state.currentMasterPassword = masterPassword;
-
-  // Configure local backup from settings (no auth required)
-  try {
-    const settings = readSettings();
-    if (settings.local_backup_enabled && settings.local_backup_path) {
-      state.localBackup.configure({
-        masterPassword,
-        vaultPath: state.currentVaultPath,
-        enabled: true,
-        backupPath: settings.local_backup_path,
-        retentionDays: settings.local_backup_retention_days,
-      });
-    }
-  } catch (err) {
-    console.warn('[vault] Failed to configure local backup:', err);
-  }
-
-  const authState = state.authService.getAuthState();
-  if (!authState.isAuthenticated || !authState.user) {
-    // Still start file watcher and rebuild mutation callback for local backup
-    startVaultWatcher(state);
-    rebuildMutationCallback(state);
-    return;
-  }
-
-  const cloudEnabled = state.vault.isCloudSyncEnabled();
-  if (cloudEnabled) {
-    state.cloudSync.configure({
-      userId: authState.user.id,
-      vaultId: state.vault.getVaultId(),
-      masterPassword,
-      vaultPath: state.currentVaultPath,
-      enabled: true,
-    });
-  }
-
-  // Rebuild after all services configured
-  rebuildMutationCallback(state);
-
-  // Start watching for external file changes (iCloud Drive, network shares)
-  startVaultWatcher(state);
-  // Rebuild mutation callback again to include watcher write-lock suppression
-  rebuildMutationCallback(state);
-}
-
-/** On vault lock, clear all backup service state. */
-export function teardownBackupServices(state: AppState): void {
-  state.currentMasterPassword = null;
-  state.vaultWatcher?.stop();
-  state.vaultWatcher = null;
-  state.cloudSync.disable();
-  state.localBackup.disable();
-  state.vault.setOnMutation(null);
-}
-
-/** Lock the vault from the main process (no IPC round-trip needed). */
+/** Lock the vault from the main process: sessions close, changes publish, the lease is released. */
 export async function lockVaultFromMain(): Promise<void> {
-  const state = AppState.getInstance();
-  if (!state.vault.isUnlocked()) return;
-  await state.closeAllSessions();
-  teardownBackupServices(state);
-  state.chatStore.lock();
-  state.vault.lock();
+  await lockPersonalVault(AppState.getInstance());
+}
+
+/** The shared tail of every personal unlock: chat store, recent vaults, backups, biometric key. */
+export async function finishPersonalUnlock(password: string, lineageId: string): Promise<void> {
+  completePersonalUnlock(AppState.getInstance(), password, lineageId);
 }
 
 export function registerVaultHandlers(): void {
   const state = AppState.getInstance();
+  installVaultAccessHandlers(state);
 
   // ── Vault lifecycle ──────────────────────────────────────────────
 
-  ipcMain.handle('vault_initialize', async (_e, args) => {
-    const { masterPassword } = args as { masterPassword: string };
-    state.vault.initialize(masterPassword);
-    // Initialize chat store alongside vault
-    state.chatStore.initialize(masterPassword);
-    updateRecentVaults(state.currentVaultPath);
-    updateLastVaultContext('personal');
-
-    wireBackupServices(state, masterPassword);
-  });
-
-  ipcMain.handle('vault_unlock', async (_e, args) => {
-    const { masterPassword } = args as { masterPassword: string };
-    state.vault.unlock(masterPassword);
-    // Unlock or initialize chat store
-    if (state.chatStore.exists()) {
-      state.chatStore.unlock(masterPassword);
-    } else {
-      state.chatStore.initialize(masterPassword);
-    }
-    updateRecentVaults(state.currentVaultPath);
-    updateLastVaultContext('personal');
-
-    wireBackupServices(state, masterPassword);
-  });
+  registerPersonalUnlockHandlers(state);
+  registerVaultManageHandlers(state);
 
   ipcMain.handle('vault_lock', async () => {
     await lockVaultFromMain();
@@ -196,116 +62,6 @@ export function registerVaultHandlers(): void {
     return state.currentVaultPath;
   });
 
-  ipcMain.handle('vault_create', async (_e, args: { filePath: string; masterPassword: string }) => {
-    await state.closeAllSessions();
-    state.switchVault(args.filePath);
-    state.vault.initialize(args.masterPassword);
-    updateRecentVaults(args.filePath);
-    return args.filePath;
-  });
-
-  ipcMain.handle('vault_open', async (_e, args: { filePath: string }) => {
-    await state.closeAllSessions();
-    state.switchVault(args.filePath);
-    updateRecentVaults(args.filePath);
-    const exists = state.vault.exists();
-    return { filePath: args.filePath, exists };
-  });
-
-  ipcMain.handle('vault_rename', async (_e, args: { newName: string }) => {
-    if (!state.vault.isUnlocked()) {
-      throw new Error('Vault must be unlocked to rename');
-    }
-    if (state.teamVaultManager.getActiveVault()) {
-      throw new Error('Cannot rename a team vault from here');
-    }
-
-    const masterPassword = state.currentMasterPassword;
-    if (!masterPassword) {
-      throw new Error('Master password not available');
-    }
-
-    // Sanitize: strip .conduit suffix, path separators, and trim
-    const sanitized = args.newName.replace(/\.conduit$/i, '').replace(/[/\\]/g, '').trim();
-    if (!sanitized) {
-      throw new Error('Invalid vault name');
-    }
-
-    const oldPath = state.currentVaultPath;
-    const dir = path.dirname(oldPath);
-    const newPath = path.join(dir, `${sanitized}.conduit`);
-
-    if (newPath === oldPath) return oldPath;
-    if (fs.existsSync(newPath)) {
-      throw new Error(`A vault named "${sanitized}.conduit" already exists in this directory`);
-    }
-
-    // Tear down backup services (they hold vaultPath references)
-    teardownBackupServices(state);
-
-    // Lock the vault (closes SQLite DB)
-    state.vault.lock();
-
-    // Rename files on disk (main + WAL/SHM journal files)
-    fs.renameSync(oldPath, newPath);
-    for (const suffix of ['-wal', '-shm']) {
-      const old = oldPath + suffix;
-      if (fs.existsSync(old)) fs.renameSync(old, newPath + suffix);
-    }
-
-    // Reopen at the new path and re-unlock
-    state.switchVault(newPath);
-    state.vault.unlock(masterPassword);
-
-    // Update settings (recent_vaults + last_vault_path)
-    const settings = readSettings();
-    settings.last_vault_path = newPath;
-    settings.recent_vaults = settings.recent_vaults.map((p) => (p === oldPath ? newPath : p));
-    writeSettings(settings);
-
-    // Re-wire backup services
-    wireBackupServices(state, masterPassword);
-
-    return newPath;
-  });
-
-  ipcMain.handle('vault_change_password', async (_e, args: { currentPassword: string; newPassword: string }) => {
-    if (!state.vault.isUnlocked()) {
-      throw new Error('Vault must be unlocked to change password');
-    }
-    if (state.teamVaultManager.getActiveVault()) {
-      throw new Error('Cannot change password on a team vault');
-    }
-
-    // Tear down backup services FIRST to stop any in-flight sync that
-    // could interfere with re-encryption (cloud sync, local backup, etc.)
-    teardownBackupServices(state);
-
-    // Re-key chat store BEFORE vault — if this fails, nothing has changed
-    // yet and the error is clean (vault still uses old password).
-    if (state.chatStore.exists() && state.chatStore.isUnlocked()) {
-      state.chatStore.changePassword(args.currentPassword, args.newPassword);
-    }
-
-    // Change vault password (verifies current, re-encrypts all entries)
-    state.vault.changePassword(args.currentPassword, args.newPassword);
-
-    // Re-wire backup services with new password
-    wireBackupServices(state, args.newPassword);
-
-    // Update biometric stored password if enabled
-    try {
-      const { getBiometricService, vaultPathToKey } = await import('../services/vault/biometric.js');
-      const biometric = getBiometricService();
-      const vaultKey = vaultPathToKey(state.currentVaultPath);
-      if (biometric.isEnabledForVault(vaultKey)) {
-        await biometric.storePassword(vaultKey, args.newPassword);
-      }
-    } catch (err) {
-      console.warn('[vault] Failed to update biometric password:', err);
-    }
-  });
-
   ipcMain.handle('vault_pick_file', async (_e, args: { mode: 'open' | 'save' }) => {
     const win = AppState.getInstance().getMainWindow() ?? null;
     if (args.mode === 'save') {
@@ -329,29 +85,6 @@ export function registerVaultHandlers(): void {
 
   ipcMain.handle('check_legacy_vault_exists', async () => {
     return state.hasLegacyVault();
-  });
-
-  ipcMain.handle('migrate_legacy_vault', async (_e, args: { masterPassword: string }) => {
-    const dataDir = state.getDataDir();
-    const connectionsPath = state.getLegacyConnectionsPath();
-    const oldVaultPath = path.join(dataDir, 'vault.db');
-    const oldSaltPath = path.join(dataDir, 'vault.salt');
-    const newVaultPath = state.getDefaultVaultPath();
-
-    const result = migrateToConduit(
-      connectionsPath,
-      oldVaultPath,
-      oldSaltPath,
-      newVaultPath,
-      args.masterPassword,
-    );
-
-    // Switch to the newly created vault
-    state.switchVault(newVaultPath);
-    state.vault.unlock(args.masterPassword);
-    updateRecentVaults(newVaultPath);
-
-    return result;
   });
 
   // ── Credential CRUD (legacy compat) ──────────────────────────────

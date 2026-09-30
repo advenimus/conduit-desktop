@@ -53,7 +53,7 @@ After restore, verify:
   -c "SELECT name, features->'mcp_daily_quota' FROM tiers;"
 ```
 
-You should see `free=50`, `pro=-1`, `team=-1`.
+You should see `-1` (unlimited) for every tier.
 
 ## Daily dev loop
 

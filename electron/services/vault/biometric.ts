@@ -11,7 +11,8 @@
  * which also supports Apple Watch unlock and device passcode fallback.
  *
  * The encrypted password is persisted in `{dataDir}/biometric/{vaultKey}.bio.enc`
- * where vaultKey is a SHA-256 hash of the vault file path.
+ * where vaultKey is a SHA-256 hash of the vault lineage (vaultLineageToKey), or of the
+ * vault file path for entries stored before lineage keys (vaultPathToKey).
  */
 
 import crypto from 'node:crypto';
@@ -21,6 +22,9 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { safeStorage } from 'electron';
 import { getDataDir } from '../env-config.js';
+import { biometricFilePath, moveKeyFile, removeAllKeyFiles } from './biometric-keys.js';
+
+export { vaultLineageToKey } from './biometric-keys.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -61,7 +65,12 @@ function getBiometricDir(): string {
 }
 
 function getEncFilePath(vaultKey: string): string {
-  return path.join(getBiometricDir(), `${vaultKey}.bio.enc`);
+  return biometricFilePath(getBiometricDir(), vaultKey);
+}
+
+/** Moves a stored entry from one key to another (legacy path key to lineage key). Never throws. */
+export function moveKey(fromKey: string, toKey: string): boolean {
+  return moveKeyFile(getBiometricDir(), fromKey, toKey);
 }
 
 function ensureBiometricDir(): void {
@@ -246,17 +255,7 @@ class MacOSBiometricService implements BiometricService {
   }
 
   removeAll(): void {
-    const dir = getBiometricDir();
-    try {
-      if (fs.existsSync(dir)) {
-        const files = fs.readdirSync(dir).filter((f) => f.endsWith('.bio.enc'));
-        for (const file of files) {
-          fs.unlinkSync(path.join(dir, file));
-        }
-      }
-    } catch {
-      // Best-effort cleanup
-    }
+    removeAllKeyFiles(getBiometricDir());
   }
 }
 

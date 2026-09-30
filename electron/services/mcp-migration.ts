@@ -7,8 +7,7 @@
  * `claude mcp add conduit -- node "/Users/.../conduit/mcp/dist/index.js"`
  * still have that stale path in `~/.claude.json`. The stale binary connects
  * to the new IPC socket but emits legacy `GetQuotaMirror`/`SetQuotaMirror`
- * requests the new IPC server doesn't recognise, spamming the dev console
- * and bypassing the new desktop-side daily-quota counter.
+ * requests the new IPC server doesn't recognise, spamming the dev console.
  *
  * This module rewrites such entries to the current build's MCP path on app
  * startup. Idempotent — safe to run every launch. Only touches entries that
@@ -125,7 +124,7 @@ export function migrateStaleConduitMcpEntries(currentMcpPath: string): number {
     return 0;
   }
 
-  // Atomic write — same pattern the MCP uses for mcp-quota.json.
+  // Atomic write: temp file + rename so a crash never leaves a torn config.
   const tmpPath = `${configPath}.conduit-migration.tmp`;
   try {
     fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2), 'utf-8');
@@ -175,7 +174,7 @@ export function refreshAgentMcpConfigs(currentMcpPath: string): void {
  * rewrote `~/.claude.json`, it kept the stale process alive even though
  * the config now points at the current build. SIGTERMing those processes
  * lets the CLI host respawn them from the migrated config the next time
- * MCP is needed — restoring quota tracking and silencing the
+ * MCP is needed, silencing the
  * `[UNKNOWN_REQUEST] GetQuotaMirror` spam without any user action.
  *
  * Conservative match: only nodeprocesses whose command line contains

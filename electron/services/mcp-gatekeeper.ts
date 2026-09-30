@@ -53,8 +53,7 @@ export class McpGatekeeper {
   private computeAccess(authState: AuthState): boolean {
     const { profile } = authState;
 
-    // No profile → treat as local/free mode and allow. Free-tier daily quota
-    // is enforced in the MCP server. Note: authService state never carries
+    // No profile → treat as local/free mode and allow. Note: authService state never carries
     // authMode='local' (that's synthesized in the IPC handler for the
     // renderer). We use profile presence as the canonical signal.
     if (!profile) return true;

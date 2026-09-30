@@ -10,9 +10,25 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import type Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from './crypto.js';
-import { ConduitDatabase, type EntryRow, type FolderRow, type PasswordHistoryRow } from './database.js';
+import { ConduitDatabase, type EntryRow, type FolderRow } from './database.js';
+import type { VaultSyncHooks, WorkingCopyOpenInput } from '../sync/host.js';
+import type { RowKey } from '../sync/types.js';
+import type { LockedReason } from '../vault-session/host.js';
+import {
+  VaultLockedError,
+  VaultSyncBridge,
+  entryRow,
+  folderRow,
+  historyRow,
+  type MutationOutcome,
+} from './vault-sync-bridge.js';
+
+export { VaultLockedError } from './vault-sync-bridge.js';
+
+export const SYNC_MANAGED_PASSWORD_MESSAGE = 'Use the sync manager to change this vault password';
 
 // -- Public types --
 
@@ -140,11 +156,15 @@ export interface VaultMutation {
 export type MutationCallback = (mutation: VaultMutation) => void;
 
 export class ConduitVault {
+  /** The shared path S (settings, recent vaults, backups, rename, biometric). */
   private filePath: string;
+  /** The working copy W while the sync engine manages this vault, else null (opened in place). */
+  private workingPath: string | null = null;
 
   private encryptionKey: Buffer | null = null;
   private db: ConduitDatabase | null = null;
   private onMutationCallback: MutationCallback | null = null;
+  private readonly sync = new VaultSyncBridge();
 
   constructor(filePath: string) {
     this.filePath = filePath;
@@ -159,13 +179,73 @@ export class ConduitVault {
   private notifyMutation(mutation: VaultMutation): void {
     // Checkpoint WAL so changes are written to the main .conduit file.
     // This ensures iCloud Drive (and other file sync services) detect the change.
-    this.db?.checkpoint();
+    // A working copy is never synced as a file, so it skips the checkpoint.
+    if (this.workingPath === null) this.db?.checkpoint();
     this.onMutationCallback?.(mutation);
+  }
+
+  /** One mutator: writes plus sync capture in one transaction, then the mutation callback. */
+  private mutate<T>(mutation: VaultMutation, write: () => MutationOutcome<T>): T {
+    const { db } = this.requireUnlocked();
+    const value = this.sync.run((fn) => db.runInTransaction(fn), write);
+    this.notifyMutation(mutation);
+    return value;
   }
 
   /** Get the vault file path. */
   getFilePath(): string {
     return this.filePath;
+  }
+
+  /** W's path while the sync engine manages this vault, else null. */
+  getWorkingPath(): string | null {
+    return this.workingPath;
+  }
+
+  /** After the sync manager renamed S: point the vault at the new shared path. */
+  rebindSharedPath(newPath: string): void {
+    this.filePath = newPath;
+  }
+
+  // -- Sync integration (SyncableVault) --
+
+  /**
+   * Opens the working copy W as this vault's only connection with a key the unlock policy
+   * already accepted (no password check, no salt or verification writes).
+   */
+  openWorkingCopy(input: WorkingCopyOpenInput): Database.Database {
+    if (this.isUnlocked()) throw new Error('Vault is already unlocked');
+    const exists = fs.existsSync(input.path);
+    if (input.create && exists) throw new Error('Vault file already exists');
+    if (!input.create && !exists) throw new Error('Vault file not found');
+    if (input.create) fs.mkdirSync(path.dirname(input.path), { recursive: true });
+    const db = new ConduitDatabase(input.path, { journalMode: input.journalMode, create: input.create });
+    this.sync.reset();
+    this.db = db;
+    this.encryptionKey = Buffer.from(input.key);
+    this.workingPath = input.path;
+    return db.raw();
+  }
+
+  /** W moved to another key epoch: decrypt and encrypt with `key` from now on. */
+  setSyncKey(key: Buffer): void {
+    const next = Buffer.from(key);
+    this.encryptionKey?.fill(0);
+    this.encryptionKey = next;
+  }
+
+  setSyncHooks(hooks: VaultSyncHooks | null): void {
+    this.sync.setHooks(hooks);
+  }
+
+  /** From now on public reads and writes throw VaultLockedError(reason); null lifts the block. */
+  blockAccess(reason: LockedReason | null): void {
+    this.sync.block(reason);
+  }
+
+  /** MCP, importers and autofill-selector saves are not interactive edits (spec 4.2 step 5). */
+  runNonInteractive<T>(fn: () => T): T {
+    return this.sync.runNonInteractive(fn);
   }
 
   /** Check whether the vault file exists on disk. */
@@ -257,6 +337,8 @@ export class ConduitVault {
 
   /** Lock the vault, clearing the encryption key and closing the database. */
   lock(): void {
+    this.sync.reset();
+    this.workingPath = null;
     if (this.encryptionKey) {
       this.encryptionKey.fill(0);
       this.encryptionKey = null;
@@ -285,6 +367,10 @@ export class ConduitVault {
    */
   reloadFromDisk(): void {
     if (!this.encryptionKey || !this.db) return;
+    if (this.workingPath !== null) {
+      console.debug('[vault] reloadFromDisk skipped: the sync engine manages this vault');
+      return;
+    }
 
     try {
       const newDb = new ConduitDatabase(this.filePath);
@@ -312,18 +398,20 @@ export class ConduitVault {
     const icon = input.icon ?? null;
     const color = input.color ?? null;
 
-    db.insertFolder({
-      id,
-      name: input.name,
-      parent_id: input.parent_id ?? null,
-      sort_order: 0,
-      icon,
-      color,
-      created_at: now,
-      updated_at: now,
+    this.mutate({ type: 'folder', action: 'create', id, name: input.name }, () => {
+      db.insertFolder({
+        id,
+        name: input.name,
+        parent_id: input.parent_id ?? null,
+        sort_order: 0,
+        icon,
+        color,
+        created_at: now,
+        updated_at: now,
+      });
+      return { value: undefined, rows: [folderRow(id)] };
     });
 
-    this.notifyMutation({ type: 'folder', action: 'create', id, name: input.name });
     return { id, name: input.name, parent_id: input.parent_id ?? null, sort_order: 0, icon, color, created_at: now, updated_at: now };
   }
 
@@ -351,19 +439,28 @@ export class ConduitVault {
       updated_at: now,
     };
 
-    db.updateFolder(updated);
-    this.notifyMutation({ type: 'folder', action: 'update', id, name: updated.name });
+    this.mutate({ type: 'folder', action: 'update', id, name: updated.name }, () => {
+      db.updateFolder(updated);
+      return { value: undefined, rows: [folderRow(id)] };
+    });
     return { ...updated, created_at: existing.created_at };
   }
 
   deleteFolder(id: string): void {
     const { db } = this.requireUnlocked();
     const existing = db.getFolder(id);
-    const { foldersDeleted } = db.deleteFolderRecursive(id);
-    if (foldersDeleted === 0) {
+    if (!existing) {
       throw new Error(`Folder not found: ${id}`);
     }
-    this.notifyMutation({ type: 'folder', action: 'delete', id, name: existing?.name });
+    this.mutate({ type: 'folder', action: 'delete', id, name: existing.name }, () => {
+      const removed = db.deleteFolderRecursive(id);
+      const rows: RowKey[] = [
+        ...removed.folderIds.map(folderRow),
+        ...removed.entryIds.map(entryRow),
+        ...removed.historyIds.map(historyRow),
+      ];
+      return { value: undefined, rows };
+    });
   }
 
   // -- Entry operations --
@@ -399,33 +496,34 @@ export class ConduitVault {
     const folderId = requestedParentEntryId ? null : (input.folder_id ?? null);
     const parentEntryId = requestedParentEntryId;
 
-    db.insertEntry({
-      id,
-      name: input.name,
-      entry_type: input.entry_type,
-      folder_id: folderId,
-      parent_entry_id: parentEntryId,
-      sort_order: 0,
-      host: input.host ?? null,
-      port: input.port ?? null,
-      credential_id: input.credential_id ?? null,
-      username: input.username ?? null,
-      password_encrypted: passwordEnc,
-      domain: input.domain ?? null,
-      private_key_encrypted: privateKeyEnc,
-      totp_secret_encrypted: totpSecretEnc,
-      icon,
-      color,
-      config: JSON.stringify(config),
-      tags: JSON.stringify(tags),
-      is_favorite: 0,
-      notes: input.notes ?? null,
-      credential_type: credentialType,
-      created_at: now,
-      updated_at: now,
+    this.mutate({ type: 'entry', action: 'create', id, name: input.name }, () => {
+      db.insertEntry({
+        id,
+        name: input.name,
+        entry_type: input.entry_type,
+        folder_id: folderId,
+        parent_entry_id: parentEntryId,
+        sort_order: 0,
+        host: input.host ?? null,
+        port: input.port ?? null,
+        credential_id: input.credential_id ?? null,
+        username: input.username ?? null,
+        password_encrypted: passwordEnc,
+        domain: input.domain ?? null,
+        private_key_encrypted: privateKeyEnc,
+        totp_secret_encrypted: totpSecretEnc,
+        icon,
+        color,
+        config: JSON.stringify(config),
+        tags: JSON.stringify(tags),
+        is_favorite: 0,
+        notes: input.notes ?? null,
+        credential_type: credentialType,
+        created_at: now,
+        updated_at: now,
+      });
+      return { value: undefined, rows: [entryRow(id)] };
     });
-
-    this.notifyMutation({ type: 'entry', action: 'create', id, name: input.name });
 
     return {
       id,
@@ -533,32 +631,33 @@ export class ConduitVault {
       ? crypto.encrypt(Buffer.from(totpSecret, 'utf-8'), key)
       : null;
 
-    db.updateEntry({
-      id,
-      name,
-      entry_type: entryType,
-      folder_id: folderId,
-      parent_entry_id: parentEntryId,
-      sort_order: sortOrder,
-      host,
-      port,
-      credential_id: credentialId,
-      username,
-      password_encrypted: passwordEnc,
-      domain,
-      private_key_encrypted: privateKeyEnc,
-      totp_secret_encrypted: totpSecretEnc,
-      icon,
-      color,
-      config: JSON.stringify(config),
-      tags: JSON.stringify(tags),
-      is_favorite: isFavorite ? 1 : 0,
-      notes,
-      credential_type: credentialType,
-      updated_at: now,
+    this.mutate({ type: 'entry', action: 'update', id, name }, () => {
+      db.updateEntry({
+        id,
+        name,
+        entry_type: entryType,
+        folder_id: folderId,
+        parent_entry_id: parentEntryId,
+        sort_order: sortOrder,
+        host,
+        port,
+        credential_id: credentialId,
+        username,
+        password_encrypted: passwordEnc,
+        domain,
+        private_key_encrypted: privateKeyEnc,
+        totp_secret_encrypted: totpSecretEnc,
+        icon,
+        color,
+        config: JSON.stringify(config),
+        tags: JSON.stringify(tags),
+        is_favorite: isFavorite ? 1 : 0,
+        notes,
+        credential_type: credentialType,
+        updated_at: now,
+      });
+      return { value: undefined, rows: [entryRow(id)] };
     });
-
-    this.notifyMutation({ type: 'entry', action: 'update', id, name });
 
     return {
       id,
@@ -596,7 +695,7 @@ export class ConduitVault {
       throw new Error(`Entry not found: ${id}`);
     }
 
-    db.runInTransaction(() => {
+    this.mutate({ type: 'entry', action: 'delete', id, name: existing.name }, () => {
       // Find direct children nested under this entry.
       const allEntries = db.listEntries();
       const directChildren = allEntries.filter((row) => row.parent_entry_id === id);
@@ -616,10 +715,12 @@ export class ConduitVault {
         }
       }
 
+      // Collected before the delete: the FK cascade removes them with the entry.
+      const historyIds = db.listPasswordHistory(id).map((h) => h.id);
       db.deleteEntry(id);
+      const rows: RowKey[] = [entryRow(id), ...directChildren.map((c) => entryRow(c.id)), ...historyIds.map(historyRow)];
+      return { value: undefined, rows };
     });
-
-    this.notifyMutation({ type: 'entry', action: 'delete', id, name: existing.name });
   }
 
   /** Move an entry to a different folder (clears any entry parent). */
@@ -691,33 +792,34 @@ export class ConduitVault {
 
     const newName = `${row.name} (Copy)`;
 
-    db.insertEntry({
-      id: newId,
-      name: newName,
-      entry_type: row.entry_type,
-      folder_id: row.folder_id,
-      parent_entry_id: row.parent_entry_id,
-      sort_order: 0,
-      host: row.host,
-      port: row.port,
-      credential_id: row.credential_id,
-      username: row.username,
-      password_encrypted: passwordEnc,
-      domain: row.domain,
-      private_key_encrypted: privateKeyEnc,
-      totp_secret_encrypted: totpSecretEnc,
-      icon: row.icon,
-      color: row.color,
-      config: row.config,
-      tags: row.tags,
-      is_favorite: 0,
-      notes: row.notes,
-      credential_type: row.credential_type,
-      created_at: now,
-      updated_at: now,
+    this.mutate({ type: 'entry', action: 'create', id: newId, name: newName }, () => {
+      db.insertEntry({
+        id: newId,
+        name: newName,
+        entry_type: row.entry_type,
+        folder_id: row.folder_id,
+        parent_entry_id: row.parent_entry_id,
+        sort_order: 0,
+        host: row.host,
+        port: row.port,
+        credential_id: row.credential_id,
+        username: row.username,
+        password_encrypted: passwordEnc,
+        domain: row.domain,
+        private_key_encrypted: privateKeyEnc,
+        totp_secret_encrypted: totpSecretEnc,
+        icon: row.icon,
+        color: row.color,
+        config: row.config,
+        tags: row.tags,
+        is_favorite: 0,
+        notes: row.notes,
+        credential_type: row.credential_type,
+        created_at: now,
+        updated_at: now,
+      });
+      return { value: undefined, rows: [entryRow(newId)] };
     });
-
-    this.notifyMutation({ type: 'entry', action: 'create', id: newId, name: newName });
 
     return this.rowToEntryMeta(db.getEntry(newId)!);
   }
@@ -989,16 +1091,17 @@ export class ConduitVault {
       ? crypto.encrypt(Buffer.from(oldPassword, 'utf-8'), key)
       : null;
 
-    db.insertPasswordHistory({
-      id,
-      entry_id: entryId,
-      username: oldUsername,
-      password_encrypted: passwordEncrypted,
-      changed_at: now,
-      changed_by: changedBy,
+    this.mutate({ type: 'password_history', action: 'create', id }, () => {
+      db.insertPasswordHistory({
+        id,
+        entry_id: entryId,
+        username: oldUsername,
+        password_encrypted: passwordEncrypted,
+        changed_at: now,
+        changed_by: changedBy,
+      });
+      return { value: undefined, rows: [historyRow(id)] };
     });
-
-    this.notifyMutation({ type: 'password_history', action: 'create', id });
     return id;
   }
 
@@ -1041,11 +1144,13 @@ export class ConduitVault {
   /** Delete a password history entry. */
   deletePasswordHistory(id: string): void {
     const { db } = this.requireUnlocked();
-    const affected = db.deletePasswordHistory(id);
-    if (affected === 0) {
+    if (!db.getPasswordHistoryEntry(id)) {
       throw new Error(`Password history entry not found: ${id}`);
     }
-    this.notifyMutation({ type: 'password_history', action: 'delete', id });
+    this.mutate({ type: 'password_history', action: 'delete', id }, () => {
+      db.deletePasswordHistory(id);
+      return { value: undefined, rows: [historyRow(id)] };
+    });
   }
 
   // -- Cloud sync metadata --
@@ -1057,6 +1162,7 @@ export class ConduitVault {
     if (!id) {
       id = uuidv4();
       db.setMeta('vault_id', id);
+      this.sync.requestFullPass('vault-meta');
     }
     return id;
   }
@@ -1071,6 +1177,7 @@ export class ConduitVault {
   setCloudSyncEnabled(enabled: boolean): void {
     const { db } = this.requireUnlocked();
     db.setMeta('cloud_sync_enabled', enabled ? 'true' : 'false');
+    this.sync.requestFullPass('vault-meta');
   }
 
   // -- VEK-based operations (team vaults) --
@@ -1142,6 +1249,8 @@ export class ConduitVault {
    */
   rekey(newKey: Buffer): void {
     const { key: oldKey, db } = this.requireUnlocked();
+    // A working copy's key changes only through the sync layer's epoch flow (spec 4.8).
+    if (this.workingPath !== null) throw new Error(SYNC_MANAGED_PASSWORD_MESSAGE);
 
     db.runInTransaction(() => {
       const entries = db.listEntries();
@@ -1170,13 +1279,13 @@ export class ConduitVault {
           changed = true;
         }
 
+        // updated_at is kept: re-encryption is not an edit (other devices must not see one).
         if (changed) {
           db.updateEntry({
             ...entry,
             password_encrypted: newPasswordEnc,
             private_key_encrypted: newPrivateKeyEnc,
             totp_secret_encrypted: newTotpSecretEnc,
-            updated_at: new Date().toISOString(),
           });
         }
       }
@@ -1213,7 +1322,8 @@ export class ConduitVault {
    * and updates verification + salt metadata. Returns the new derived key.
    */
   changePassword(currentPassword: string, newPassword: string): Buffer {
-    const { key: currentKey, db } = this.requireUnlocked();
+    const { db } = this.requireUnlocked();
+    if (this.workingPath !== null) throw new Error(SYNC_MANAGED_PASSWORD_MESSAGE);
 
     // Verify this is a password-based vault (not VEK/team)
     const keySource = db.getMeta('key_source');
@@ -1307,6 +1417,7 @@ export class ConduitVault {
   setTeamVaultId(teamVaultId: string): void {
     const { db } = this.requireUnlocked();
     db.setMeta('team_vault_id', teamVaultId);
+    this.sync.requestFullPass('vault-meta');
   }
 
   /**
@@ -1330,8 +1441,10 @@ export class ConduitVault {
   // -- Internal helpers --
 
   private requireUnlocked(): { key: Buffer; db: ConduitDatabase } {
+    const blocked = this.sync.blockedReason();
+    if (blocked !== null) throw new VaultLockedError(blocked);
     if (!this.encryptionKey || !this.db) {
-      throw new Error('Vault is locked');
+      throw new VaultLockedError();
     }
 
     return { key: this.encryptionKey, db: this.db };

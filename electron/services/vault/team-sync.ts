@@ -12,7 +12,7 @@
 import { BrowserWindow } from 'electron';
 import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import { encrypt, decrypt } from './crypto.js';
-import { OfflineQueue, type QueuedMutation } from './offline-queue.js';
+import { OfflineQueue } from './offline-queue.js';
 import type { ConduitVault, VaultMutation } from './vault.js';
 import type { AuthService } from '../auth/supabase.js';
 

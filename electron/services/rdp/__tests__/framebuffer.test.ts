@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FrameBuffer, type ImageFormat } from '../framebuffer.js';
+import { FrameBuffer } from '../framebuffer.js';
 
 describe('FrameBuffer', () => {
   it('creates a buffer with correct dimensions', () => {

@@ -46,7 +46,8 @@ const STARTUPINFOW = koffi.struct('STARTUPINFOW', {
   hStdError: 'void *',
 });
 
-const PROCESS_INFORMATION = koffi.struct('PROCESS_INFORMATION', {
+// Registered by name: the CreateProcessWithLogonW prototype below refers to it.
+koffi.struct('PROCESS_INFORMATION', {
   hProcess: 'void *',
   hThread: 'void *',
   dwProcessId: 'uint32',

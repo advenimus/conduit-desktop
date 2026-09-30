@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { invoke } from "../../../lib/electron";
 import { useAiStore } from "../../../stores/aiStore";
 import McpSetupDialog from "../../ai/McpSetupDialog";
-import MCPQuotaCounter from "../../ai/MCPQuotaCounter";
 import EngineLogo from "../../ai/EngineLogo";
 import { EngineStatusRow } from "../SettingsHelpers";
 import type { TabProps } from "../SettingsHelpers";
@@ -10,11 +9,8 @@ import { FolderIcon, PlugIcon } from "../../../lib/icons";
 import { AI_HARNESSES } from "../../../lib/ai-harnesses";
 
 export default function AiTab({ settings, setSettings }: TabProps) {
-  const tierCapabilities = useAiStore((s) => s.tierCapabilities);
   const engineAvailability = useAiStore((s) => s.engineAvailability);
   const checkEngineAvailability = useAiStore((s) => s.checkEngineAvailability);
-  const mcpEnabled = tierCapabilities?.mcp_enabled ?? false;
-  const mcpDailyQuota = tierCapabilities?.mcp_daily_quota ?? 50;
   const [showMcpSetup, setShowMcpSetup] = useState(false);
 
   useEffect(() => {
@@ -152,27 +148,6 @@ export default function AiTab({ settings, setSettings }: TabProps) {
           );
         })}
       </div>
-
-      {mcpEnabled && (
-        <div className="pt-3 border-t border-stroke">
-          <label className="block text-sm font-medium mb-1">MCP Daily Quota</label>
-          {mcpDailyQuota === -1 ? (
-            <p className="text-xs text-ink-muted">Unlimited MCP tool calls per day.</p>
-          ) : (
-            <>
-              <MCPQuotaCounter variant="block" />
-              <p className="text-[10px] text-ink-faint mt-2">
-                <button
-                  onClick={() => invoke('auth_open_pricing')}
-                  className="underline hover:text-ink-muted"
-                >
-                  Upgrade to Pro for unlimited MCP tool calls.
-                </button>
-              </p>
-            </>
-          )}
-        </div>
-      )}
 
       {showMcpSetup && <McpSetupDialog onClose={() => setShowMcpSetup(false)} />}
     </div>

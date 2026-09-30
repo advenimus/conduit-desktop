@@ -24,6 +24,17 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 /** How old a heartbeat must be to consider the lock stale (ms). */
 const STALE_THRESHOLD_MS = 60_000;
 
+/** Path segments (lowercase) of cloud-synced folders the substring checks miss. */
+const CLOUD_FOLDER_SEGMENTS: ReadonlySet<string> = new Set([
+  'cloudstorage',
+  'icloud drive',
+  'iclouddrive',
+  'box',
+  'box sync',
+  'nextcloud',
+  'synologydrive',
+]);
+
 export interface NetworkLockInfo {
   locked_by: string;
   device_name: string;
@@ -88,7 +99,11 @@ export class NetworkLockService {
       return true;
     }
 
-    return false;
+    // Spec 5.4: ~/Library/CloudStorage/*, iCloud for Windows, Box, Nextcloud, Synology Drive.
+    // Keep in step with CLOUD_SEGMENTS in sync/host-electron.ts.
+    return filePath
+      .split(/[\\/]+/)
+      .some((segment) => CLOUD_FOLDER_SEGMENTS.has(segment.trim().toLowerCase()));
   }
 
   /**

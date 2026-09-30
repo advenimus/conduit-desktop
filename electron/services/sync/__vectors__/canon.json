@@ -1,0 +1,1466 @@
+{
+  "format": 1,
+  "module": "canon",
+  "notes": [
+    "canon(v) of spec 3.6. Outputs are lowercase hex of the canon bytes.",
+    "The file is pure ASCII: \\uXXXX escapes in strings stand for the decoded characters, which are what the functions see.",
+    "Values: null, JSON number, JSON string, or {\"hex\": ...} for bytes (UTF-8 decoded for text kinds).",
+    "jcs: input JSON text, output its RFC 8785 JCS text; null means the text is rejected (invalid JSON or a number with no JSON form, such as 1E400). canon of such a JSON register falls back to the raw text.",
+    "jcsNumber: input IEEE-754 double bits (big-endian hex), output the JCS number text (RFC 8785 appendix B); null = must be rejected (NaN, Infinity).",
+    "parseTimestamp: ISO 8601 YYYY-MM-DDTHH:MM(:SS(.f+)?)?(Z|+HH:MM|-HH:MM)? (no zone = UTC), GRDB YYYY-MM-DD HH:MM(:SS(.f+)?)? (UTC), or YYYY-MM-DD. Fraction truncated to ms. Field out of range, or instant outside years 0000..9999 UTC, gives null.",
+    "parseLegacyTime: parseTimestamp of the text form; missing, unparseable or before 1970 gives 0."
+  ],
+  "cases": [
+    {
+      "name": "canon: _life live",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "_life",
+        "value": "live"
+      },
+      "output": "026c697665"
+    },
+    {
+      "name": "canon: _life dead",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "_life",
+        "value": "dead"
+      },
+      "output": "0264656164"
+    },
+    {
+      "name": "canon: name text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "name",
+        "value": "Prod database"
+      },
+      "output": "0250726f64206461746162617365"
+    },
+    {
+      "name": "canon: name empty string is a real value",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "name",
+        "value": ""
+      },
+      "output": "02"
+    },
+    {
+      "name": "canon: name null",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "name",
+        "value": null
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: name precomposed e-acute",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "name",
+        "value": "caf\u00e9"
+      },
+      "output": "02636166c3a9"
+    },
+    {
+      "name": "canon: name decomposed e-acute (no normalization)",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "name",
+        "value": "cafe\u0301"
+      },
+      "output": "0263616665cc81"
+    },
+    {
+      "name": "canon: name astral emoji",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "name",
+        "value": "\ud83d\udd11 key"
+      },
+      "output": "02f09f9491206b6579"
+    },
+    {
+      "name": "canon: entry_type",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "entry_type",
+        "value": "ssh"
+      },
+      "output": "02737368"
+    },
+    {
+      "name": "canon: host text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": "db.example.com"
+      },
+      "output": "0264622e6578616d706c652e636f6d"
+    },
+    {
+      "name": "canon: host empty string equals null",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": ""
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: host null",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": null
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: host bytes decode as UTF-8",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "host",
+        "value": {
+          "hex": "68c3a9"
+        }
+      },
+      "output": "0268c3a9"
+    },
+    {
+      "name": "canon: port integer",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": 22
+      },
+      "output": "013232"
+    },
+    {
+      "name": "canon: port integer text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": "22"
+      },
+      "output": "013232"
+    },
+    {
+      "name": "canon: port padded integer text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": " 22 "
+      },
+      "output": "013232"
+    },
+    {
+      "name": "canon: port negative",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": -1
+      },
+      "output": "012d31"
+    },
+    {
+      "name": "canon: port non-numeric legacy text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": "ssh"
+      },
+      "output": "02737368"
+    },
+    {
+      "name": "canon: port blank text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": ""
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: port null",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "port",
+        "value": null
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: sort_order null is 0",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "sort_order",
+        "value": null
+      },
+      "output": "0130"
+    },
+    {
+      "name": "canon: sort_order text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "sort_order",
+        "value": "7"
+      },
+      "output": "0137"
+    },
+    {
+      "name": "canon: is_favorite 1",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "is_favorite",
+        "value": 1
+      },
+      "output": "0131"
+    },
+    {
+      "name": "canon: is_favorite 0",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "is_favorite",
+        "value": 0
+      },
+      "output": "0130"
+    },
+    {
+      "name": "canon: tag present",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "tag:prod",
+        "value": 1
+      },
+      "output": "0131"
+    },
+    {
+      "name": "canon: tag absent",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "tag:prod",
+        "value": null
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: config re-canonicalized",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.rdp",
+        "value": "{ \"b\": [1, 2.50, 1e2], \"a\": \"x\" }"
+      },
+      "output": "047b2261223a2278222c2262223a5b312c322e352c3130305d7d"
+    },
+    {
+      "name": "canon: config JSON null is not absent",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.rdp",
+        "value": "null"
+      },
+      "output": "046e756c6c"
+    },
+    {
+      "name": "canon: config absent",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.rdp",
+        "value": null
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: config empty array",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.sharedFolders",
+        "value": "[]"
+      },
+      "output": "045b5d"
+    },
+    {
+      "name": "canon: config empty object",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.rdp",
+        "value": "{}"
+      },
+      "output": "047b7d"
+    },
+    {
+      "name": "canon: config empty string",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.content",
+        "value": "\"\""
+      },
+      "output": "042222"
+    },
+    {
+      "name": "canon: config key order by UTF-16 code units",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.k",
+        "value": "{\"\\ufb33\":4,\"\\ud83d\\ude00\":3,\"\\u20ac\":1,\"\\r\":2}"
+      },
+      "output": "047b225c72223a322c22e282ac223a312c22f09f9880223a332c22efacb3223a347d"
+    },
+    {
+      "name": "canon: config invalid JSON keeps raw text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.rdp",
+        "value": "{broken"
+      },
+      "output": "047b62726f6b656e"
+    },
+    {
+      "name": "canon: config number overflow keeps raw text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "config.rdp",
+        "value": "1E400"
+      },
+      "output": "043145343030"
+    },
+    {
+      "name": "canon: container root",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "container",
+        "value": "r"
+      },
+      "output": "0572"
+    },
+    {
+      "name": "canon: container folder",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "container",
+        "value": "f:5f0c3c1e-4c1b-4f8e-9d2a-1b2c3d4e5f60"
+      },
+      "output": "05663a35663063336331652d346331622d346638652d396432612d316232633364346535663630"
+    },
+    {
+      "name": "canon: container entry",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "container",
+        "value": "e:e2"
+      },
+      "output": "05653a6532"
+    },
+    {
+      "name": "canon: folder container",
+      "fn": "canon",
+      "input": {
+        "tbl": 2,
+        "rowId": "f1",
+        "reg": "container",
+        "value": "f:f0"
+      },
+      "output": "05663a6630"
+    },
+    {
+      "name": "canon: created_at ISO",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": "2025-01-02T03:04:05.678Z"
+      },
+      "output": "07323032352d30312d30325430333a30343a30352e3637385a"
+    },
+    {
+      "name": "canon: created_at GRDB",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": "2025-01-02 03:04:05.678"
+      },
+      "output": "07323032352d30312d30325430333a30343a30352e3637385a"
+    },
+    {
+      "name": "canon: created_at GRDB without fraction",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": "2025-01-02 03:04:05"
+      },
+      "output": "07323032352d30312d30325430333a30343a30352e3030305a"
+    },
+    {
+      "name": "canon: created_at with offset",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": "2025-01-02T05:04:05.678+02:00"
+      },
+      "output": "07323032352d30312d30325430333a30343a30352e3637385a"
+    },
+    {
+      "name": "canon: created_at date only",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": "2024-02-29"
+      },
+      "output": "07323032342d30322d32395430303a30303a30302e3030305a"
+    },
+    {
+      "name": "canon: created_at unparseable falls back to text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": "yesterday"
+      },
+      "output": "02796573746572646179"
+    },
+    {
+      "name": "canon: created_at empty string is text",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": ""
+      },
+      "output": "02"
+    },
+    {
+      "name": "canon: created_at null",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "created_at",
+        "value": null
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: credential_id empty equals null",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "credential_id",
+        "value": ""
+      },
+      "output": "00"
+    },
+    {
+      "name": "canon: credential_id id",
+      "fn": "canon",
+      "input": {
+        "tbl": 1,
+        "rowId": "e1",
+        "reg": "credential_id",
+        "value": "e2"
+      },
+      "output": "026532"
+    },
+    {
+      "name": "canon: history entry_id",
+      "fn": "canon",
+      "input": {
+        "tbl": 3,
+        "rowId": "h1",
+        "reg": "entry_id",
+        "value": "e1"
+      },
+      "output": "026531"
+    },
+    {
+      "name": "canon: history changed_at GRDB",
+      "fn": "canon",
+      "input": {
+        "tbl": 3,
+        "rowId": "h1",
+        "reg": "changed_at",
+        "value": "2025-01-02 03:04:05.678"
+      },
+      "output": "07323032352d30312d30325430333a30343a30352e3637385a"
+    },
+    {
+      "name": "canon: history changed_by",
+      "fn": "canon",
+      "input": {
+        "tbl": 3,
+        "rowId": "h1",
+        "reg": "changed_by",
+        "value": "conflict"
+      },
+      "output": "02636f6e666c696374"
+    },
+    {
+      "name": "canon: meta vault_id",
+      "fn": "canon",
+      "input": {
+        "tbl": 4,
+        "rowId": "meta",
+        "reg": "vault_id",
+        "value": "0d9f7c2e-5b1a-4c3d-8e9f-a0b1c2d3e4f5"
+      },
+      "output": "0230643966376332652d356231612d346333642d386539662d613062316332643365346635"
+    },
+    {
+      "name": "canon: meta cloud_sync_enabled",
+      "fn": "canon",
+      "input": {
+        "tbl": 4,
+        "rowId": "meta",
+        "reg": "cloud_sync_enabled",
+        "value": "true"
+      },
+      "output": "0274727565"
+    },
+    {
+      "name": "canon: _sync epoch",
+      "fn": "canon",
+      "input": {
+        "tbl": 9,
+        "rowId": "key",
+        "reg": "epoch",
+        "value": "00112233445566778899aabbccddeeff"
+      },
+      "output": "023030313132323333343435353636373738383939616162626363646465656666"
+    },
+    {
+      "name": "canon: _sync owner JSON",
+      "fn": "canon",
+      "input": {
+        "tbl": 9,
+        "rowId": "owner",
+        "reg": "owner",
+        "value": "{\"d\":\"device-uuid\",\"a\":null}"
+      },
+      "output": "047b2261223a6e756c6c2c2264223a226465766963652d75756964227d"
+    },
+    {
+      "name": "canon: _sync dismiss flag",
+      "fn": "canon",
+      "input": {
+        "tbl": 9,
+        "rowId": "dismiss",
+        "reg": "abcd",
+        "value": 1
+      },
+      "output": "0131"
+    },
+    {
+      "name": "canon: _sync device presence JSON",
+      "fn": "canon",
+      "input": {
+        "tbl": 9,
+        "rowId": "device",
+        "reg": "device-uuid",
+        "value": "{\"platform\":\"darwin\",\"name\":\"MacBook\",\"last_active_ms\":1759000000000}"
+      },
+      "output": "047b226c6173745f6163746976655f6d73223a313735393030303030303030302c226e616d65223a224d6163426f6f6b222c22706c6174666f726d223a2264617277696e227d"
+    },
+    {
+      "name": "canonSecret: null",
+      "fn": "canonSecret",
+      "input": {
+        "plaintext": null
+      },
+      "output": "00"
+    },
+    {
+      "name": "canonSecret: \"\"",
+      "fn": "canonSecret",
+      "input": {
+        "plaintext": ""
+      },
+      "output": "00"
+    },
+    {
+      "name": "canonSecret: \"hunter2\"",
+      "fn": "canonSecret",
+      "input": {
+        "plaintext": "hunter2"
+      },
+      "output": "0368756e74657232"
+    },
+    {
+      "name": "canonSecret: \"\u5bc6\u7801\"",
+      "fn": "canonSecret",
+      "input": {
+        "plaintext": "\u5bc6\u7801"
+      },
+      "output": "03e5af86e7a081"
+    },
+    {
+      "name": "canonSecret: \"p\u00e4ssw\u00f6rd \ud83d\udd10\"",
+      "fn": "canonSecret",
+      "input": {
+        "plaintext": "p\u00e4ssw\u00f6rd \ud83d\udd10"
+      },
+      "output": "0370c3a4737377c3b6726420f09f9490"
+    },
+    {
+      "name": "jcs: RFC 8785 3.2.3 key sorting by UTF-16 code units",
+      "fn": "jcs",
+      "input": {
+        "json": "{\"\\u20ac\":\"Euro Sign\",\"\\r\":\"Carriage Return\",\"\\ufb33\":\"Hebrew Letter Dalet With Dagesh\",\"1\":\"One\",\"\\ud83d\\ude00\":\"Emoji: Grinning Face\",\"\\u0080\":\"Control\",\"\\u00f6\":\"Latin Small Letter O With Diaeresis\"}"
+      },
+      "output": "{\"\\r\":\"Carriage Return\",\"1\":\"One\",\"\u0080\":\"Control\",\"\u00f6\":\"Latin Small Letter O With Diaeresis\",\"\u20ac\":\"Euro Sign\",\"\ud83d\ude00\":\"Emoji: Grinning Face\",\"\ufb33\":\"Hebrew Letter Dalet With Dagesh\"}"
+    },
+    {
+      "name": "jcs: nested objects sorted recursively",
+      "fn": "jcs",
+      "input": {
+        "json": "{\"b\":1,\"a\":{\"d\":[3,{\"z\":1,\"y\":2}],\"c\":null}}"
+      },
+      "output": "{\"a\":{\"c\":null,\"d\":[3,{\"y\":2,\"z\":1}]},\"b\":1}"
+    },
+    {
+      "name": "jcs: whitespace removed",
+      "fn": "jcs",
+      "input": {
+        "json": " { \"a\" : [ 1 , 2 ] , \"b\" : { } } "
+      },
+      "output": "{\"a\":[1,2],\"b\":{}}"
+    },
+    {
+      "name": "jcs: string escapes",
+      "fn": "jcs",
+      "input": {
+        "json": "\"\\u0000\\b\\t\\n\\f\\r\\\"\\\\\\/\\u001f\\u007f\\u2028\\u2029\""
+      },
+      "output": "\"\\u0000\\b\\t\\n\\f\\r\\\"\\\\/\\u001f\u007f\u2028\u2029\""
+    },
+    {
+      "name": "jcs: unicode escapes become raw UTF-8",
+      "fn": "jcs",
+      "input": {
+        "json": "\"\\u00e9\\ud83d\\ude00\\u20ac\""
+      },
+      "output": "\"\u00e9\ud83d\ude00\u20ac\""
+    },
+    {
+      "name": "jcs: literals",
+      "fn": "jcs",
+      "input": {
+        "json": "[true,false,null]"
+      },
+      "output": "[true,false,null]"
+    },
+    {
+      "name": "jcs: number forms",
+      "fn": "jcs",
+      "input": {
+        "json": "[1.0,1e2,-0,0.000001,1e-7,123456789012345678901234567890,1E21,5E-324]"
+      },
+      "output": "[1,100,0,0.000001,1e-7,1.2345678901234568e+29,1e+21,5e-324]"
+    },
+    {
+      "name": "jcs: number overflow rejected",
+      "fn": "jcs",
+      "input": {
+        "json": "1E400"
+      },
+      "output": null
+    },
+    {
+      "name": "jcs: invalid JSON rejected",
+      "fn": "jcs",
+      "input": {
+        "json": "{nope"
+      },
+      "output": null
+    },
+    {
+      "name": "jcs: empty containers",
+      "fn": "jcs",
+      "input": {
+        "json": "{\"a\":{},\"b\":[]}"
+      },
+      "output": "{\"a\":{},\"b\":[]}"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 0000000000000000",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "0000000000000000"
+      },
+      "output": "0"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 8000000000000000",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "8000000000000000"
+      },
+      "output": "0"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 0000000000000001",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "0000000000000001"
+      },
+      "output": "5e-324"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 8000000000000001",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "8000000000000001"
+      },
+      "output": "-5e-324"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 7fefffffffffffff",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "7fefffffffffffff"
+      },
+      "output": "1.7976931348623157e+308"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 ffefffffffffffff",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "ffefffffffffffff"
+      },
+      "output": "-1.7976931348623157e+308"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 4340000000000000",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "4340000000000000"
+      },
+      "output": "9007199254740992"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 c340000000000000",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "c340000000000000"
+      },
+      "output": "-9007199254740992"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 4430000000000000",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "4430000000000000"
+      },
+      "output": "295147905179352830000"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 7fffffffffffffff",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "7fffffffffffffff"
+      },
+      "output": null
+    },
+    {
+      "name": "jcsNumber: IEEE-754 7ff0000000000000",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "7ff0000000000000"
+      },
+      "output": null
+    },
+    {
+      "name": "jcsNumber: IEEE-754 44b52d02c7e14af5",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "44b52d02c7e14af5"
+      },
+      "output": "9.999999999999997e+22"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 44b52d02c7e14af6",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "44b52d02c7e14af6"
+      },
+      "output": "1e+23"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 44b52d02c7e14af7",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "44b52d02c7e14af7"
+      },
+      "output": "1.0000000000000001e+23"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 444b1ae4d6e2ef4e",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "444b1ae4d6e2ef4e"
+      },
+      "output": "999999999999999700000"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 444b1ae4d6e2ef4f",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "444b1ae4d6e2ef4f"
+      },
+      "output": "999999999999999900000"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 444b1ae4d6e2ef50",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "444b1ae4d6e2ef50"
+      },
+      "output": "1e+21"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 3eb0c6f7a0b5ed8c",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "3eb0c6f7a0b5ed8c"
+      },
+      "output": "9.999999999999997e-7"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 3eb0c6f7a0b5ed8d",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "3eb0c6f7a0b5ed8d"
+      },
+      "output": "0.000001"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 41b3de4355555553",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "41b3de4355555553"
+      },
+      "output": "333333333.3333332"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 41b3de4355555554",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "41b3de4355555554"
+      },
+      "output": "333333333.33333325"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 41b3de4355555555",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "41b3de4355555555"
+      },
+      "output": "333333333.3333333"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 41b3de4355555556",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "41b3de4355555556"
+      },
+      "output": "333333333.3333334"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 41b3de4355555557",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "41b3de4355555557"
+      },
+      "output": "333333333.33333343"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 becbf647612f3696",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "becbf647612f3696"
+      },
+      "output": "-0.0000033333333333333333"
+    },
+    {
+      "name": "jcsNumber: IEEE-754 43143ff3c1cb0959",
+      "fn": "jcsNumber",
+      "input": {
+        "ieee754": "43143ff3c1cb0959"
+      },
+      "output": "1424953923781206.2"
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02T03:04:05.678Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02T03:04:05.678Z"
+      },
+      "output": {
+        "ms": 1735787045678,
+        "iso": "2025-01-02T03:04:05.678Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02T03:04:05Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02T03:04:05Z"
+      },
+      "output": {
+        "ms": 1735787045000,
+        "iso": "2025-01-02T03:04:05.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02T03:04Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02T03:04Z"
+      },
+      "output": {
+        "ms": 1735787040000,
+        "iso": "2025-01-02T03:04:00.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02T03:04:05\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02T03:04:05"
+      },
+      "output": {
+        "ms": 1735787045000,
+        "iso": "2025-01-02T03:04:05.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02 03:04:05.678\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02 03:04:05.678"
+      },
+      "output": {
+        "ms": 1735787045678,
+        "iso": "2025-01-02T03:04:05.678Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02 03:04\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02 03:04"
+      },
+      "output": {
+        "ms": 1735787040000,
+        "iso": "2025-01-02T03:04:00.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02T03:04:05.123456Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02T03:04:05.123456Z"
+      },
+      "output": {
+        "ms": 1735787045123,
+        "iso": "2025-01-02T03:04:05.123Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02T03:04:05.9999Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02T03:04:05.9999Z"
+      },
+      "output": {
+        "ms": 1735787045999,
+        "iso": "2025-01-02T03:04:05.999Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02T03:04:05.5Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02T03:04:05.5Z"
+      },
+      "output": {
+        "ms": 1735787045500,
+        "iso": "2025-01-02T03:04:05.500Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-03-01T00:30:00+01:00\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-03-01T00:30:00+01:00"
+      },
+      "output": {
+        "ms": 1740785400000,
+        "iso": "2025-02-28T23:30:00.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-02T00:30:00-05:30\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-02T00:30:00-05:30"
+      },
+      "output": {
+        "ms": 1735797600000,
+        "iso": "2025-01-02T06:00:00.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01T00:00:00-00:00\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01T00:00:00-00:00"
+      },
+      "output": {
+        "ms": 1735689600000,
+        "iso": "2025-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2024-02-29\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2024-02-29"
+      },
+      "output": {
+        "ms": 1709164800000,
+        "iso": "2024-02-29T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2000-02-29T12:00:00Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2000-02-29T12:00:00Z"
+      },
+      "output": {
+        "ms": 951825600000,
+        "iso": "2000-02-29T12:00:00.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"1969-12-31T23:59:59.999Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "1969-12-31T23:59:59.999Z"
+      },
+      "output": {
+        "ms": -1,
+        "iso": "1969-12-31T23:59:59.999Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"0000-01-01T00:00:00Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "0000-01-01T00:00:00Z"
+      },
+      "output": {
+        "ms": -62167219200000,
+        "iso": "0000-01-01T00:00:00.000Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"9999-12-31T23:59:59.999Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "9999-12-31T23:59:59.999Z"
+      },
+      "output": {
+        "ms": 253402300799999,
+        "iso": "9999-12-31T23:59:59.999Z"
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2023-02-29\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2023-02-29"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"1900-02-29T00:00:00Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "1900-02-29T00:00:00Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-13-01T00:00:00Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-13-01T00:00:00Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-04-31T00:00:00Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-04-31T00:00:00Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01T24:00:00Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01T24:00:00Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01T23:60:00Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01T23:60:00Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01T23:59:60Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01T23:59:60Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01T00:00:00+24:00\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01T00:00:00+24:00"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01T00:00:00+0200\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01T00:00:00+0200"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01 03:04:05Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01 03:04:05Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01t03:04:05z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01t03:04:05z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-01-01T00:00:00.Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-01-01T00:00:00.Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \" 2025-01-01T00:00:00Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": " 2025-01-01T00:00:00Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"2025-1-1\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "2025-1-1"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"20250101T000000Z\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "20250101T000000Z"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"0000-01-01T00:30:00+01:00\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "0000-01-01T00:30:00+01:00"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"9999-12-31T23:30:00-01:00\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": "9999-12-31T23:30:00-01:00"
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "parseTimestamp: \"\"",
+      "fn": "parseTimestamp",
+      "input": {
+        "text": ""
+      },
+      "output": {
+        "ms": null,
+        "iso": null
+      }
+    },
+    {
+      "name": "formatIsoMs: 0",
+      "fn": "formatIsoMs",
+      "input": {
+        "ms": 0
+      },
+      "output": "1970-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "formatIsoMs: 1759000000123",
+      "fn": "formatIsoMs",
+      "input": {
+        "ms": 1759000000123
+      },
+      "output": "2025-09-27T19:06:40.123Z"
+    },
+    {
+      "name": "formatIsoMs: -1",
+      "fn": "formatIsoMs",
+      "input": {
+        "ms": -1
+      },
+      "output": "1969-12-31T23:59:59.999Z"
+    },
+    {
+      "name": "formatIsoMs: 253402300799999",
+      "fn": "formatIsoMs",
+      "input": {
+        "ms": 253402300799999
+      },
+      "output": "9999-12-31T23:59:59.999Z"
+    },
+    {
+      "name": "formatIsoMs: -62167219200000",
+      "fn": "formatIsoMs",
+      "input": {
+        "ms": -62167219200000
+      },
+      "output": "0000-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "parseLegacyTime: null",
+      "fn": "parseLegacyTime",
+      "input": {
+        "value": null
+      },
+      "output": 0
+    },
+    {
+      "name": "parseLegacyTime: garbage",
+      "fn": "parseLegacyTime",
+      "input": {
+        "value": "garbage"
+      },
+      "output": 0
+    },
+    {
+      "name": "parseLegacyTime: ISO",
+      "fn": "parseLegacyTime",
+      "input": {
+        "value": "2025-01-02T03:04:05.678Z"
+      },
+      "output": 1735787045678
+    },
+    {
+      "name": "parseLegacyTime: GRDB",
+      "fn": "parseLegacyTime",
+      "input": {
+        "value": "2025-01-02 03:04:05.678"
+      },
+      "output": 1735787045678
+    },
+    {
+      "name": "parseLegacyTime: integer is not a timestamp",
+      "fn": "parseLegacyTime",
+      "input": {
+        "value": 1700000000000
+      },
+      "output": 0
+    },
+    {
+      "name": "parseLegacyTime: before 1970",
+      "fn": "parseLegacyTime",
+      "input": {
+        "value": "1969-12-31T23:59:59.999Z"
+      },
+      "output": 0
+    },
+    {
+      "name": "parseLegacyTime: bytes",
+      "fn": "parseLegacyTime",
+      "input": {
+        "value": {
+          "hex": "323032352d30312d3032"
+        }
+      },
+      "output": 1735776000000
+    }
+  ]
+}

@@ -9,7 +9,6 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import Database from 'better-sqlite3';
 import * as crypto from './crypto.js';
 import { ConduitVault } from './vault.js';

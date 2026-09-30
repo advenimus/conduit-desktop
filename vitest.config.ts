@@ -8,6 +8,6 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     // Build output holds compiled copies of the tests (tsc emits __tests__ too).
-    exclude: [...configDefaults.exclude, "dist/**", "dist-electron/**", "release/**"],
+    exclude: [...configDefaults.exclude, "dist/**", "dist-electron/**", "release/**", ".verify/**"],
   },
 });

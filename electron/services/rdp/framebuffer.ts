@@ -116,12 +116,11 @@ export class FrameBuffer {
         dstStart + copyWidth <= this.pixels.length &&
         srcRowStart + copyWidth <= data.length
       ) {
-        (data as Buffer).copy
-          ? (data as Buffer).copy(this.pixels, dstStart, srcRowStart, srcRowStart + copyWidth)
-          : this.pixels.set(
-              (data as Uint8Array).subarray(srcRowStart, srcRowStart + copyWidth),
-              dstStart,
-            );
+        if (Buffer.isBuffer(data)) {
+          data.copy(this.pixels, dstStart, srcRowStart, srcRowStart + copyWidth);
+        } else {
+          this.pixels.set(data.subarray(srcRowStart, srcRowStart + copyWidth), dstStart);
+        }
       }
     }
   }

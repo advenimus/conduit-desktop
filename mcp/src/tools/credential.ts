@@ -135,7 +135,10 @@ export async function credentialCreate(
 export function credentialReadDefinition() {
   return {
     name: 'credential_read',
-    description: 'Retrieve a credential including secrets. REQUIRES USER APPROVAL.',
+    description:
+      'Retrieve a credential including secrets. REQUIRES USER APPROVAL. ' +
+      'has_conflict is true when devices saved different values and the conflict is not resolved yet; ' +
+      'the values shown are the provisional ones.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -179,6 +182,7 @@ export async function credentialRead(
     totp_algorithm: credential.totp_algorithm ?? null,
     totp_digits: credential.totp_digits ?? null,
     totp_period: credential.totp_period ?? null,
+    has_conflict: credential.has_conflict === true,
   };
 }
 

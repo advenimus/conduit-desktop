@@ -14,6 +14,8 @@ import type {
 
 export class EngineManager {
   private engines = new Map<EngineType, ChatEngine>();
+  /** Turns in flight per `<engine>:<session>` (a session with none is idle, not a running task). */
+  private turns = new Map<string, number>();
   private mcpServerPath: string | null = null;
   private mcpGateCheck: (() => boolean) | null = null;
 
@@ -93,7 +95,20 @@ export class EngineManager {
     signal?: AbortSignal,
   ): Promise<void> {
     const engine = this.requireEngine(engineType);
-    return engine.sendMessage(sessionId, message, onEvent, signal);
+    const key = `${engineType}:${sessionId}`;
+    this.turns.set(key, (this.turns.get(key) ?? 0) + 1);
+    try {
+      return await engine.sendMessage(sessionId, message, onEvent, signal);
+    } finally {
+      const left = (this.turns.get(key) ?? 1) - 1;
+      if (left > 0) this.turns.set(key, left);
+      else this.turns.delete(key);
+    }
+  }
+
+  /** Sessions with a turn in flight: the chat's running AI tasks (an open, idle session is none). */
+  runningTurns(): number {
+    return this.turns.size;
   }
 
   /** Respond to an approval. */

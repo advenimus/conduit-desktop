@@ -9,7 +9,7 @@ import teamVaultsVideo from "../../assets/onboarding/team-vaults.webm";
 import permissionsVideo from "../../assets/onboarding/permissions.webm";
 import auditTrailVideo from "../../assets/onboarding/audit-trail.webm";
 import {
-  CloudIcon, HistoryIcon, LockIcon, PlugIcon, RobotIcon, RocketIcon, ShieldLockIcon, StarFilledIcon, TerminalIcon, UsersIcon,
+  DevicesIcon, HistoryIcon, LockIcon, PlugIcon, RobotIcon, RocketIcon, ShieldLockIcon, StarFilledIcon, TerminalIcon, UsersIcon,
 } from "../../lib/icons";
 import type { IconComponent } from "../../lib/icons";
 
@@ -28,7 +28,7 @@ export interface OnboardingStep {
 const TIER_ORDER: Record<TierLevel, number> = { free: 0, pro: 1, teams: 2 };
 
 const allSteps: OnboardingStep[] = [
-  // Free tier (4 steps)
+  // Free tier (5 steps)
   {
     id: "welcome",
     title: "Welcome to Conduit",
@@ -91,8 +91,23 @@ const allSteps: OnboardingStep[] = [
     video: organizeVideo,
     minTier: "free",
   },
+  {
+    id: "mcp-tools",
+    title: "MCP Tools & CLI Agents",
+    description:
+      "AI agents like Claude Code can interact with your connections in real-time through MCP tools.",
+    details: [
+      "External AI agents execute commands on your connections",
+      "Read screens, navigate RDP sessions, and transfer files",
+      "Approval flow for sensitive actions, so you stay in control",
+      "Unix socket protocol for secure local communication",
+    ],
+    icon: TerminalIcon,
+    video: mcpToolsVideo,
+    minTier: "free",
+  },
 
-  // Pro tier (3 additional)
+  // Pro tier (2 additional)
   {
     id: "ai-assistant",
     title: "AI Assistant",
@@ -109,32 +124,17 @@ const allSteps: OnboardingStep[] = [
     minTier: "pro",
   },
   {
-    id: "mcp-tools",
-    title: "MCP Tools & CLI Agents",
+    id: "multi-device-sync",
+    title: "Multi-Device Sync",
     description:
-      "AI agents like Claude Code can interact with your connections in real-time through MCP tools.",
+      "Keep one vault in iCloud Drive, OneDrive, Dropbox or a network share and use it on all your devices at once.",
     details: [
-      "External AI agents execute commands on your connections",
-      "Read screens, navigate RDP sessions, and transfer files",
-      "Approval flow for sensitive actions — you stay in control",
-      "Unix socket protocol for secure local communication",
+      "Edits from each device merge field by field, even when made offline",
+      "If two devices change the same field, you pick the version to keep",
+      "Deleted items can be restored from Recently deleted",
+      "Your vault stays in your own folder. Conduit's servers never see what is in it",
     ],
-    icon: TerminalIcon,
-    video: mcpToolsVideo,
-    minTier: "pro",
-  },
-  {
-    id: "cloud-sync",
-    title: "Cloud Backup & Sync",
-    description:
-      "Your encrypted vault backs up to the cloud automatically. Restore on any device with your master password.",
-    details: [
-      "End-to-end encrypted — the server never sees your data",
-      "Automatic sync after every vault change",
-      "Restore your full vault on a new device with just your master password",
-      "Zero-knowledge architecture — not even Conduit can read your vault",
-    ],
-    icon: CloudIcon,
+    icon: DevicesIcon,
     video: cloudSyncVideo,
     minTier: "pro",
   },

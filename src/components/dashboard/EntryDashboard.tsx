@@ -7,6 +7,7 @@ import { toast } from "../common/Toast";
 import { invoke } from "../../lib/electron";
 import MarkdownRenderer from "../markdown/MarkdownRenderer";
 import PasswordHistoryDialog from "../vault/PasswordHistoryDialog";
+import EntryConflictInline from "../sync/EntryConflictInline";
 import type { EntryFull, ResolvedCredential } from "../../types/entry";
 import {
   CalendarIcon, ClockIcon, CopyIcon, ExternalLinkIcon, EyeIcon, EyeOffIcon, GlobeIcon, HistoryIcon, KeyIcon, LockIcon, NotesIcon, PencilIcon, ServerIcon, ShieldLockIcon, StarFilledIcon, StarIcon, TagIcon, UserIcon
@@ -222,6 +223,8 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
           )}
         </div>
       </div>
+
+      <EntryConflictInline entryId={entryId} mode="detail" />
 
       {/* Content area — two columns when notes exist */}
       <div className={`flex-1 min-h-0 flex ${entry.notes ? "" : "flex-col"}`}>

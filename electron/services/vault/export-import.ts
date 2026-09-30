@@ -94,9 +94,8 @@ export interface ImportPreview {
   folder_tree: Array<{ id: string; name: string; parent_id: string | null }>;
 }
 
-export interface ImportOptions {
-  // Reserved for future use
-}
+/** Reserved for future use. */
+export type ImportOptions = Record<string, never>;
 
 export interface ImportResult {
   foldersCreated: number;
@@ -370,6 +369,9 @@ export function decryptAndPreview(filePath: string, passphrase: string): ImportP
  * For full-vault exports: everything is imported into the vault root.
  * For folder exports: root-level folders (parent not in export) are matched
  * by name to existing root-level folders in the vault, or created if no match.
+ *
+ * Imported writes are not interactive edits, so an open sync conflict stays
+ * open (docs/MULTI_DEVICE_SYNC.md 4.2 step 5).
  */
 export function importIntoVault(
   vault: ConduitVault,
@@ -377,6 +379,10 @@ export function importIntoVault(
   passphrase: string,
   _options: ImportOptions = {},
 ): ImportResult {
+  return vault.runNonInteractive(() => importExportFile(vault, filePath, passphrase));
+}
+
+function importExportFile(vault: ConduitVault, filePath: string, passphrase: string): ImportResult {
   if (!vault.isUnlocked()) {
     throw new Error('Vault must be unlocked to import');
   }
@@ -530,21 +536,6 @@ export function importIntoVault(
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
-
-function buildFolderPath(folderId: string, allFolders: FolderData[]): string {
-  const folderMap = new Map(allFolders.map(f => [f.id, f]));
-  const parts: string[] = [];
-  const visited = new Set<string>();
-  let current = folderMap.get(folderId);
-
-  while (current && !visited.has(current.id)) {
-    visited.add(current.id);
-    parts.unshift(current.name);
-    current = current.parent_id ? folderMap.get(current.parent_id) : undefined;
-  }
-
-  return '/' + parts.join('/');
-}
 
 function topologicalSortFolders(folders: ExportFolder[]): ExportFolder[] {
   const folderMap = new Map(folders.map(f => [f.id, f]));

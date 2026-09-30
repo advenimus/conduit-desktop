@@ -126,7 +126,7 @@ export function registerMenuHandlers(): void {
       };
 
       const hasSubmenus = args.items.some((i) => i.children?.length);
-      let menuHeight = calcHeight(args.items);
+      const menuHeight = calcHeight(args.items);
 
       // If submenus exist, compute max submenu height for window sizing
       let maxSubmenuHeight = 0;

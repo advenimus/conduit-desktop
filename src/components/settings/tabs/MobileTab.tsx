@@ -79,7 +79,7 @@ export default function MobileTab() {
         <div className="px-4 py-3 border-t border-stroke flex items-start gap-2.5">
           <AppleIcon size={16} className="text-ink-muted shrink-0 mt-0.5" />
           <p className="text-xs text-ink-muted leading-relaxed">
-            Your vault syncs across devices via Conduit Cloud Sync or a file sync service such as iCloud Drive, OneDrive, or Dropbox. Store your vault file in a synced folder to access it from all your devices.
+            Keep your vault file in iCloud Drive, OneDrive, or Dropbox to use it on all your devices. Conduit merges the changes from each one. On the Free plan a vault can be open on one device at a time.
           </p>
         </div>
       </div>

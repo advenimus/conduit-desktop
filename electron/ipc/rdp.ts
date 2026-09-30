@@ -13,7 +13,6 @@ import { join } from 'node:path';
 import type { RdpEngineConfig, SharedFolder } from '../services/rdp/engine.js';
 import { AppState } from '../services/state.js';
 import type { ImageFormat } from '../services/rdp/framebuffer.js';
-import { readSettings } from './settings.js';
 import { isFreeRdpAvailable, ensureFreeRdpReady } from '../services/rdp/engines/factory.js';
 import { getDataDir } from '../services/env-config.js';
 

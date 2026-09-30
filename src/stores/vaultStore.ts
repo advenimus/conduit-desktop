@@ -5,6 +5,12 @@ import { useTeamStore } from "./teamStore";
 import { useEntryStore } from "./entryStore";
 import { useSessionStore } from "./sessionStore";
 import { useLayoutStore } from "./layoutStore";
+import { useSyncStore } from "./syncStore";
+import { classifyUnlockError, unlockArgs, type UnlockOptions } from "./vault-unlock-errors";
+import { failUnlock, showRestorePreview, unlockSucceeded } from "./vault-sync-hooks";
+import type { RestoreResult } from "../types/sync";
+
+export type { UnlockOptions } from "./vault-unlock-errors";
 
 export interface CloudSyncState {
   status: "idle" | "syncing" | "synced" | "error" | "disabled";
@@ -70,6 +76,9 @@ interface VaultState {
   // Network vault detection
   isNetworkVault: boolean;
 
+  /** Soft lock: the vault opened on another device; open connections keep running. */
+  lockedReason: "open_elsewhere" | null;
+
   // Team vault
   vaultType: "personal" | "team";
   teamVaultId: string | null;
@@ -89,10 +98,12 @@ interface VaultState {
   // Vault lifecycle
   checkVaultStatus: () => Promise<void>;
   initializeVault: (masterPassword: string) => Promise<void>;
-  unlockVault: (masterPassword: string) => Promise<void>;
+  unlockVault: (masterPassword: string, opts?: UnlockOptions) => Promise<void>;
   lockVault: () => Promise<void>;
   /** Mark vault as locked locally (backend already locked). */
   setLocked: () => void;
+  /** Displaced: vault locked, but sessions, tabs and layout stay. */
+  setSoftLocked: () => void;
 
   // Vault management
   createVault: (filePath: string, masterPassword: string) => Promise<void>;
@@ -196,7 +207,7 @@ interface VaultState {
   checkBiometric: () => Promise<void>;
   enableBiometric: () => Promise<void>;
   disableBiometric: () => Promise<void>;
-  biometricUnlock: () => Promise<void>;
+  biometricUnlock: (opts?: UnlockOptions) => Promise<void>;
 }
 
 export const useVaultStore = create<VaultState>((set, get) => ({
@@ -216,6 +227,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   localBackups: [],
   loadingLocalBackups: false,
   isNetworkVault: false,
+  lockedReason: null,
   isSaving: false,
   vaultType: "personal",
   teamVaultId: null,
@@ -256,28 +268,24 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await invoke("vault_initialize", { masterPassword });
+      unlockSucceeded(set);
       set({ isUnlocked: true, vaultExists: true, isLoading: false });
       await get().loadCredentials();
     } catch (err) {
-      set({
-        isLoading: false,
-        error: typeof err === "string" ? err : "Failed to initialize vault",
-      });
+      failUnlock(set, err, "Failed to initialize vault");
       throw err;
     }
   },
 
-  unlockVault: async (masterPassword: string) => {
+  unlockVault: async (masterPassword: string, opts?: UnlockOptions) => {
     set({ isLoading: true, error: null });
     try {
-      await invoke("vault_unlock", { masterPassword });
+      await invoke("vault_unlock", unlockArgs({ masterPassword }, opts));
+      unlockSucceeded(set);
       set({ isUnlocked: true, isLoading: false });
       await get().loadCredentials();
     } catch (err) {
-      set({
-        isLoading: false,
-        error: typeof err === "string" ? err : "Invalid master password",
-      });
+      failUnlock(set, err, "Invalid master password");
       throw err;
     }
   },
@@ -288,20 +296,28 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       useSessionStore.getState().clearAll();
       useEntryStore.getState().clearSelection();
       useLayoutStore.getState().resetLayout();
-      set({ isUnlocked: false, credentials: [], showVaultHub: true });
+      useSyncStore.getState().resetForLock();
+      set({ isUnlocked: false, credentials: [], showVaultHub: true, lockedReason: null });
     } catch (err) {
       console.error("Failed to lock vault:", err);
     }
   },
 
   setLocked: () => {
-    set({ isUnlocked: false, credentials: [], showVaultHub: true });
+    useSyncStore.getState().resetForLock();
+    set({ isUnlocked: false, credentials: [], showVaultHub: true, lockedReason: null });
+  },
+
+  setSoftLocked: () => {
+    useSyncStore.getState().resetForLock();
+    set({ isUnlocked: false, credentials: [], lockedReason: "open_elsewhere" });
   },
 
   createVault: async (filePath: string, masterPassword: string) => {
     set({ isLoading: true, error: null });
     try {
       const resultPath = await invoke<string>("vault_create", { filePath, masterPassword });
+      unlockSucceeded(set);
       useSessionStore.getState().clearAll();
       useEntryStore.getState().clearSelection();
       useLayoutStore.getState().resetLayout();
@@ -315,10 +331,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         recentVaults: settings.recent_vaults ?? [],
       });
     } catch (err) {
-      set({
-        isLoading: false,
-        error: typeof err === "string" ? err : "Failed to create vault",
-      });
+      failUnlock(set, err, "Failed to create vault");
       throw err;
     }
   },
@@ -530,12 +543,18 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   restoreFromCloud: async (masterPassword: string) => {
     set({ isLoading: true, error: null });
     try {
-      await invoke("cloud_vault_restore", { masterPassword });
+      const result = await invoke<RestoreResult | null>("cloud_vault_restore", { masterPassword });
+      const rerun = (mode: "rollback" | "new-vault", targetPath: string | null) =>
+        invoke<RestoreResult>("cloud_vault_restore", { masterPassword, mode, targetPath });
+      if (showRestorePreview(result, rerun)) {
+        set({ isLoading: false });
+        return;
+      }
+      unlockSucceeded(set);
       set({ isUnlocked: true, vaultExists: true, isLoading: false });
       await get().loadCredentials();
     } catch (err) {
-      const msg = typeof err === "string" ? err : "Failed to restore vault from cloud";
-      set({ isLoading: false, error: msg });
+      failUnlock(set, err, "Failed to restore vault from cloud");
       throw err;
     }
   },
@@ -579,12 +598,18 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   restoreFromBackup: async (storagePath: string, masterPassword: string, vaultName?: string) => {
     set({ isLoading: true, error: null });
     try {
-      await invoke("cloud_backup_restore", { storagePath, masterPassword, vaultName });
+      const result = await invoke<RestoreResult | null>("cloud_backup_restore", { storagePath, masterPassword, vaultName });
+      const rerun = (mode: "rollback" | "new-vault", targetPath: string | null) =>
+        invoke<RestoreResult>("cloud_backup_restore", { storagePath, masterPassword, vaultName, mode, targetPath });
+      if (showRestorePreview(result, rerun)) {
+        set({ isLoading: false });
+        return;
+      }
+      unlockSucceeded(set);
       set({ isUnlocked: true, vaultExists: true, isLoading: false });
       await get().loadCredentials();
     } catch (err) {
-      const msg = typeof err === "string" ? err : "Failed to restore from backup";
-      set({ isLoading: false, error: msg });
+      failUnlock(set, err, "Failed to restore from backup");
       throw err;
     }
   },
@@ -840,14 +865,19 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     set({ biometricEnabled: false });
   },
 
-  biometricUnlock: async () => {
+  biometricUnlock: async (opts?: UnlockOptions) => {
     set({ biometricUnlockInProgress: true, error: null });
     try {
-      await invoke("biometric_unlock");
+      await invoke("biometric_unlock", unlockArgs({}, opts));
+      unlockSucceeded(set);
       set({ isUnlocked: true, biometricUnlockInProgress: false });
       await get().loadCredentials();
     } catch (err) {
       set({ biometricUnlockInProgress: false });
+      useSyncStore.getState().setOpenWaiting(null);
+      // A cancelled prompt stays silent; sync errors open their dialog.
+      const { payload } = classifyUnlockError(err, "");
+      if (payload) useSyncStore.getState().setOpenError(payload);
       throw err;
     }
   },

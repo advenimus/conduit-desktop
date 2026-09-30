@@ -1,14 +1,34 @@
 /**
- * IPC handlers for local folder backup.
+ * IPC handlers for local folder backup. A restore of the vault the sync engine runs becomes a
+ * preview, a rollback or a new vault (backup-restore.ts); other vaults are replaced as before.
  */
 
 import { ipcMain, dialog } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { AppState } from '../services/state.js';
+import type { RestoreResult } from '../services/sync/app-sync-dto.js';
 import { readSettings, writeSettings } from './settings.js';
 import { rebuildMutationCallback } from './vault.js';
-import { updateRecentVaults } from './settings.js';
+import { backupPasswordOf, parseRestoreRequest, restoreBackup, RESTORE_GENERIC_MESSAGE } from './backup-restore.js';
+import { appRestoreHost, backupSnapshot } from './backup-restore-app.js';
+import { InvalidSyncRequest, requireFilePath, type IpcArgs } from './sync-args.js';
+import { handleChannel } from './sync-errors.js';
+
+const LOCAL_BACKUP_EXTENSION = '.enc';
+
+function requireBackupFile(v: unknown): string {
+  const file = requireFilePath(v, 'backup file');
+  if (!file.toLowerCase().endsWith(LOCAL_BACKUP_EXTENSION)) throw new InvalidSyncRequest('backup file');
+  return file;
+}
+
+async function restoreLocalBackup(state: AppState, a: IpcArgs): Promise<RestoreResult> {
+  const backupFile = requireBackupFile(a.backupFilePath);
+  const request = parseRestoreRequest(a);
+  const bytes = state.localBackup.restoreFromLocalBackup(backupFile, backupPasswordOf(request));
+  return restoreBackup(appRestoreHost(state), { bytes, vaultPath: state.currentVaultPath, request, source: 'local_backup_restore' });
+}
 
 export function registerLocalBackupHandlers(): void {
   const state = AppState.getInstance();
@@ -53,6 +73,7 @@ export function registerLocalBackupHandlers(): void {
       enabled: true,
       backupPath,
       retentionDays: settings.local_backup_retention_days,
+      snapshot: backupSnapshot(state),
     });
 
     // Rebuild mutation callback to include local backup
@@ -116,44 +137,9 @@ export function registerLocalBackupHandlers(): void {
     return result.filePaths[0];
   });
 
-  /** Restore vault from a local backup file. */
-  ipcMain.handle('local_backup_restore', async (_e, args: {
-    backupFilePath: string;
-    masterPassword: string;
-  }) => {
-    // Decrypt backup
-    const rawVault = state.localBackup.restoreFromLocalBackup(
-      args.backupFilePath,
-      args.masterPassword,
-    );
-
-    // Write to vault path (atomic)
-    const vaultPath = state.currentVaultPath;
-    fs.mkdirSync(path.dirname(vaultPath), { recursive: true });
-    const tmpPath = vaultPath + '.tmp';
-    fs.writeFileSync(tmpPath, rawVault);
-    fs.renameSync(tmpPath, vaultPath);
-
-    // Re-open the vault
-    state.switchVault(vaultPath);
-    state.vault.unlock(args.masterPassword);
-
-    updateRecentVaults(vaultPath);
-
-    // Store master password and reconfigure local backup
-    state.currentMasterPassword = args.masterPassword;
-    const settings = readSettings();
-    if (settings.local_backup_enabled && settings.local_backup_path) {
-      state.localBackup.configure({
-        masterPassword: args.masterPassword,
-        vaultPath,
-        enabled: true,
-        backupPath: settings.local_backup_path,
-        retentionDays: settings.local_backup_retention_days,
-      });
-    }
-
-    rebuildMutationCallback(state);
-    return vaultPath;
+  /** Restore from a local backup file (rollback or new vault when the engine runs the vault). */
+  handleChannel(ipcMain, 'local_backup_restore', (a) => restoreLocalBackup(state, a), {
+    prefix: '[local-backup]',
+    genericMessage: RESTORE_GENERIC_MESSAGE,
   });
 }

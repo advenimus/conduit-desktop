@@ -37,7 +37,7 @@ export default function AuthScreen() {
             <span className="text-sm font-medium text-ink">30-day free trial of Pro</span>
           </div>
           <p className="text-xs text-ink-muted">
-            Unlimited MCP tool calls and cloud sync — no commitment
+            Use one vault on all your devices at once. No commitment.
           </p>
         </div>
 
@@ -114,7 +114,7 @@ export default function AuthScreen() {
             </span>
             <span className="flex items-center gap-1.5">
               <BoltIcon size={13} className="text-conduit-400" />
-              MCP Tools (50/day)
+              Unlimited MCP Tools
             </span>
           </div>
         </div>

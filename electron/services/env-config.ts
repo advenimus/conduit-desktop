@@ -1,13 +1,14 @@
 /**
  * Environment configuration for the Electron main process.
  *
- * Resolves Supabase, website, and backend URLs based on the CONDUIT_ENV
- * environment variable. Defaults to 'preview' in dev, 'production' when packaged.
+ * Resolves Supabase, website, and backend URLs. Dev builds follow the CONDUIT_ENV
+ * environment variable (default 'preview'); packaged builds are always 'production'.
  */
 
 import { app } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
+import { resolveEnvironment } from './vault-session/effective-limit.js';
 
 export interface EnvConfig {
   supabaseUrl: string;
@@ -45,29 +46,86 @@ const PRODUCTION_CONFIG: EnvConfig = {
 
 let cachedConfig: EnvConfig | null = null;
 
+export const DEV_SUPABASE_URL_ENV = 'CONDUIT_DEV_SUPABASE_URL';
+const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+/**
+ * Loopback origin from CONDUIT_DEV_SUPABASE_URL for dev preview builds, else null. Test runs point
+ * one instance at a local proxy so it can be taken offline without stopping the shared stack.
+ */
+function devSupabaseUrl(environment: EnvConfig['environment']): string | null {
+  const raw = process.env[DEV_SUPABASE_URL_ENV]?.trim();
+  if (!raw) return null;
+  if (app.isPackaged || environment !== 'preview') {
+    console.warn(`[env] ${DEV_SUPABASE_URL_ENV} is ignored ${app.isPackaged ? 'in packaged builds' : 'outside preview'}`);
+    return null;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    console.warn(`[env] ${DEV_SUPABASE_URL_ENV} is not a valid URL, using the preview Supabase`);
+    return null;
+  }
+  if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !LOOPBACK_HOSTS.has(parsed.hostname)) {
+    console.warn(`[env] ${DEV_SUPABASE_URL_ENV} must be an http(s) loopback URL, using the preview Supabase`);
+    return null;
+  }
+  return parsed.origin;
+}
+
 /**
  * Get the current environment configuration.
  *
- * Resolution order:
- * 1. CONDUIT_ENV env var ('preview' or 'production')
- * 2. Fallback: packaged app → 'production', dev → 'preview'
+ * Packaged builds always use production and ignore CONDUIT_ENV, so a local Supabase cannot
+ * answer for the real plan limits (spec 6.8). Dev builds honor CONDUIT_ENV and default to preview.
  */
 export function getEnvConfig(): EnvConfig {
   if (cachedConfig) return cachedConfig;
 
   const envVar = process.env.CONDUIT_ENV;
-  let environment: 'preview' | 'production';
-
-  if (envVar === 'preview' || envVar === 'production') {
-    environment = envVar;
-  } else {
-    environment = app.isPackaged ? 'production' : 'preview';
+  if (app.isPackaged && envVar && envVar !== 'production') {
+    console.warn(`[env] CONDUIT_ENV=${envVar} is ignored in packaged builds`);
   }
+  const environment = resolveEnvironment(app.isPackaged, envVar);
 
-  cachedConfig = environment === 'preview' ? PREVIEW_CONFIG : PRODUCTION_CONFIG;
+  const base = environment === 'preview' ? PREVIEW_CONFIG : PRODUCTION_CONFIG;
+  const supabaseOverride = devSupabaseUrl(environment);
+  cachedConfig = supabaseOverride ? { ...base, supabaseUrl: supabaseOverride } : base;
   const dirName = cachedConfig.environment === 'production' ? 'conduit' : 'conduit-dev';
   console.log(`[env] Environment: ${cachedConfig.environment}, Data dir: ${dirName}, Supabase: ${cachedConfig.supabaseUrl}`);
   return cachedConfig;
+}
+
+// ---------- Vite dev server ----------
+
+export const DEV_SERVER_URL_ENV = 'CONDUIT_DEV_SERVER_URL';
+const DEFAULT_DEV_SERVER_URL = 'http://localhost:1420';
+
+function devServerBase(): string {
+  const raw = process.env[DEV_SERVER_URL_ENV]?.trim();
+  if (!raw || app.isPackaged) return DEFAULT_DEV_SERVER_URL;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    console.warn(`[env] ${DEV_SERVER_URL_ENV} is not a valid URL, using the default dev server`);
+    return DEFAULT_DEV_SERVER_URL;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    console.warn(`[env] ${DEV_SERVER_URL_ENV} must be http or https, using the default dev server`);
+    return DEFAULT_DEV_SERVER_URL;
+  }
+  return raw.replace(/\/+$/, '');
+}
+
+/**
+ * URL of a page on the Vite dev server (the main window when `page` is empty). Dev builds honor
+ * CONDUIT_DEV_SERVER_URL so isolated test instances can use their own server; packaged builds never load it.
+ */
+export function devServerUrl(page = ''): string {
+  const base = devServerBase();
+  return page ? `${base}/${page}` : base;
 }
 
 // ---------- Data directory & socket path ----------
@@ -86,31 +144,6 @@ export function setDataRoot(root: string): void {
 /** Path to the app's persistent data directory (env-aware). */
 export function getDataDir(): string {
   return path.join(dataRoot ?? app.getPath('userData'), getDataDirName());
-}
-
-/**
- * Directory the MCP process keeps its local state in (e.g. mcp-quota.json).
- * Mirrors mcp/src/data-dir.ts; a parity test keeps the two in sync.
- */
-export function getMcpStateDir(): string {
-  const dirName = getDataDirName();
-
-  const xdgRuntime = process.env.XDG_RUNTIME_DIR;
-  if (xdgRuntime) {
-    return path.join(xdgRuntime, dirName);
-  }
-
-  const home = os.homedir();
-  switch (os.platform()) {
-    case 'darwin':
-      return path.join(home, 'Library', 'Application Support', dirName);
-    case 'linux':
-      return path.join(home, '.local', 'share', dirName);
-    case 'win32':
-      return path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), dirName);
-    default:
-      return path.join('/tmp', dirName);
-  }
 }
 
 /** Check whether a path is a Windows named pipe. */

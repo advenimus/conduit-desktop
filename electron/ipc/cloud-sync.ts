@@ -1,13 +1,77 @@
 /**
- * IPC handlers for cloud vault sync.
+ * IPC handlers for whole-file cloud backup (named "cloud sync" in older code and channels).
+ * The plan is checked on enable and on every restore; restores of the vault the sync engine
+ * runs become a preview, a rollback or a new vault (backup-restore.ts).
  */
 
 import { ipcMain } from 'electron';
-import fs from 'node:fs';
-import path from 'node:path';
 import { AppState } from '../services/state.js';
-import { updateRecentVaults, readSettings } from './settings.js';
+import type { AuthState } from '../services/auth/supabase.js';
+import {
+  CLOUD_BACKUP_PLAN_MESSAGE,
+  CLOUD_RESTORE_PLAN_MESSAGE,
+  requireCloudBackupPlan,
+} from '../services/vault/cloud-backup-plan.js';
+import type { RestoreResult } from '../services/sync/app-sync-dto.js';
+import { readSettings } from './settings.js';
 import { rebuildMutationCallback } from './vault.js';
+import { backupPasswordOf, parseRestoreRequest, restoreBackup, RESTORE_GENERIC_MESSAGE } from './backup-restore.js';
+import {
+  appRestoreHost,
+  backupSnapshot,
+  cloudRestoreTarget,
+  downloadForRestore,
+  optionalVaultName,
+  requireSignedInUser,
+  requireStoragePath,
+  vaultHasContent,
+} from './backup-restore-app.js';
+import { handleChannel, type ChannelOptions } from './sync-errors.js';
+import type { IpcArgs } from './sync-args.js';
+
+const RESTORE_CHANNEL_OPTIONS: ChannelOptions = { prefix: '[cloud-sync]', genericMessage: RESTORE_GENERIC_MESSAGE };
+/** A whole-file cloud restore turns cloud backup back on (it was on when the backup was made). */
+const CLOUD_RESTORE_HOST_OPTIONS = { enableCloudBackup: true } as const;
+
+/** The profile read at sign-in may predate a plan change, so plan checks read it again first. */
+async function reloadedAuthState(state: AppState): Promise<AuthState> {
+  try {
+    await state.authService.reloadProfile();
+  } catch (err) {
+    console.warn('[cloud-sync] Could not re-read the plan; using the last known one:', (err as Error)?.message ?? err);
+  }
+  return state.authService.getAuthState();
+}
+
+async function requireRestorePlan(state: AppState): Promise<{ readonly id: string }> {
+  const user = requireSignedInUser(state);
+  requireCloudBackupPlan(await reloadedAuthState(state), readSettings(), CLOUD_RESTORE_PLAN_MESSAGE);
+  return user;
+}
+
+/** Latest cloud copy of the most recently backed-up vault, into the default vault path. */
+async function restoreLatestCloudVault(state: AppState, a: IpcArgs): Promise<RestoreResult> {
+  const user = await requireRestorePlan(state);
+  const request = parseRestoreRequest(a);
+  const password = backupPasswordOf(request);
+  const bytes = await downloadForRestore(() => state.cloudSync.downloadVault(password, user.id));
+  const vaultPath = state.getDefaultVaultPath();
+  const host = appRestoreHost(state, CLOUD_RESTORE_HOST_OPTIONS);
+  return restoreBackup(host, { bytes, vaultPath, request, source: 'cloud_vault_restore' });
+}
+
+/** One backup snapshot, into the recent vault with its name (or a new file of that name). */
+async function restoreCloudBackup(state: AppState, a: IpcArgs): Promise<RestoreResult> {
+  const user = await requireRestorePlan(state);
+  const storagePath = requireStoragePath(a.storagePath, user.id);
+  const vaultName = optionalVaultName(a.vaultName);
+  const request = parseRestoreRequest(a);
+  const password = backupPasswordOf(request);
+  const bytes = await downloadForRestore(() => state.cloudSync.downloadBackup(storagePath, password));
+  const vaultPath = cloudRestoreTarget(state, vaultName);
+  const host = appRestoreHost(state, CLOUD_RESTORE_HOST_OPTIONS);
+  return restoreBackup(host, { bytes, vaultPath, request, source: 'cloud_backup_restore' });
+}
 
 export function registerCloudSyncHandlers(): void {
   const state = AppState.getInstance();
@@ -34,11 +98,8 @@ export function registerCloudSyncHandlers(): void {
       throw new Error('Vault is locked');
     }
 
-    // Tier gate — cloud sync is a Team-only feature.
-    const features = authState.profile?.tier?.features as Record<string, unknown> | undefined;
-    if (!features?.cloud_sync_enabled) {
-      throw new Error('Cloud sync requires the Team plan. Upgrade your subscription to enable cloud sync across devices.');
-    }
+    // Plan gate: whole-file cloud backup is a Pro and Team feature.
+    requireCloudBackupPlan(await reloadedAuthState(state), readSettings(), CLOUD_BACKUP_PLAN_MESSAGE);
 
     // Store preference in vault_meta
     state.vault.setCloudSyncEnabled(true);
@@ -50,13 +111,13 @@ export function registerCloudSyncHandlers(): void {
       masterPassword: state.currentMasterPassword,
       vaultPath: state.currentVaultPath,
       enabled: true,
+      snapshot: backupSnapshot(state),
     });
 
     // Rebuild mutation hook to include cloud sync
     rebuildMutationCallback(state);
 
-    // Initial upload
-    await state.cloudSync.syncNow();
+    if (vaultHasContent(state.vault)) await state.cloudSync.syncNow();
   });
 
   /** Disable cloud sync, clear preference. */
@@ -73,54 +134,8 @@ export function registerCloudSyncHandlers(): void {
     await state.cloudSync.syncNow();
   });
 
-  /**
-   * Restore vault from cloud:
-   * 1. Download + decrypt
-   * 2. Write to default vault path
-   * 3. Unlock the vault
-   */
-  ipcMain.handle('cloud_vault_restore', async (_e, args: { masterPassword: string }) => {
-    const authState = state.authService.getAuthState();
-    if (!authState.isAuthenticated || !authState.user) {
-      throw new Error('Not authenticated');
-    }
-
-    // Download and decrypt
-    const rawVault = await state.cloudSync.downloadVault(
-      args.masterPassword,
-      authState.user.id,
-    );
-
-    // Write to default vault path (atomic: write temp then rename)
-    const vaultPath = state.getDefaultVaultPath();
-    fs.mkdirSync(path.dirname(vaultPath), { recursive: true });
-    const tmpPath = vaultPath + '.tmp';
-    fs.writeFileSync(tmpPath, rawVault);
-    fs.renameSync(tmpPath, vaultPath);
-
-    // Switch to the restored vault and unlock
-    state.switchVault(vaultPath);
-    state.vault.unlock(args.masterPassword);
-
-    // Full post-unlock setup (same as vault_unlock handler)
-    updateRecentVaults(vaultPath);
-
-    // Store master password for cloud sync
-    state.currentMasterPassword = args.masterPassword;
-
-    // Re-enable cloud sync since it was enabled before
-    state.vault.setCloudSyncEnabled(true);
-    state.cloudSync.configure({
-      userId: authState.user.id,
-      vaultId: state.vault.getVaultId(),
-      masterPassword: args.masterPassword,
-      vaultPath,
-      enabled: true,
-    });
-    rebuildMutationCallback(state);
-
-    return vaultPath;
-  });
+  /** Restore the latest cloud copy (plan checked; rollback or new vault when the engine runs it). */
+  handleChannel(ipcMain, 'cloud_vault_restore', (a) => restoreLatestCloudVault(state, a), RESTORE_CHANNEL_OPTIONS);
 
   /** Delete the cloud vault from storage and disable sync. */
   ipcMain.handle('cloud_vault_delete', async () => {
@@ -151,75 +166,6 @@ export function registerCloudSyncHandlers(): void {
     return state.cloudSync.getBackupRetentionDays();
   });
 
-  /**
-   * Restore vault from a specific backup snapshot:
-   * 1. Validate storagePath belongs to the user
-   * 2. Download + decrypt
-   * 3. Resolve target path: match vault name to recent_vaults, or create {dataDir}/{name}.conduit
-   * 4. Write to that path and unlock
-   */
-  ipcMain.handle('cloud_backup_restore', async (_e, args: {
-    storagePath: string;
-    masterPassword: string;
-    vaultName?: string;
-  }) => {
-    const authState = state.authService.getAuthState();
-    if (!authState.isAuthenticated || !authState.user) {
-      throw new Error('Not authenticated');
-    }
-
-    // Prevent path traversal — storagePath must start with user's ID
-    if (!args.storagePath.startsWith(`${authState.user.id}/`)) {
-      throw new Error('Invalid backup path');
-    }
-
-    // Download and decrypt the specific backup
-    const rawVault = await state.cloudSync.downloadBackup(
-      args.storagePath,
-      args.masterPassword,
-    );
-
-    // Resolve target vault path from vault name
-    let vaultPath: string;
-    if (args.vaultName) {
-      // Try to find existing vault file in recent_vaults matching this name
-      const settings = readSettings();
-      const match = settings.recent_vaults.find((p) => {
-        const filename = p.split('/').pop() ?? p.split('\\').pop() ?? '';
-        return filename.replace(/\.conduit$/, '') === args.vaultName;
-      });
-      vaultPath = match ?? path.join(state.getDataDir(), `${args.vaultName}.conduit`);
-    } else {
-      vaultPath = state.getDefaultVaultPath();
-    }
-
-    // Write to vault path (atomic: write temp then rename)
-    fs.mkdirSync(path.dirname(vaultPath), { recursive: true });
-    const tmpPath = vaultPath + '.tmp';
-    fs.writeFileSync(tmpPath, rawVault);
-    fs.renameSync(tmpPath, vaultPath);
-
-    // Switch to the restored vault and unlock
-    state.switchVault(vaultPath);
-    state.vault.unlock(args.masterPassword);
-
-    // Full post-unlock setup (same as vault_unlock handler)
-    updateRecentVaults(vaultPath);
-
-    // Store master password for cloud sync
-    state.currentMasterPassword = args.masterPassword;
-
-    // Re-enable cloud sync since it was enabled before
-    state.vault.setCloudSyncEnabled(true);
-    state.cloudSync.configure({
-      userId: authState.user.id,
-      vaultId: state.vault.getVaultId(),
-      masterPassword: args.masterPassword,
-      vaultPath,
-      enabled: true,
-    });
-    rebuildMutationCallback(state);
-
-    return vaultPath;
-  });
+  /** Restore one backup snapshot (plan checked; rollback or new vault when the engine runs it). */
+  handleChannel(ipcMain, 'cloud_backup_restore', (a) => restoreCloudBackup(state, a), RESTORE_CHANNEL_OPTIONS);
 }

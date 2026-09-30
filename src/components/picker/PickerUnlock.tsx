@@ -46,7 +46,7 @@ export default function PickerUnlock({ vaultType, vaultExists, onUnlocked, onSho
     setError(null);
     setLoading(true);
     try {
-      await invoke("vault_unlock", { password });
+      await invoke("vault_unlock", { masterPassword: password });
       onUnlocked();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Wrong password");

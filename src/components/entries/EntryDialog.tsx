@@ -33,6 +33,9 @@ import SecurityTab from "./tabs/SecurityTab";
 import AutofillTab from "./tabs/AutofillTab";
 import InformationTab from "./tabs/InformationTab";
 import CommandTab from "./tabs/CommandTab";
+import EntryConflictInline from "../sync/EntryConflictInline";
+import { announceResolvedBySave, conflictFieldsBeforeSave } from "../sync/editor-conflicts";
+import { changedEditorFields } from "./entry-update-diff";
 
 interface EntryDialogProps {
   onClose: () => void;
@@ -156,6 +159,9 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
   // Keep a ref to onClose so the load effect can call it without re-firing
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  // What the editor showed after loading: a save sends only the fields that differ from it.
+  const loadedFieldsRef = useRef<ReturnType<typeof editorFields> | null>(null);
+  const captureLoadedRef = useRef(false);
 
   // Load entry data when editing
   useEffect(() => {
@@ -215,6 +221,7 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
         }
       }
       setStep("form");
+      captureLoadedRef.current = true;
       setIsLoadingEntry(false);
     }).catch((err) => {
       console.error("Failed to load entry for editing:", err);
@@ -311,6 +318,33 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const editorFields = () => ({
+    name: name.trim(),
+    host: host.trim() || null,
+    port: port ? parseInt(port, 10) : null,
+    credential_id: credentialId,
+    username: username.trim() || null,
+    password: password || null,
+    domain: domain.trim() || null,
+    private_key: privateKey || null,
+    totp_secret: totpSecret || null,
+    icon: customIcon,
+    color: customColor,
+    config: buildConfig(),
+    tags: tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean),
+    notes: notes.trim() || null,
+    credential_type: credentialType ?? undefined,
+  });
+
+  useEffect(() => {
+    if (!captureLoadedRef.current || isLoadingEntry) return;
+    captureLoadedRef.current = false;
+    loadedFieldsRef.current = editorFields();
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!entryType || !name.trim()) return;
@@ -327,28 +361,13 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
     const config = buildConfig();
     try {
       if (isEditing) {
-        await updateEntry(editingEntryId!, {
-          name: name.trim(),
-          host: host.trim() || null,
-          port: port ? parseInt(port, 10) : null,
-          credential_id: credentialId,
-          username: username.trim() || null,
-          password: password || null,
-          domain: domain.trim() || null,
-          private_key: privateKey || null,
-          totp_secret: totpSecret || null,
-          icon: customIcon,
-          color: customColor,
-          config,
-          tags: tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
-          notes: notes.trim() || null,
-          credential_type: credentialType ?? undefined,
-        });
+        const conflictedBefore = conflictFieldsBeforeSave(editingEntryId!);
+        const updated = await updateEntry(editingEntryId!, changedEditorFields(loadedFieldsRef.current, editorFields()));
+        // The store showed why; keep the dialog open so the edits are not lost.
+        if (!updated) return;
+        void announceResolvedBySave(editingEntryId!, conflictedBefore);
       } else {
-        await createEntry({
+        const created = await createEntry({
           name: name.trim(),
           entry_type: entryType,
           folder_id: folderId,
@@ -370,6 +389,7 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
           notes: notes.trim() || null,
           credential_type: credentialType ?? undefined,
         });
+        if (!created) return;
       }
 
       // Auto-reconnect if this RDP entry has an active session
@@ -564,6 +584,10 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
               </>
             )}
           </div>
+
+          {isEditing && editingEntryId && vaultType === "personal" && (
+            <EntryConflictInline entryId={editingEntryId} mode="editor" />
+          )}
 
           {/* Viewer warning */}
           {isViewerInTeamVault && (

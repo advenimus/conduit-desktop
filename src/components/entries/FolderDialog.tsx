@@ -55,11 +55,11 @@ export default function FolderDialog({ onClose, parentId, editingFolderId }: Fol
 
     setIsSubmitting(true);
     try {
-      if (isEditing) {
-        await updateFolder(editingFolderId!, { name: name.trim(), icon: customIcon, color: customColor });
-      } else {
-        await createFolder(name.trim(), parentId, customIcon, customColor);
-      }
+      const saved = isEditing
+        ? await updateFolder(editingFolderId!, { name: name.trim(), icon: customIcon, color: customColor })
+        : await createFolder(name.trim(), parentId, customIcon, customColor);
+      // The store showed why; keep the dialog open.
+      if (!saved) return;
       onClose();
     } catch (err) {
       console.error(`Failed to ${isEditing ? "update" : "create"} folder:`, err);

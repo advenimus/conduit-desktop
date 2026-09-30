@@ -19,6 +19,10 @@ export interface Settings {
   session_defaults_web: WebGlobalDefaults;
   session_defaults_terminal: TerminalGlobalDefaults;
   session_defaults_ssh: SshGlobalDefaults;
+  /** Multi-device sync (on by default). No UI; support can turn it off through sync_set_enabled. */
+  personal_sync_enabled: boolean;
+  /** Idle auto-lock in minutes; 0 = off (the default). */
+  vault_idle_lock_minutes: number;
 }
 
 export { HARDCODED_RDP_DEFAULTS, HARDCODED_WEB_DEFAULTS, HARDCODED_TERMINAL_DEFAULTS, HARDCODED_SSH_DEFAULTS };
@@ -35,6 +39,7 @@ export type SettingsTab =
   | "ai"
   | "ai/agent"
   | "backup"
+  | "sync"
   | "mobile"
   | "team"
   | "account";

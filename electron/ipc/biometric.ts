@@ -1,16 +1,42 @@
 /**
  * IPC handlers for biometric (Touch ID / Windows Hello) vault unlock.
  *
- * Manages storing and retrieving the master password behind a biometric gate.
- * The biometric_unlock handler performs the full unlock flow: biometric prompt →
- * retrieve password → vault unlock → chat store unlock → wire backup services.
+ * Manages storing and retrieving the master password behind a biometric gate, keyed by the
+ * vault lineage (legacy entries keyed by the vault path still work and move on first unlock).
+ * The biometric_unlock handler runs the same personal unlock as vault_unlock with the stored
+ * password: biometric prompt, then open (lease, working copy, engine), then the common tail.
  */
 
 import { ipcMain } from 'electron';
 import { AppState } from '../services/state.js';
-import { getBiometricService, vaultPathToKey } from '../services/vault/biometric.js';
-import { wireBackupServices } from './vault.js';
-import { readSettings, writeSettings, updateRecentVaults, updateLastVaultContext } from './settings.js';
+import { getBiometricService } from '../services/vault/biometric.js';
+import { PersonalVaultOpenError } from '../services/vault-session/open-errors.js';
+import { readSettings, writeSettings } from './settings.js';
+import {
+  currentBiometricKey,
+  enabledKey,
+  isBiometricEnabledForPath,
+  removeBiometricForPath,
+  resolveBiometricKeys,
+} from './biometric-lineage.js';
+import { openPersonalAndFinish, parseUnlockOptions } from './vault-unlock.js';
+
+const UNLOCK_REASON = 'Unlock your Conduit vault';
+
+function record(args: unknown): Readonly<Record<string, unknown>> {
+  return typeof args === 'object' && args !== null && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
+}
+
+function requireVaultPath(args: unknown): string {
+  const v = record(args).vaultPath;
+  if (typeof v !== 'string' || v === '') throw new Error('Choose a vault file first');
+  return v;
+}
+
+/** The stored password was superseded by a change on another device: its entry is useless now. */
+function isSupersededBiometric(err: unknown): boolean {
+  return err instanceof PersonalVaultOpenError && err.payload.code === 'VAULT_PASSWORD_CHANGED_ELSEWHERE' && err.payload.deleteBiometric;
+}
 
 export function registerBiometricHandlers(): void {
   const state = AppState.getInstance();
@@ -23,14 +49,14 @@ export function registerBiometricHandlers(): void {
 
   /** Check if biometric unlock is enabled for the current vault. */
   ipcMain.handle('biometric_enabled', async () => {
-    const vaultKey = vaultPathToKey(state.currentVaultPath);
-    return biometric.isEnabledForVault(vaultKey);
+    return isBiometricEnabledForPath(state, state.currentVaultPath);
   });
 
   /** Check if biometric unlock is enabled for a specific vault path (pre-unlock). */
-  ipcMain.handle('biometric_enabled_for_path', async (_e, args: { vaultPath: string }) => {
-    const vaultKey = vaultPathToKey(args.vaultPath);
-    return biometric.isEnabledForVault(vaultKey);
+  ipcMain.handle('biometric_enabled_for_path', async (_e, args) => {
+    const vaultPath = record(args).vaultPath;
+    if (typeof vaultPath !== 'string' || vaultPath === '') return false;
+    return isBiometricEnabledForPath(state, vaultPath);
   });
 
   /**
@@ -38,57 +64,50 @@ export function registerBiometricHandlers(): void {
    * Must be called while the vault is unlocked (master password available).
    */
   ipcMain.handle('biometric_enable', async () => {
-    if (!state.vault.isUnlocked() || !state.currentMasterPassword) {
+    const password = state.currentMasterPassword;
+    if (!state.vault.isUnlocked() || !password) {
       throw new Error('Vault must be unlocked to enable biometric');
     }
-
-    const vaultKey = vaultPathToKey(state.currentVaultPath);
-    await biometric.storePassword(vaultKey, state.currentMasterPassword);
+    await biometric.storePassword(await currentBiometricKey(state), password);
   });
 
   /** Disable biometric unlock for the current vault. */
   ipcMain.handle('biometric_disable', async () => {
-    const vaultKey = vaultPathToKey(state.currentVaultPath);
-    biometric.removePassword(vaultKey);
+    await removeBiometricForPath(state, state.currentVaultPath);
   });
 
   /**
-   * Perform biometric unlock: prompt → retrieve password → full vault unlock flow.
-   * This mirrors the vault_unlock handler but uses the stored biometric password.
+   * Perform biometric unlock: prompt, retrieve password, full personal unlock.
+   * Optional args: takeover (open here instead), previousPassword (password changed elsewhere).
    */
-  ipcMain.handle('biometric_unlock', async () => {
-    const vaultKey = vaultPathToKey(state.currentVaultPath);
-
-    // Prompt biometric + retrieve stored password
-    const masterPassword = await biometric.retrievePassword(
-      vaultKey,
-      'Unlock your Conduit vault',
-    );
-
-    // Perform the standard vault unlock
-    state.vault.unlock(masterPassword);
-
-    // Unlock or initialize chat store
-    if (state.chatStore.exists()) {
-      state.chatStore.unlock(masterPassword);
-    } else {
-      state.chatStore.initialize(masterPassword);
-    }
-
-    updateRecentVaults(state.currentVaultPath);
-    updateLastVaultContext('personal');
-
-    // Wire backup services (same function used by vault_unlock handler)
-    wireBackupServices(state, masterPassword);
+  ipcMain.handle('biometric_unlock', async (_e, args) => {
+    const vaultPath = state.currentVaultPath;
+    const keys = await resolveBiometricKeys(state, vaultPath);
+    // Nothing stored: the service raises its own message (not stored, or not supported here).
+    const key = enabledKey(keys) ?? keys.lineageKey ?? keys.pathKey;
+    const masterPassword = await biometric.retrievePassword(key, UNLOCK_REASON);
+    const opts = parseUnlockOptions(args);
+    const request = {
+      path: vaultPath,
+      password: masterPassword,
+      previousPassword: opts.previousPassword,
+      takeover: opts.takeover,
+      recoverWorkingCopy: opts.recoverWorkingCopy,
+      source: 'biometric_unlock' as const,
+    };
+    await openPersonalAndFinish(state, request, async (err) => {
+      if (!isSupersededBiometric(err)) return;
+      await removeBiometricForPath(state, vaultPath);
+      console.info('[vault] removed a biometric entry superseded by a password change elsewhere');
+    });
   });
 
   /**
    * Remove biometric data for a specific vault path.
    * Called when removing a vault from recents.
    */
-  ipcMain.handle('biometric_remove_for_path', async (_e, args: { vaultPath: string }) => {
-    const vaultKey = vaultPathToKey(args.vaultPath);
-    biometric.removePassword(vaultKey);
+  ipcMain.handle('biometric_remove_for_path', async (_e, args) => {
+    await removeBiometricForPath(state, requireVaultPath(args));
   });
 
   /**
@@ -96,11 +115,10 @@ export function registerBiometricHandlers(): void {
    * Returns true if the user should be prompted (not dismissed, not already enabled).
    */
   ipcMain.handle('biometric_should_prompt', async () => {
-    const vaultKey = vaultPathToKey(state.currentVaultPath);
-    if (biometric.isEnabledForVault(vaultKey)) return false;
-    const settings = readSettings();
-    const dismissed = settings.biometric_dismissed_vaults ?? [];
-    return !dismissed.includes(vaultKey);
+    const keys = await resolveBiometricKeys(state, state.currentVaultPath);
+    if (enabledKey(keys) !== null) return false;
+    const dismissed = readSettings().biometric_dismissed_vaults ?? [];
+    return !dismissed.includes(keys.pathKey) && (keys.lineageKey === null || !dismissed.includes(keys.lineageKey));
   });
 
   /**
@@ -108,11 +126,11 @@ export function registerBiometricHandlers(): void {
    * Called when user taps "Not Now" on the setup prompt.
    */
   ipcMain.handle('biometric_dismiss_prompt', async () => {
-    const vaultKey = vaultPathToKey(state.currentVaultPath);
+    const key = await currentBiometricKey(state);
     const settings = readSettings();
     const dismissed = settings.biometric_dismissed_vaults ?? [];
-    if (!dismissed.includes(vaultKey)) {
-      settings.biometric_dismissed_vaults = [...dismissed, vaultKey];
+    if (!dismissed.includes(key)) {
+      settings.biometric_dismissed_vaults = [...dismissed, key];
       writeSettings(settings);
     }
   });

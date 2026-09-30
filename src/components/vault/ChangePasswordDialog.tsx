@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "../../lib/electron";
+import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
 import {
   AlertCircleIcon, EyeIcon, EyeOffIcon, LoaderIcon, LockIcon
@@ -20,6 +21,9 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [eraseDeleted, setEraseDeleted] = useState(false);
+  // Only the sync engine's password change can erase graves (spec 4.7, 4.8 step 6).
+  const engineSync = useSyncStore((s) => s.state?.vault?.engine === true);
 
   const passwordTooShort = newPassword.length > 0 && newPassword.length < MIN_PASSWORD_LENGTH;
   const passwordsMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
@@ -36,7 +40,11 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
     setError(null);
 
     try {
-      await invoke("vault_change_password", { currentPassword, newPassword });
+      await invoke("vault_change_password", {
+        currentPassword,
+        newPassword,
+        eraseRecentlyDeleted: engineSync && eraseDeleted,
+      });
       toast.success("Vault password changed successfully");
       onClose();
     } catch (err) {
@@ -154,6 +162,21 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
               </p>
             )}
           </div>
+
+          {engineSync && (
+            <label className="flex items-start gap-2 text-xs text-ink-muted cursor-pointer">
+              <input
+                type="checkbox"
+                checked={eraseDeleted}
+                onChange={(e) => setEraseDeleted(e.target.checked)}
+                className="accent-conduit-500 mt-0.5"
+              />
+              <span>
+                Also permanently delete items in Recently deleted, on every device. Recommended if your old
+                password may have leaked.
+              </span>
+            </label>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20">

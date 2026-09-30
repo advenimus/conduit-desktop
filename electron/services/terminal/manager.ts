@@ -54,6 +54,8 @@ interface SessionState {
   closeListeners: Set<() => void>;
   createdAt: number;
   lastOutputAt: number;
+  /** Last keystroke or paste from the user or an agent; null before the first one. */
+  lastInputAt: number | null;
   outputChars: number;
   shellKind: ShellKind;
   exec: CommandExecution | null;
@@ -103,6 +105,20 @@ const DEFAULT_IDLE_MS = 400;
 const SEND_KEYS_OUTPUT_CHARS = 16_000;
 const SCREEN_TAIL_LINES = 15;
 
+/** A CLI agent terminal counts as a running AI task while it had input or output this recently. */
+export const AGENT_ACTIVE_WINDOW_MS = 2 * 60 * 1000;
+// xterm sends these when the terminal gains or loses focus (if the app asked for focus events).
+const FOCUS_REPORTS: ReadonlySet<string> = new Set(['\x1b[I', '\x1b[O']);
+
+/**
+ * An agent terminal the user never typed into is only the idle CLI (its start-up banner is not
+ * a task); after input, the task runs while input or output keeps coming.
+ */
+export function agentTerminalActive(s: { readonly lastInputAt: number | null; readonly lastOutputAt: number }, nowMs: number): boolean {
+  if (s.lastInputAt === null) return false;
+  return nowMs - Math.max(s.lastInputAt, s.lastOutputAt) <= AGENT_ACTIVE_WINDOW_MS;
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -116,6 +132,7 @@ function commandPreview(command: string): string {
 
 export class TerminalManager {
   private sessions = new Map<string, SessionEntry>();
+  private agentSessionIds = new Set<string>();
   private getMainWindow: () => BrowserWindow | null;
 
   /**
@@ -157,6 +174,7 @@ export class TerminalManager {
     const id = randomUUID();
     const pty = createLocalPty({ command: opts.command, args: opts.args, cwd: opts.cwd });
     this.attachLocal(id, pty, 'unknown');
+    this.agentSessionIds.add(id);
     return id;
   }
 
@@ -252,8 +270,10 @@ export class TerminalManager {
     // Ctrl+C from anyone (user or agent) may end a running terminal_execute command.
     if (data.includes(0x03)) entry.exec?.interrupt();
 
+    const text = Buffer.from(data).toString('utf-8');
+    if (!FOCUS_REPORTS.has(text)) entry.lastInputAt = Date.now();
     if (entry.kind === 'local') {
-      entry.pty.pty.write(Buffer.from(data).toString('utf-8'));
+      entry.pty.pty.write(text);
     } else {
       entry.session.write(data);
     }
@@ -420,6 +440,20 @@ export class TerminalManager {
     return Array.from(this.sessions.keys());
   }
 
+  /**
+   * Open connections (SSH, local shells) and CLI agent terminals running an AI task
+   * (agentTerminalActive); an idle agent terminal counts as neither.
+   */
+  countSessions(nowMs: number = Date.now()): { connections: number; agents: number } {
+    let connections = 0;
+    let agents = 0;
+    for (const [id, entry] of this.sessions) {
+      if (!this.agentSessionIds.has(id)) connections += 1;
+      else if (agentTerminalActive(entry, nowMs)) agents += 1;
+    }
+    return { connections, agents };
+  }
+
   // ── Internal helpers ─────────────────────────────────────────────
 
   private newState(shellKind: ShellKind): Omit<SessionState, 'display'> {
@@ -433,6 +467,7 @@ export class TerminalManager {
       closeListeners: new Set(),
       createdAt: now,
       lastOutputAt: now,
+      lastInputAt: null,
       outputChars: 0,
       shellKind,
       exec: null,
@@ -520,7 +555,10 @@ export class TerminalManager {
   }
 
   private removeSession(sessionId: string, entry: SessionEntry): void {
-    if (this.sessions.get(sessionId) === entry) this.sessions.delete(sessionId);
+    if (this.sessions.get(sessionId) === entry) {
+      this.sessions.delete(sessionId);
+      this.agentSessionIds.delete(sessionId);
+    }
     this.disposeState(entry);
   }
 

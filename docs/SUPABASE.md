@@ -1,6 +1,6 @@
 # Supabase Integration
 
-Supabase is used for **authentication** and **tier-based feature licensing**. Storage, Realtime, and Edge Functions are not used.
+Supabase is used for **authentication**, **tier-based feature licensing**, and **personal vault device leases** (`personal_vault_sessions`, see [Personal Vault Sessions](#personal-vault-sessions-device-limits)). It never holds personal vault content. Team vault sync and cloud backups are covered in their own sections below.
 
 ## Architecture
 
@@ -35,6 +35,8 @@ authStore.ts ──IPC──►  auth.ts (IPC handlers)
 | `src/components/auth/RegisterForm.tsx` | Registration form (display name, email, password, confirm) |
 | `src/components/settings/SettingsDialog.tsx` | Account tab — shows email, display name, tier, sign out |
 | `src/components/layout/Sidebar.tsx` | User email in footer, sign out button |
+| `electron/services/vault-session/session-client.ts` | Typed, validated wrappers of the five personal vault session RPCs |
+| `electron/services/vault-session/host-electron-supabase.ts` | RPC caller with a hard timeout, and the own-row Realtime subscription on `personal_vault_sessions` |
 
 ## Database Schema
 
@@ -53,6 +55,15 @@ Two tables are queried (read-only from the app):
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
+**Column guard.** The UPDATE policy only checks row ownership, so the trigger `trg_guard_user_profile_columns` (migration `20260926150741_guard_user_profile_columns.sql`, applied to prod 2026-09-26) rejects any change by `authenticated`/`anon` to plan, billing, trial and abuse columns with `42501 protected column`. Service-role writes (Stripe webhook, team routes, backend) and `SECURITY DEFINER` triggers are unaffected. Users may still change `display_name` and `primary_team_id`, and may set `stripe_customer_id` only while it is NULL.
+
+Follow-up once the website's checkout saves the customer id with the service client (branch `feat/device-sync-pricing`) is deployed: drop the NULL exception so users can never set `stripe_customer_id` themselves.
+
+```sql
+-- in guard_user_profile_columns(), replace the stripe_customer_id line with:
+or new.stripe_customer_id is distinct from old.stripe_customer_id
+```
+
 ### `tiers`
 | Column | Type | Notes |
 |--------|------|-------|
@@ -60,22 +71,33 @@ Two tables are queried (read-only from the app):
 | `display_name` | text | Shown in UI |
 | `features` | jsonb | Feature flags/limits — see below |
 
-#### Current `features` shape (post WS1/WS2a)
+#### Current `features` shape (production, 2026-09-26)
 
 | Flag | Type | Free | Pro | Team |
 |------|------|------|-----|------|
 | `max_connections` | number | -1 | -1 | -1 |
 | `cli_agents_enabled` | bool | true | true | true |
 | `mcp_enabled` | bool | true | true | true |
-| `mcp_daily_quota` | number | 50 | -1 | -1 |
-| `cloud_sync_enabled` | bool | false | false | true |
-| `cloud_backup_days` | number | 1 | 14 | 180 |
+| `mcp_daily_quota` | number | -1 | -1 | -1 |
+| `cloud_sync_enabled` | bool | false | true | true |
+| `vault_max_open_devices` | number | 1 | -1 | -1 |
+| `personal_sync` | text | `on` | `on` | `on` |
+| `backup_retention_days` | number | 1 | 14 | 180 |
+| `max_cloud_backups` | number | 3 | 25 | -1 |
 | `shared_vaults` | bool | false | false | true |
-| `password_history_limit` | number | 3 | -1 | -1 |
+| `chat_cloud_sync_enabled` | bool | false | true | true |
+| `beta_features_enabled` | bool | false | false | true |
+| `is_per_seat` | bool | - | - | true |
+
+`password_history_limit` is not set on any live tier; `src/lib/tier.ts` falls back to 3 for Free and unlimited for Pro and Team. Values checked against production on 2026-09-26.
 
 Notes:
 - `-1` = unlimited for numeric limits
-- `mcp_daily_quota` is enforced locally by the MCP server (honor-system)
+- `mcp_daily_quota` is retired. It stays `-1` on every tier because MCP builds before the removal cap at 50/day when the key is missing
+- `cloud_sync_enabled` means whole-file **cloud backup**. The name is kept for older clients; it does not gate multi-device sync. Set explicitly by `20260926150803_tier_vault_devices.sql`
+- `vault_max_open_devices`: how many devices may have one personal vault open (unlocked) at once. `20260926150803` sets `-1` everywhere; `20260926150934_free_single_device.sql` sets Free to `1`. Setting Free back to `-1` turns enforcement off without a client release. Team members always get `-1` server-side (`is_team_member`)
+- `personal_sync`: `on` or `paused`. Kill switch for the personal sync engine; `paused` stops merging and publishing, and every edit stays in the device's working copy
+- The merge engine itself is not gated by plan. See `docs/MULTI_DEVICE_SYNC.md` section 8
 - Removed in WS1: `ai_chat_enabled`, `ai_token_budget_monthly`, `ai_max_output`, `auto_compaction` (built-in agent retired)
 - Removed later: `chat_cloud_sync_enabled` (in-app chat history layer removed; CLIs own their own session state)
 
@@ -249,6 +271,8 @@ Unique constraint on `(team_id, user_id)`. A trigger (`sync_is_team_member`) aut
 | `expires_at` | timestamptz | Default 7 days from creation |
 | `created_at` | timestamptz | |
 | `responded_at` | timestamptz | Nullable |
+
+Access: team admins read and edit their team's invitations; the invitee (matched on the JWT email) reads theirs and may only move a pending invitation to `accepted` or `declined`. The `guard_team_invitation_update` trigger (`20260928003610_team_invitation_update_guard.sql`) enforces this, so an invitee can't raise the `role` the website's accept route then grants. The service role is unrestricted.
 
 ### `user_public_keys`
 | Column | Type | Notes |
@@ -436,6 +460,58 @@ Pro plan users acquire exclusive locks (60s TTL, 30s heartbeat). Team plan users
 | `upsert_vault_entry_versioned(...)` | Atomic version-checked insert/update for optimistic concurrency |
 | `user_can_access_folder(vault_id, folder_id, user_id)` | Recursive folder permission check (returns role or NULL) |
 | `purge_old_audit_logs()` | Scheduled (pg_cron): deletes audit log entries older than 2 years |
+
+## Personal Vault Sessions (Device Limits)
+
+Control plane for personal vault multi-device sync (full design: `docs/MULTI_DEVICE_SYNC.md`, sections 6 and 9). It enforces `vault_max_open_devices`, handles take-over, and carries each device's publish marker. It holds no vault content and no keys. Only signed-in devices use it; signed-out devices rely on an owner claim stored inside the vault file.
+
+Migrations, in order:
+- `20260926150803_tier_vault_devices.sql`: plan keys (`vault_max_open_devices = -1`, `mcp_daily_quota = -1`, `cloud_sync_enabled`, `personal_sync = 'on'`)
+- `20260926150829_personal_vault_sessions.sql`: table, RLS, Realtime publication, internal helpers, daily purge job
+- `20260926150905_personal_vault_session_rpcs.sql`: the five client RPCs
+- `20260926150934_free_single_device.sql`: Free `vault_max_open_devices = 1`
+- `20260927234038_vault_sessions_heartbeat_at.sql`: `vault_sessions_for` also returns each row's `heartbeat_at` (the side-file flag's report time; clients fall back to `last_active_at` when a server omits it)
+
+### `personal_vault_sessions`
+One row per (user, vault, device). Primary key `(user_id, vault_key, device_id)`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | UUID | FK to `auth.users.id` (cascade delete) |
+| `vault_key` | UUID | The vault's lineage id (`sync_state.lineage_id` inside the file) |
+| `device_id` | UUID | Per-install device id |
+| `lease_id` | UUID | New on every acquire; heartbeat and release must match it |
+| `session_nonce` | UUID | Per app launch; a second running copy with the same device id is superseded |
+| `device_name` | text | 1 to 120 characters |
+| `platform` | text | `macos`, `windows`, `linux`, `ios`, `ipados` |
+| `app_version`, `file_name`, `file_id`, `location` | text / UUID | Shown to other devices ("open on MacBook from iCloud Drive") |
+| `status` | text | `active`, `released`, `expired`, `displaced` |
+| `acquired_at`, `heartbeat_at`, `expires_at`, `last_active_at` | timestamptz | Lease time limit is 90 s, heartbeat every 30 s |
+| `busy` | jsonb | `{sessions, jobs}` counts, at most 256 bytes. Busy devices are displaced last |
+| `flags` | jsonb | Side-file and similar flags, at most 256 bytes |
+| `displaced_by_device`, `displaced_reason`, `displaced_at` | UUID / text / timestamptz | Reason is `takeover` or `plan_limit` |
+| `written_vv`, `written_at` | jsonb / timestamptz | The last publish marker of this device, at most 1024 bytes |
+| `pending_changes` | boolean | The device has changes it could not publish |
+| `abandoned_at` | timestamptz | Set by "Stop waiting for X"; cleared when that device reports a new marker |
+
+- RLS: `select` of own rows only (`user_id = auth.uid()`). `insert`, `update` and `delete` are revoked from `anon` and `authenticated`; clients write only through the RPCs below
+- Partial index on `(user_id, vault_key) where status = 'active'`
+- Added to the `supabase_realtime` publication. The desktop app subscribes to `UPDATE` events on its own row (`device_id=eq.<id>`) to learn about a displacement in 1 to 2 s; the next heartbeat is the fallback
+- pg_cron job `purge-personal-vault-sessions` (schedule `17 3 * * *`, only where pg_cron is installed) deletes non-active rows whose last heartbeat is older than 30 days
+
+### Session RPCs (callable by `authenticated`)
+
+| Function | Returns | Purpose |
+|----------|---------|---------|
+| `vault_session_peek(p_vault_key, p_device_id)` | jsonb `{limit, holders}` | Read-only check before the password prompt (3 s timeout on the client; skipped when offline) |
+| `vault_session_acquire(p_vault_key, p_device_id, p_session_nonce, p_device_name, p_platform, p_app_version, p_file_name, p_file_id, p_location, p_takeover)` | jsonb | Takes the lease. At the limit without `p_takeover`: `{granted: false, limit, holders, sessions}`. With `p_takeover`: displaces the least busy, least recently active holders (`reason = 'takeover'`). Granted: `{granted: true, lease_id, limit, ttl_seconds: 90, heartbeat_seconds: 30, sessions}`. More than 200 sessions in a day returns `too_many_sessions` |
+| `vault_session_heartbeat(p_vault_key, p_device_id, p_lease_id, p_active, p_busy, p_flags, p_file_name, p_file_id, p_location, p_written_vv, p_pending)` | jsonb | Extends the lease and records the publish marker. Answers `ok` (with `limit` and `sessions`), `displaced` (with `reason` and the other device's name), or `lost` (`unknown`, `superseded`, `released`, `expired`). A released or lapsed lease is never revived. Applies plan-limit displacement after a downgrade (keeps busy devices, then the most recently active) |
+| `vault_session_release(p_vault_key, p_device_id, p_lease_id, p_written_vv, p_pending)` | void | Releases the lease on lock, window close and quit, with the final publish marker |
+| `vault_session_abandon(p_vault_key, p_device_id, p_target_device_id)` | void | "Stop waiting for X": ignore that device's publish marker until it reports a new one |
+
+Every RPC is `security definer`. Acquire, heartbeat, release and abandon raise `28000` when not signed in (peek returns no row). Acquire and heartbeat take a per-(user, vault) advisory lock. The client treats any server problem (network, timeout, 5xx, SQL error, malformed answer) as "unconfirmed", never as a denial: only a well-formed `granted: false` with holders denies an open.
+
+Internal helpers (execute revoked from `public`, `anon` and `authenticated`): `vault_device_limit(uid)` (tier's `vault_max_open_devices`; `-1` for team members; Free fallback `1`), `vault_session_is_busy(busy)`, `vault_session_holders(uid, vault_key, device_id)`, `vault_sessions_for(uid, vault_key, device_id)`. `vault_sessions_for` is the `sessions` list of acquire and heartbeat: the other devices' rows with `status`, `last_active_at`, `heartbeat_at` (from `20260927234038`), `busy`, `flags`, `written_vv`, `written_at`, `pending_changes` and `abandoned`. Every heartbeat writes `flags` and `heartbeat_at`; `last_active_at` moves only while that device is in use, so clients time the side-file flag by `heartbeat_at`.
 
 ## Important Implementation Details
 

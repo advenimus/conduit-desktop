@@ -30,6 +30,7 @@ import { useTierStore } from "../../stores/tierStore";
 import { invoke } from "../../lib/electron";
 import CloudSyncIndicator from "../vault/CloudSyncIndicator";
 import TeamSyncIndicator from "../vault/TeamSyncIndicator";
+import PersonalSyncIndicator from "../sync/PersonalSyncIndicator";
 import SidebarPanel from "./SidebarPanel";
 import SidebarWindowControls from "./SidebarWindowControls";
 
@@ -518,6 +519,7 @@ export default function Sidebar() {
                 ? `${favoriteCount} ${favoriteCount === 1 ? "favorite" : "favorites"}`
                 : `${totalItems} ${totalItems === 1 ? "item" : "items"}`}
             </span>
+            <PersonalSyncIndicator />
             <CloudSyncIndicator />
             <TeamSyncIndicator />
           </div>

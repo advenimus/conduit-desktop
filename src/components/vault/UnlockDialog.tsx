@@ -1,8 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import { useVaultStore } from "../../stores/vaultStore";
+import { useVaultStore, type UnlockOptions } from "../../stores/vaultStore";
 import { useAuthStore } from "../../stores/authStore";
+import { useAiStore } from "../../stores/aiStore";
+import { useSyncStore } from "../../stores/syncStore";
 import { invoke } from "../../lib/electron";
+import { errorText } from "../../lib/sync-api";
+import { toast } from "../common/Toast";
+import UnlockErrorView, { openErrorLine, type UnlockRetry } from "../sync/UnlockErrorView";
+import { useForgetUnlockRequestOnClose } from "../sync/useForgetUnlockRequest";
+import BiometricSetupPrompt from "./BiometricSetupPrompt";
 import { CloudIcon, EyeIcon, EyeOffIcon, FingerprintIcon, LockIcon } from "../../lib/icons";
+
+type AttemptKind = "password" | "biometric";
 
 interface UnlockDialogProps {
   onSuccess: () => void;
@@ -27,14 +36,42 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     checkBiometric,
   } = useVaultStore();
   const { isAuthenticated } = useAuthStore();
+  const cloudBackupAllowed = useAiStore((s) => s.tierCapabilities?.cloud_sync_enabled ?? false);
+  const openError = useSyncStore((s) => s.openError);
+  const takeoverMode = useSyncStore((s) => s.takeoverMode);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [cloudBackup, setCloudBackup] = useState(true);
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [lineError, setLineError] = useState<string | null>(null);
   const biometricTriggered = useRef(false);
+  const attemptRef = useRef<AttemptKind>("password");
+  const lastOptsRef = useRef<UnlockOptions>({});
 
   const isInitializing = !vaultExists;
+
+  // Structured errors without a dialog become the error line.
+  useEffect(() => {
+    if (!openError) return;
+    const line = openErrorLine(openError);
+    if (line) {
+      setLineError(line);
+      useSyncStore.getState().setOpenError(null);
+    }
+  }, [openError]);
+
+  useForgetUnlockRequestOnClose();
+
+  const runUnlock = async (kind: AttemptKind, pw: string, opts: UnlockOptions) => {
+    attemptRef.current = kind;
+    lastOptsRef.current = opts;
+    const merged: UnlockOptions = useSyncStore.getState().takeoverMode ? { ...opts, takeover: true } : opts;
+    if (kind === "biometric") await biometricUnlock(merged);
+    else await unlockVault(pw, merged);
+  };
 
   // Auto-trigger biometric on mount when available and enabled
   useEffect(() => {
@@ -58,17 +95,64 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
 
   const handleBiometricUnlock = async () => {
     clearError();
+    setLineError(null);
     try {
-      await biometricUnlock();
+      await runUnlock("biometric", "", {});
       onSuccess();
     } catch {
-      // User cancelled or biometric failed — stay on dialog
+      // Cancelled or failed: stay on the dialog (sync errors open their own dialog)
     }
+  };
+
+  const offerBiometricSetup = async (): Promise<boolean> => {
+    try {
+      const [available, shouldPrompt] = await Promise.all([
+        invoke<boolean>("biometric_available"),
+        invoke<boolean>("biometric_should_prompt"),
+      ]);
+      if (available && shouldPrompt) {
+        setShowBiometricSetup(true);
+        return true;
+      }
+    } catch {
+      // Check failed: skip the setup prompt
+    }
+    return false;
+  };
+
+  const handleRetry = async (retry: UnlockRetry) => {
+    const previousError = useSyncStore.getState().openError;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      if (retry.password !== null) setPassword(retry.password);
+      const kind: AttemptKind = retry.password !== null ? "password" : attemptRef.current;
+      // A take-over or rebuild repeats the last attempt, keeping its previous password.
+      const opts = retry.password !== null ? retry.opts : { ...lastOptsRef.current, ...retry.opts };
+      await runUnlock(kind, retry.password ?? password, opts);
+      if (kind === "password" && (await offerBiometricSetup())) return;
+      onSuccess();
+    } catch {
+      const sync = useSyncStore.getState();
+      if (sync.openError === null && previousError?.code === "VAULT_PASSWORD_CHANGED_ELSEWHERE") {
+        sync.setOpenError(previousError);
+        setRetryError(useVaultStore.getState().error ?? "That password didn't work.");
+      }
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  const handleErrorCancel = () => {
+    useSyncStore.getState().setOpenError(null);
+    setPassword("");
+    setRetryError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
+    setLineError(null);
 
     if (isInitializing && password !== confirmPassword) {
       return;
@@ -77,31 +161,17 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
     try {
       if (isInitializing) {
         await initializeVault(password);
-        if (cloudBackup && isAuthenticated) {
+        if (cloudBackup && showCloudBackupOption) {
           try {
             await enableCloudSync();
           } catch (err) {
-            console.error("Failed to enable cloud sync:", err);
+            console.error("[vault] Failed to enable cloud backup:", err);
+            toast.error("Could not turn on cloud backup", errorText(err, "Try again in Settings > Backup."));
           }
         }
       } else {
-        await unlockVault(password);
-      }
-
-      // After successful password unlock, check if we should offer biometric setup
-      if (!isInitializing) {
-        try {
-          const [available, shouldPrompt] = await Promise.all([
-            invoke<boolean>("biometric_available"),
-            invoke<boolean>("biometric_should_prompt"),
-          ]);
-          if (available && shouldPrompt) {
-            setShowBiometricSetup(true);
-            return; // Don't call onSuccess yet — show setup prompt
-          }
-        } catch {
-          // Check failed — skip setup prompt
-        }
+        await runUnlock("password", password, {});
+        if (await offerBiometricSetup()) return;
       }
 
       onSuccess();
@@ -141,43 +211,29 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
 
   const passwordsMatch = !isInitializing || password === confirmPassword;
   const canSubmit = password.length > 0 && passwordsMatch && !isLoading && !biometricUnlockInProgress;
+  const showCloudBackupOption = isAuthenticated && cloudBackupAllowed;
+  const shownError = lineError ?? error;
+
+  if (openError && !openErrorLine(openError)) {
+    return (
+      <UnlockErrorView
+        payload={openError}
+        busy={retrying || isLoading || biometricUnlockInProgress}
+        error={retryError}
+        onRetry={(retry) => void handleRetry(retry)}
+        onCancel={handleErrorCancel}
+      />
+    );
+  }
 
   // Biometric setup prompt (shown after first successful password unlock)
   if (showBiometricSetup) {
     return (
-      <div
-        className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
+      <BiometricSetupPrompt
         onKeyDown={handleKeyDown}
-      >
-        <div data-dialog-content className="w-full max-w-sm bg-panel rounded-lg shadow-xl">
-          <div className="flex flex-col items-center pt-6 pb-2 px-4">
-            <div className="w-12 h-12 bg-conduit-600/20 rounded-full flex items-center justify-center mb-3">
-              <FingerprintIcon size={24} className="text-conduit-400" />
-            </div>
-            <h2 className="text-lg font-semibold">Enable Quick Unlock</h2>
-            <p className="text-sm text-ink-muted mt-2 text-center">
-              Unlock this vault faster next time with Touch ID, Apple Watch, or your system password.
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-2 px-4 py-4 border-t border-stroke mt-2">
-            <button
-              type="button"
-              onClick={handleBiometricSetupDismiss}
-              className="px-4 py-2 text-sm hover:bg-raised rounded"
-            >
-              Not Now
-            </button>
-            <button
-              type="button"
-              onClick={handleBiometricSetupAccept}
-              className="px-4 py-2 text-sm text-white bg-conduit-600 hover:bg-conduit-700 rounded"
-            >
-              Enable
-            </button>
-          </div>
-        </div>
-      </div>
+        onDismiss={handleBiometricSetupDismiss}
+        onAccept={handleBiometricSetupAccept}
+      />
     );
   }
 
@@ -206,6 +262,8 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
                 ? "Set a master password to protect your credentials"
                 : biometricUnlockInProgress
                 ? "Authenticating..."
+                : takeoverMode
+                ? "Unlock to use this vault here. It locks on the other device."
                 : "Enter your master password to access credentials"}
             </p>
           </div>
@@ -276,7 +334,7 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
                     </p>
                   )}
                 </div>
-                {isAuthenticated && (
+                {showCloudBackupOption && (
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -298,9 +356,9 @@ export default function UnlockDialog({ onSuccess, onCancel }: UnlockDialogProps)
               </>
             )}
 
-            {error && (
+            {shownError && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded">
-                <p className="text-sm text-red-400">{error}</p>
+                <p className="text-sm text-red-400">{shownError}</p>
               </div>
             )}
           </div>

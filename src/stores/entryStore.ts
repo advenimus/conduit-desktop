@@ -329,6 +329,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
       return entry;
     } catch (err) {
       console.error("Failed to create entry:", err);
+      toast.error("Couldn't create the entry");
       return null;
     }
   },
@@ -380,6 +381,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
       return entry;
     } catch (err) {
       console.error("Failed to update entry:", err);
+      toast.error("Couldn't save the entry");
       return null;
     }
   },
@@ -455,6 +457,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
       return folder;
     } catch (err) {
       console.error("Failed to create folder:", err);
+      toast.error("Couldn't create the folder");
       return null;
     }
   },
@@ -468,6 +471,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
       return folder;
     } catch (err) {
       console.error("Failed to update folder:", err);
+      toast.error("Couldn't save the folder");
       return null;
     }
   },

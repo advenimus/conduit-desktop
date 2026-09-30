@@ -1,0 +1,405 @@
+{
+  "format": 1,
+  "module": "hlc",
+  "notes": [
+    "Hybrid logical clock of spec 4.1. Stamps are {ms, c}. HLC_MAX_COUNTER = 65535; FUTURE_CAP_MS = 86400000.",
+    "The file is pure ASCII: \\uXXXX escapes in strings stand for the decoded characters, which are what the functions see.",
+    "maxReceivable: max vv entry, ignoring devs not in ownDevs whose ms > wallMs + FUTURE_CAP_MS; null when none.",
+    "clock: a scripted HlcClock; each step reports the stamp after the step (tick result, or peek after receive)."
+  ],
+  "cases": [
+    {
+      "name": "tick: wall ahead",
+      "fn": "tick",
+      "input": {
+        "prev": {
+          "ms": 1758999999995,
+          "c": 9
+        },
+        "wallMs": 1759000000000
+      },
+      "output": {
+        "ms": 1759000000000,
+        "c": 0
+      }
+    },
+    {
+      "name": "tick: wall equal",
+      "fn": "tick",
+      "input": {
+        "prev": {
+          "ms": 1759000000000,
+          "c": 3
+        },
+        "wallMs": 1759000000000
+      },
+      "output": {
+        "ms": 1759000000000,
+        "c": 4
+      }
+    },
+    {
+      "name": "tick: wall behind",
+      "fn": "tick",
+      "input": {
+        "prev": {
+          "ms": 1759000000000,
+          "c": 3
+        },
+        "wallMs": 1758999999000
+      },
+      "output": {
+        "ms": 1759000000000,
+        "c": 4
+      }
+    },
+    {
+      "name": "tick: counter at max - 1",
+      "fn": "tick",
+      "input": {
+        "prev": {
+          "ms": 1759000000000,
+          "c": 65534
+        },
+        "wallMs": 1759000000000
+      },
+      "output": {
+        "ms": 1759000000000,
+        "c": 65535
+      }
+    },
+    {
+      "name": "tick: counter overflow, wall equal",
+      "fn": "tick",
+      "input": {
+        "prev": {
+          "ms": 1759000000000,
+          "c": 65535
+        },
+        "wallMs": 1759000000000
+      },
+      "output": {
+        "ms": 1759000000001,
+        "c": 0
+      }
+    },
+    {
+      "name": "tick: counter overflow, wall behind",
+      "fn": "tick",
+      "input": {
+        "prev": {
+          "ms": 1759000000000,
+          "c": 65535
+        },
+        "wallMs": 1758999999950
+      },
+      "output": {
+        "ms": 1759000000001,
+        "c": 0
+      }
+    },
+    {
+      "name": "startHlc: no own stamps",
+      "fn": "startHlc",
+      "input": {
+        "wallMs": 1759000000000,
+        "own": []
+      },
+      "output": {
+        "ms": 1759000000000,
+        "c": 0
+      }
+    },
+    {
+      "name": "startHlc: older own stamp",
+      "fn": "startHlc",
+      "input": {
+        "wallMs": 1759000000000,
+        "own": [
+          {
+            "ms": 1758999999999,
+            "c": 99
+          }
+        ]
+      },
+      "output": {
+        "ms": 1759000000000,
+        "c": 0
+      }
+    },
+    {
+      "name": "startHlc: same ms, higher counter wins",
+      "fn": "startHlc",
+      "input": {
+        "wallMs": 1759000000000,
+        "own": [
+          {
+            "ms": 1759000000000,
+            "c": 4
+          },
+          {
+            "ms": 1759000000000,
+            "c": 2
+          }
+        ]
+      },
+      "output": {
+        "ms": 1759000000000,
+        "c": 4
+      }
+    },
+    {
+      "name": "startHlc: future-dated own stamp",
+      "fn": "startHlc",
+      "input": {
+        "wallMs": 1759000000000,
+        "own": [
+          {
+            "ms": 1759259200000,
+            "c": 1
+          }
+        ]
+      },
+      "output": {
+        "ms": 1759259200000,
+        "c": 1
+      }
+    },
+    {
+      "name": "ownStamps: devs of this install by dev",
+      "fn": "ownStamps",
+      "input": {
+        "vv": [
+          [
+            7,
+            50,
+            1
+          ],
+          [
+            3,
+            90,
+            0
+          ],
+          [
+            5,
+            10,
+            2
+          ]
+        ],
+        "devs": [
+          [
+            7,
+            "me"
+          ],
+          [
+            3,
+            "me"
+          ],
+          [
+            5,
+            "other"
+          ],
+          [
+            9,
+            "me"
+          ]
+        ],
+        "deviceUuid": "me"
+      },
+      "output": [
+        {
+          "ms": 90,
+          "c": 0
+        },
+        {
+          "ms": 50,
+          "c": 1
+        }
+      ]
+    },
+    {
+      "name": "maxReceivable: empty vv",
+      "fn": "maxReceivable",
+      "input": {
+        "wallMs": 1759000000000,
+        "vv": [],
+        "ownDevs": []
+      },
+      "output": null
+    },
+    {
+      "name": "maxReceivable: other install beyond the cap is ignored",
+      "fn": "maxReceivable",
+      "input": {
+        "wallMs": 1759000000000,
+        "vv": [
+          [
+            1,
+            1759086400001,
+            0
+          ],
+          [
+            2,
+            1759086400000,
+            3
+          ],
+          [
+            3,
+            1758999999990,
+            5
+          ]
+        ],
+        "ownDevs": []
+      },
+      "output": {
+        "ms": 1759086400000,
+        "c": 3
+      }
+    },
+    {
+      "name": "maxReceivable: own future stamp is kept",
+      "fn": "maxReceivable",
+      "input": {
+        "wallMs": 1759000000000,
+        "vv": [
+          [
+            1,
+            1759086400001,
+            0
+          ],
+          [
+            2,
+            1759086400000,
+            3
+          ]
+        ],
+        "ownDevs": [
+          1
+        ]
+      },
+      "output": {
+        "ms": 1759086400001,
+        "c": 0
+      }
+    },
+    {
+      "name": "maxReceivable: only capped entries",
+      "fn": "maxReceivable",
+      "input": {
+        "wallMs": 1759000000000,
+        "vv": [
+          [
+            1,
+            1759086400001,
+            0
+          ]
+        ],
+        "ownDevs": []
+      },
+      "output": null
+    },
+    {
+      "name": "clock: tick, receive, cap by rule",
+      "fn": "clock",
+      "input": {
+        "start": {
+          "ms": 1758999999900,
+          "c": 0
+        },
+        "script": [
+          {
+            "op": "tick",
+            "now": 1759000000000
+          },
+          {
+            "op": "tick",
+            "now": 1759000000000
+          },
+          {
+            "op": "receive",
+            "seen": {
+              "ms": 1759000000500,
+              "c": 7
+            }
+          },
+          {
+            "op": "tick",
+            "now": 1759000000000
+          },
+          {
+            "op": "receive",
+            "seen": {
+              "ms": 1759000000000,
+              "c": 0
+            }
+          },
+          {
+            "op": "receive",
+            "seen": null
+          },
+          {
+            "op": "tick",
+            "now": 1759000001000
+          },
+          {
+            "op": "tick",
+            "now": 1758999995000
+          },
+          {
+            "op": "receive",
+            "seen": {
+              "ms": 1759000001000,
+              "c": 65535
+            }
+          },
+          {
+            "op": "tick",
+            "now": 1759000000000
+          }
+        ]
+      },
+      "output": [
+        {
+          "ms": 1759000000000,
+          "c": 0
+        },
+        {
+          "ms": 1759000000000,
+          "c": 1
+        },
+        {
+          "ms": 1759000000500,
+          "c": 7
+        },
+        {
+          "ms": 1759000000500,
+          "c": 8
+        },
+        {
+          "ms": 1759000000500,
+          "c": 8
+        },
+        {
+          "ms": 1759000000500,
+          "c": 8
+        },
+        {
+          "ms": 1759000001000,
+          "c": 0
+        },
+        {
+          "ms": 1759000001000,
+          "c": 1
+        },
+        {
+          "ms": 1759000001000,
+          "c": 65535
+        },
+        {
+          "ms": 1759000001001,
+          "c": 0
+        }
+      ]
+    }
+  ]
+}

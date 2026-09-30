@@ -5,7 +5,6 @@
  * Handles both WebView2 (via pipe) and Chromium (via WebContentsView) paths.
  */
 
-import type { WebContentsView } from 'electron';
 import type { WebView2Session } from './webview2-session.js';
 import type { WebTab } from './tab.js';
 import {

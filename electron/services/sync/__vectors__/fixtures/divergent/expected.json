@@ -1,0 +1,1340 @@
+{
+  "format": 1,
+  "name": "divergent",
+  "description": "Two converged devices, then divergent edits: same-field and appearance conflicts, edit versus delete, a folder cycle, a plain delete, new rows on both sides.",
+  "inputs": {
+    "files": {
+      "a.conduit": {
+        "keyHex": "e032c01050194c5cf02f748d292d7df1e9b8e8936e239ee7a80af00df4c03220",
+        "password": "correct horse battery staple"
+      },
+      "b.conduit": {
+        "keyHex": "e032c01050194c5cf02f748d292d7df1e9b8e8936e239ee7a80af00df4c03220",
+        "password": "correct horse battery staple"
+      }
+    },
+    "merges": [
+      {
+        "w": "a.conduit",
+        "s": "b.conduit",
+        "nowMs": 1790327405000,
+        "observedMtimeMs": 1790327404000,
+        "deviceUuid": "b7abf095-c40f-40ee-b436-60bedc4ec128",
+        "dev": 141418013886447,
+        "incarnation": "db81b3cba0be4a59ef16e1adfac431b6"
+      },
+      {
+        "w": "b.conduit",
+        "s": "a.conduit",
+        "nowMs": 1790327405000,
+        "observedMtimeMs": 1790327404000,
+        "deviceUuid": "9a7618d0-508c-4b14-b0bb-cc3573457973",
+        "dev": 148249632992697,
+        "incarnation": "b326d39e44d1b187271c19eaeea9e754"
+      }
+    ]
+  },
+  "outputs": {
+    "files": {
+      "a.conduit": {
+        "sha256": "a7e55bd1d8cbfab50bce078935fcab355ec2d7bcb386204ac13ae67ed58d491a",
+        "syncFormat": 1,
+        "hasSyncTables": true,
+        "content": {
+          "entries": [
+            {
+              "id": "a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0",
+              "name": "Shared admin",
+              "entry_type": "credential",
+              "folder_id": null,
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": null,
+              "port": null,
+              "credential_id": null,
+              "username": "admin",
+              "password_encrypted": {
+                "hex": "727139f6485282dd55737f162adba96b59cf69c32b9d36c598a1dbbf2532e618f23ab9"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "b49ba980-3762-47e8-bf16-edff7287ce77",
+              "name": "db",
+              "entry_type": "ssh",
+              "folder_id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "10.0.0.5",
+              "port": 5432,
+              "credential_id": "a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0",
+              "username": null,
+              "password_encrypted": {
+                "hex": "ee56ff47367f962f85a14988e74ca28e89290261bf0ef1ac52e25113777ef2582e"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "f35fbec7-7d39-4c70-94c7-4e621d97821f",
+              "name": "made on mac",
+              "entry_type": "ssh",
+              "folder_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "mac.local",
+              "port": null,
+              "credential_id": null,
+              "username": null,
+              "password_encrypted": {
+                "hex": "daf361dadff6c3bdf6c979a85a42d4da601c34dfbbb591fcc5f85b8b57001722d65f"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-25T09:04:05.000Z",
+              "updated_at": "2026-09-25T09:04:05.000Z"
+            },
+            {
+              "id": "f569daf7-de62-4b79-b1ef-715322bf12e8",
+              "name": "web",
+              "entry_type": "ssh",
+              "folder_id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "a.example",
+              "port": 22,
+              "credential_id": null,
+              "username": "root",
+              "password_encrypted": {
+                "hex": "8e8b22e6b55ee9fd4482ab1f5ef1c6c7f6cf43681d81849f0519fb077f539dbd6110"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": "server-a",
+              "color": null,
+              "credential_type": null,
+              "config": "{\"keepalive\":30}",
+              "tags": "[\"db\",\"prod\"]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-25T09:01:05.000Z"
+            }
+          ],
+          "folders": [
+            {
+              "id": "31f76c78-264e-41b6-b321-50760773264b",
+              "name": "Clients",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "name": "Servers",
+              "parent_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-25T09:03:05.000Z"
+            }
+          ],
+          "history": [
+            {
+              "id": "be2c15ab-a9f8-4f1e-a689-09ca49201671",
+              "entry_id": "f569daf7-de62-4b79-b1ef-715322bf12e8",
+              "username": "root",
+              "password_encrypted": {
+                "hex": "8eb16320fb2de611126abdd202d13c1740e9e4103e804e5db96d7b8412e972156c6c3b17cddb"
+              },
+              "changed_at": "2026-09-20T08:00:00.000Z",
+              "changed_by": "user"
+            }
+          ],
+          "meta": {
+            "key_source": "password",
+            "salt": "quo6DWVXThdSCsbwbH1WxubV9Y3veOjb494OBIkDq/M=",
+            "schema_version": "10",
+            "sync_format": "1",
+            "vault_id": "0b456388-d1b3-4919-ac70-68a564f15ee0",
+            "verification": "bDBThdSQdjZwxpxLbqhMSz/egodCIXyjVbhHlIa/+cfsnavb5k8KXQSHHVg="
+          }
+        },
+        "load": {
+          "lineageId": "0a1329a4-1536-594d-a556-ca402d95758b",
+          "genesisId": "d3e27cbe9aeafdbe7bc7847cf5aae30dbe951ddb5fc1002692a0835de0fda0bf",
+          "createdMs": 0,
+          "fileId": null,
+          "currentEpochId": "c4da2fb53a70bf512082fa68fa6ed33b",
+          "ringEpochs": [
+            "c4da2fb53a70bf512082fa68fa6ed33b"
+          ],
+          "digest": "b89edb01921aa2154573742182ee99903b84440674ed9929c39757f5b7ff636f",
+          "canonicalDump": "{\"devs\":[[141418013886447,\"b7abf095-c40f-40ee-b436-60bedc4ec128\",1790326800000],[148249632992697,\"9a7618d0-508c-4b14-b0bb-cc3573457973\",1790326801000]],\"epochs\":[[\"c4da2fb53a70bf512082fa68fa6ed33b\",null,\"quo6DWVXThdSCsbwbH1WxubV9Y3veOjb494OBIkDq/M=\",\"bDBThdSQdjZwxpxLbqhMSz/egodCIXyjVbhHlIa/+cfsnavb5k8KXQSHHVg=\",0]],\"h\":[\"0a1329a4-1536-594d-a556-ca402d95758b\",\"d3e27cbe9aeafdbe7bc7847cf5aae30dbe951ddb5fc1002692a0835de0fda0bf\",0],\"rows\":[[\"1:940b9b05-6bd4-4932-8f9a-0c07f41c9891\",[1790326925000,0,141418013886447,0],[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326925000:0\",0,\"cc9f8dcd879e6b9009b351d3dadfda54\",0]]],[\"config.resolution\",[0,[\"9cb484e458cf2d712072223c0871895a\"]],[[\"p:0:9cb484e458cf2d712072223c0871895a\",1789891200000,\"7dda8b96c0a2201e8d319eabb9e5558b\",0]]],[\"container\",[0,[\"868ae23bf72c3d522a52712fead8203e\"]],[[\"p:0:868ae23bf72c3d522a52712fead8203e\",1789891200000,\"7a1a19ea3342c56c860a33570b0f2028\",0]]],[\"created_at\",[0,[\"21aaed063c80204e3dc928dabde5cace\"]],[[\"p:0:21aaed063c80204e3dc928dabde5cace\",1789891200000,\"0de08f55c0016c897fd530d0e4912074\",0]]],[\"entry_type\",[0,[\"cbb3f3055f7c95632a0435b60ea61b0d\"]],[[\"p:0:cbb3f3055f7c95632a0435b60ea61b0d\",1789891200000,\"566eccd4effe3974cc436901f58ff858\",0]]],[\"host\",[0,[\"e60823fd4567e62c47b93620f1eb2f5e\"]],[[\"p:0:e60823fd4567e62c47b93620f1eb2f5e\",1789891200000,\"855dcb54049d2d942186fcdfc3f79b96\",0]]],[\"name\",[0,[\"13faee2ff88792a0413aedab41235533\"]],[[\"p:0:13faee2ff88792a0413aedab41235533\",1789891200000,\"f86857f503569988f14478f234e6ce20\",0]]]]],[\"1:a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0\",null,[[\"created_at\",[0,[\"3721b9f894bee2f7f7ed255a69a922b1\"]],[[\"p:0:3721b9f894bee2f7f7ed255a69a922b1\",1789891200000,\"7c82032394c99abaf99c35fe84f29f8d\",0]]],[\"entry_type\",[0,[\"dd84cc2d8762d9a8ff9101c73c2a5e04\"]],[[\"p:0:dd84cc2d8762d9a8ff9101c73c2a5e04\",1789891200000,\"d5820f396a140672107bb26699fece59\",0]]],[\"name\",[0,[\"04ec76289c88830da25ca25df9f8cc9c\"]],[[\"p:0:04ec76289c88830da25ca25df9f8cc9c\",1789891200000,\"5148d800b405fed6122f57a802a56f51\",0]]],[\"password\",[0,[\"7adea54671162f8258ed477b8e4d2d39\"]],[[\"p:0:7adea54671162f8258ed477b8e4d2d39\",1789891200000,\"b77e2cf7bf7600ce17124a549c6e9b6e\",0]]],[\"username\",[0,[\"9ea7a9b17c6a6fd4f098c14375003b1c\"]],[[\"p:0:9ea7a9b17c6a6fd4f098c14375003b1c\",1789891200000,\"d4cbd7bd1bf2f866aa4ff47c90a9f848\",0]]]]],[\"1:b49ba980-3762-47e8-bf16-edff7287ce77\",null,[[\"container\",[0,[\"ccabfb41cfbb863e8ccb0a036871308e\"]],[[\"p:0:ccabfb41cfbb863e8ccb0a036871308e\",1789891200000,\"4ede4603c71d5cb723df20f14cd842c1\",0]]],[\"created_at\",[0,[\"d82c721de288577ad29168685c4ad37b\"]],[[\"p:0:d82c721de288577ad29168685c4ad37b\",1789891200000,\"63b8e10653c2fdd0d57c5b51d4472ec3\",0]]],[\"credential_id\",[0,[\"8fc2f4e948a24719035ed71d4a8a2c1f\"]],[[\"p:0:8fc2f4e948a24719035ed71d4a8a2c1f\",1789891200000,\"25807d7dcadba82e9d355ee0d2482e78\",0]]],[\"entry_type\",[0,[\"a6ce68432fc1afab9b32f2753f0a4832\"]],[[\"p:0:a6ce68432fc1afab9b32f2753f0a4832\",1789891200000,\"acd7e3b5adaebd83bf50c04266f6a4cc\",0]]],[\"host\",[0,[\"689a015de39d4d96c7c6a2d8cf702a0d\"]],[[\"p:0:689a015de39d4d96c7c6a2d8cf702a0d\",1789891200000,\"f4fcf2b080f642c554cea4c9f29b5558\",0]]],[\"name\",[0,[\"6101a7fdc226327d0f2aac0d3c65a5a6\"]],[[\"p:0:6101a7fdc226327d0f2aac0d3c65a5a6\",1789891200000,\"2dbd9d898a815c1fb5df30d73637c450\",0]]],[\"password\",[0,[\"12334ad5ac6d5d2a93e1d2541f2fcae3\"]],[[\"p:0:12334ad5ac6d5d2a93e1d2541f2fcae3\",1789891200000,\"836c6a228b41072c90f44a19b60df5d1\",0]]],[\"port\",[0,[\"a62f62ea4f7c3752b4f19ac7a911cef1\"]],[[\"p:0:a62f62ea4f7c3752b4f19ac7a911cef1\",1789891200000,\"30fa9210c373d1a316adf5753b29fd9a\",0]]]]],[\"1:f35fbec7-7d39-4c70-94c7-4e621d97821f\",null,[[\"_life\",null,[[\"a:141418013886447:1790327045000:0\",0,\"47ca482a1a8990a7f60b83b4e76d1c3d\",0]]],[\"container\",null,[[\"a:141418013886447:1790327045000:0\",0,\"eb3a02498ae4d83f74172cde3f5e5eeb\",0]]],[\"created_at\",null,[[\"a:141418013886447:1790327045000:0\",0,\"8f147e96de98d3c1f34dcf37d32543ae\",0]]],[\"entry_type\",null,[[\"a:141418013886447:1790327045000:0\",0,\"0533ab5cab7f6ea6309efebfa992b91c\",0]]],[\"host\",null,[[\"a:141418013886447:1790327045000:0\",0,\"cee6ac92ae672bed7e56b53c9fb2454c\",0]]],[\"name\",null,[[\"a:141418013886447:1790327045000:0\",0,\"a2fa3a26937811fdd90d27ed6c78d006\",0]]],[\"password\",null,[[\"a:141418013886447:1790327045000:0\",0,\"dd0e40d8f5cb4da7696232d7cc5c38af\",0]]]]],[\"1:f569daf7-de62-4b79-b1ef-715322bf12e8\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"07b189f58f46963538750e05396ab713\",0]]],[\"config.keepalive\",[0,[\"6c78298d6ebec778cab13ceec0c68c01\"]],[[\"p:0:6c78298d6ebec778cab13ceec0c68c01\",1789891200000,\"de51e3a7ab256fa7889503e984c7d753\",0]]],[\"container\",[0,[\"d29ff181ba16518538dcd13b38ebf13f\"]],[[\"p:0:d29ff181ba16518538dcd13b38ebf13f\",1789891200000,\"7ecda7ccc04a3a03ae8a424bdfcd5ade\",0]]],[\"created_at\",[0,[\"30be305ff452bd19ccb85d8f13e1f676\"]],[[\"p:0:30be305ff452bd19ccb85d8f13e1f676\",1789891200000,\"c48e22133488c2f184104a3211f8b732\",0]]],[\"entry_type\",[0,[\"83d423691698d25dadb20d99cc0ddf33\"]],[[\"p:0:83d423691698d25dadb20d99cc0ddf33\",1789891200000,\"d76d0665d7ff0415bd09138f2ba98ba0\",0]]],[\"host\",[0,[\"d12ef2b095c5d4963cee2deb0e2e3459\"]],[[\"a:141418013886447:1790326865000:0\",0,\"70c74d1ace4598112612637a30e5f117\",0]]],[\"icon\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"6dfde1b06c1417525e687fbc88610289\",0]]],[\"name\",[0,[\"53b4d4b0f4b5d4f78526a39592f466bd\"]],[[\"p:0:53b4d4b0f4b5d4f78526a39592f466bd\",1789891200000,\"445e8ee37eaa6955888619cddc9aedd5\",0]]],[\"password\",[0,[\"ad7b6b8f9a7a98678ae2f876a18c0733\"]],[[\"p:0:ad7b6b8f9a7a98678ae2f876a18c0733\",1789891200000,\"eee2a54ef0628763b7fdcce0cf620a99\",0]]],[\"port\",[0,[\"8e80dd52ea2d7d8194d25198d16e8020\"]],[[\"p:0:8e80dd52ea2d7d8194d25198d16e8020\",1789891200000,\"b0912f2ce8ded4b1c768697c01ce03b5\",0]]],[\"tag:db\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"9483ebbcf9d759ab4f4564d7a8ad328c\",0]]],[\"tag:prod\",[0,[\"f3fd1ea13b2b5e095e12b8feb9f08b54\"]],[[\"p:0:f3fd1ea13b2b5e095e12b8feb9f08b54\",1789891200000,\"70ca3ff8577826de7be58e3e1eb0e59d\",0]]],[\"username\",[0,[\"47d9f23a3b2db259dcd7fd1ec8cb1ec2\"]],[[\"p:0:47d9f23a3b2db259dcd7fd1ec8cb1ec2\",1789891200000,\"11766ecbf26c7aa6801dfc7952b20e93\",0]]]]],[\"2:31f76c78-264e-41b6-b321-50760773264b\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790327045000:0\",0,\"ca69e83a8791ba32d5e13501fd3f11b7\",0]]],[\"created_at\",[0,[\"2703e33c624c18a8f3ddc68fe5d9db32\"]],[[\"p:0:2703e33c624c18a8f3ddc68fe5d9db32\",1789891200000,\"af0b7b56704dcf493af6f892df6798fd\",0]]],[\"name\",[0,[\"087c10c33f952448236249b6dfb02d59\"]],[[\"p:0:087c10c33f952448236249b6dfb02d59\",1789891200000,\"8029012237fd64445a1afa873a4c1549\",0]]]]],[\"2:fa17ab47-2678-4764-a693-d26d05e8da8f\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326985000:0\",0,\"7c6c2c650c9d6b098079c4598c155651\",0]]],[\"container\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326985000:0\",0,\"c2d96beae650917ce9705f9a76fb1244\",0]]],[\"created_at\",[0,[\"f23c7987a70341ceae4eb1d5cc7f879e\"]],[[\"p:0:f23c7987a70341ceae4eb1d5cc7f879e\",1789891200000,\"a688ea9db08aed9a0bf0a20f9a5f510d\",0]]],[\"name\",[0,[\"d847dbf8b90f7b7a6401b52f7b9201e4\"]],[[\"p:0:d847dbf8b90f7b7a6401b52f7b9201e4\",1789891200000,\"50b2525037841eed6794cac21d0cf5a4\",0]]]]],[\"3:be2c15ab-a9f8-4f1e-a689-09ca49201671\",null,[[\"changed_at\",[0,[\"e1b19a084493d7a8ea82ccd1245e7438\"]],[[\"p:0:e1b19a084493d7a8ea82ccd1245e7438\",1789891200000,\"82feb66f94ec010e8eb2928f15e2cc7d\",0]]],[\"changed_by\",[0,[\"a9793a5d43adae7bb7cc4070955326bd\"]],[[\"p:0:a9793a5d43adae7bb7cc4070955326bd\",1789891200000,\"e488774391e7f50409011627a93478c8\",0]]],[\"entry_id\",[0,[\"b548b8f8792b4d0fd28001cf98da6022\"]],[[\"p:0:b548b8f8792b4d0fd28001cf98da6022\",1789891200000,\"97d3a9f34f54cee2e561599c02f4d7e1\",0]]],[\"password\",[0,[\"596a647d925448a146465677fd99b881\"]],[[\"p:0:596a647d925448a146465677fd99b881\",1789891200000,\"728fb7860e7dc7e62c52c27455c67415\",0]]],[\"username\",[0,[\"ce252e34b4e77449a3075ec8ed91376c\"]],[[\"p:0:ce252e34b4e77449a3075ec8ed91376c\",1789891200000,\"92d0f407a8198dba730ec0cd96722d68\",0]]]]],[\"4:meta\",null,[[\"vault_id\",[0,[\"838a18a3456e3276ef139378334ff251\"]],[[\"p:0:838a18a3456e3276ef139378334ff251\",0,\"766c7da5b16b29e43792cdf7c6fe57e7\",0]]]]],[\"9:key\",null,[[\"epoch\",[0,[\"85ed0ee4be0d7e2c844e578039c61ed2\"]],[[\"p:0:85ed0ee4be0d7e2c844e578039c61ed2\",0,\"eb4f73941d7b9b4f2f04c510ff229a6f\",0]]]]]],\"vv\":[[141418013886447,1790327045000,0]],\"wraps\":[]}",
+          "cache": {
+            "1:940b9b05-6bd4-4932-8f9a-0c07f41c9891": [
+              false,
+              null
+            ],
+            "1:a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0": [
+              true,
+              "5d79a491faf43bd61d35a327891ee962"
+            ],
+            "1:b49ba980-3762-47e8-bf16-edff7287ce77": [
+              true,
+              "10e5fcd12161fd465d651f039cc131ab"
+            ],
+            "1:f35fbec7-7d39-4c70-94c7-4e621d97821f": [
+              true,
+              "9a5e729ae35c967ca0695dd76cd698fc"
+            ],
+            "1:f569daf7-de62-4b79-b1ef-715322bf12e8": [
+              true,
+              "da32875ae9ec59eabf385f9d0f22c684"
+            ],
+            "2:31f76c78-264e-41b6-b321-50760773264b": [
+              true,
+              "d3d6d67e7ee155d8f9bdb34566dfc395"
+            ],
+            "2:fa17ab47-2678-4764-a693-d26d05e8da8f": [
+              true,
+              "5a8e12fe07f0b36928eb6fbcebd4bc61"
+            ],
+            "3:be2c15ab-a9f8-4f1e-a689-09ca49201671": [
+              true,
+              "33cc1f818cab88ee462b53ebaece4ac4"
+            ]
+          },
+          "planEmpty": true,
+          "structural": [],
+          "conflicts": []
+        }
+      },
+      "b.conduit": {
+        "sha256": "1e7eee5b1d69793118dd28f0cd15e89837928a1a6aa63212042f0d81bb28cbd8",
+        "syncFormat": 1,
+        "hasSyncTables": true,
+        "content": {
+          "entries": [
+            {
+              "id": "940b9b05-6bd4-4932-8f9a-0c07f41c9891",
+              "name": "desk",
+              "entry_type": "rdp",
+              "folder_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "desk.local",
+              "port": null,
+              "credential_id": null,
+              "username": null,
+              "password_encrypted": null,
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{\"resolution\":\"1080p\"}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": "edited on pc",
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-25T09:06:05.000Z"
+            },
+            {
+              "id": "a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0",
+              "name": "Shared admin",
+              "entry_type": "credential",
+              "folder_id": null,
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": null,
+              "port": null,
+              "credential_id": null,
+              "username": "admin",
+              "password_encrypted": {
+                "hex": "727139f6485282dd55737f162adba96b59cf69c32b9d36c598a1dbbf2532e618f23ab9"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "f569daf7-de62-4b79-b1ef-715322bf12e8",
+              "name": "web",
+              "entry_type": "ssh",
+              "folder_id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "b.example",
+              "port": 22,
+              "credential_id": null,
+              "username": "root",
+              "password_encrypted": {
+                "hex": "8e8b22e6b55ee9fd4482ab1f5ef1c6c7f6cf43681d81849f0519fb077f539dbd6110"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": "server-b",
+              "color": null,
+              "credential_type": null,
+              "config": "{\"keepalive\":30}",
+              "tags": "[\"prod\"]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-25T09:05:05.000Z"
+            }
+          ],
+          "folders": [
+            {
+              "id": "125ca032-e5dc-4325-b754-09b8846db400",
+              "name": "Made on PC",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-25T09:09:05.000Z",
+              "updated_at": "2026-09-25T09:09:05.000Z"
+            },
+            {
+              "id": "31f76c78-264e-41b6-b321-50760773264b",
+              "name": "Clients",
+              "parent_id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-25T09:07:05.000Z"
+            },
+            {
+              "id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "name": "Servers",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z",
+              "updated_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "history": [
+            {
+              "id": "be2c15ab-a9f8-4f1e-a689-09ca49201671",
+              "entry_id": "f569daf7-de62-4b79-b1ef-715322bf12e8",
+              "username": "root",
+              "password_encrypted": {
+                "hex": "8eb16320fb2de611126abdd202d13c1740e9e4103e804e5db96d7b8412e972156c6c3b17cddb"
+              },
+              "changed_at": "2026-09-20T08:00:00.000Z",
+              "changed_by": "user"
+            }
+          ],
+          "meta": {
+            "key_source": "password",
+            "salt": "quo6DWVXThdSCsbwbH1WxubV9Y3veOjb494OBIkDq/M=",
+            "schema_version": "10",
+            "sync_format": "1",
+            "vault_id": "0b456388-d1b3-4919-ac70-68a564f15ee0",
+            "verification": "bDBThdSQdjZwxpxLbqhMSz/egodCIXyjVbhHlIa/+cfsnavb5k8KXQSHHVg="
+          }
+        },
+        "load": {
+          "lineageId": "0a1329a4-1536-594d-a556-ca402d95758b",
+          "genesisId": "d3e27cbe9aeafdbe7bc7847cf5aae30dbe951ddb5fc1002692a0835de0fda0bf",
+          "createdMs": 0,
+          "fileId": null,
+          "currentEpochId": "c4da2fb53a70bf512082fa68fa6ed33b",
+          "ringEpochs": [
+            "c4da2fb53a70bf512082fa68fa6ed33b"
+          ],
+          "digest": "66fb9709d3b4f0b70dd9d708ec6ffbf39ded9e02c5123908a767db86f9a61429",
+          "canonicalDump": "{\"devs\":[[141418013886447,\"b7abf095-c40f-40ee-b436-60bedc4ec128\",1790326800000],[148249632992697,\"9a7618d0-508c-4b14-b0bb-cc3573457973\",1790326801000]],\"epochs\":[[\"c4da2fb53a70bf512082fa68fa6ed33b\",null,\"quo6DWVXThdSCsbwbH1WxubV9Y3veOjb494OBIkDq/M=\",\"bDBThdSQdjZwxpxLbqhMSz/egodCIXyjVbhHlIa/+cfsnavb5k8KXQSHHVg=\",0]],\"h\":[\"0a1329a4-1536-594d-a556-ca402d95758b\",\"d3e27cbe9aeafdbe7bc7847cf5aae30dbe951ddb5fc1002692a0835de0fda0bf\",0],\"rows\":[[\"1:940b9b05-6bd4-4932-8f9a-0c07f41c9891\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327165000:0\",0,\"deeafc983c6eba7cdb3e84faf8814356\",0]]],[\"config.resolution\",[0,[\"9cb484e458cf2d712072223c0871895a\"]],[[\"p:0:9cb484e458cf2d712072223c0871895a\",1789891200000,\"7dda8b96c0a2201e8d319eabb9e5558b\",0]]],[\"container\",[0,[\"868ae23bf72c3d522a52712fead8203e\"]],[[\"p:0:868ae23bf72c3d522a52712fead8203e\",1789891200000,\"7a1a19ea3342c56c860a33570b0f2028\",0]]],[\"created_at\",[0,[\"21aaed063c80204e3dc928dabde5cace\"]],[[\"p:0:21aaed063c80204e3dc928dabde5cace\",1789891200000,\"0de08f55c0016c897fd530d0e4912074\",0]]],[\"entry_type\",[0,[\"cbb3f3055f7c95632a0435b60ea61b0d\"]],[[\"p:0:cbb3f3055f7c95632a0435b60ea61b0d\",1789891200000,\"566eccd4effe3974cc436901f58ff858\",0]]],[\"host\",[0,[\"e60823fd4567e62c47b93620f1eb2f5e\"]],[[\"p:0:e60823fd4567e62c47b93620f1eb2f5e\",1789891200000,\"855dcb54049d2d942186fcdfc3f79b96\",0]]],[\"name\",[0,[\"13faee2ff88792a0413aedab41235533\"]],[[\"p:0:13faee2ff88792a0413aedab41235533\",1789891200000,\"f86857f503569988f14478f234e6ce20\",0]]],[\"notes\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327165000:0\",0,\"e687046c859a107f5528b19cef20ed5e\",0]]]]],[\"1:a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0\",null,[[\"created_at\",[0,[\"3721b9f894bee2f7f7ed255a69a922b1\"]],[[\"p:0:3721b9f894bee2f7f7ed255a69a922b1\",1789891200000,\"7c82032394c99abaf99c35fe84f29f8d\",0]]],[\"entry_type\",[0,[\"dd84cc2d8762d9a8ff9101c73c2a5e04\"]],[[\"p:0:dd84cc2d8762d9a8ff9101c73c2a5e04\",1789891200000,\"d5820f396a140672107bb26699fece59\",0]]],[\"name\",[0,[\"04ec76289c88830da25ca25df9f8cc9c\"]],[[\"p:0:04ec76289c88830da25ca25df9f8cc9c\",1789891200000,\"5148d800b405fed6122f57a802a56f51\",0]]],[\"password\",[0,[\"7adea54671162f8258ed477b8e4d2d39\"]],[[\"p:0:7adea54671162f8258ed477b8e4d2d39\",1789891200000,\"b77e2cf7bf7600ce17124a549c6e9b6e\",0]]],[\"username\",[0,[\"9ea7a9b17c6a6fd4f098c14375003b1c\"]],[[\"p:0:9ea7a9b17c6a6fd4f098c14375003b1c\",1789891200000,\"d4cbd7bd1bf2f866aa4ff47c90a9f848\",0]]]]],[\"1:b49ba980-3762-47e8-bf16-edff7287ce77\",[1790327285000,0,148249632992697,0],[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327285000:0\",0,\"a7a228ee33a721fd2cc901633d7a892a\",0]]],[\"container\",[0,[\"ccabfb41cfbb863e8ccb0a036871308e\"]],[[\"p:0:ccabfb41cfbb863e8ccb0a036871308e\",1789891200000,\"4ede4603c71d5cb723df20f14cd842c1\",0]]],[\"created_at\",[0,[\"d82c721de288577ad29168685c4ad37b\"]],[[\"p:0:d82c721de288577ad29168685c4ad37b\",1789891200000,\"63b8e10653c2fdd0d57c5b51d4472ec3\",0]]],[\"credential_id\",[0,[\"8fc2f4e948a24719035ed71d4a8a2c1f\"]],[[\"p:0:8fc2f4e948a24719035ed71d4a8a2c1f\",1789891200000,\"25807d7dcadba82e9d355ee0d2482e78\",0]]],[\"entry_type\",[0,[\"a6ce68432fc1afab9b32f2753f0a4832\"]],[[\"p:0:a6ce68432fc1afab9b32f2753f0a4832\",1789891200000,\"acd7e3b5adaebd83bf50c04266f6a4cc\",0]]],[\"host\",[0,[\"689a015de39d4d96c7c6a2d8cf702a0d\"]],[[\"p:0:689a015de39d4d96c7c6a2d8cf702a0d\",1789891200000,\"f4fcf2b080f642c554cea4c9f29b5558\",0]]],[\"name\",[0,[\"6101a7fdc226327d0f2aac0d3c65a5a6\"]],[[\"p:0:6101a7fdc226327d0f2aac0d3c65a5a6\",1789891200000,\"2dbd9d898a815c1fb5df30d73637c450\",0]]],[\"password\",[0,[\"12334ad5ac6d5d2a93e1d2541f2fcae3\"]],[[\"p:0:12334ad5ac6d5d2a93e1d2541f2fcae3\",1789891200000,\"836c6a228b41072c90f44a19b60df5d1\",0]]],[\"port\",[0,[\"a62f62ea4f7c3752b4f19ac7a911cef1\"]],[[\"p:0:a62f62ea4f7c3752b4f19ac7a911cef1\",1789891200000,\"30fa9210c373d1a316adf5753b29fd9a\",0]]]]],[\"1:f569daf7-de62-4b79-b1ef-715322bf12e8\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327105000:0\",0,\"07b189f58f46963538750e05396ab713\",0]]],[\"config.keepalive\",[0,[\"6c78298d6ebec778cab13ceec0c68c01\"]],[[\"p:0:6c78298d6ebec778cab13ceec0c68c01\",1789891200000,\"de51e3a7ab256fa7889503e984c7d753\",0]]],[\"container\",[0,[\"d29ff181ba16518538dcd13b38ebf13f\"]],[[\"p:0:d29ff181ba16518538dcd13b38ebf13f\",1789891200000,\"7ecda7ccc04a3a03ae8a424bdfcd5ade\",0]]],[\"created_at\",[0,[\"30be305ff452bd19ccb85d8f13e1f676\"]],[[\"p:0:30be305ff452bd19ccb85d8f13e1f676\",1789891200000,\"c48e22133488c2f184104a3211f8b732\",0]]],[\"entry_type\",[0,[\"83d423691698d25dadb20d99cc0ddf33\"]],[[\"p:0:83d423691698d25dadb20d99cc0ddf33\",1789891200000,\"d76d0665d7ff0415bd09138f2ba98ba0\",0]]],[\"host\",[0,[\"d12ef2b095c5d4963cee2deb0e2e3459\"]],[[\"a:148249632992697:1790327105000:0\",0,\"d1e9e57b7083cb5541ec7ec80c86de27\",0]]],[\"icon\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327105000:0\",0,\"811cb8b3fdc4f0cf31e3398d6acac3eb\",0]]],[\"name\",[0,[\"53b4d4b0f4b5d4f78526a39592f466bd\"]],[[\"p:0:53b4d4b0f4b5d4f78526a39592f466bd\",1789891200000,\"445e8ee37eaa6955888619cddc9aedd5\",0]]],[\"password\",[0,[\"ad7b6b8f9a7a98678ae2f876a18c0733\"]],[[\"p:0:ad7b6b8f9a7a98678ae2f876a18c0733\",1789891200000,\"eee2a54ef0628763b7fdcce0cf620a99\",0]]],[\"port\",[0,[\"8e80dd52ea2d7d8194d25198d16e8020\"]],[[\"p:0:8e80dd52ea2d7d8194d25198d16e8020\",1789891200000,\"b0912f2ce8ded4b1c768697c01ce03b5\",0]]],[\"tag:prod\",[0,[\"f3fd1ea13b2b5e095e12b8feb9f08b54\"]],[[\"p:0:f3fd1ea13b2b5e095e12b8feb9f08b54\",1789891200000,\"70ca3ff8577826de7be58e3e1eb0e59d\",0]]],[\"username\",[0,[\"47d9f23a3b2db259dcd7fd1ec8cb1ec2\"]],[[\"p:0:47d9f23a3b2db259dcd7fd1ec8cb1ec2\",1789891200000,\"11766ecbf26c7aa6801dfc7952b20e93\",0]]]]],[\"2:125ca032-e5dc-4325-b754-09b8846db400\",null,[[\"_life\",null,[[\"a:148249632992697:1790327345000:0\",0,\"bfe1b5b0c5ab65400bb0bb2cb4a65f77\",0]]],[\"created_at\",null,[[\"a:148249632992697:1790327345000:0\",0,\"94dfeb63a983b02cc63570d4ebc4621b\",0]]],[\"name\",null,[[\"a:148249632992697:1790327345000:0\",0,\"ab0433183201508eeeff760b688625d5\",0]]]]],[\"2:31f76c78-264e-41b6-b321-50760773264b\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327225000:0\",0,\"ca69e83a8791ba32d5e13501fd3f11b7\",0]]],[\"container\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327225000:0\",0,\"150117401ee265015eb0fce20404fb79\",0]]],[\"created_at\",[0,[\"2703e33c624c18a8f3ddc68fe5d9db32\"]],[[\"p:0:2703e33c624c18a8f3ddc68fe5d9db32\",1789891200000,\"af0b7b56704dcf493af6f892df6798fd\",0]]],[\"name\",[0,[\"087c10c33f952448236249b6dfb02d59\"]],[[\"p:0:087c10c33f952448236249b6dfb02d59\",1789891200000,\"8029012237fd64445a1afa873a4c1549\",0]]]]],[\"2:fa17ab47-2678-4764-a693-d26d05e8da8f\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327225000:0\",0,\"7c6c2c650c9d6b098079c4598c155651\",0]]],[\"created_at\",[0,[\"f23c7987a70341ceae4eb1d5cc7f879e\"]],[[\"p:0:f23c7987a70341ceae4eb1d5cc7f879e\",1789891200000,\"a688ea9db08aed9a0bf0a20f9a5f510d\",0]]],[\"name\",[0,[\"d847dbf8b90f7b7a6401b52f7b9201e4\"]],[[\"p:0:d847dbf8b90f7b7a6401b52f7b9201e4\",1789891200000,\"50b2525037841eed6794cac21d0cf5a4\",0]]]]],[\"3:be2c15ab-a9f8-4f1e-a689-09ca49201671\",null,[[\"changed_at\",[0,[\"e1b19a084493d7a8ea82ccd1245e7438\"]],[[\"p:0:e1b19a084493d7a8ea82ccd1245e7438\",1789891200000,\"82feb66f94ec010e8eb2928f15e2cc7d\",0]]],[\"changed_by\",[0,[\"a9793a5d43adae7bb7cc4070955326bd\"]],[[\"p:0:a9793a5d43adae7bb7cc4070955326bd\",1789891200000,\"e488774391e7f50409011627a93478c8\",0]]],[\"entry_id\",[0,[\"b548b8f8792b4d0fd28001cf98da6022\"]],[[\"p:0:b548b8f8792b4d0fd28001cf98da6022\",1789891200000,\"97d3a9f34f54cee2e561599c02f4d7e1\",0]]],[\"password\",[0,[\"596a647d925448a146465677fd99b881\"]],[[\"p:0:596a647d925448a146465677fd99b881\",1789891200000,\"728fb7860e7dc7e62c52c27455c67415\",0]]],[\"username\",[0,[\"ce252e34b4e77449a3075ec8ed91376c\"]],[[\"p:0:ce252e34b4e77449a3075ec8ed91376c\",1789891200000,\"92d0f407a8198dba730ec0cd96722d68\",0]]]]],[\"4:meta\",null,[[\"vault_id\",[0,[\"838a18a3456e3276ef139378334ff251\"]],[[\"p:0:838a18a3456e3276ef139378334ff251\",0,\"766c7da5b16b29e43792cdf7c6fe57e7\",0]]]]],[\"9:key\",null,[[\"epoch\",[0,[\"85ed0ee4be0d7e2c844e578039c61ed2\"]],[[\"p:0:85ed0ee4be0d7e2c844e578039c61ed2\",0,\"eb4f73941d7b9b4f2f04c510ff229a6f\",0]]]]]],\"vv\":[[148249632992697,1790327345000,0]],\"wraps\":[]}",
+          "cache": {
+            "1:940b9b05-6bd4-4932-8f9a-0c07f41c9891": [
+              true,
+              "4ea7722f0919b7e0809771d1caa33c2d"
+            ],
+            "1:a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0": [
+              true,
+              "5d79a491faf43bd61d35a327891ee962"
+            ],
+            "1:b49ba980-3762-47e8-bf16-edff7287ce77": [
+              false,
+              null
+            ],
+            "1:f569daf7-de62-4b79-b1ef-715322bf12e8": [
+              true,
+              "ccb477db185a42ab7d6909e20d904807"
+            ],
+            "2:125ca032-e5dc-4325-b754-09b8846db400": [
+              true,
+              "98745585c7406a0506284f5cbcad7f53"
+            ],
+            "2:31f76c78-264e-41b6-b321-50760773264b": [
+              true,
+              "c4879ac35f7d34fc415853ce1ab7408b"
+            ],
+            "2:fa17ab47-2678-4764-a693-d26d05e8da8f": [
+              true,
+              "8875ed298ce57195fc87ec147003d384"
+            ],
+            "3:be2c15ab-a9f8-4f1e-a689-09ca49201671": [
+              true,
+              "33cc1f818cab88ee462b53ebaece4ac4"
+            ]
+          },
+          "planEmpty": true,
+          "structural": [],
+          "conflicts": []
+        }
+      }
+    },
+    "merges": [
+      {
+        "w": "a.conduit",
+        "s": "b.conduit",
+        "wCaptureChanged": false,
+        "capture": {
+          "changed": false,
+          "contentRepairNeeded": false,
+          "stats": {
+            "appWrites": 0,
+            "legacyEdits": 0,
+            "legacyDeletes": 0,
+            "legacyDropped": 0,
+            "legacyHeld": 0,
+            "staleReverts": 0,
+            "undecryptable": 0
+          },
+          "changedRows": [],
+          "notices": [],
+          "held": []
+        },
+        "s1Digest": "66fb9709d3b4f0b70dd9d708ec6ffbf39ded9e02c5123908a767db86f9a61429",
+        "align": {
+          "kind": "proceed",
+          "relation": "same"
+        },
+        "alignedDigest": "66fb9709d3b4f0b70dd9d708ec6ffbf39ded9e02c5123908a767db86f9a61429",
+        "invariantViolations": [],
+        "digest": "a89bec0e2fe218ed782b0768fc29d25859d037d75235ba9ae2cb9d0b90491a55",
+        "canonicalDump": "{\"devs\":[[141418013886447,\"b7abf095-c40f-40ee-b436-60bedc4ec128\",1790326800000],[148249632992697,\"9a7618d0-508c-4b14-b0bb-cc3573457973\",1790326801000]],\"epochs\":[[\"c4da2fb53a70bf512082fa68fa6ed33b\",null,\"quo6DWVXThdSCsbwbH1WxubV9Y3veOjb494OBIkDq/M=\",\"bDBThdSQdjZwxpxLbqhMSz/egodCIXyjVbhHlIa/+cfsnavb5k8KXQSHHVg=\",0]],\"h\":[\"0a1329a4-1536-594d-a556-ca402d95758b\",\"d3e27cbe9aeafdbe7bc7847cf5aae30dbe951ddb5fc1002692a0835de0fda0bf\",0],\"rows\":[[\"1:940b9b05-6bd4-4932-8f9a-0c07f41c9891\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326925000:0\",0,\"cc9f8dcd879e6b9009b351d3dadfda54\",0],[\"a:148249632992697:1790327165000:0\",0,\"deeafc983c6eba7cdb3e84faf8814356\",0]]],[\"config.resolution\",[0,[\"9cb484e458cf2d712072223c0871895a\"]],[[\"p:0:9cb484e458cf2d712072223c0871895a\",1789891200000,\"7dda8b96c0a2201e8d319eabb9e5558b\",0]]],[\"container\",[0,[\"868ae23bf72c3d522a52712fead8203e\"]],[[\"p:0:868ae23bf72c3d522a52712fead8203e\",1789891200000,\"7a1a19ea3342c56c860a33570b0f2028\",0]]],[\"created_at\",[0,[\"21aaed063c80204e3dc928dabde5cace\"]],[[\"p:0:21aaed063c80204e3dc928dabde5cace\",1789891200000,\"0de08f55c0016c897fd530d0e4912074\",0]]],[\"entry_type\",[0,[\"cbb3f3055f7c95632a0435b60ea61b0d\"]],[[\"p:0:cbb3f3055f7c95632a0435b60ea61b0d\",1789891200000,\"566eccd4effe3974cc436901f58ff858\",0]]],[\"host\",[0,[\"e60823fd4567e62c47b93620f1eb2f5e\"]],[[\"p:0:e60823fd4567e62c47b93620f1eb2f5e\",1789891200000,\"855dcb54049d2d942186fcdfc3f79b96\",0]]],[\"name\",[0,[\"13faee2ff88792a0413aedab41235533\"]],[[\"p:0:13faee2ff88792a0413aedab41235533\",1789891200000,\"f86857f503569988f14478f234e6ce20\",0]]],[\"notes\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327165000:0\",0,\"e687046c859a107f5528b19cef20ed5e\",0]]]]],[\"1:a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0\",null,[[\"created_at\",[0,[\"3721b9f894bee2f7f7ed255a69a922b1\"]],[[\"p:0:3721b9f894bee2f7f7ed255a69a922b1\",1789891200000,\"7c82032394c99abaf99c35fe84f29f8d\",0]]],[\"entry_type\",[0,[\"dd84cc2d8762d9a8ff9101c73c2a5e04\"]],[[\"p:0:dd84cc2d8762d9a8ff9101c73c2a5e04\",1789891200000,\"d5820f396a140672107bb26699fece59\",0]]],[\"name\",[0,[\"04ec76289c88830da25ca25df9f8cc9c\"]],[[\"p:0:04ec76289c88830da25ca25df9f8cc9c\",1789891200000,\"5148d800b405fed6122f57a802a56f51\",0]]],[\"password\",[0,[\"7adea54671162f8258ed477b8e4d2d39\"]],[[\"p:0:7adea54671162f8258ed477b8e4d2d39\",1789891200000,\"b77e2cf7bf7600ce17124a549c6e9b6e\",0]]],[\"username\",[0,[\"9ea7a9b17c6a6fd4f098c14375003b1c\"]],[[\"p:0:9ea7a9b17c6a6fd4f098c14375003b1c\",1789891200000,\"d4cbd7bd1bf2f866aa4ff47c90a9f848\",0]]]]],[\"1:b49ba980-3762-47e8-bf16-edff7287ce77\",[1790327285000,0,148249632992697,0],[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327285000:0\",0,\"a7a228ee33a721fd2cc901633d7a892a\",0]]],[\"container\",[0,[\"ccabfb41cfbb863e8ccb0a036871308e\"]],[[\"p:0:ccabfb41cfbb863e8ccb0a036871308e\",1789891200000,\"4ede4603c71d5cb723df20f14cd842c1\",0]]],[\"created_at\",[0,[\"d82c721de288577ad29168685c4ad37b\"]],[[\"p:0:d82c721de288577ad29168685c4ad37b\",1789891200000,\"63b8e10653c2fdd0d57c5b51d4472ec3\",0]]],[\"credential_id\",[0,[\"8fc2f4e948a24719035ed71d4a8a2c1f\"]],[[\"p:0:8fc2f4e948a24719035ed71d4a8a2c1f\",1789891200000,\"25807d7dcadba82e9d355ee0d2482e78\",0]]],[\"entry_type\",[0,[\"a6ce68432fc1afab9b32f2753f0a4832\"]],[[\"p:0:a6ce68432fc1afab9b32f2753f0a4832\",1789891200000,\"acd7e3b5adaebd83bf50c04266f6a4cc\",0]]],[\"host\",[0,[\"689a015de39d4d96c7c6a2d8cf702a0d\"]],[[\"p:0:689a015de39d4d96c7c6a2d8cf702a0d\",1789891200000,\"f4fcf2b080f642c554cea4c9f29b5558\",0]]],[\"name\",[0,[\"6101a7fdc226327d0f2aac0d3c65a5a6\"]],[[\"p:0:6101a7fdc226327d0f2aac0d3c65a5a6\",1789891200000,\"2dbd9d898a815c1fb5df30d73637c450\",0]]],[\"password\",[0,[\"12334ad5ac6d5d2a93e1d2541f2fcae3\"]],[[\"p:0:12334ad5ac6d5d2a93e1d2541f2fcae3\",1789891200000,\"836c6a228b41072c90f44a19b60df5d1\",0]]],[\"port\",[0,[\"a62f62ea4f7c3752b4f19ac7a911cef1\"]],[[\"p:0:a62f62ea4f7c3752b4f19ac7a911cef1\",1789891200000,\"30fa9210c373d1a316adf5753b29fd9a\",0]]]]],[\"1:f35fbec7-7d39-4c70-94c7-4e621d97821f\",null,[[\"_life\",null,[[\"a:141418013886447:1790327045000:0\",0,\"47ca482a1a8990a7f60b83b4e76d1c3d\",0]]],[\"container\",null,[[\"a:141418013886447:1790327045000:0\",0,\"eb3a02498ae4d83f74172cde3f5e5eeb\",0]]],[\"created_at\",null,[[\"a:141418013886447:1790327045000:0\",0,\"8f147e96de98d3c1f34dcf37d32543ae\",0]]],[\"entry_type\",null,[[\"a:141418013886447:1790327045000:0\",0,\"0533ab5cab7f6ea6309efebfa992b91c\",0]]],[\"host\",null,[[\"a:141418013886447:1790327045000:0\",0,\"cee6ac92ae672bed7e56b53c9fb2454c\",0]]],[\"name\",null,[[\"a:141418013886447:1790327045000:0\",0,\"a2fa3a26937811fdd90d27ed6c78d006\",0]]],[\"password\",null,[[\"a:141418013886447:1790327045000:0\",0,\"dd0e40d8f5cb4da7696232d7cc5c38af\",0]]]]],[\"1:f569daf7-de62-4b79-b1ef-715322bf12e8\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"07b189f58f46963538750e05396ab713\",0],[\"a:148249632992697:1790327105000:0\",0,\"07b189f58f46963538750e05396ab713\",0]]],[\"config.keepalive\",[0,[\"6c78298d6ebec778cab13ceec0c68c01\"]],[[\"p:0:6c78298d6ebec778cab13ceec0c68c01\",1789891200000,\"de51e3a7ab256fa7889503e984c7d753\",0]]],[\"container\",[0,[\"d29ff181ba16518538dcd13b38ebf13f\"]],[[\"p:0:d29ff181ba16518538dcd13b38ebf13f\",1789891200000,\"7ecda7ccc04a3a03ae8a424bdfcd5ade\",0]]],[\"created_at\",[0,[\"30be305ff452bd19ccb85d8f13e1f676\"]],[[\"p:0:30be305ff452bd19ccb85d8f13e1f676\",1789891200000,\"c48e22133488c2f184104a3211f8b732\",0]]],[\"entry_type\",[0,[\"83d423691698d25dadb20d99cc0ddf33\"]],[[\"p:0:83d423691698d25dadb20d99cc0ddf33\",1789891200000,\"d76d0665d7ff0415bd09138f2ba98ba0\",0]]],[\"host\",[0,[\"d12ef2b095c5d4963cee2deb0e2e3459\"]],[[\"a:141418013886447:1790326865000:0\",0,\"70c74d1ace4598112612637a30e5f117\",0],[\"a:148249632992697:1790327105000:0\",0,\"d1e9e57b7083cb5541ec7ec80c86de27\",0]]],[\"icon\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"6dfde1b06c1417525e687fbc88610289\",0],[\"a:148249632992697:1790327105000:0\",0,\"811cb8b3fdc4f0cf31e3398d6acac3eb\",0]]],[\"name\",[0,[\"53b4d4b0f4b5d4f78526a39592f466bd\"]],[[\"p:0:53b4d4b0f4b5d4f78526a39592f466bd\",1789891200000,\"445e8ee37eaa6955888619cddc9aedd5\",0]]],[\"password\",[0,[\"ad7b6b8f9a7a98678ae2f876a18c0733\"]],[[\"p:0:ad7b6b8f9a7a98678ae2f876a18c0733\",1789891200000,\"eee2a54ef0628763b7fdcce0cf620a99\",0]]],[\"port\",[0,[\"8e80dd52ea2d7d8194d25198d16e8020\"]],[[\"p:0:8e80dd52ea2d7d8194d25198d16e8020\",1789891200000,\"b0912f2ce8ded4b1c768697c01ce03b5\",0]]],[\"tag:db\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"9483ebbcf9d759ab4f4564d7a8ad328c\",0]]],[\"tag:prod\",[0,[\"f3fd1ea13b2b5e095e12b8feb9f08b54\"]],[[\"p:0:f3fd1ea13b2b5e095e12b8feb9f08b54\",1789891200000,\"70ca3ff8577826de7be58e3e1eb0e59d\",0]]],[\"username\",[0,[\"47d9f23a3b2db259dcd7fd1ec8cb1ec2\"]],[[\"p:0:47d9f23a3b2db259dcd7fd1ec8cb1ec2\",1789891200000,\"11766ecbf26c7aa6801dfc7952b20e93\",0]]]]],[\"2:125ca032-e5dc-4325-b754-09b8846db400\",null,[[\"_life\",null,[[\"a:148249632992697:1790327345000:0\",0,\"bfe1b5b0c5ab65400bb0bb2cb4a65f77\",0]]],[\"created_at\",null,[[\"a:148249632992697:1790327345000:0\",0,\"94dfeb63a983b02cc63570d4ebc4621b\",0]]],[\"name\",null,[[\"a:148249632992697:1790327345000:0\",0,\"ab0433183201508eeeff760b688625d5\",0]]]]],[\"2:31f76c78-264e-41b6-b321-50760773264b\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790327045000:0\",0,\"ca69e83a8791ba32d5e13501fd3f11b7\",0],[\"a:148249632992697:1790327225000:0\",0,\"ca69e83a8791ba32d5e13501fd3f11b7\",0]]],[\"container\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327225000:0\",0,\"150117401ee265015eb0fce20404fb79\",0]]],[\"created_at\",[0,[\"2703e33c624c18a8f3ddc68fe5d9db32\"]],[[\"p:0:2703e33c624c18a8f3ddc68fe5d9db32\",1789891200000,\"af0b7b56704dcf493af6f892df6798fd\",0]]],[\"name\",[0,[\"087c10c33f952448236249b6dfb02d59\"]],[[\"p:0:087c10c33f952448236249b6dfb02d59\",1789891200000,\"8029012237fd64445a1afa873a4c1549\",0]]]]],[\"2:fa17ab47-2678-4764-a693-d26d05e8da8f\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326985000:0\",0,\"7c6c2c650c9d6b098079c4598c155651\",0],[\"a:148249632992697:1790327225000:0\",0,\"7c6c2c650c9d6b098079c4598c155651\",0]]],[\"container\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326985000:0\",0,\"c2d96beae650917ce9705f9a76fb1244\",0]]],[\"created_at\",[0,[\"f23c7987a70341ceae4eb1d5cc7f879e\"]],[[\"p:0:f23c7987a70341ceae4eb1d5cc7f879e\",1789891200000,\"a688ea9db08aed9a0bf0a20f9a5f510d\",0]]],[\"name\",[0,[\"d847dbf8b90f7b7a6401b52f7b9201e4\"]],[[\"p:0:d847dbf8b90f7b7a6401b52f7b9201e4\",1789891200000,\"50b2525037841eed6794cac21d0cf5a4\",0]]]]],[\"3:be2c15ab-a9f8-4f1e-a689-09ca49201671\",null,[[\"changed_at\",[0,[\"e1b19a084493d7a8ea82ccd1245e7438\"]],[[\"p:0:e1b19a084493d7a8ea82ccd1245e7438\",1789891200000,\"82feb66f94ec010e8eb2928f15e2cc7d\",0]]],[\"changed_by\",[0,[\"a9793a5d43adae7bb7cc4070955326bd\"]],[[\"p:0:a9793a5d43adae7bb7cc4070955326bd\",1789891200000,\"e488774391e7f50409011627a93478c8\",0]]],[\"entry_id\",[0,[\"b548b8f8792b4d0fd28001cf98da6022\"]],[[\"p:0:b548b8f8792b4d0fd28001cf98da6022\",1789891200000,\"97d3a9f34f54cee2e561599c02f4d7e1\",0]]],[\"password\",[0,[\"596a647d925448a146465677fd99b881\"]],[[\"p:0:596a647d925448a146465677fd99b881\",1789891200000,\"728fb7860e7dc7e62c52c27455c67415\",0]]],[\"username\",[0,[\"ce252e34b4e77449a3075ec8ed91376c\"]],[[\"p:0:ce252e34b4e77449a3075ec8ed91376c\",1789891200000,\"92d0f407a8198dba730ec0cd96722d68\",0]]]]],[\"4:meta\",null,[[\"vault_id\",[0,[\"838a18a3456e3276ef139378334ff251\"]],[[\"p:0:838a18a3456e3276ef139378334ff251\",0,\"766c7da5b16b29e43792cdf7c6fe57e7\",0]]]]],[\"9:key\",null,[[\"epoch\",[0,[\"85ed0ee4be0d7e2c844e578039c61ed2\"]],[[\"p:0:85ed0ee4be0d7e2c844e578039c61ed2\",0,\"eb4f73941d7b9b4f2f04c510ff229a6f\",0]]]]]],\"vv\":[[141418013886447,1790327045000,0],[148249632992697,1790327345000,0]],\"wraps\":[]}",
+        "upToDate": false,
+        "reloadedDigest": "a89bec0e2fe218ed782b0768fc29d25859d037d75235ba9ae2cb9d0b90491a55",
+        "structural": [
+          {
+            "kind": "cycle",
+            "tbl": 2,
+            "rowIds": [
+              "31f76c78-264e-41b6-b321-50760773264b",
+              "fa17ab47-2678-4764-a693-d26d05e8da8f"
+            ],
+            "movedToRoot": "31f76c78-264e-41b6-b321-50760773264b"
+          }
+        ],
+        "conflicts": [
+          {
+            "row": [
+              1,
+              "940b9b05-6bd4-4932-8f9a-0c07f41c9891"
+            ],
+            "title": "desk",
+            "snoozed": false,
+            "items": [
+              {
+                "kind": "edit-delete",
+                "row": [
+                  1,
+                  "940b9b05-6bd4-4932-8f9a-0c07f41c9891"
+                ],
+                "deleted": [
+                  {
+                    "id": "a:141418013886447:1790326925000:0",
+                    "dev": 141418013886447,
+                    "ms": 1790326925000,
+                    "c": 0,
+                    "lt": 0,
+                    "pseudo": false,
+                    "source": {
+                      "kind": "device",
+                      "deviceUuid": "b7abf095-c40f-40ee-b436-60bedc4ec128",
+                      "deviceName": null
+                    },
+                    "timeMs": 1790326925000,
+                    "value": "dead",
+                    "masked": false,
+                    "vhash": "cc9f8dcd879e6b9009b351d3dadfda54",
+                    "provisional": false,
+                    "undecryptable": false,
+                    "redacted": false
+                  }
+                ],
+                "edited": [
+                  {
+                    "id": "a:148249632992697:1790327165000:0",
+                    "dev": 148249632992697,
+                    "ms": 1790327165000,
+                    "c": 0,
+                    "lt": 0,
+                    "pseudo": false,
+                    "source": {
+                      "kind": "device",
+                      "deviceUuid": "9a7618d0-508c-4b14-b0bb-cc3573457973",
+                      "deviceName": null
+                    },
+                    "timeMs": 1790327165000,
+                    "value": "live",
+                    "masked": false,
+                    "vhash": "deeafc983c6eba7cdb3e84faf8814356",
+                    "provisional": true,
+                    "undecryptable": false,
+                    "redacted": false
+                  }
+                ],
+                "snoozeKey": "1a352682d15ae7398c0116946fb967cb"
+              }
+            ]
+          },
+          {
+            "row": [
+              1,
+              "f569daf7-de62-4b79-b1ef-715322bf12e8"
+            ],
+            "title": "web",
+            "snoozed": false,
+            "items": [
+              {
+                "kind": "field",
+                "field": {
+                  "key": [
+                    1,
+                    "f569daf7-de62-4b79-b1ef-715322bf12e8",
+                    "host"
+                  ],
+                  "label": "Host",
+                  "cls": "prompt",
+                  "secret": false,
+                  "versions": [
+                    {
+                      "id": "a:148249632992697:1790327105000:0",
+                      "dev": 148249632992697,
+                      "ms": 1790327105000,
+                      "c": 0,
+                      "lt": 0,
+                      "pseudo": false,
+                      "source": {
+                        "kind": "device",
+                        "deviceUuid": "9a7618d0-508c-4b14-b0bb-cc3573457973",
+                        "deviceName": null
+                      },
+                      "timeMs": 1790327105000,
+                      "value": "b.example",
+                      "masked": false,
+                      "vhash": "d1e9e57b7083cb5541ec7ec80c86de27",
+                      "provisional": true,
+                      "undecryptable": false,
+                      "redacted": false
+                    },
+                    {
+                      "id": "a:141418013886447:1790326865000:0",
+                      "dev": 141418013886447,
+                      "ms": 1790326865000,
+                      "c": 0,
+                      "lt": 0,
+                      "pseudo": false,
+                      "source": {
+                        "kind": "device",
+                        "deviceUuid": "b7abf095-c40f-40ee-b436-60bedc4ec128",
+                        "deviceName": null
+                      },
+                      "timeMs": 1790326865000,
+                      "value": "a.example",
+                      "masked": false,
+                      "vhash": "70c74d1ace4598112612637a30e5f117",
+                      "provisional": false,
+                      "undecryptable": false,
+                      "redacted": false
+                    }
+                  ],
+                  "staleRevert": false,
+                  "keepBothOffered": false,
+                  "invariantGuard": false,
+                  "snoozeKey": "842feaf661ca4ab797398934b8ca28ad"
+                }
+              },
+              {
+                "kind": "appearance",
+                "row": [
+                  1,
+                  "f569daf7-de62-4b79-b1ef-715322bf12e8"
+                ],
+                "fields": [
+                  {
+                    "key": [
+                      1,
+                      "f569daf7-de62-4b79-b1ef-715322bf12e8",
+                      "icon"
+                    ],
+                    "label": "Icon",
+                    "cls": "groupA",
+                    "secret": false,
+                    "versions": [
+                      {
+                        "id": "a:148249632992697:1790327105000:0",
+                        "dev": 148249632992697,
+                        "ms": 1790327105000,
+                        "c": 0,
+                        "lt": 0,
+                        "pseudo": false,
+                        "source": {
+                          "kind": "device",
+                          "deviceUuid": "9a7618d0-508c-4b14-b0bb-cc3573457973",
+                          "deviceName": null
+                        },
+                        "timeMs": 1790327105000,
+                        "value": "server-b",
+                        "masked": false,
+                        "vhash": "811cb8b3fdc4f0cf31e3398d6acac3eb",
+                        "provisional": true,
+                        "undecryptable": false,
+                        "redacted": false
+                      },
+                      {
+                        "id": "a:141418013886447:1790326865000:0",
+                        "dev": 141418013886447,
+                        "ms": 1790326865000,
+                        "c": 0,
+                        "lt": 0,
+                        "pseudo": false,
+                        "source": {
+                          "kind": "device",
+                          "deviceUuid": "b7abf095-c40f-40ee-b436-60bedc4ec128",
+                          "deviceName": null
+                        },
+                        "timeMs": 1790326865000,
+                        "value": "server-a",
+                        "masked": false,
+                        "vhash": "6dfde1b06c1417525e687fbc88610289",
+                        "provisional": false,
+                        "undecryptable": false,
+                        "redacted": false
+                      }
+                    ],
+                    "staleRevert": false,
+                    "keepBothOffered": false,
+                    "invariantGuard": false,
+                    "snoozeKey": "2567a4499c4a8f37b9f8882fe0e57bdc"
+                  }
+                ],
+                "newest": {
+                  "icon": "a:148249632992697:1790327105000:0"
+                },
+                "snoozeKey": "4b5e8e9654a4956ebb5df822fbd42b93"
+              }
+            ]
+          },
+          {
+            "row": [
+              2,
+              "31f76c78-264e-41b6-b321-50760773264b"
+            ],
+            "title": "Clients",
+            "snoozed": false,
+            "items": [
+              {
+                "kind": "cycle",
+                "tbl": 2,
+                "rowIds": [
+                  "31f76c78-264e-41b6-b321-50760773264b",
+                  "fa17ab47-2678-4764-a693-d26d05e8da8f"
+                ],
+                "movedToRoot": "31f76c78-264e-41b6-b321-50760773264b"
+              }
+            ]
+          }
+        ],
+        "content": {
+          "entries": [
+            {
+              "id": "940b9b05-6bd4-4932-8f9a-0c07f41c9891",
+              "name": "desk",
+              "entry_type": "rdp",
+              "folder_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "desk.local",
+              "port": null,
+              "credential_id": null,
+              "username": null,
+              "password_encrypted": null,
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{\"resolution\":\"1080p\"}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": "edited on pc",
+              "created_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0",
+              "name": "Shared admin",
+              "entry_type": "credential",
+              "folder_id": null,
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": null,
+              "port": null,
+              "credential_id": null,
+              "username": "admin",
+              "password_encrypted": {
+                "plain": "cred-pw"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "f35fbec7-7d39-4c70-94c7-4e621d97821f",
+              "name": "made on mac",
+              "entry_type": "ssh",
+              "folder_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "mac.local",
+              "port": null,
+              "credential_id": null,
+              "username": null,
+              "password_encrypted": {
+                "plain": "pw-mac"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-25T09:04:05.000Z"
+            },
+            {
+              "id": "f569daf7-de62-4b79-b1ef-715322bf12e8",
+              "name": "web",
+              "entry_type": "ssh",
+              "folder_id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "b.example",
+              "port": 22,
+              "credential_id": null,
+              "username": "root",
+              "password_encrypted": {
+                "plain": "pw-web"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": "server-b",
+              "color": null,
+              "credential_type": null,
+              "config": "{\"keepalive\":30}",
+              "tags": "[\"db\",\"prod\"]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "folders": [
+            {
+              "id": "125ca032-e5dc-4325-b754-09b8846db400",
+              "name": "Made on PC",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-25T09:09:05.000Z"
+            },
+            {
+              "id": "31f76c78-264e-41b6-b321-50760773264b",
+              "name": "Clients",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "name": "Servers",
+              "parent_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "history": [
+            {
+              "id": "be2c15ab-a9f8-4f1e-a689-09ca49201671",
+              "entry_id": "f569daf7-de62-4b79-b1ef-715322bf12e8",
+              "username": "root",
+              "password_encrypted": {
+                "plain": "pw-web-old"
+              },
+              "changed_at": "2026-09-20T08:00:00.000Z",
+              "changed_by": "user"
+            }
+          ],
+          "meta": {
+            "key_source": "password",
+            "salt": "quo6DWVXThdSCsbwbH1WxubV9Y3veOjb494OBIkDq/M=",
+            "schema_version": "10",
+            "sync_format": "1",
+            "vault_id": "0b456388-d1b3-4919-ac70-68a564f15ee0",
+            "verification": "bDBThdSQdjZwxpxLbqhMSz/egodCIXyjVbhHlIa/+cfsnavb5k8KXQSHHVg="
+          }
+        },
+        "changedRows": [
+          [
+            1,
+            "940b9b05-6bd4-4932-8f9a-0c07f41c9891"
+          ],
+          [
+            1,
+            "b49ba980-3762-47e8-bf16-edff7287ce77"
+          ],
+          [
+            1,
+            "f569daf7-de62-4b79-b1ef-715322bf12e8"
+          ],
+          [
+            2,
+            "125ca032-e5dc-4325-b754-09b8846db400"
+          ]
+        ],
+        "updatedAt": {
+          "entries": {
+            "940b9b05-6bd4-4932-8f9a-0c07f41c9891": "2026-09-25T09:06:05.000Z",
+            "a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0": "2026-09-20T08:00:00.000Z",
+            "f35fbec7-7d39-4c70-94c7-4e621d97821f": "2026-09-25T09:04:05.000Z",
+            "f569daf7-de62-4b79-b1ef-715322bf12e8": "2026-09-25T09:05:05.000Z"
+          },
+          "folders": {
+            "125ca032-e5dc-4325-b754-09b8846db400": "2026-09-25T09:09:05.000Z",
+            "31f76c78-264e-41b6-b321-50760773264b": "2026-09-20T08:00:00.000Z",
+            "fa17ab47-2678-4764-a693-d26d05e8da8f": "2026-09-25T09:03:05.000Z"
+          }
+        }
+      },
+      {
+        "w": "b.conduit",
+        "s": "a.conduit",
+        "wCaptureChanged": false,
+        "capture": {
+          "changed": false,
+          "contentRepairNeeded": false,
+          "stats": {
+            "appWrites": 0,
+            "legacyEdits": 0,
+            "legacyDeletes": 0,
+            "legacyDropped": 0,
+            "legacyHeld": 0,
+            "staleReverts": 0,
+            "undecryptable": 0
+          },
+          "changedRows": [],
+          "notices": [],
+          "held": []
+        },
+        "s1Digest": "b89edb01921aa2154573742182ee99903b84440674ed9929c39757f5b7ff636f",
+        "align": {
+          "kind": "proceed",
+          "relation": "same"
+        },
+        "alignedDigest": "b89edb01921aa2154573742182ee99903b84440674ed9929c39757f5b7ff636f",
+        "invariantViolations": [],
+        "digest": "a89bec0e2fe218ed782b0768fc29d25859d037d75235ba9ae2cb9d0b90491a55",
+        "canonicalDump": "{\"devs\":[[141418013886447,\"b7abf095-c40f-40ee-b436-60bedc4ec128\",1790326800000],[148249632992697,\"9a7618d0-508c-4b14-b0bb-cc3573457973\",1790326801000]],\"epochs\":[[\"c4da2fb53a70bf512082fa68fa6ed33b\",null,\"quo6DWVXThdSCsbwbH1WxubV9Y3veOjb494OBIkDq/M=\",\"bDBThdSQdjZwxpxLbqhMSz/egodCIXyjVbhHlIa/+cfsnavb5k8KXQSHHVg=\",0]],\"h\":[\"0a1329a4-1536-594d-a556-ca402d95758b\",\"d3e27cbe9aeafdbe7bc7847cf5aae30dbe951ddb5fc1002692a0835de0fda0bf\",0],\"rows\":[[\"1:940b9b05-6bd4-4932-8f9a-0c07f41c9891\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326925000:0\",0,\"cc9f8dcd879e6b9009b351d3dadfda54\",0],[\"a:148249632992697:1790327165000:0\",0,\"deeafc983c6eba7cdb3e84faf8814356\",0]]],[\"config.resolution\",[0,[\"9cb484e458cf2d712072223c0871895a\"]],[[\"p:0:9cb484e458cf2d712072223c0871895a\",1789891200000,\"7dda8b96c0a2201e8d319eabb9e5558b\",0]]],[\"container\",[0,[\"868ae23bf72c3d522a52712fead8203e\"]],[[\"p:0:868ae23bf72c3d522a52712fead8203e\",1789891200000,\"7a1a19ea3342c56c860a33570b0f2028\",0]]],[\"created_at\",[0,[\"21aaed063c80204e3dc928dabde5cace\"]],[[\"p:0:21aaed063c80204e3dc928dabde5cace\",1789891200000,\"0de08f55c0016c897fd530d0e4912074\",0]]],[\"entry_type\",[0,[\"cbb3f3055f7c95632a0435b60ea61b0d\"]],[[\"p:0:cbb3f3055f7c95632a0435b60ea61b0d\",1789891200000,\"566eccd4effe3974cc436901f58ff858\",0]]],[\"host\",[0,[\"e60823fd4567e62c47b93620f1eb2f5e\"]],[[\"p:0:e60823fd4567e62c47b93620f1eb2f5e\",1789891200000,\"855dcb54049d2d942186fcdfc3f79b96\",0]]],[\"name\",[0,[\"13faee2ff88792a0413aedab41235533\"]],[[\"p:0:13faee2ff88792a0413aedab41235533\",1789891200000,\"f86857f503569988f14478f234e6ce20\",0]]],[\"notes\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327165000:0\",0,\"e687046c859a107f5528b19cef20ed5e\",0]]]]],[\"1:a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0\",null,[[\"created_at\",[0,[\"3721b9f894bee2f7f7ed255a69a922b1\"]],[[\"p:0:3721b9f894bee2f7f7ed255a69a922b1\",1789891200000,\"7c82032394c99abaf99c35fe84f29f8d\",0]]],[\"entry_type\",[0,[\"dd84cc2d8762d9a8ff9101c73c2a5e04\"]],[[\"p:0:dd84cc2d8762d9a8ff9101c73c2a5e04\",1789891200000,\"d5820f396a140672107bb26699fece59\",0]]],[\"name\",[0,[\"04ec76289c88830da25ca25df9f8cc9c\"]],[[\"p:0:04ec76289c88830da25ca25df9f8cc9c\",1789891200000,\"5148d800b405fed6122f57a802a56f51\",0]]],[\"password\",[0,[\"7adea54671162f8258ed477b8e4d2d39\"]],[[\"p:0:7adea54671162f8258ed477b8e4d2d39\",1789891200000,\"b77e2cf7bf7600ce17124a549c6e9b6e\",0]]],[\"username\",[0,[\"9ea7a9b17c6a6fd4f098c14375003b1c\"]],[[\"p:0:9ea7a9b17c6a6fd4f098c14375003b1c\",1789891200000,\"d4cbd7bd1bf2f866aa4ff47c90a9f848\",0]]]]],[\"1:b49ba980-3762-47e8-bf16-edff7287ce77\",[1790327285000,0,148249632992697,0],[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327285000:0\",0,\"a7a228ee33a721fd2cc901633d7a892a\",0]]],[\"container\",[0,[\"ccabfb41cfbb863e8ccb0a036871308e\"]],[[\"p:0:ccabfb41cfbb863e8ccb0a036871308e\",1789891200000,\"4ede4603c71d5cb723df20f14cd842c1\",0]]],[\"created_at\",[0,[\"d82c721de288577ad29168685c4ad37b\"]],[[\"p:0:d82c721de288577ad29168685c4ad37b\",1789891200000,\"63b8e10653c2fdd0d57c5b51d4472ec3\",0]]],[\"credential_id\",[0,[\"8fc2f4e948a24719035ed71d4a8a2c1f\"]],[[\"p:0:8fc2f4e948a24719035ed71d4a8a2c1f\",1789891200000,\"25807d7dcadba82e9d355ee0d2482e78\",0]]],[\"entry_type\",[0,[\"a6ce68432fc1afab9b32f2753f0a4832\"]],[[\"p:0:a6ce68432fc1afab9b32f2753f0a4832\",1789891200000,\"acd7e3b5adaebd83bf50c04266f6a4cc\",0]]],[\"host\",[0,[\"689a015de39d4d96c7c6a2d8cf702a0d\"]],[[\"p:0:689a015de39d4d96c7c6a2d8cf702a0d\",1789891200000,\"f4fcf2b080f642c554cea4c9f29b5558\",0]]],[\"name\",[0,[\"6101a7fdc226327d0f2aac0d3c65a5a6\"]],[[\"p:0:6101a7fdc226327d0f2aac0d3c65a5a6\",1789891200000,\"2dbd9d898a815c1fb5df30d73637c450\",0]]],[\"password\",[0,[\"12334ad5ac6d5d2a93e1d2541f2fcae3\"]],[[\"p:0:12334ad5ac6d5d2a93e1d2541f2fcae3\",1789891200000,\"836c6a228b41072c90f44a19b60df5d1\",0]]],[\"port\",[0,[\"a62f62ea4f7c3752b4f19ac7a911cef1\"]],[[\"p:0:a62f62ea4f7c3752b4f19ac7a911cef1\",1789891200000,\"30fa9210c373d1a316adf5753b29fd9a\",0]]]]],[\"1:f35fbec7-7d39-4c70-94c7-4e621d97821f\",null,[[\"_life\",null,[[\"a:141418013886447:1790327045000:0\",0,\"47ca482a1a8990a7f60b83b4e76d1c3d\",0]]],[\"container\",null,[[\"a:141418013886447:1790327045000:0\",0,\"eb3a02498ae4d83f74172cde3f5e5eeb\",0]]],[\"created_at\",null,[[\"a:141418013886447:1790327045000:0\",0,\"8f147e96de98d3c1f34dcf37d32543ae\",0]]],[\"entry_type\",null,[[\"a:141418013886447:1790327045000:0\",0,\"0533ab5cab7f6ea6309efebfa992b91c\",0]]],[\"host\",null,[[\"a:141418013886447:1790327045000:0\",0,\"cee6ac92ae672bed7e56b53c9fb2454c\",0]]],[\"name\",null,[[\"a:141418013886447:1790327045000:0\",0,\"a2fa3a26937811fdd90d27ed6c78d006\",0]]],[\"password\",null,[[\"a:141418013886447:1790327045000:0\",0,\"dd0e40d8f5cb4da7696232d7cc5c38af\",0]]]]],[\"1:f569daf7-de62-4b79-b1ef-715322bf12e8\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"07b189f58f46963538750e05396ab713\",0],[\"a:148249632992697:1790327105000:0\",0,\"07b189f58f46963538750e05396ab713\",0]]],[\"config.keepalive\",[0,[\"6c78298d6ebec778cab13ceec0c68c01\"]],[[\"p:0:6c78298d6ebec778cab13ceec0c68c01\",1789891200000,\"de51e3a7ab256fa7889503e984c7d753\",0]]],[\"container\",[0,[\"d29ff181ba16518538dcd13b38ebf13f\"]],[[\"p:0:d29ff181ba16518538dcd13b38ebf13f\",1789891200000,\"7ecda7ccc04a3a03ae8a424bdfcd5ade\",0]]],[\"created_at\",[0,[\"30be305ff452bd19ccb85d8f13e1f676\"]],[[\"p:0:30be305ff452bd19ccb85d8f13e1f676\",1789891200000,\"c48e22133488c2f184104a3211f8b732\",0]]],[\"entry_type\",[0,[\"83d423691698d25dadb20d99cc0ddf33\"]],[[\"p:0:83d423691698d25dadb20d99cc0ddf33\",1789891200000,\"d76d0665d7ff0415bd09138f2ba98ba0\",0]]],[\"host\",[0,[\"d12ef2b095c5d4963cee2deb0e2e3459\"]],[[\"a:141418013886447:1790326865000:0\",0,\"70c74d1ace4598112612637a30e5f117\",0],[\"a:148249632992697:1790327105000:0\",0,\"d1e9e57b7083cb5541ec7ec80c86de27\",0]]],[\"icon\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"6dfde1b06c1417525e687fbc88610289\",0],[\"a:148249632992697:1790327105000:0\",0,\"811cb8b3fdc4f0cf31e3398d6acac3eb\",0]]],[\"name\",[0,[\"53b4d4b0f4b5d4f78526a39592f466bd\"]],[[\"p:0:53b4d4b0f4b5d4f78526a39592f466bd\",1789891200000,\"445e8ee37eaa6955888619cddc9aedd5\",0]]],[\"password\",[0,[\"ad7b6b8f9a7a98678ae2f876a18c0733\"]],[[\"p:0:ad7b6b8f9a7a98678ae2f876a18c0733\",1789891200000,\"eee2a54ef0628763b7fdcce0cf620a99\",0]]],[\"port\",[0,[\"8e80dd52ea2d7d8194d25198d16e8020\"]],[[\"p:0:8e80dd52ea2d7d8194d25198d16e8020\",1789891200000,\"b0912f2ce8ded4b1c768697c01ce03b5\",0]]],[\"tag:db\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326865000:0\",0,\"9483ebbcf9d759ab4f4564d7a8ad328c\",0]]],[\"tag:prod\",[0,[\"f3fd1ea13b2b5e095e12b8feb9f08b54\"]],[[\"p:0:f3fd1ea13b2b5e095e12b8feb9f08b54\",1789891200000,\"70ca3ff8577826de7be58e3e1eb0e59d\",0]]],[\"username\",[0,[\"47d9f23a3b2db259dcd7fd1ec8cb1ec2\"]],[[\"p:0:47d9f23a3b2db259dcd7fd1ec8cb1ec2\",1789891200000,\"11766ecbf26c7aa6801dfc7952b20e93\",0]]]]],[\"2:125ca032-e5dc-4325-b754-09b8846db400\",null,[[\"_life\",null,[[\"a:148249632992697:1790327345000:0\",0,\"bfe1b5b0c5ab65400bb0bb2cb4a65f77\",0]]],[\"created_at\",null,[[\"a:148249632992697:1790327345000:0\",0,\"94dfeb63a983b02cc63570d4ebc4621b\",0]]],[\"name\",null,[[\"a:148249632992697:1790327345000:0\",0,\"ab0433183201508eeeff760b688625d5\",0]]]]],[\"2:31f76c78-264e-41b6-b321-50760773264b\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790327045000:0\",0,\"ca69e83a8791ba32d5e13501fd3f11b7\",0],[\"a:148249632992697:1790327225000:0\",0,\"ca69e83a8791ba32d5e13501fd3f11b7\",0]]],[\"container\",[0,[\"00000000000000000000000000000000\"]],[[\"a:148249632992697:1790327225000:0\",0,\"150117401ee265015eb0fce20404fb79\",0]]],[\"created_at\",[0,[\"2703e33c624c18a8f3ddc68fe5d9db32\"]],[[\"p:0:2703e33c624c18a8f3ddc68fe5d9db32\",1789891200000,\"af0b7b56704dcf493af6f892df6798fd\",0]]],[\"name\",[0,[\"087c10c33f952448236249b6dfb02d59\"]],[[\"p:0:087c10c33f952448236249b6dfb02d59\",1789891200000,\"8029012237fd64445a1afa873a4c1549\",0]]]]],[\"2:fa17ab47-2678-4764-a693-d26d05e8da8f\",null,[[\"_life\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326985000:0\",0,\"7c6c2c650c9d6b098079c4598c155651\",0],[\"a:148249632992697:1790327225000:0\",0,\"7c6c2c650c9d6b098079c4598c155651\",0]]],[\"container\",[0,[\"00000000000000000000000000000000\"]],[[\"a:141418013886447:1790326985000:0\",0,\"c2d96beae650917ce9705f9a76fb1244\",0]]],[\"created_at\",[0,[\"f23c7987a70341ceae4eb1d5cc7f879e\"]],[[\"p:0:f23c7987a70341ceae4eb1d5cc7f879e\",1789891200000,\"a688ea9db08aed9a0bf0a20f9a5f510d\",0]]],[\"name\",[0,[\"d847dbf8b90f7b7a6401b52f7b9201e4\"]],[[\"p:0:d847dbf8b90f7b7a6401b52f7b9201e4\",1789891200000,\"50b2525037841eed6794cac21d0cf5a4\",0]]]]],[\"3:be2c15ab-a9f8-4f1e-a689-09ca49201671\",null,[[\"changed_at\",[0,[\"e1b19a084493d7a8ea82ccd1245e7438\"]],[[\"p:0:e1b19a084493d7a8ea82ccd1245e7438\",1789891200000,\"82feb66f94ec010e8eb2928f15e2cc7d\",0]]],[\"changed_by\",[0,[\"a9793a5d43adae7bb7cc4070955326bd\"]],[[\"p:0:a9793a5d43adae7bb7cc4070955326bd\",1789891200000,\"e488774391e7f50409011627a93478c8\",0]]],[\"entry_id\",[0,[\"b548b8f8792b4d0fd28001cf98da6022\"]],[[\"p:0:b548b8f8792b4d0fd28001cf98da6022\",1789891200000,\"97d3a9f34f54cee2e561599c02f4d7e1\",0]]],[\"password\",[0,[\"596a647d925448a146465677fd99b881\"]],[[\"p:0:596a647d925448a146465677fd99b881\",1789891200000,\"728fb7860e7dc7e62c52c27455c67415\",0]]],[\"username\",[0,[\"ce252e34b4e77449a3075ec8ed91376c\"]],[[\"p:0:ce252e34b4e77449a3075ec8ed91376c\",1789891200000,\"92d0f407a8198dba730ec0cd96722d68\",0]]]]],[\"4:meta\",null,[[\"vault_id\",[0,[\"838a18a3456e3276ef139378334ff251\"]],[[\"p:0:838a18a3456e3276ef139378334ff251\",0,\"766c7da5b16b29e43792cdf7c6fe57e7\",0]]]]],[\"9:key\",null,[[\"epoch\",[0,[\"85ed0ee4be0d7e2c844e578039c61ed2\"]],[[\"p:0:85ed0ee4be0d7e2c844e578039c61ed2\",0,\"eb4f73941d7b9b4f2f04c510ff229a6f\",0]]]]]],\"vv\":[[141418013886447,1790327045000,0],[148249632992697,1790327345000,0]],\"wraps\":[]}",
+        "upToDate": false,
+        "reloadedDigest": "a89bec0e2fe218ed782b0768fc29d25859d037d75235ba9ae2cb9d0b90491a55",
+        "structural": [
+          {
+            "kind": "cycle",
+            "tbl": 2,
+            "rowIds": [
+              "31f76c78-264e-41b6-b321-50760773264b",
+              "fa17ab47-2678-4764-a693-d26d05e8da8f"
+            ],
+            "movedToRoot": "31f76c78-264e-41b6-b321-50760773264b"
+          }
+        ],
+        "conflicts": [
+          {
+            "row": [
+              1,
+              "940b9b05-6bd4-4932-8f9a-0c07f41c9891"
+            ],
+            "title": "desk",
+            "snoozed": false,
+            "items": [
+              {
+                "kind": "edit-delete",
+                "row": [
+                  1,
+                  "940b9b05-6bd4-4932-8f9a-0c07f41c9891"
+                ],
+                "deleted": [
+                  {
+                    "id": "a:141418013886447:1790326925000:0",
+                    "dev": 141418013886447,
+                    "ms": 1790326925000,
+                    "c": 0,
+                    "lt": 0,
+                    "pseudo": false,
+                    "source": {
+                      "kind": "device",
+                      "deviceUuid": "b7abf095-c40f-40ee-b436-60bedc4ec128",
+                      "deviceName": null
+                    },
+                    "timeMs": 1790326925000,
+                    "value": "dead",
+                    "masked": false,
+                    "vhash": "cc9f8dcd879e6b9009b351d3dadfda54",
+                    "provisional": false,
+                    "undecryptable": false,
+                    "redacted": false
+                  }
+                ],
+                "edited": [
+                  {
+                    "id": "a:148249632992697:1790327165000:0",
+                    "dev": 148249632992697,
+                    "ms": 1790327165000,
+                    "c": 0,
+                    "lt": 0,
+                    "pseudo": false,
+                    "source": {
+                      "kind": "device",
+                      "deviceUuid": "9a7618d0-508c-4b14-b0bb-cc3573457973",
+                      "deviceName": null
+                    },
+                    "timeMs": 1790327165000,
+                    "value": "live",
+                    "masked": false,
+                    "vhash": "deeafc983c6eba7cdb3e84faf8814356",
+                    "provisional": true,
+                    "undecryptable": false,
+                    "redacted": false
+                  }
+                ],
+                "snoozeKey": "1a352682d15ae7398c0116946fb967cb"
+              }
+            ]
+          },
+          {
+            "row": [
+              1,
+              "f569daf7-de62-4b79-b1ef-715322bf12e8"
+            ],
+            "title": "web",
+            "snoozed": false,
+            "items": [
+              {
+                "kind": "field",
+                "field": {
+                  "key": [
+                    1,
+                    "f569daf7-de62-4b79-b1ef-715322bf12e8",
+                    "host"
+                  ],
+                  "label": "Host",
+                  "cls": "prompt",
+                  "secret": false,
+                  "versions": [
+                    {
+                      "id": "a:148249632992697:1790327105000:0",
+                      "dev": 148249632992697,
+                      "ms": 1790327105000,
+                      "c": 0,
+                      "lt": 0,
+                      "pseudo": false,
+                      "source": {
+                        "kind": "device",
+                        "deviceUuid": "9a7618d0-508c-4b14-b0bb-cc3573457973",
+                        "deviceName": null
+                      },
+                      "timeMs": 1790327105000,
+                      "value": "b.example",
+                      "masked": false,
+                      "vhash": "d1e9e57b7083cb5541ec7ec80c86de27",
+                      "provisional": true,
+                      "undecryptable": false,
+                      "redacted": false
+                    },
+                    {
+                      "id": "a:141418013886447:1790326865000:0",
+                      "dev": 141418013886447,
+                      "ms": 1790326865000,
+                      "c": 0,
+                      "lt": 0,
+                      "pseudo": false,
+                      "source": {
+                        "kind": "device",
+                        "deviceUuid": "b7abf095-c40f-40ee-b436-60bedc4ec128",
+                        "deviceName": null
+                      },
+                      "timeMs": 1790326865000,
+                      "value": "a.example",
+                      "masked": false,
+                      "vhash": "70c74d1ace4598112612637a30e5f117",
+                      "provisional": false,
+                      "undecryptable": false,
+                      "redacted": false
+                    }
+                  ],
+                  "staleRevert": false,
+                  "keepBothOffered": false,
+                  "invariantGuard": false,
+                  "snoozeKey": "842feaf661ca4ab797398934b8ca28ad"
+                }
+              },
+              {
+                "kind": "appearance",
+                "row": [
+                  1,
+                  "f569daf7-de62-4b79-b1ef-715322bf12e8"
+                ],
+                "fields": [
+                  {
+                    "key": [
+                      1,
+                      "f569daf7-de62-4b79-b1ef-715322bf12e8",
+                      "icon"
+                    ],
+                    "label": "Icon",
+                    "cls": "groupA",
+                    "secret": false,
+                    "versions": [
+                      {
+                        "id": "a:148249632992697:1790327105000:0",
+                        "dev": 148249632992697,
+                        "ms": 1790327105000,
+                        "c": 0,
+                        "lt": 0,
+                        "pseudo": false,
+                        "source": {
+                          "kind": "device",
+                          "deviceUuid": "9a7618d0-508c-4b14-b0bb-cc3573457973",
+                          "deviceName": null
+                        },
+                        "timeMs": 1790327105000,
+                        "value": "server-b",
+                        "masked": false,
+                        "vhash": "811cb8b3fdc4f0cf31e3398d6acac3eb",
+                        "provisional": true,
+                        "undecryptable": false,
+                        "redacted": false
+                      },
+                      {
+                        "id": "a:141418013886447:1790326865000:0",
+                        "dev": 141418013886447,
+                        "ms": 1790326865000,
+                        "c": 0,
+                        "lt": 0,
+                        "pseudo": false,
+                        "source": {
+                          "kind": "device",
+                          "deviceUuid": "b7abf095-c40f-40ee-b436-60bedc4ec128",
+                          "deviceName": null
+                        },
+                        "timeMs": 1790326865000,
+                        "value": "server-a",
+                        "masked": false,
+                        "vhash": "6dfde1b06c1417525e687fbc88610289",
+                        "provisional": false,
+                        "undecryptable": false,
+                        "redacted": false
+                      }
+                    ],
+                    "staleRevert": false,
+                    "keepBothOffered": false,
+                    "invariantGuard": false,
+                    "snoozeKey": "2567a4499c4a8f37b9f8882fe0e57bdc"
+                  }
+                ],
+                "newest": {
+                  "icon": "a:148249632992697:1790327105000:0"
+                },
+                "snoozeKey": "4b5e8e9654a4956ebb5df822fbd42b93"
+              }
+            ]
+          },
+          {
+            "row": [
+              2,
+              "31f76c78-264e-41b6-b321-50760773264b"
+            ],
+            "title": "Clients",
+            "snoozed": false,
+            "items": [
+              {
+                "kind": "cycle",
+                "tbl": 2,
+                "rowIds": [
+                  "31f76c78-264e-41b6-b321-50760773264b",
+                  "fa17ab47-2678-4764-a693-d26d05e8da8f"
+                ],
+                "movedToRoot": "31f76c78-264e-41b6-b321-50760773264b"
+              }
+            ]
+          }
+        ],
+        "content": {
+          "entries": [
+            {
+              "id": "940b9b05-6bd4-4932-8f9a-0c07f41c9891",
+              "name": "desk",
+              "entry_type": "rdp",
+              "folder_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "desk.local",
+              "port": null,
+              "credential_id": null,
+              "username": null,
+              "password_encrypted": null,
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{\"resolution\":\"1080p\"}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": "edited on pc",
+              "created_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0",
+              "name": "Shared admin",
+              "entry_type": "credential",
+              "folder_id": null,
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": null,
+              "port": null,
+              "credential_id": null,
+              "username": "admin",
+              "password_encrypted": {
+                "plain": "cred-pw"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "f35fbec7-7d39-4c70-94c7-4e621d97821f",
+              "name": "made on mac",
+              "entry_type": "ssh",
+              "folder_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "mac.local",
+              "port": null,
+              "credential_id": null,
+              "username": null,
+              "password_encrypted": {
+                "plain": "pw-mac"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": null,
+              "color": null,
+              "credential_type": null,
+              "config": "{}",
+              "tags": "[]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-25T09:04:05.000Z"
+            },
+            {
+              "id": "f569daf7-de62-4b79-b1ef-715322bf12e8",
+              "name": "web",
+              "entry_type": "ssh",
+              "folder_id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "parent_entry_id": null,
+              "sort_order": 0,
+              "host": "b.example",
+              "port": 22,
+              "credential_id": null,
+              "username": "root",
+              "password_encrypted": {
+                "plain": "pw-web"
+              },
+              "domain": null,
+              "private_key_encrypted": null,
+              "totp_secret_encrypted": null,
+              "icon": "server-b",
+              "color": null,
+              "credential_type": null,
+              "config": "{\"keepalive\":30}",
+              "tags": "[\"db\",\"prod\"]",
+              "is_favorite": 0,
+              "notes": null,
+              "created_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "folders": [
+            {
+              "id": "125ca032-e5dc-4325-b754-09b8846db400",
+              "name": "Made on PC",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-25T09:09:05.000Z"
+            },
+            {
+              "id": "31f76c78-264e-41b6-b321-50760773264b",
+              "name": "Clients",
+              "parent_id": null,
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z"
+            },
+            {
+              "id": "fa17ab47-2678-4764-a693-d26d05e8da8f",
+              "name": "Servers",
+              "parent_id": "31f76c78-264e-41b6-b321-50760773264b",
+              "sort_order": 0,
+              "icon": null,
+              "color": null,
+              "created_at": "2026-09-20T08:00:00.000Z"
+            }
+          ],
+          "history": [
+            {
+              "id": "be2c15ab-a9f8-4f1e-a689-09ca49201671",
+              "entry_id": "f569daf7-de62-4b79-b1ef-715322bf12e8",
+              "username": "root",
+              "password_encrypted": {
+                "plain": "pw-web-old"
+              },
+              "changed_at": "2026-09-20T08:00:00.000Z",
+              "changed_by": "user"
+            }
+          ],
+          "meta": {
+            "key_source": "password",
+            "salt": "quo6DWVXThdSCsbwbH1WxubV9Y3veOjb494OBIkDq/M=",
+            "schema_version": "10",
+            "sync_format": "1",
+            "vault_id": "0b456388-d1b3-4919-ac70-68a564f15ee0",
+            "verification": "bDBThdSQdjZwxpxLbqhMSz/egodCIXyjVbhHlIa/+cfsnavb5k8KXQSHHVg="
+          }
+        },
+        "changedRows": [
+          [
+            1,
+            "f35fbec7-7d39-4c70-94c7-4e621d97821f"
+          ],
+          [
+            1,
+            "f569daf7-de62-4b79-b1ef-715322bf12e8"
+          ],
+          [
+            2,
+            "31f76c78-264e-41b6-b321-50760773264b"
+          ],
+          [
+            2,
+            "fa17ab47-2678-4764-a693-d26d05e8da8f"
+          ]
+        ],
+        "updatedAt": {
+          "entries": {
+            "940b9b05-6bd4-4932-8f9a-0c07f41c9891": "2026-09-25T09:06:05.000Z",
+            "a67d16dc-3cd0-4d3e-8a5e-14a4f618e6a0": "2026-09-20T08:00:00.000Z",
+            "f35fbec7-7d39-4c70-94c7-4e621d97821f": "2026-09-25T09:04:05.000Z",
+            "f569daf7-de62-4b79-b1ef-715322bf12e8": "2026-09-25T09:05:05.000Z"
+          },
+          "folders": {
+            "125ca032-e5dc-4325-b754-09b8846db400": "2026-09-25T09:09:05.000Z",
+            "31f76c78-264e-41b6-b321-50760773264b": "2026-09-25T09:07:05.000Z",
+            "fa17ab47-2678-4764-a693-d26d05e8da8f": "2026-09-25T09:07:05.000Z"
+          }
+        }
+      }
+    ]
+  }
+}

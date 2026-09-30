@@ -7,6 +7,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { invoke } from "../../lib/electron";
 import { getEntryIcon, getEntryColor } from "./entryIcons";
 import ConfirmDialog from "../common/ConfirmDialog";
+import ConflictDot from "../sync/ConflictDot";
 import { showContextMenu, type PopupMenuItem } from "../../utils/contextMenu";
 import { getTypeableActiveSession, typeIntoActiveSession, typeUsernameTabPassword, globalTypeText, globalTypeUsernameTabPassword } from "../../utils/autotype";
 import { toast } from "../common/Toast";
@@ -989,6 +990,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           ) : (
             <span className="flex items-center gap-1">
               {node.name}
+              {vaultType === "personal" && <ConflictDot tbl={isFolder ? 2 : 1} rowId={node.id} />}
               {isLocked && (
                 <LockIcon size={10} className="text-ink-faint flex-shrink-0" />
               )}

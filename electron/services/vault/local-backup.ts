@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { encryptForLocalBackup, decryptFromLocalBackup } from './local-backup-crypto.js';
+import { readBackupBytes, type SnapshotWriter } from './backup-snapshot.js';
 import { AppState } from '../state.js';
 
 /** Debounce delay after last mutation before writing backup (ms). */
@@ -50,6 +51,7 @@ export interface LocalBackupEntry {
 export class LocalBackupService {
   private masterPasswordBuf: Buffer | null = null;
   private vaultPath: string | null = null;
+  private snapshot: SnapshotWriter | null = null;
   private enabled = false;
   private backupPath: string | null = null;
   private retentionDays = 30;
@@ -68,7 +70,8 @@ export class LocalBackupService {
   };
 
   /**
-   * Configure the local backup service after vault unlock.
+   * Configure the local backup service after vault unlock. `snapshot` (vaults the sync engine
+   * manages) backs up a snapshot of the working copy instead of reading `vaultPath`.
    */
   configure(opts: {
     masterPassword: string;
@@ -76,10 +79,12 @@ export class LocalBackupService {
     enabled: boolean;
     backupPath: string | null;
     retentionDays: number;
+    snapshot?: SnapshotWriter | null;
   }): void {
     if (this.masterPasswordBuf) this.masterPasswordBuf.fill(0);
     this.masterPasswordBuf = Buffer.from(opts.masterPassword, 'utf-8');
     this.vaultPath = opts.vaultPath;
+    this.snapshot = opts.snapshot ?? null;
     this.enabled = opts.enabled;
     this.backupPath = opts.backupPath;
     this.retentionDays = opts.retentionDays;
@@ -124,6 +129,7 @@ export class LocalBackupService {
       this.masterPasswordBuf = null;
     }
     this.vaultPath = null;
+    this.snapshot = null;
     this.updateState({ status: 'disabled', enabled: false, error: null });
   }
 
@@ -247,6 +253,7 @@ export class LocalBackupService {
   private async doBackup(): Promise<void> {
     const masterPasswordBuf = this.masterPasswordBuf;
     const vaultPath = this.vaultPath;
+    const snapshot = this.snapshot;
     const backupDir = this.backupPath;
 
     if (!masterPasswordBuf || !vaultPath || !backupDir) {
@@ -265,8 +272,7 @@ export class LocalBackupService {
       const ts = this.formatTimestamp(now);
       const masterPassword = masterPasswordBuf.toString('utf-8');
 
-      // Backup vault
-      const vaultBuffer = fs.readFileSync(vaultPath);
+      const vaultBuffer = await readBackupBytes({ vaultPath, snapshot });
       const encryptedVault = encryptForLocalBackup(vaultBuffer, masterPassword);
       const vaultFilename = `${VAULT_PREFIX}${ts}${ENC_EXT}`;
       this.atomicWrite(path.join(backupDir, vaultFilename), encryptedVault);

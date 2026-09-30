@@ -7,8 +7,12 @@ export type { EngineType };
 export interface AiTierCapabilities {
   cli_agents_enabled: boolean;
   mcp_enabled: boolean;
-  mcp_daily_quota: number;
+  /** Whole-file cloud backup (Pro and Team). */
   cloud_sync_enabled: boolean;
+  /** Devices a personal vault can be open on at once (-1 unlimited); absent when the profile has none. */
+  vault_max_open_devices?: number;
+  /** Server kill switch for personal-vault sync. */
+  personal_sync?: 'on' | 'paused';
   shared_vaults: boolean;
   tier_name: string;
   tier_display_name: string;
@@ -179,8 +183,9 @@ export const useAiStore = create<AiState>((set, get) => ({
       tierCapabilities: {
         cli_agents_enabled: true,
         mcp_enabled: true,
-        mcp_daily_quota: 50,
         cloud_sync_enabled: false,
+        vault_max_open_devices: 1,
+        personal_sync: 'on',
         shared_vaults: false,
         tier_name: 'local',
         tier_display_name: 'Local',

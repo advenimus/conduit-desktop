@@ -84,19 +84,19 @@ export type IpcRequest =
 
 export interface TierInfo {
   tier_name: string;
-  mcp_daily_quota: number; // -1 = unlimited
   authenticated: boolean;
 }
 
 export type IpcResponse =
   | { type: 'Success'; payload: Record<string, unknown> }
-  | { type: 'Error'; payload: { code: string; message: string } };
+  | { type: 'Error'; payload: { code: string; message: string; reason?: unknown } };
 
-/** Error reported by the Conduit app, carrying its machine-readable code. */
+/** Error reported by the Conduit app, carrying its machine-readable code and optional reason. */
 export class IpcRequestError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    readonly reason?: string,
   ) {
     super(`${code}: ${message}`);
     this.name = 'IpcRequestError';
@@ -187,7 +187,8 @@ export class ConduitClient {
             if (response.type === 'Success') {
               resolve(response.payload);
             } else {
-              reject(new IpcRequestError(response.payload.code, response.payload.message));
+              const { code, message, reason } = response.payload;
+              reject(new IpcRequestError(code, message, typeof reason === 'string' ? reason : undefined));
             }
           } catch (e) {
             reject(new Error(`Failed to parse IPC response: ${e}`));
@@ -344,7 +345,6 @@ export class ConduitClient {
     });
     return {
       tier_name: (response.tier_name as string) ?? 'free',
-      mcp_daily_quota: typeof response.mcp_daily_quota === 'number' ? response.mcp_daily_quota : 50,
       authenticated: !!response.authenticated,
     };
   }

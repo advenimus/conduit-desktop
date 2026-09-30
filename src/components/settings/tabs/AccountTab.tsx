@@ -20,7 +20,7 @@ export default function AccountTab({ onClose }: AccountTabProps) {
           <UserIcon size={48} className="text-ink-faint mx-auto mb-3" />
           <p className="text-ink-muted mb-2">Not signed in</p>
           <p className="text-xs text-ink-faint mb-4">
-            Sign in to unlock AI features, cloud sync, and more
+            Sign in to unlock multi-device sync, cloud backup, and more.
           </p>
           <button
             onClick={() => {
