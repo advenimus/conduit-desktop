@@ -10,6 +10,9 @@ import { useTierStore } from "../../../stores/tierStore";
 import { useVaultStore } from "../../../stores/vaultStore";
 import type { SyncStateResponse, SyncStatus } from "../../../types/sync";
 import type { EntryMeta, FolderData } from "../../../types/entry";
+import { openHome } from "../../../lib/openHome";
+
+vi.mock("../../../lib/openHome", () => ({ openHome: vi.fn() }));
 
 // Stores read settings through window.electron while these modules load.
 vi.hoisted(() => {
@@ -286,6 +289,13 @@ describe("Sidebar footer", () => {
       { title: "Settings (Ctrl+,)", aria: "Settings", text: undefined, pressed: undefined },
     ]);
     expect(buttonsIn(row2).map((b) => b.textContent?.trim())).toEqual(["Sign in to start a free Pro trial"]);
+  });
+
+  it("goes to Home through openHome from the Home button", () => {
+    setup();
+    vi.mocked(openHome).mockClear();
+    fireEvent.click(within(footer()).getByRole("button", { name: "Home" }));
+    expect(openHome).toHaveBeenCalledTimes(1);
   });
 
   it("opens Settings > Sync from the sync button", () => {

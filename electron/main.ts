@@ -409,6 +409,59 @@ function sendMenuAction(action: string) {
   }
 }
 
+// The current dev items, unchanged, after Home and a separator.
+function devViewMenuItems(): Electron.MenuItemConstructorOptions[] {
+  return [
+    { type: 'separator' },
+    { role: 'reload' },
+    { role: 'forceReload' },
+    { role: 'toggleDevTools' },
+    { type: 'separator' },
+    {
+      label: 'Actual Size',
+      accelerator: 'CmdOrCtrl+0',
+      click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
+        const bw = win as BrowserWindow | undefined;
+        if (bw) {
+          bw.webContents.setZoomFactor(1);
+          bw.webContents.send('zoom-factor-changed', 1);
+        }
+      },
+    },
+    {
+      label: 'Zoom In',
+      accelerator: 'CmdOrCtrl+Plus',
+      click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
+        const bw = win as BrowserWindow | undefined;
+        if (bw) {
+          const next = Math.min(bw.webContents.getZoomFactor() + 0.05, 1.5);
+          bw.webContents.setZoomFactor(next);
+          bw.webContents.send('zoom-factor-changed', next);
+        }
+      },
+    },
+    {
+      label: 'Zoom Out',
+      accelerator: 'CmdOrCtrl+-',
+      click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
+        const bw = win as BrowserWindow | undefined;
+        if (bw) {
+          const next = Math.max(bw.webContents.getZoomFactor() - 0.05, 0.75);
+          bw.webContents.setZoomFactor(next);
+          bw.webContents.send('zoom-factor-changed', next);
+        }
+      },
+    },
+    { type: 'separator' },
+    { role: 'togglefullscreen' },
+    { type: 'separator' },
+    {
+      label: 'Trigger Test Toast',
+      click: () => sendMenuAction('dev:test-toast'),
+    },
+  ];
+}
+
 function buildAppMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
     // macOS app menu
@@ -533,58 +586,18 @@ function buildAppMenu() {
         { role: 'selectAll' },
       ],
     },
-    // View menu (dev only)
-    ...(isDev ? [{
+    // View menu: Home in every build, the dev tools only in dev builds
+    {
       label: 'View',
       submenu: [
-        { role: 'reload' as const },
-        { role: 'forceReload' as const },
-        { role: 'toggleDevTools' as const },
-        { type: 'separator' as const },
         {
-          label: 'Actual Size',
-          accelerator: 'CmdOrCtrl+0',
-          click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
-            const bw = win as BrowserWindow | undefined;
-            if (bw) {
-              bw.webContents.setZoomFactor(1);
-              bw.webContents.send('zoom-factor-changed', 1);
-            }
-          },
+          label: 'Home',
+          accelerator: 'CmdOrCtrl+Shift+H',
+          click: () => sendMenuAction('home'),
         },
-        {
-          label: 'Zoom In',
-          accelerator: 'CmdOrCtrl+Plus',
-          click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
-            const bw = win as BrowserWindow | undefined;
-            if (bw) {
-              const next = Math.min(bw.webContents.getZoomFactor() + 0.05, 1.5);
-              bw.webContents.setZoomFactor(next);
-              bw.webContents.send('zoom-factor-changed', next);
-            }
-          },
-        },
-        {
-          label: 'Zoom Out',
-          accelerator: 'CmdOrCtrl+-',
-          click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
-            const bw = win as BrowserWindow | undefined;
-            if (bw) {
-              const next = Math.max(bw.webContents.getZoomFactor() - 0.05, 0.75);
-              bw.webContents.setZoomFactor(next);
-              bw.webContents.send('zoom-factor-changed', next);
-            }
-          },
-        },
-        { type: 'separator' as const },
-        { role: 'togglefullscreen' as const },
-        { type: 'separator' as const },
-        {
-          label: 'Trigger Test Toast',
-          click: () => sendMenuAction('dev:test-toast'),
-        },
+        ...(isDev ? devViewMenuItems() : []),
       ],
-    }] : []),
+    },
     // Tools menu
     {
       label: 'Tools',
