@@ -5,6 +5,7 @@ interface Sess { id: string }
 const data = (await import('../verify/lib/restyle-data.mjs' as string)) as {
   HOME_SESSION_ID: string;
   closeAllSessions(device: unknown): Promise<void>;
+  clearConnectionHistory(device: unknown): Promise<unknown>;
 };
 
 /** A device whose page runs withStores sources against fake stores instead of the app's modules. */
@@ -43,5 +44,23 @@ describe('restyle closeAllSessions', () => {
   it('is done at once with no sessions (a locked vault)', async () => {
     const fake = fakeDevice([]);
     await expect(data.closeAllSessions(fake.device)).resolves.toBeUndefined();
+  });
+});
+
+describe('restyle clearConnectionHistory', () => {
+  it('clears through dashboardApi and bumps the Home history version, like Customize', async () => {
+    const calls: string[] = [];
+    const modules: Record<string, unknown> = {
+      '/src/lib/dashboardApi.ts': { dashboardApi: { historyClear: async () => calls.push('clear') } },
+      '/src/components/dashboard/home/homeFeeds.ts': { bumpHistoryVersion: () => calls.push('bump') },
+    };
+    const page = {
+      evaluate: async (source: string) => {
+        const runnable = source.replace(/import\('([^']+)'\)/g, (_m, spec: string) => `__load(${JSON.stringify(spec)})`);
+        return (new Function('__load', `return ${runnable};`) as (load: (s: string) => Promise<unknown>) => Promise<unknown>)(async (spec) => modules[spec]);
+      },
+    };
+    await expect(data.clearConnectionHistory({ name: 'fake', page })).resolves.toBe(true);
+    expect(calls).toEqual(['clear', 'bump']);
   });
 });

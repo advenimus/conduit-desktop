@@ -261,9 +261,20 @@ export async function closeAllSessions(device) {
   );
 }
 
-/** Clears this vault's local connection history, so Home's Recently connected card is hidden. */
+/**
+ * Clears this vault's local connection history the way Customize does, so every Home view loads it
+ * again and Recently connected hides. A bare IPC call would leave the rows Home already loaded.
+ */
 export function clearConnectionHistory(device) {
-  return invoke(device, 'connection_history_clear', {});
+  const source = `(async () => {
+    const [{ dashboardApi }, { bumpHistoryVersion }] = await Promise.all([
+      import('/src/lib/dashboardApi.ts'), import('/src/components/dashboard/home/homeFeeds.ts'),
+    ]);
+    await dashboardApi.historyClear();
+    bumpHistoryVersion();
+    return true;
+  })()`;
+  return withTimeout(device.page.evaluate(source), 30_000, `${device.name}: clear connection history`);
 }
 
 /** Clicks the side bar footer's Home button (the Home dashboard tab). */
