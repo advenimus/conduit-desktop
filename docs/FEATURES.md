@@ -521,7 +521,7 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 - Automatic credential decryption (per-type built-in keys, no passphrase needed)
 - Supported types: SSH, RDP, VNC (AppleRemoteDesktop), Web, Group (folder + credential), Credential (PasswordList, ApiKey, simple), DataEntry/SecureNote (→ document), Document (local file read)
 - Preview step: grouped by folder, status badges (ready, decrypt-failed, unsupported, duplicate)
-- **Duplicate detection**: Entries matching by name + type + host are flagged as duplicates during preview, with "Overwrite All" or "Skip All" strategy prompt before import
+- **Duplicate detection**: Entries matching by name + type + host are flagged as duplicates during preview, with "Overwrite All" or "Skip All" strategy prompt before import; an overwrite that changes the username or password keeps the old one in password history, like an edit
 - Batch import with tier-limit enforcement (partial import)
 - Folder structure recreation
 - Group credential extraction
@@ -797,7 +797,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 
 ### Home Dashboard
 - **Pinned Home tab**: always the first tab of the first pane while a vault is open; it has no close button, cannot be dragged away, and comes back after a lock or a vault switch
-- **Getting back**: Cmd+Shift+H (Ctrl+Shift+H on Windows and Linux), View > Home in the app menu, or the Home button in the side bar footer; an empty pane shows Home too
+- **Getting back**: Cmd+Shift+H (Ctrl+Shift+H on Windows and Linux), View > Home in the app menu, or the Home button in the side bar footer; an empty pane shows Home too, in one column when the pane is narrow
 - **Quick bar**: search box that finds entries and folders by name, host or tag and opens them in place (Up, Down, Enter, Escape), plus Quick Connect and New Entry
 - **Recently connected**: the last 8 entries opened on this device, with Copy password and View info
 - **Open now**: live sessions with their status; click one to jump to its tab
@@ -828,7 +828,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - **Selectable text**: All detail values (host, username, revealed password) and markdown notes are highlightable and copyable via text selection
 - **Secret copy button**: `!!secret!!` values in markdown notes show a copy button when revealed, in addition to being selectable
 - **Is it up?**: checks a direct TCP connection from this device to the entry's host and port (3 second timeout, no proxy) and shows the answer time or why it failed
-- **Recent connections**: the last 20 connections to the entry from this device, with result and duration
+- **Recent connections**: the last 20 connections to the entry from this device, with result, and how long it stayed connected
 - **View Info tab**: Right-click any entry → "View Info" to open the dashboard as a persistent tab alongside active sessions
   - Access notes, credentials, TOTP codes, and connection details even while sessions are open
   - Also available from the session tab right-click menu ("View Info")
