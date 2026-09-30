@@ -303,7 +303,7 @@ export default function Sidebar() {
       <div
         data-cv-sidebar-header
         className={cx(
-          "flex h-tabstrip shrink-0 items-center gap-0.5 px-1",
+          "flex h-tabstrip shrink-0 items-center gap-1 px-1.5",
           isTeamVaultActive && "border-l-2 border-l-team-border-strong bg-team",
         )}
       >
@@ -318,7 +318,7 @@ export default function Sidebar() {
             type="button"
             data-cv-vault-switcher
             onClick={() => setShowVaultMenu(!showVaultMenu)}
-            className="-ml-1 flex h-6 max-w-full min-w-0 items-center gap-0.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover"
+            className="flex h-6 max-w-full min-w-0 items-center gap-1.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover"
             title={`${isNetworkVault ? `Network vault — ${currentVaultPath}` : (currentVaultPath ?? "Open a vault")}${autoUnlockOn ? ` · ${INDICATOR_TEXT}` : ""}`}
           >
             <span className="min-w-0 truncate">{vaultName}</span>
@@ -338,7 +338,7 @@ export default function Sidebar() {
             />
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-1">
           <IconButton
             icon={showFavoritesOnly ? "starFilled" : "star"}
             label={showFavoritesOnly ? "Show all entries" : "Show favorites only"}
@@ -472,7 +472,7 @@ export default function Sidebar() {
       {/* Footer — home + settings + account */}
       <div data-cv-sidebar-footer className="shrink-0 border-t border-divider">
         <div className="flex h-8 items-center justify-between gap-1 px-2">
-          <div className="flex min-w-0 items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1.5">
             <span className="text-meta text-ink-faint tabular-nums whitespace-nowrap">
               {showFavoritesOnly
                 ? `${favoriteCount} ${favoriteCount === 1 ? "favorite" : "favorites"}`
@@ -482,7 +482,7 @@ export default function Sidebar() {
             <CloudSyncIndicator />
             <TeamSyncIndicator />
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-1">
             <IconButton icon="home" label="Home" onClick={handleHome} />
             <IconButton icon="settings" label="Settings" title="Settings (Ctrl+,)" onClick={handleSettings} />
           </div>

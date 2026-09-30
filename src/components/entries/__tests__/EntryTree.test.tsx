@@ -65,7 +65,7 @@ afterEach(() => {
 });
 
 describe("EntryTree rows", () => {
-  it("draws 22px rows indented 8px per level from a 4px inset", async () => {
+  it("draws 22px rows indented 12px per level from a 4px inset", async () => {
     setup();
     render(<EntryTree />);
     await screen.findByText("db-01");
@@ -74,7 +74,7 @@ describe("EntryTree rows", () => {
       expect(row.className).toMatch(/\bh-row\b/);
       expect(row.className).toContain("gap-1.5");
       expect(row.className).toContain("text-body");
-      expect(row.style.paddingLeft).toBe(`${4 + depth * 8}px`);
+      expect(row.style.paddingLeft).toBe(`${4 + depth * 12}px`);
     }
   });
 
@@ -97,12 +97,12 @@ describe("EntryTree rows", () => {
     expect(leaf.querySelector(":scope > span.size-4")).not.toBeNull();
   });
 
-  it("draws an indent guide per ancestor level at 12px + 8px steps, hidden until the tree is hovered", async () => {
+  it("draws an indent guide per ancestor level at 12px + 12px steps, hidden until the tree is hovered", async () => {
     setup();
     const { container } = render(<EntryTree />);
     await screen.findByText("db-01");
     const guides = [...rowOf("db-01").querySelectorAll("[data-indent-guide]")] as HTMLElement[];
-    expect(guides.map((g) => g.style.left)).toEqual(["12px", "20px"]);
+    expect(guides.map((g) => g.style.left)).toEqual(["12px", "24px"]);
     expect(guides[0].className).toContain("opacity-0");
     expect(guides[0].className).toContain("group-hover/tree:opacity-100");
     expect(guides[0].className).toContain("group-focus-within/tree:opacity-100");
@@ -161,14 +161,17 @@ describe("EntryTree flat mode", () => {
   it("labels each group in title case without uppercase or letter spacing", async () => {
     setup();
     render(<EntryTree searchQuery="01" />);
-    const label = await screen.findByText("Production / Databases");
+    const label = (await screen.findByText("Production / Databases")).parentElement as HTMLElement;
+    expect(label.className).toMatch(/\bh-row\b/);
+    expect(label.className).not.toMatch(/\bpt-2\b/);
+    expect(label.parentElement?.className).toContain("mt-2");
     expect(label.className).not.toMatch(/\buppercase\b/);
     expect(label.className).not.toMatch(/\btracking-/);
     expect(label.className).toContain("text-meta");
     expect(label.className).toContain("font-semibold");
     expect(label.className).toContain("text-ink-muted");
     expect(label.title).toBe("Production / Databases");
-    expect(screen.getByText("Production").title).toBe("Production");
+    expect(screen.getByText("Production").parentElement?.title).toBe("Production");
   });
 
   it("keeps the empty texts", async () => {
