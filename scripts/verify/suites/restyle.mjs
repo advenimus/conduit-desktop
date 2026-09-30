@@ -23,6 +23,7 @@ import {
   ACME,
   SCRATCH,
   clickInTopDialog,
+  clearConnectionHistory,
   closeAllSessions,
   createVaultShowing,
   fillAcme,
@@ -179,9 +180,11 @@ async function tabsBody(ctx, d, mode, rs) {
   await waitForText(d, 'Welcome back');
   await rs.check(d, mode, 'home-dashboard-tab', { webSession: true });
   await closeAllSessions(d);
+  await clearConnectionHistory(d);
   await selectEntry(d, null);
   await waitForText(d, 'Welcome back');
-  // Shot 40 shows the dashboard alone in the window, with no session open.
+  // Shot 40 shows Home alone in the window: only the pinned Home tab, and no connection history, so
+  // the cards do not depend on the sessions the earlier steps opened.
   await rs.shot(d, mode, '40-home-dashboard-pinned');
   await inv(rs, d, mode, 'home-dashboard-full-window', dirs);
   await rs.check(d, mode, 'home-dashboard-full-window');
