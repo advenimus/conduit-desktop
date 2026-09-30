@@ -41,7 +41,7 @@ Removed or replaced behavior:
 
 - Selecting an entry or folder in the side bar no longer shows its dashboard in an empty single pane. With a pinned Home tab the first pane is never empty while a vault is open. "View Info" opens entry info and folder views as tabs.
 - Home drops the tag chips and the "Recently Modified" list. The search box matches tags.
-- `docs/VISUAL_REDESIGN.md` R3-DASHBOARD and the restyle suite's `home-dashboard-full-window` inventory describe the old Home. That inventory will not match after this work; refreshing its fixtures is a follow-up and not part of these packages. Home keeps the "Welcome back" heading, which the restyle suite waits for.
+- `docs/VISUAL_REDESIGN.md` R3-DASHBOARD and the restyle suite's `home-dashboard-full-window` inventory describe the old Home. That inventory will not match after this work; refreshing its fixtures needs a live run of the restyle suite (11.2). Home keeps the "Welcome back" heading, which the restyle suite waits for. The harness's `closeAllSessions` (`scripts/verify/lib/restyle-data.mjs`) closes every tab but Home and treats "only Home left" as done, and the suite clears the connection history before shot 40 so Home shows the same cards on every run.
 
 ## 3. Home tab and navigation
 
@@ -72,7 +72,7 @@ All entry points call `openHome()` from `src/lib/openHome.ts`:
 
 The microtask matters: `lockVault` calls `clearAll()` and `resetLayout()` before it sets `isUnlocked: false`. A synchronous check would put Home back into a layout that is about to be reset. By the time the microtask runs, the vault reads as locked and nothing happens.
 
-Cases: unlock, vault switch (`openVault`, `openTeamVault` then unlock), `close-all-sessions` (menu), `vault-locked-by-system` then unlock, and a new vault from `createVault` all end with Home as the first tab of the single pane.
+Cases: unlock, vault switch (`openVault`, `openTeamVault` then unlock), `close-all-sessions` (menu), `vault-locked-by-system` then unlock, and a new vault from `createVault` all end with Home as the first tab of the single pane. `openVault` sets `isUnlocked: false` in the same synchronous step as `clearAll()` and `resetLayout()`, before its first `await`, so the guard never puts Home into the vault it is leaving. The guard skips a missing sessions list (the layout store and the recorder read it as empty) and checks again on the next change.
 
 ### 3.4 Empty pane shows Home
 
@@ -98,31 +98,34 @@ Sections top to bottom. Each is hidden when the user turns it off in Customize, 
 |   +-------------------------------------------------------------------------+ |
 |                                                                               |
 |   +- Recently connected -----------------+ +- Open now ---------------------+ |
-|   | [ssh] web-01            5m ago  K  i | | [ssh] web-01        * Connected| |
+|   | [ssh] web-01                  Open   | | [ssh] web-01        * Connected| |
 |   | [rdp] DC01              2h ago       | | [>_]  Terminal      * Connected| |
 |   | [web] Intranet  Failed  Yesterday    | | [rdp] DC01   * Connecting...   | |
 |   +--------------------------------------+ +--------------------------------+ |
 |   +- Favorites --------------------------+ +- Needs attention --------------+ |
-|   | [ssh] web-01                     SSH | | ! 2 changes to review [Review] | |
+|   | [ssh] web-01                    K  i | | ! 2 changes to review [Review] | |
 |   | [web] Intranet Status            Web | | ! 14 passwords older than      | |
-|   |                                      | |   180 days              [Show] | |
+|   |                                      | |   180 days      [Show entries] | |
 |   +--------------------------------------+ +--------------------------------+ |
 |   +- AI activity ------------------------------------------------------------+ |
 |   | Recent tool calls from AI agents on this device                          | |
-|   | [*] Terminal execute . web-01                                    2m ago  | |
-|   | [*] Website screenshot . Intranet                   Failed       9m ago  | |
+|   | [ssh] Terminal execute . web-01                                  2m ago  | |
+|   | [web] Website screenshot . Intranet                 Failed       9m ago  | |
 |   +--------------------------------------------------------------------------+ |
-|   +- Vault Status -----------------------+ +- Overview ---------------------+ |
-|   | * Device Sync            Up to date  | | [SSH 4]  [RDP 2]  [VNC 1]      | |
-|   | * Local Backup           Last: 2h ago| | [Web 3]  [Command 2]           | |
-|   | Plan Usage                    12/20  | | 3 credentials 1 document       | |
-|   +--------------------------------------+ | 4 folders                      | |
-|                                            +--------------------------------+ |
+|   +- Vault status -----------------------+ +- Overview ---------------------+ |
+|   | * Device sync            Up to date  | | [SSH 4]  [RDP 2]  [VNC 1]      | |
+|   | * Local backup         Last: 2h ago  | | [Web 3]  [Command 2]           | |
+|   | Plan usage                    12/20  | +--------------------------------+ |
+|   +--------------------------------------+                                    |
 +-------------------------------------------------------------------------------+
-K = Copy password, i = View info (IconButtons shown on row hover or focus, ListRow `trailing`)
+K = Copy password, i = View info (IconButtons shown on row hover or focus over the row's meta, ListRow `trailing` with `trailingOverlay`)
 ```
 
-Layout: header row, then the quick bar (full width), then one `grid grid-cols-1 @2xl:grid-cols-2 gap-4` holding the cards in order: Recently connected, Open now, Favorites, Needs attention, AI activity (`@2xl:col-span-2`), Vault Status, Overview. Two columns start at a pane width of 42rem (container query), not a window width. A hidden card takes no cell; later cards move up.
+Layout: header row, then the quick bar (full width), then one `grid grid-cols-1 items-start @2xl:grid-cols-2 gap-4` holding the cards in order: Recently connected, Open now, Favorites, Needs attention, AI activity (`@2xl:col-span-2`), Vault status, Overview. Two columns start at a pane width of 42rem (container query), not a window width. A hidden card takes no cell; later cards move up. `items-start` keeps each card at its own height, so a short card beside a tall one leaves no empty card area.
+
+When every section is hidden in Customize, the page shows one line under the header: "All sections are hidden. Use Customize to show them." (`text-label text-ink-faint`).
+
+**Active view.** `DashboardOverview` takes `active` (default true). `PaneContent` passes `active={false}` while the Home tab is mounted behind another tab of its pane (inactive tabs stay mounted with `display: none`); an empty pane's Home is always active. Recently connected and AI activity load only for an active view (4.3, 4.7).
 
 ### 4.1 Header
 
@@ -146,11 +149,11 @@ Search:
 ### 4.3 Recently connected (`recent`)
 
 - Source: `dashboardApi.historyRecent({ limit: 8 })`, filtered to entries that still exist in `useEntryStore`.
-- Row: `ListRow`, entry icon, entry name, `meta` = relative time of `lastStartedAt` (`formatRelativeTime`), preceded by `Badge tone="danger"` "Failed" when `lastOutcome` is `failed`. When `lastOutcome` is `open` the meta reads "Now".
+- Row: `ListRow`, entry icon, entry name, `meta` = relative time of `lastStartedAt` (`formatRelativeTime`), preceded by `Badge tone="danger"` "Failed" when `lastOutcome` is `failed`. When `lastOutcome` is `open` the meta reads "Open".
 - Row click opens the entry, the same as the quick bar's open rule (this is the Open action).
-- `trailing`: `IconButton icon="key" label="Copy password"` and `IconButton icon="infoCircle" label="View info"`.
-- Copy password: `resolveCredential(entryId)`, then the clipboard. Toasts "Password copied" or "No password available" (same strings as the tab menu), "Couldn't copy the password" on a clipboard error.
-- Refresh: on mount, and 750 ms after the set of session ids changes (debounced), and after Clear connection history.
+- `trailing` (`EntryRowActions`, with `trailingOverlay`): `IconButton icon="key" label="Copy password"` and `IconButton icon="infoCircle" label="View info"`. On hover or focus they cover the meta, which fades out, so rows with actions keep the same width and right edge as rows without (Open now). Copy password is not shown for an entry the plan locks (`useTierStore` `lockedEntryIds`); View info stays.
+- Copy password: `resolveCredential(entryId)`, then the clipboard. Toasts "Password copied" or "No password available" (same strings as the tab menu), "Couldn't copy the password" on a clipboard error. The main process also refuses `entry_resolve_credential` for a plan-locked entry (`electron/services/tier-lock.ts`, the tier store's oldest-first rule; team vaults, local mode and a missing limit are never locked there).
+- Refresh: one shared load (`home/homeFeeds.ts`) for every Home view on screen. It runs when an active Home view sees a new set of session ids (750 ms debounce), after Clear connection history, and after the vault unlocks or another vault opens. A lock drops the rows. Views that mount later show the loaded rows at once.
 
 ### 4.4 Open now (`open-now`)
 
@@ -161,7 +164,7 @@ Search:
 
 ### 4.5 Favorites (`favorites`)
 
-As today: entries with `is_favorite`, in store order; click selects, double-click opens (credentials do not open); `meta` = type label. Hidden when there are no favorites (the old "Star entries to add them here" line goes away).
+Entries with `is_favorite`, in store order; `meta` = type label. A single click uses the open rule of Recently connected (a credential opens its info tab, anything else opens). The row has the same trailing actions over the meta as Recently connected (Copy password, not for plan-locked entries, and View info). Hidden when there are no favorites (the old "Star entries to add them here" line goes away).
 
 ### 4.6 Needs attention (`attention`)
 
@@ -177,7 +180,7 @@ Hidden when there are no items. Items are built by a pure function (`buildAttent
 | `local-backup-stale` | enabled, not failed, `lastBackedUpAt` older than `backupStaleDays` | warning | "No local backup in {n} days" | "Last backup {relative time}." | "Open Backup settings" |
 | `cloud-backup-failed` | `authMode !== "local"`, cloud backup enabled, status `error` | danger | "Cloud backup failed" | `cloudSyncState.error` | "Open Backup settings" |
 | `cloud-backup-stale` | as above, not failed, `lastSyncedAt` older than `backupStaleDays` | warning | "No cloud backup in {n} days" | "Last backup {relative time}." | "Open Backup settings" |
-| `password-age` | `passwordAgeDays` not null and one or more existing entries have `setAt` older than it | warning | "{n} password older than {period}" / "{n} passwords older than {period}" | "Change old passwords to keep your accounts safe." | "Show" / "Hide": toggles a list under the item |
+| `password-age` | `passwordAgeDays` not null and one or more existing entries have `setAt` older than it | warning | "{n} password older than {period}" / "{n} passwords older than {period}" | "Change old passwords to keep your accounts safe." | "Show entries" / "Hide entries": toggles a list under the item |
 | `connection-limit` | `maxConnections > 0` and connection count >= `maxConnections` | warning | "All {max} connections on your plan are in use" | "Upgrade to add more." | "See plans": `invoke("auth_open_pricing")` |
 | `device-limit` | `sync.displaced?.reason === "device_cap"` or `sync.sessionConflict?.cause === "device_cap"` | warning | "Device limit reached" | "Your plan allows {cap} devices at once." (`deviceCap` from the event, else `DEFAULT_DEVICE_CAP`) | "See plans" |
 | `trial-ending` | `isTrialing` and 0 <= days <= `TRIAL_WARN_DAYS` (7) | danger when days <= 3, else warning | "Your Pro trial ends today" / "Your Pro trial ends tomorrow" / "Your Pro trial ends in {n} days" | "Upgrade to keep Pro features." | "See plans" |
@@ -193,28 +196,30 @@ Hidden when there are no items. Items are built by a pure function (`buildAttent
 
 - Source: `dashboardApi.aiActivity({ limit: 5 })`. Hidden when `logFound` is false or there are no items.
 - `SectionHeader` title "AI activity", description "Recent tool calls from AI agents on this device".
-- Row: `ListRow` with icon `sparkles`, label = tool label, plus " · {target}" when a target is known. Target = the entry name for `entryId`, else the session title for `sessionId`. `meta` = a badge for non-success outcomes (8.2) and the relative time.
+- Row: `ListRow` led by the entry's type icon (in the entry's color) when `entryId` names an entry that exists, else `sparkles`; label = tool label, plus " · {target}" when a target is known. Target = the entry name for `entryId`, else the session title for `sessionId`. `meta` = a badge for non-success outcomes (8.2) and the relative time.
 - Tool label: underscores become spaces and the first letter is upper case ("terminal_execute" becomes "Terminal execute").
 - Row click: `openDashboardForEntry(entryId)` when the entry exists; otherwise the row is not a button.
-- Refresh: on mount and every `AI_ACTIVITY_POLL_MS` (30 s) while `document.visibilityState === "visible"`.
+- Refresh: one shared poller (`home/homeFeeds.ts`) for every Home view. It loads when the first active Home view appears, then every `AI_ACTIVITY_POLL_MS` (30 s) and when the window becomes visible again, only while `document.visibilityState === "visible"`, and stops when no Home view is active. A second active view reuses the same data; a load in flight is shared.
 
 ### 4.8 Vault status (`vault-status`)
 
-`VaultStatusCard` and the Overview card as today, with one change: the Overview tiles add Command (`SSH, RDP, VNC, Web, Command`, `grid-cols-3`). Both cards hide together with this one switch.
+- **Vault status** (`VaultStatusCard`, title "Vault status"): each status row is a `ListRow` with a 12 px filled dot as `leading` (the Open now colors: connected, error, connecting; faint for off and idle) and the detail as `meta` (`text-meta text-ink-faint`, truncated at 12rem with the full text as its tooltip). Labels in sentence case: "Device sync", "Cloud backup", "Local backup", "Team sync", "Plan usage" (with its bar under the row), "Trial".
+- **Overview** (`OverviewCard`): the shared type tiles (`TypeTiles`, order SSH, RDP, VNC, Web, Command, `grid-cols-3`) for the connection types that have entries; zero tiles are not drawn. No counts line (the header already has the counts). The card hides when no connection type has entries.
+- Both cards hide together with this one switch ("Vault status and overview").
 
 ### 4.9 Customize
 
 - Trigger: `Button variant="ghost" size="sm" icon="settings"` "Customize", right of the heading.
 - Opens a `Popover` (placement below, right-aligned) holding:
   - Title "Customize Home" (`text-label font-semibold text-ink`).
-  - Group label "Show on Home", then one `Checkbox` per section with the labels in `HOME_SECTION_LABELS`.
+  - Group label "Show on Home", then one `Checkbox` per section with the labels in `HOME_SECTION_LABELS` (the last one reads "Vault status and overview").
   - Group label "Needs attention", then `FormField` "Warn about passwords older than" with a `Select`: "90 days", "180 days", "1 year", "Never"; `FormField` "Warn about backups older than" with a `Select`: "3 days", "7 days", "14 days", "30 days".
   - A divider, then `Button variant="link" size="sm"` "Clear connection history..." which opens `ConfirmDialog` (title "Clear connection history?", message "This removes the list of past connections for this vault on this device. Your entries do not change.", confirm "Clear history", variant `danger`). On success: `toast.success("Connection history cleared")`; on failure `toast.error("Couldn't clear the connection history")`.
 - Changes save at once with `ui_state_set({ key: "home-dashboard", value })`. Reading uses `ui_state_get`; a missing or malformed value falls back to `DEFAULT_HOME_SETTINGS` field by field (unknown section ids are dropped, numbers outside the option lists fall back to the default). Stored per device in `{dataDir}/ui-state.json` [V].
 
 ### 4.10 Loading and errors
 
-Background loads (history, password ages, AI activity) never toast. On failure the section hides and the code logs `console.warn` with the channel name. A section shows no spinner while its first load runs; it appears when data arrives.
+Background loads (history, password ages, AI activity) never toast. On failure the section hides and the code logs `console.warn` with the channel name. A section shows no spinner while its first load runs; it appears when data arrives. The saved Home settings load once at app start (`preloadHomeSettings` from `App.tsx`), so the first Home paint already knows which sections are hidden, and later Home views reuse the shared feeds instead of loading again.
 
 ## 5. Folder view
 
@@ -241,23 +246,25 @@ Opened by "View Info" on a folder in the side bar (new menu item) and by choosin
 P = Check if it is up, > = Open, i = View info (ListRow trailing, shown on hover or focus)
 ```
 
+- **Width**: the page content (header row, tiles, toolbar, list) sits in `mx-auto w-full max-w-4xl`, Home's width; the header's `border-b` still spans the pane.
 - **Header** (as today: `p-6 border-b border-divider`, folder icon 28, name, counts line). Right side: `Button` "Check all", `Button variant="primary"` "Open all", `IconButton icon="plus" label="New Entry"` (dispatches `conduit:new-entry` with `{ folderId }`).
-- **Type cards** as today. The type distribution bar, "Recent Activity" and "Entry Age" blocks are removed; the list below covers them.
+- **Type tiles**: the same `TypeTiles` markup as Home's Overview, in the shared order SSH, RDP, VNC, Web, Command, Document, Credential, one tile per type present, labelled with the type labels of 4.2. The type distribution bar, "Recent Activity" and "Entry Age" blocks are removed; the list below covers them.
 - **Toolbar**: `SearchInput` placeholder "Search this folder..." (max width `max-w-sm`), and on the right the label "Sort by" with a `Select`: "Name" (A to Z), "Type" (type label, then name), "Last connected" (newest first, never last), "Status" (reachable, refused, timeout, unreachable, not found, not checked; then name).
 - **List**: every entry in the folder and all its sub-folders (the recursive rule of today's `FolderDashboard`), filtered by the search (name, host, tags; case-insensitive), in the chosen order.
 - **Row**: `ListRow`, entry icon, name. `description`: the host for connection types, plus " · in {sub-folder path}" for entries below a sub-folder (path joined with " / ", relative to the viewed folder). `meta`: the reachability badge when checked (8.3), then the relative time of the last connection from `dashboardApi.historyRecent({ limit: 50 })` when known. `trailing`: `IconButton icon="plug" label="Check if it is up"` (connection types with a host only; disabled while that row checks), `IconButton icon="playerPlay" label="Open"` (not for credentials), `IconButton icon="infoCircle" label="View info"`.
 - **Row click**: a credential opens its info tab; anything else opens (`openEntry`).
-- **Open all**: opens the listed (filtered) entries of type ssh, rdp, vnc and web that are not locked. Commands, documents and credentials are skipped. More than `OPEN_ALL_CONFIRM_THRESHOLD` (5): `ConfirmDialog` title "Open {n} connections?", message "This opens {n} sessions at once. Commands and documents are not opened.", confirm "Open {n}", cancel "Cancel". Entries open one after another (`await openEntry(id)` each). Disabled with title "Nothing to open here" when the count is 0.
+- **Open all**: opens the listed (filtered) entries of type ssh, rdp, vnc and web that are not locked. Commands, documents and credentials are skipped. It stops before the next entry once the folder view unmounts or the vault locks. More than `OPEN_ALL_CONFIRM_THRESHOLD` (5): `ConfirmDialog` title "Open {n} connections?", message "This opens {n} sessions at once. Commands and documents are not opened.", confirm "Open {n}", cancel "Cancel". Entries open one after another (`await openEntry(id)` each). Disabled with title "Nothing to open here" when the count is 0.
 - **Check all**: checks the listed entries that can be checked (ssh, rdp, vnc, web with a host), in list order, at most `CHECK_ALL_LIMIT` (50), four at a time. While it runs the button reads "Checking {done} of {total}..." and is disabled. When the list had more than 50: `toast.info("Checked the first 50 entries", "Search or sort the list to check others.")`.
 - **Empty folder**: as today ("This folder is empty" and New Entry). **No match**: "No entries match your search" (`text-label text-ink-faint`, centered).
-- Results of checks are kept per tab while it is mounted; they are not saved.
+- Results of checks are shared by every folder view and entry info tab (one store in `reachability/useReachability.ts`), so a split or a remounted tab keeps them. They are dropped when the vault locks and are never saved. A result is hidden once the entry's type, host or port differs from the one that was checked.
+- The tab of a folder view or an entry info tab has no status dot; it is a page, not a connection.
 
 ## 6. Entry info additions (EntryDashboard)
 
 ```
 +-------------------------------------------------------------------------------+
 |  [ssh] web-01                                   * pen ext     [Open Session]  |
-|        ssh                                                                    |
+|        SSH                                                                    |
 +-------------------------------------------------------------------------------+
 |  Host         web01.example.com:22                                     [copy] |
 |  Is it up?    [Up] Answered in 24 ms . checked just now        [Check again]  |
@@ -274,6 +281,8 @@ P = Check if it is up, > = Open, i = View info (ListRow trailing, shown on hover
 +-------------------------------------------------------------------------------+
 ```
 
+The header's second line is the type label of 4.2 ("SSH", "RDP", "VNC", "Web", "Command", "Document", "Credential"), not the raw type.
+
 ### 6.1 "Is it up?"
 
 - A `DetailRow` right after Host, for ssh, rdp, vnc and web entries that have a host. Icon `plug`.
@@ -286,6 +295,7 @@ P = Check if it is up, > = Open, i = View info (ListRow trailing, shown on hover
 - For ssh, rdp, vnc, web and command entries. Below the details column (left column when notes exist).
 - `SectionHeader` title "Recent connections", description "Connections from this device only."
 - Source: `dashboardApi.historyForEntry({ entryId, limit: 20 })`, loaded on mount and 750 ms after the session ids change.
+- The list sits at `-mx-2`, so the rows' own padding lines their icons up with the detail rows above.
 - Row: `ListRow` without `onClick`. Leading icon and label by outcome (8.2). `meta`: date and time (`toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })`), plus " · {duration}" when `durationMs` is known and the outcome is not `failed` (a failed row's time is the connection attempt). Duration: under 60 s "{s} s", under 60 min "{m} min", else "{h} h {m} min".
 - Empty: "No connections from this device yet." (`text-label text-ink-faint`).
 - Load error: the section shows the empty line and logs `console.warn`.
@@ -315,12 +325,13 @@ CREATE INDEX IF NOT EXISTS idx_history_vault_entry ON connection_history (vault_
 - **Vault key** (computed in the main process at `start`, never sent by the renderer): a team vault is `team:<teamVaultId>`; a personal vault is `vault:<vault_meta.vault_id>` when that value exists, read without creating it (`ConduitVault.getVaultId()` creates and syncs it, so do not call it), else `path:<first 32 hex chars of sha256(path.resolve(vault path))>`. A vault without `vault_id` that later gets one starts a new history; that is accepted.
 - **Privacy**: rows hold the vault key, entry id, protocol, times, duration and outcome. No host names, entry names, user names, error text or credentials. Deleting an entry leaves its rows; the renderer drops rows whose entry is gone, and retention removes them later.
 - **Retention**: rows with `started_at` older than `HISTORY_RETENTION_DAYS` (90) are deleted, then each vault key keeps its newest `HISTORY_MAX_ROWS_PER_VAULT` (5000). Pruning runs when the store opens and after every 50th insert.
-- **Crash and quit**: when the store opens (first use in a process) every `open` row becomes `interrupted` (ended_at and duration stay null). On `app.on('will-quit')` every `open` row gets `ended_at = now`, its duration and `closed`.
+- **Crash, reload and quit**: when the store opens (first use in a process) every `open` row becomes `interrupted` (ended_at and duration stay null). A renderer that starts (app start or a reload) calls `connection_history_interrupt_open` before its first start, since it cannot end rows an earlier renderer opened; all rows in the file belong to this device. On `app.on('will-quit')` every `open` row gets `ended_at = now`, its duration and `closed`.
+- **File safety**: on macOS and Linux the file is created `0600` before SQLite opens it, and the file, `-wal` and `-shm` are set to `0600` after open (SQLite gives new WAL files the database file's mode). The crash cleanup and pruning run inside the guarded open, which closes the handle on any failure. A file that fails with `SQLITE_CORRUPT*` or `SQLITE_NOTADB` is renamed with its `-wal` and `-shm` to `connection-history.db.damaged-<ms>` and a new file is created once; history is only a convenience.
 - **Times** come from the main process clock, ISO 8601.
 
 ### 7.2 Recording rules (renderer recorder)
 
-`installConnectionHistoryRecorder()` in `src/lib/connectionHistoryRecorder.ts` (installed from `src/main.tsx` by the contract commit) subscribes to `useSessionStore` and compares each state with the previous one. Recording in the renderer covers every protocol with one hook and knows the entry id, which the main process does not have for SSH (`ssh_session_create` gets only host and port [V]). Sessions opened by MCP tools arrive without an entry id (`session:mcp-created` [V]) and are not recorded; they show in AI activity.
+`installConnectionHistoryRecorder()` in `src/lib/connectionHistoryRecorder.ts` (installed from `src/main.tsx` by the contract commit) first calls `connection_history_interrupt_open` (7.1; starts wait for it, and a failure only logs), then subscribes to `useSessionStore` and compares each state with the previous one. A missing sessions list counts as empty, the rule of the layout store. Recording in the renderer covers every protocol with one hook and knows the entry id, which the main process does not have for SSH (`ssh_session_create` gets only host and port [V]). Sessions opened by MCP tools arrive without an entry id (`session:mcp-created` [V]) and are not recorded; they show in AI activity.
 
 A session is **recordable** when it has an `entryId` and its type is ssh, rdp, vnc, web or command. The recorder keeps, per session id: entry id, protocol, the promise of the history row id, and `reachedConnected`.
 
@@ -346,7 +357,7 @@ WHERE e.password_encrypted IS NOT NULL
 GROUP BY e.id
 ```
 
-`setAt` = `last_changed` (source `history`) or `created_at` (source `created`). A history row stores the old password at the moment it changed, so its `changed_at` is when the current password was set [V: `recordPasswordHistory`]. The DATA package confirms that every path that changes a password records history (entry edit, MCP credential tools, imports) and lists any that do not [A]. Entries that use a linked credential have no password of their own and are not listed; their credential entry is. Returns `[]` when no vault is unlocked.
+`setAt` = `last_changed` (source `history`) or `created_at` (source `created`). A history row stores the old password at the moment it changed, so its `changed_at` is when the current password was set [V: `recordPasswordHistory`]. History rows cover the username and the password together, so an edit that changes only the username also writes a row and resets the age. This is accepted: the vault schema is shared with other devices and the iOS app and does not change for this, and the Needs attention wording ("passwords older than") stays. The DATA package confirms that every path that changes a password records history (entry edit, MCP credential tools, imports) and lists any that do not [A]. Entries that use a linked credential have no password of their own and are not listed; their credential entry is. Returns `[]` when no vault is unlocked.
 
 ### 7.4 AI activity
 
@@ -356,6 +367,7 @@ GROUP BY e.id
 - **Environment filter**: keep lines whose `env` equals `getEnvConfig().environment`. Lines without `env` (written before this change) are kept only when the app runs as `production`.
 - **Fields out**: `at`, `tool`, `outcome`, `durationMs` (`duration_ms`, 0 when missing), `entryId` from `parameters.entry_id` (or `parameters.id` for tools whose name starts with `entry_`, `credential_` or `document_`), `sessionId` from `parameters.session_id`. An id is kept only when it matches `^[A-Za-z0-9_-]{1,64}$`. No other parameter and no error text leaves the main process.
 - Newest first, `limit` clamped to 1..`AI_ACTIVITY_MAX`. A read error logs a warning and returns `{ items: [], logFound: false }`. No file watching; the renderer polls.
+- While no vault is active (locked, or soft-locked because another device took it over), the channel answers `{ items: [], logFound: false }` without reading the log.
 
 ### 7.5 Reachability check
 
@@ -363,7 +375,7 @@ GROUP BY e.id
 - **Target**: ssh uses `port ?? 22`, rdp `port ?? 3389`, vnc `port ?? 5900`. web parses the host field as a URL (adds `https://` when there is no scheme); hostname from the URL (square brackets removed for IPv6), port from the URL or 443 for `https:` and 80 for `http:`; other schemes are `invalid`. command, document and credential are `not_checkable`.
 - **Validation**: host trimmed, 1 to 253 characters, and either `net.isIP(host) !== 0` or a DNS name (labels of letters, digits, `-` and `_`, 1 to 63 characters, not starting or ending with `-`). Port an integer 1..65535. Otherwise `invalid`. No host at all is `invalid`.
 - **Check**: one timer of `REACHABILITY_TIMEOUT_MS` (3 s) covers name lookup and connect. `connect` event: `reachable` with `latencyMs`, then destroy the socket. Errors: `ECONNREFUSED` refused; `ENOTFOUND`, `EAI_AGAIN`, `EAI_NONAME` not_found; `ETIMEDOUT` timeout; `EHOSTUNREACH`, `ENETUNREACH`, `EHOSTDOWN`, `ENETDOWN` and anything else unreachable. The timer firing is `timeout`. Always destroy the socket and clear the timer.
-- **Limits**: at most `REACHABILITY_MAX_CONCURRENT` (4) checks at once, the rest wait in order. A check of the same entry within `REACHABILITY_MIN_INTERVAL_MS` (2 s) of its last result returns that result; a check of an entry already in flight shares its promise.
+- **Limits**: at most `REACHABILITY_MAX_CONCURRENT` (4) checks at once, the rest wait in order. A slot is held until the check's result is in and its name lookup has returned: the socket uses the system resolver (`dns.lookup`, so `.local` names and `/etc/hosts` keep working) through a wrapped `lookup` option, and a timed-out socket cannot cancel `getaddrinfo`, so a stalled resolver never piles up more than four lookups. A check of the same entry, type, host and port within `REACHABILITY_MIN_INTERVAL_MS` (2 s) of its last result returns that result; one already in flight shares its promise. An edited host, port or type is a new check.
 - **Direct only**: entries have no proxy or jump host settings [V], so there is nothing to follow. The check uses the operating system's name lookup and does not use the app's proxy settings. The UI says so (6.1). Logs never print host names above debug level.
 
 ## 8. UI strings
@@ -386,9 +398,11 @@ Every user-visible string of this feature. Strings not listed here stay as they 
 | New Entry | New Entry; disabled reason: View-only access |
 | No search match | No entries or folders match |
 | Result type labels | SSH, RDP, VNC, Web, Command, Document, Credential, Folder |
-| Card titles | Recently connected, Open now, Favorites, Needs attention, AI activity, Vault Status, Overview |
-| Recently connected meta | Now, {relative time}; badge Failed |
-| Row actions | Copy password, View info |
+| Card titles | Recently connected, Open now, Favorites, Needs attention, AI activity, Vault status, Overview |
+| All sections hidden | All sections are hidden. Use Customize to show them. |
+| Recently connected meta | Open, {relative time}; badge Failed |
+| Row actions (Recently connected, Favorites) | Copy password, View info |
+| Vault status rows | Device sync, Cloud backup, Local backup, Team sync, Plan usage, Trial |
 | Toasts | Password copied / No password available / Couldn't copy the password |
 | Open now overflow | +{n} more |
 | AI activity description | Recent tool calls from AI agents on this device |
@@ -396,11 +410,11 @@ Every user-visible string of this feature. Strings not listed here stay as they 
 | Overview tiles | SSH, RDP, VNC, Web, Command |
 | Customize title | Customize Home |
 | Customize groups | Show on Home / Needs attention |
-| Section labels | Search and quick actions, Recently connected, Open now, Favorites, Needs attention, AI activity, Vault status |
+| Section labels | Search and quick actions, Recently connected, Open now, Favorites, Needs attention, AI activity, Vault status and overview |
 | Threshold fields | Warn about passwords older than: 90 days, 180 days, 1 year, Never / Warn about backups older than: 3 days, 7 days, 14 days, 30 days |
 | Clear history | Clear connection history... / Clear connection history? / This removes the list of past connections for this vault on this device. Your entries do not change. / Clear history / Cancel |
 | Clear toasts | Connection history cleared / Couldn't clear the connection history |
-| Needs attention | The titles, details and action labels in the table of 4.6, plus "Hide" (after Show), "{age} old", "And {k} more" |
+| Needs attention | The titles, details and action labels in the table of 4.6, plus "Hide entries" (after Show entries), "{age} old", "And {k} more" |
 
 ### 8.2 Status words
 
@@ -423,8 +437,8 @@ Every user-visible string of this feature. Strings not listed here stay as they 
 
 | Status | Badge (tone) | Detail |
 |---|---|---|
-| reachable | Up (success) | Answered in {ms} ms |
-| refused | Port closed (warning) | The host answered, but nothing is listening on port {port} |
+| reachable | Up (success) | Answered in {ms} ms (rounded); Answered in under 1 ms when the latency is under 1 ms or unknown |
+| refused | Port closed (warning) | Nothing is listening on port {port} |
 | timeout | No answer (warning) | No answer in 3 seconds |
 | unreachable | Down (danger) | No route to this host |
 | not_found | Unknown host (danger) | Could not find this host name |
@@ -456,6 +470,7 @@ Every user-visible string of this feature. Strings not listed here stay as they 
 
 | Where | String |
 |---|---|
+| Header type line | SSH, RDP, VNC, Web, Command, Document, Credential |
 | Row label | Is it up? |
 | Section | Recent connections / Connections from this device only. |
 | Empty | No connections from this device yet. |
@@ -490,8 +505,9 @@ All handlers live in `electron/ipc/dashboard.ts` (`registerDashboardHandlers`, c
 | `connection_history_recent` | `HistoryRecentRequest { limit? }` | `RecentConnection[]` | Active vault only; one row per entry, newest first; limit default 8, clamp 1..50; `[]` when locked |
 | `connection_history_for_entry` | `HistoryForEntryRequest { entryId, limit? }` | `ConnectionHistoryEvent[]` | Active vault only; newest first; default 20, clamp 1..100; `[]` when locked |
 | `connection_history_clear` | `{}` | `HistoryClearResponse { deleted }` | Active vault only; `{ deleted: 0 }` when locked |
+| `connection_history_interrupt_open` | `{}` | `HistoryInterruptResponse { interrupted }` | Every `open` row becomes `interrupted`; works while locked. Called once by each new recorder (7.2) |
 | `password_age_list` | `{}` | `PasswordAgeItem[]` | `[]` when locked |
-| `ai_activity_recent` | `AiActivityRequest { limit? }` | `AiActivityResponse { items, logFound }` | Default 20, clamp 1..100 |
+| `ai_activity_recent` | `AiActivityRequest { limit? }` | `AiActivityResponse { items, logFound }` | Default 20, clamp 1..100; `{ items: [], logFound: false }` while no vault is active |
 | `reachability_check` | `ReachabilityRequest { entryId }` | `ReachabilityResult` | Rejects "Vault is locked" and "Entry not found" |
 
 ### 9.3 Renderer events and menu actions
@@ -663,7 +679,7 @@ Each package works in its own worktree branched from the contract commit, commit
 
 1. `npx vitest run`, `cd mcp && npx vitest run`, both `tsc` runs, `npm run lint`, `npm run build`.
 2. One app run with a one-off capture script: unlock a vault with a few entries, favorites, a sub-folder and a password older than 180 days; check Home (all sections, then Customize hiding two sections), the search results, the pinned tab with no close button, Cmd+Shift+H from a session, lock and unlock (Home comes back), a folder view with a check and Open all confirm, and an entry info tab with a check and history.
-3. Known follow-up, not in this work: refresh the restyle suite's `home-dashboard-full-window` inventory and shot 40.
+3. Known follow-up, needs a live run: refresh the restyle suite's `home-dashboard-full-window` inventory (its allowed delta in `scripts/verify/fixtures/restyle/allowed-deltas.json`) and the composite of shot 40 with `node scripts/verify/run.mjs restyle --strict --only tabs`. The harness side is ready: `closeAllSessions` leaves only Home, and the suite clears the connection history before shot 40.
 
 ## 12. Known limits
 
