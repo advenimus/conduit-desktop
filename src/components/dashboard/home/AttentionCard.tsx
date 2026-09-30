@@ -77,7 +77,7 @@ function PasswordList({ entryIds, entries, setAt }: PasswordListProps) {
   const now = Date.now();
   const more = listed.length - PASSWORD_AGE_LIST_LIMIT;
   return (
-    <div className="mt-2 space-y-px">
+    <div className="mt-2 ml-4 space-y-px">
       {listed.slice(0, PASSWORD_AGE_LIST_LIMIT).map((entry) => (
         <ListRow
           key={entry.id}
