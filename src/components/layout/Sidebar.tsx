@@ -303,7 +303,7 @@ export default function Sidebar() {
       <div
         data-cv-sidebar-header
         className={cx(
-          "flex h-tabstrip shrink-0 items-center gap-1 px-1.5",
+          "flex h-tabstrip shrink-0 items-center gap-0.5 px-1",
           isTeamVaultActive && "border-l-2 border-l-team-border-strong bg-team",
         )}
       >
@@ -328,7 +328,7 @@ export default function Sidebar() {
                 <span className="sr-only">{INDICATOR_TEXT}</span>
               </span>
             )}
-            <ChevronDownIcon size={16} className="shrink-0 text-ink-muted" />
+            <ChevronDownIcon size={16} className="-ml-0.5 shrink-0 text-ink-muted" />
           </button>
           {showVaultMenu && (
             <VaultSwitcherMenu

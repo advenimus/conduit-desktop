@@ -75,7 +75,7 @@ export function ToastCard({ type, toastId = "", title, message, actions, progres
           </div>
         )}
       </div>
-      {onClose && <IconButton size="sm" icon="close" label="Dismiss" onClick={onClose} className="-mr-1 -mt-0.5" />}
+      {onClose && <IconButton size="sm" icon="close" label="Dismiss" onClick={onClose} className="-mr-1" />}
     </div>
   );
 }
