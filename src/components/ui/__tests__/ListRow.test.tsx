@@ -33,6 +33,35 @@ describe("ListRow", () => {
     expect(screen.getByText("admin").nextElementSibling).toHaveTextContent("#prod");
   });
 
+  it("lays trailing actions over the meta with trailingOverlay, so the row keeps its right edge", () => {
+    render(
+      <ListRow onClick={() => {}} title="row" meta="5m ago" trailingOverlay trailing={<IconButton icon="key" label="Copy password" size="sm" />}>
+        web-01
+      </ListRow>,
+    );
+    const wrapper = document.querySelector('button[title="row"]')!.parentElement as HTMLElement;
+    expect(wrapper.className.split(" ")).not.toContain("pr-1");
+    expect(wrapper.className.split(" ")).toContain("relative");
+    const slot = screen.getByRole("button", { name: "Copy password" }).parentElement as HTMLElement;
+    expect(slot.className.split(" ")).toEqual(expect.arrayContaining(["absolute", "right-0", "bg-well", "opacity-0"]));
+    const meta = screen.getByText("5m ago");
+    expect(meta.className).toMatch(/group-hover\/row:opacity-0/);
+    expect(meta.className).toMatch(/group-focus-within\/row:opacity-0/);
+  });
+
+  it("keeps the separate trailing column without trailingOverlay", () => {
+    render(
+      <ListRow onClick={() => {}} title="row" meta="SSH" trailing={<IconButton icon="key" label="Copy password" size="sm" />}>
+        web-01
+      </ListRow>,
+    );
+    const wrapper = document.querySelector('button[title="row"]')!.parentElement as HTMLElement;
+    expect(wrapper.className.split(" ")).toContain("pr-1");
+    const slot = screen.getByRole("button", { name: "Copy password" }).parentElement as HTMLElement;
+    expect(slot.className).not.toMatch(/absolute/);
+    expect(screen.getByText("SSH").className).not.toMatch(/opacity-0/);
+  });
+
   it("is a div when not clickable, 22px tall without a description", () => {
     render(<ListRow>Static</ListRow>);
     const row = screen.getByText("Static").closest(".h-row");
