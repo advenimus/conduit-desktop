@@ -6,6 +6,7 @@ import { useSessionStore } from "../../../stores/sessionStore";
 import type { ReachabilityResult } from "../../../types/dashboard";
 import type { EntryFull, EntryMeta, ResolvedCredential } from "../../../types/entry";
 import { entry } from "./fixtures";
+import { resetReachabilityCache } from "../reachability/useReachability";
 
 vi.hoisted(() => {
   Object.assign(globalThis, { electron: { invoke: async () => null, on: () => () => undefined } });
@@ -53,11 +54,22 @@ beforeEach(() => {
   api.checkReachability.mockReset();
   api.historyForEntry.mockReset().mockResolvedValue([]);
   useSessionStore.setState({ sessions: [] } as never);
+  resetReachabilityCache();
 });
 
 const upRow = () => screen.getByText("Is it up?").closest(".py-3") as HTMLElement;
 
 describe("EntryDashboard (restyle)", () => {
+  it("names the type under the title with its label, not the raw type", async () => {
+    const { container, unmount } = await setup();
+    const header = container.querySelector("h2")!.closest(".border-b") as HTMLElement;
+    expect(within(header).getByText("SSH")).toHaveClass("text-label", "text-ink-muted");
+    expect(within(header).queryByText("ssh")).toBeNull();
+    unmount();
+    const web = await setup(entry({ id: "w1", name: "Intranet", entry_type: "web", host: "intra.example" }));
+    expect(within(web.container.querySelector("h2")!.closest(".border-b") as HTMLElement).getByText("Web")).toBeInTheDocument();
+  });
+
   it("sits on the editor surface with no legacy surfaces", async () => {
     const { container } = await setup();
     expect(container.firstElementChild).toHaveClass("bg-editor");

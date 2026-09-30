@@ -8,13 +8,17 @@ const text = (status: ReachabilityStatus, port: number | null = 22, latencyMs: n
   reachabilityText({ status, port, latencyMs });
 
 describe("reachabilityText", () => {
+  it("says under 1 ms for a loopback answer and rounds the rest", () => {
+    expect(text("reachable", 22, 0).detail).toBe("Answered in under 1 ms");
+    expect(text("reachable", 22, 0.4).detail).toBe("Answered in under 1 ms");
+    expect(text("reachable", 22, null).detail).toBe("Answered in under 1 ms");
+    expect(text("reachable", 22, 1).detail).toBe("Answered in 1 ms");
+    expect(text("reachable", 22, 12.6).detail).toBe("Answered in 13 ms");
+  });
+
   it("gives the badge, tone and detail of every status", () => {
     expect(text("reachable", 22, 24)).toEqual({ badge: "Up", tone: "success", detail: "Answered in 24 ms" });
-    expect(text("refused", 3389)).toEqual({
-      badge: "Port closed",
-      tone: "warning",
-      detail: "The host answered, but nothing is listening on port 3389",
-    });
+    expect(text("refused", 3389)).toEqual({ badge: "Port closed", tone: "warning", detail: "Nothing is listening on port 3389" });
     expect(text("timeout")).toEqual({ badge: "No answer", tone: "warning", detail: "No answer in 3 seconds" });
     expect(text("unreachable")).toEqual({ badge: "Down", tone: "danger", detail: "No route to this host" });
     expect(text("not_found")).toEqual({ badge: "Unknown host", tone: "danger", detail: "Could not find this host name" });

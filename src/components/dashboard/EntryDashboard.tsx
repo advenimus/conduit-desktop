@@ -19,6 +19,7 @@ import { errorText } from "../../lib/errorText";
 import ReachabilityRow from "./entry/ReachabilityRow";
 import ConnectionHistorySection from "./entry/ConnectionHistorySection";
 import { isCheckable } from "./reachability/reachabilityTarget";
+import { typeLabel } from "./home/entryDisplay";
 
 const HISTORY_TYPES: ReadonlySet<string> = new Set(["ssh", "rdp", "vnc", "web", "command"]);
 
@@ -175,7 +176,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-title font-semibold text-ink truncate">{entry.name}</h2>
-            <p className="text-label text-ink-muted capitalize">{entry.entry_type}</p>
+            <p className="text-label text-ink-muted">{typeLabel(entry.entry_type)}</p>
           </div>
           <div className="flex items-center gap-0.5">
             <IconButton

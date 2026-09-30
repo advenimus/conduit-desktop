@@ -25,10 +25,11 @@ export default function ConnectionHistorySection({ entryId }: { entryId: string 
     <section className="mt-6" data-cv-entry-history="">
       <SectionHeader title="Recent connections" description="Connections from this device only." />
       {events !== null && events.length === 0 && (
-        <p className="px-2 text-label text-ink-faint">No connections from this device yet.</p>
+        <p className="text-label text-ink-faint">No connections from this device yet.</p>
       )}
       {events !== null && events.length > 0 && (
-        <div className="space-y-px">
+        // Pulled out by the rows' own padding so their icons line up with the detail rows above.
+        <div className="-mx-2 space-y-px">
           {events.map((event) => {
             const look = OUTCOME_LOOK[event.outcome];
             return (

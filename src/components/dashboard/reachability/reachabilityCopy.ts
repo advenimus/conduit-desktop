@@ -9,17 +9,16 @@ export interface ReachabilityText {
 
 const TIMEOUT_SECONDS = Math.round(REACHABILITY_TIMEOUT_MS / 1000);
 
+const answeredIn = (latencyMs: number | null): string =>
+  latencyMs === null || latencyMs < 1 ? "Answered in under 1 ms" : `Answered in ${Math.round(latencyMs)} ms`;
+
 /** The badge, its tone and the detail line for a check result (docs/DASHBOARD.md 8.3). */
 export function reachabilityText(result: Pick<ReachabilityResult, "status" | "port" | "latencyMs">): ReachabilityText {
   switch (result.status) {
     case "reachable":
-      return { badge: "Up", tone: "success", detail: `Answered in ${result.latencyMs ?? 0} ms` };
+      return { badge: "Up", tone: "success", detail: answeredIn(result.latencyMs) };
     case "refused":
-      return {
-        badge: "Port closed",
-        tone: "warning",
-        detail: `The host answered, but nothing is listening on port ${result.port ?? "?"}`,
-      };
+      return { badge: "Port closed", tone: "warning", detail: `Nothing is listening on port ${result.port ?? "?"}` };
     case "timeout":
       return { badge: "No answer", tone: "warning", detail: `No answer in ${TIMEOUT_SECONDS} seconds` };
     case "unreachable":

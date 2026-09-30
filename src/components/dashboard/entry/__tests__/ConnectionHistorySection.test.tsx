@@ -63,6 +63,7 @@ describe("ConnectionHistorySection", () => {
       { label: "Ended when Conduit closed", meta: "Sep 29, 7:05 AM" },
     ]);
     expect(rows[2].querySelector("svg")?.getAttribute("class")).toContain("text-danger");
+    expect(rows[0].parentElement).toHaveClass("-mx-2");
   });
 
   it("says when there is no history", async () => {
