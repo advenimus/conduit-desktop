@@ -1,4 +1,5 @@
 // @vitest-environment node
+import dns from 'node:dns';
 import net from 'node:net';
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -7,8 +8,10 @@ import {
   isValidHost,
   probe,
   reachabilityTarget,
+  startProbe,
   statusForError,
   type ProbeResult,
+  type ProbeRun,
   type ProbeSocket,
   type ReachabilityEntry,
 } from '../reachability.js';
@@ -22,6 +25,10 @@ class FakeSocket extends EventEmitter implements ProbeSocket {
   destroy(): void {
     this.destroyed = true;
   }
+}
+
+function done(result: Promise<ProbeResult>): ProbeRun {
+  return { result, idle: result.then(() => undefined) };
 }
 
 function errno(code: string): Error {
@@ -130,6 +137,71 @@ describe('probe error mapping', () => {
   });
 });
 
+describe('probe name lookup', () => {
+  type LookupCallback = Parameters<net.LookupFunction>[2];
+
+  function stalledLookup() {
+    const pending: Array<{ hostname: string; callback: LookupCallback }> = [];
+    const lookup: net.LookupFunction = (hostname, _options, callback) => {
+      pending.push({ hostname, callback });
+    };
+    return { pending, lookup };
+  }
+
+  it('stays busy after the timeout until a stalled lookup returns', async () => {
+    vi.useFakeTimers();
+    const { pending, lookup } = stalledLookup();
+    const socket = new FakeSocket();
+    const run = startProbe('slow.example', 22, {
+      lookup,
+      timeoutMs: 3000,
+      connect: (opts) => {
+        opts.lookup(opts.host, {}, () => {});
+        return socket;
+      },
+    });
+    let idle = false;
+    void run.idle.then(() => {
+      idle = true;
+    });
+    await vi.advanceTimersByTimeAsync(3000);
+    await expect(run.result).resolves.toEqual({ status: 'timeout', latencyMs: null });
+    expect(socket.destroyed).toBe(true);
+    expect(idle).toBe(false);
+    expect(pending.map((p) => p.hostname)).toEqual(['slow.example']);
+    pending[0].callback(errno('EAI_AGAIN'), '', 0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(idle).toBe(true);
+  });
+
+  it('is idle with the result when no lookup ran', async () => {
+    const socket = new FakeSocket();
+    const run = startProbe('10.0.0.1', 22, { connect: () => socket, timeoutMs: 3000 });
+    socket.emit('connect');
+    await expect(run.result).resolves.toMatchObject({ status: 'reachable' });
+    await expect(run.idle).resolves.toBeUndefined();
+  });
+
+  it('passes the lookup answer through to the socket', async () => {
+    const lookup: net.LookupFunction = (_h, _o, callback) => callback(null, '10.0.0.9', 4);
+    let answer: unknown[] = [];
+    const socket = new FakeSocket();
+    const run = startProbe('web01', 22, {
+      lookup,
+      connect: (opts) => {
+        opts.lookup('web01', {}, (...args) => {
+          answer = args;
+        });
+        return socket;
+      },
+    });
+    expect(answer).toEqual([null, '10.0.0.9', 4]);
+    socket.emit('error', errno('ECONNREFUSED'));
+    await expect(run.result).resolves.toEqual({ status: 'refused', latencyMs: null });
+    await expect(run.idle).resolves.toBeUndefined();
+  });
+});
+
 describe('probe against a real loopback server', () => {
   it('gives reachable for a listening port and refused for a closed one', async () => {
     const server = net.createServer((s) => s.destroy());
@@ -144,22 +216,43 @@ describe('probe against a real loopback server', () => {
     }
     await expect(probe('127.0.0.1', openPort)).resolves.toEqual({ status: 'refused', latencyMs: null });
   });
+
+  it('resolves a name through the system lookup and becomes idle', async () => {
+    const server = net.createServer((s) => s.destroy());
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as net.AddressInfo).port;
+    const lookups: string[] = [];
+    const lookup: net.LookupFunction = (hostname, options, callback) => {
+      lookups.push(hostname);
+      dns.lookup(hostname, { ...options, family: 4 }, callback as never);
+    };
+    try {
+      const run = startProbe('localhost', port, { lookup });
+      await expect(run.result).resolves.toMatchObject({ status: 'reachable' });
+      await expect(run.idle).resolves.toBeUndefined();
+      expect(lookups).toEqual(['localhost']);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe('ReachabilityChecker', () => {
   function deferredProbe() {
     const calls: Array<{ host: string; port: number; resolve: (r: ProbeResult) => void }> = [];
     const fn = (host: string, port: number) =>
-      new Promise<ProbeResult>((resolve) => {
-        calls.push({ host, port, resolve });
-      });
+      done(
+        new Promise<ProbeResult>((resolve) => {
+          calls.push({ host, port, resolve });
+        }),
+      );
     return { calls, fn };
   }
 
   const up: ProbeResult = { status: 'reachable', latencyMs: 5 };
 
   it('builds the result with the checked host, port and time', async () => {
-    const checker = new ReachabilityChecker({ probe: async () => up, now: () => Date.parse('2026-09-29T12:00:00.000Z') });
+    const checker = new ReachabilityChecker({ probe: () => done(Promise.resolve(up)), now: () => Date.parse('2026-09-29T12:00:00.000Z') });
     await expect(checker.check(entry('ssh', 'web01', 2222))).resolves.toEqual({
       entryId: 'e1', status: 'reachable', host: 'web01', port: 2222, latencyMs: 5, checkedAt: '2026-09-29T12:00:00.000Z',
     });
@@ -195,9 +288,41 @@ describe('ReachabilityChecker', () => {
     await expect(a).resolves.toMatchObject({ status: 'reachable' });
   });
 
+  it('holds the slot of a timed-out probe until its lookup returns', async () => {
+    const idles: Array<() => void> = [];
+    const started: string[] = [];
+    const timedOut: ProbeResult = { status: 'timeout', latencyMs: null };
+    const checker = new ReachabilityChecker({
+      probe: (host) => {
+        started.push(host);
+        return { result: Promise.resolve(timedOut), idle: new Promise<void>((resolve) => idles.push(resolve)) };
+      },
+    });
+    const results = Array.from({ length: 5 }, (_, i) => checker.check(entry('ssh', `h${i}`, null, `e${i}`)));
+    await Promise.all(results.slice(0, 4));
+    expect(started).toEqual(['h0', 'h1', 'h2', 'h3']);
+    idles[1]();
+    await vi.waitFor(() => expect(started).toHaveLength(5));
+    expect(started[4]).toBe('h4');
+    for (const release of idles) release();
+    await expect(results[4]).resolves.toMatchObject({ status: 'timeout' });
+  });
+
+  it('checks again when the host, port or type changes', async () => {
+    const probeFn = vi.fn(() => done(Promise.resolve(up)));
+    const checker = new ReachabilityChecker({ probe: probeFn, now: () => 1_000_000 });
+    await checker.check(entry('ssh', 'old-host'));
+    await expect(checker.check(entry('ssh', 'new-host'))).resolves.toMatchObject({ host: 'new-host' });
+    await expect(checker.check(entry('ssh', 'new-host', 2222))).resolves.toMatchObject({ port: 2222 });
+    await expect(checker.check(entry('rdp', 'new-host', 2222))).resolves.toMatchObject({ port: 2222 });
+    expect(probeFn).toHaveBeenCalledTimes(4);
+    await checker.check(entry('rdp', 'new-host', 2222));
+    expect(probeFn).toHaveBeenCalledTimes(4);
+  });
+
   it('returns the last result within two seconds, then checks again', async () => {
     let nowMs = 1_000_000;
-    const probeFn = vi.fn(async () => up);
+    const probeFn = vi.fn(() => done(Promise.resolve(up)));
     const checker = new ReachabilityChecker({ probe: probeFn, now: () => nowMs });
     const first = await checker.check(entry('ssh', 'h'));
     nowMs += 1999;

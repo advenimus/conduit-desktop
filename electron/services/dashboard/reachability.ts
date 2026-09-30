@@ -4,6 +4,7 @@
  * system's name lookup. Host names are never logged.
  */
 
+import dns from 'node:dns';
 import net from 'node:net';
 import { EventEmitter } from 'node:events';
 import {
@@ -81,11 +82,26 @@ export interface ProbeSocket extends EventEmitter {
   destroy(): void;
 }
 
-export type SocketFactory = (options: { host: string; port: number }) => ProbeSocket;
+export type SocketFactory = (options: { host: string; port: number; lookup: net.LookupFunction }) => ProbeSocket;
 
 export interface ProbeResult {
   readonly status: Exclude<ReachabilityStatus, 'invalid' | 'not_checkable'>;
   readonly latencyMs: number | null;
+}
+
+/** A started probe. */
+export interface ProbeRun {
+  /** Settles on connect, on an error or when the timer fires. */
+  readonly result: Promise<ProbeResult>;
+  /** Settles once the result is in and every name lookup the socket started has returned. */
+  readonly idle: Promise<void>;
+}
+
+export interface ProbeOptions {
+  readonly connect?: SocketFactory;
+  readonly timeoutMs?: number;
+  /** The system name lookup the probe wraps (tests pass a stalled one). */
+  readonly lookup?: net.LookupFunction;
 }
 
 const ERROR_STATUS: Readonly<Record<string, ProbeResult['status']>> = {
@@ -101,31 +117,61 @@ export function statusForError(err: unknown): ProbeResult['status'] {
   return (typeof code === 'string' ? ERROR_STATUS[code] : undefined) ?? 'unreachable';
 }
 
-const netSocket: SocketFactory = ({ host, port }) => net.connect({ host, port });
+const netSocket: SocketFactory = ({ host, port, lookup }) => net.connect({ host, port, lookup });
 
-/** One timer covers the name lookup and the connect. The socket is always destroyed. */
-export function probe(
-  host: string,
-  port: number,
-  connect: SocketFactory = netSocket,
-  timeoutMs: number = REACHABILITY_TIMEOUT_MS,
-): Promise<ProbeResult> {
-  return new Promise((resolve) => {
+/**
+ * One timer covers the name lookup and the connect, and the socket is always destroyed. A
+ * destroyed socket cannot cancel getaddrinfo, so `idle` waits for the lookup to return: the
+ * checker holds its slot until then and a stalled resolver cannot pile up threadpool work.
+ */
+export function startProbe(host: string, port: number, opts: ProbeOptions = {}): ProbeRun {
+  const connect = opts.connect ?? netSocket;
+  const systemLookup = opts.lookup ?? (dns.lookup as net.LookupFunction);
+  let lookupsInFlight = 0;
+  let settled = false;
+  let markIdle: () => void = () => {};
+  const idle = new Promise<void>((resolve) => {
+    markIdle = resolve;
+  });
+  const checkIdle = (): void => {
+    if (settled && lookupsInFlight === 0) markIdle();
+  };
+  const lookup: net.LookupFunction = (hostname, options, callback) => {
+    lookupsInFlight += 1;
+    let returned = false;
+    const done = (): void => {
+      if (returned) return;
+      returned = true;
+      lookupsInFlight -= 1;
+      checkIdle();
+    };
+    try {
+      systemLookup(hostname, options, (...args: Parameters<typeof callback>) => {
+        done();
+        callback(...args);
+      });
+    } catch (err) {
+      done();
+      throw err;
+    }
+  };
+
+  const result = new Promise<ProbeResult>((resolve) => {
     const startedAt = Date.now();
     let socket: ProbeSocket | null = null;
-    let settled = false;
-    const finish = (result: ProbeResult): void => {
+    const finish = (res: ProbeResult): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       socket?.removeAllListeners();
       socket?.on('error', () => {});
       socket?.destroy();
-      resolve(result);
+      resolve(res);
+      checkIdle();
     };
-    const timer = setTimeout(() => finish({ status: 'timeout', latencyMs: null }), timeoutMs);
+    const timer = setTimeout(() => finish({ status: 'timeout', latencyMs: null }), opts.timeoutMs ?? REACHABILITY_TIMEOUT_MS);
     try {
-      socket = connect({ host, port });
+      socket = connect({ host, port, lookup });
     } catch (err) {
       finish({ status: statusForError(err), latencyMs: null });
       return;
@@ -133,12 +179,22 @@ export function probe(
     socket.once('connect', () => finish({ status: 'reachable', latencyMs: Date.now() - startedAt }));
     socket.once('error', (err: unknown) => finish({ status: statusForError(err), latencyMs: null }));
   });
+  return { result, idle };
+}
+
+export function probe(
+  host: string,
+  port: number,
+  connect: SocketFactory = netSocket,
+  timeoutMs: number = REACHABILITY_TIMEOUT_MS,
+): Promise<ProbeResult> {
+  return startProbe(host, port, { connect, timeoutMs }).result;
 }
 
 // ---------- queue, cache and in-flight sharing ----------
 
 export interface ReachabilityCheckerOptions {
-  readonly probe?: (host: string, port: number) => Promise<ProbeResult>;
+  readonly probe?: (host: string, port: number) => ProbeRun;
   readonly now?: () => number;
   readonly maxConcurrent?: number;
   readonly minIntervalMs?: number;
@@ -149,8 +205,13 @@ interface CachedResult {
   readonly atMs: number;
 }
 
+/** An edited host, port or type is a new check, never the old entry's cached or shared result. */
+function checkKey(entry: ReachabilityEntry): string {
+  return JSON.stringify([entry.id, entry.entry_type, entry.host, entry.port]);
+}
+
 export class ReachabilityChecker {
-  private readonly probeFn: (host: string, port: number) => Promise<ProbeResult>;
+  private readonly probeFn: (host: string, port: number) => ProbeRun;
   private readonly now: () => number;
   private readonly maxConcurrent: number;
   private readonly minIntervalMs: number;
@@ -160,40 +221,49 @@ export class ReachabilityChecker {
   private running = 0;
 
   constructor(opts: ReachabilityCheckerOptions = {}) {
-    this.probeFn = opts.probe ?? ((host, port) => probe(host, port));
+    this.probeFn = opts.probe ?? ((host, port) => startProbe(host, port));
     this.now = opts.now ?? Date.now;
     this.maxConcurrent = opts.maxConcurrent ?? REACHABILITY_MAX_CONCURRENT;
     this.minIntervalMs = opts.minIntervalMs ?? REACHABILITY_MIN_INTERVAL_MS;
   }
 
   check(entry: ReachabilityEntry): Promise<ReachabilityResult> {
-    const cached = this.cache.get(entry.id);
+    const key = checkKey(entry);
+    const cached = this.cache.get(key);
     if (cached && this.now() - cached.atMs < this.minIntervalMs) return Promise.resolve(cached.result);
-    const pending = this.inFlight.get(entry.id);
+    const pending = this.inFlight.get(key);
     if (pending) return pending;
-    const promise = this.run(entry).finally(() => this.inFlight.delete(entry.id));
-    this.inFlight.set(entry.id, promise);
+    const promise = this.run(key, entry).finally(() => this.inFlight.delete(key));
+    this.inFlight.set(key, promise);
     return promise;
   }
 
-  private async run(entry: ReachabilityEntry): Promise<ReachabilityResult> {
+  private async run(key: string, entry: ReachabilityEntry): Promise<ReachabilityResult> {
     const target = reachabilityTarget(entry);
     const result =
       target.kind === 'target'
         ? await this.probeQueued(entry.id, target.host, target.port)
         : this.result(entry.id, target.kind, null, null, null);
-    this.cache.set(entry.id, { result, atMs: this.now() });
+    this.cache.set(key, { result, atMs: this.now() });
     return result;
   }
 
+  /** The slot is released when the probe is idle, which can be after its result. */
   private async probeQueued(entryId: string, host: string, port: number): Promise<ReachabilityResult> {
     await this.acquire();
+    let run: ProbeRun;
     try {
-      const { status, latencyMs } = await this.probeFn(host, port);
-      return this.result(entryId, status, host, port, latencyMs);
-    } finally {
+      run = this.probeFn(host, port);
+    } catch (err) {
       this.release();
+      throw err;
     }
+    run.idle.then(
+      () => this.release(),
+      () => this.release(),
+    );
+    const { status, latencyMs } = await run.result;
+    return this.result(entryId, status, host, port, latencyMs);
   }
 
   private result(
