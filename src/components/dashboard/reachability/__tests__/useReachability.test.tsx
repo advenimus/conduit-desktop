@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import type { ReachabilityResult } from "../../../../types/dashboard";
-import { useReachability } from "../useReachability";
+import { resetReachabilityCache, useReachability } from "../useReachability";
+import { useEntryStore } from "../../../../stores/entryStore";
+import { useVaultStore } from "../../../../stores/vaultStore";
+import type { EntryMeta } from "../../../../types/entry";
 
 const checkReachability = vi.fn();
 vi.mock("../../../../lib/dashboardApi", () => ({
@@ -25,6 +28,8 @@ function deferred<T>() {
 
 beforeEach(() => {
   checkReachability.mockReset();
+  resetReachabilityCache();
+  useEntryStore.setState({ entries: [] });
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -114,5 +119,48 @@ describe("useReachability", () => {
     expect(progress[0]).toEqual([0, 6]);
     expect(progress[progress.length - 1]).toEqual([6, 6]);
     expect(Object.keys(hook.current.results).sort()).toEqual(["a", "b", "c", "d", "e", "f"]);
+  });
+
+  it("shares results between views, so a remounted tab keeps them", async () => {
+    checkReachability.mockResolvedValueOnce(result("a", "timeout"));
+    const first = renderHook(() => useReachability());
+    await act(async () => {
+      await first.result.current.check("a");
+    });
+    first.unmount();
+    const second = renderHook(() => useReachability());
+    expect(second.result.current.results.a.status).toBe("timeout");
+    expect(checkReachability).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a result when the entry's host, port or type changes", async () => {
+    const entry = { id: "a", name: "web-01", entry_type: "ssh", host: "old.example", port: 22 } as EntryMeta;
+    useEntryStore.setState({ entries: [entry] });
+    checkReachability.mockResolvedValueOnce(result("a"));
+    const { result: hook } = renderHook(() => useReachability());
+    await act(async () => {
+      await hook.current.check("a");
+    });
+    expect(hook.current.results.a).toBeDefined();
+    act(() => useEntryStore.setState({ entries: [{ ...entry, name: "renamed" }] }));
+    expect(hook.current.results.a).toBeDefined();
+    act(() => useEntryStore.setState({ entries: [{ ...entry, host: "new.example" }] }));
+    expect(hook.current.results.a).toBeUndefined();
+    act(() => useEntryStore.setState({ entries: [entry] }));
+    expect(hook.current.results.a).toBeDefined();
+    act(() => useEntryStore.setState({ entries: [{ ...entry, port: 2222 }] }));
+    expect(hook.current.results.a).toBeUndefined();
+  });
+
+  it("forgets every result when the vault locks", async () => {
+    act(() => useVaultStore.setState({ isUnlocked: true }));
+    checkReachability.mockResolvedValueOnce(result("a"));
+    const { result: hook } = renderHook(() => useReachability());
+    await act(async () => {
+      await hook.current.check("a");
+    });
+    expect(hook.current.results.a).toBeDefined();
+    act(() => useVaultStore.setState({ isUnlocked: false }));
+    expect(hook.current.results.a).toBeUndefined();
   });
 });
