@@ -40,7 +40,7 @@ const ACTION_LABELS: Readonly<Record<AttentionAction, string>> = {
   "review-sync": "Review",
   "open-sync-settings": "Open Sync settings",
   "open-backup-settings": "Open Backup settings",
-  "show-passwords": "Show",
+  "show-passwords": "Show entries",
   "see-plans": "See plans",
 };
 

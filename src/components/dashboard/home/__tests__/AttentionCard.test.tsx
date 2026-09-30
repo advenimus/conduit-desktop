@@ -46,15 +46,15 @@ describe("AttentionCard", () => {
     const item = title.closest("[data-attention]") as HTMLElement;
     expect(within(item).getByText("Change old passwords to keep your accounts safe.")).toHaveClass("text-meta", "text-ink-muted");
     expect(item.querySelector("svg.text-warning")).not.toBeNull();
-    fireEvent.click(within(item).getByRole("button", { name: "Show" }));
-    const rows = within(item).getAllByRole("button").filter((b) => b.textContent !== "Hide");
+    fireEvent.click(within(item).getByRole("button", { name: "Show entries" }));
+    const rows = within(item).getAllByRole("button").filter((b) => b.textContent !== "Hide entries");
     expect(rows).toHaveLength(10);
     expect(rowParts(rows[0])).toEqual({ label: "server-11", meta: "1 year old" });
     expect(rowParts(rows[9])).toEqual({ label: "server-02", meta: "8 months old" });
     expect(within(item).getByText("And 2 more")).toBeInTheDocument();
     fireEvent.click(rows[0]);
     expect(openDashboardForEntry).toHaveBeenCalledWith("e11");
-    fireEvent.click(within(item).getByRole("button", { name: "Hide" }));
+    fireEvent.click(within(item).getByRole("button", { name: "Hide entries" }));
     expect(within(item).queryByText("server-11")).toBeNull();
   });
 

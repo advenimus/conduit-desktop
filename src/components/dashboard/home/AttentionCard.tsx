@@ -97,7 +97,7 @@ function PasswordList({ entryIds, entries, setAt }: PasswordListProps) {
 function AttentionRow({ item, entries, setAt }: { item: AttentionItem } & Omit<PasswordListProps, "entryIds">) {
   const [showList, setShowList] = useState(false);
   const isPasswords = item.action === "show-passwords";
-  const label = isPasswords && showList ? "Hide" : item.actionLabel;
+  const label = isPasswords && showList ? "Hide entries" : item.actionLabel;
   return (
     <div data-attention={item.kind}>
       <div className="flex items-start gap-2">

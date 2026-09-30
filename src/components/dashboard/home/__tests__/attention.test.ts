@@ -144,7 +144,7 @@ describe("buildAttentionItems", () => {
       title: "2 passwords older than 180 days",
       detail: "Change old passwords to keep your accounts safe.",
       action: "show-passwords",
-      actionLabel: "Show",
+      actionLabel: "Show entries",
       entryIds: ["b", "a"],
     });
     expect(only(input({ passwordAges, settings: { passwordAgeDays: 365, backupStaleDays: 7 } })).title).toBe("1 password older than 1 year");
