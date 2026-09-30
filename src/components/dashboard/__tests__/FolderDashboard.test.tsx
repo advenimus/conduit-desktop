@@ -4,6 +4,8 @@ import FolderDashboard from "../FolderDashboard";
 import { useEntryStore } from "../../../stores/entryStore";
 import { useSessionStore } from "../../../stores/sessionStore";
 import { useTierStore } from "../../../stores/tierStore";
+import { useVaultStore } from "../../../stores/vaultStore";
+import { resetReachabilityCache } from "../reachability/useReachability";
 import { toast } from "../../common/Toast";
 import type { EntryMeta, FolderData } from "../../../types/entry";
 import type { ReachabilityResult, RecentConnection } from "../../../types/dashboard";
@@ -62,11 +64,13 @@ const rowLabels = () => rowButtons().map((b) => rowParts(b).label);
 const rowFor = (name: string) => rowButtons().find((b) => rowParts(b).label === name)!.parentElement as HTMLElement;
 
 beforeEach(() => {
-  openEntry.mockClear();
+  openEntry.mockReset().mockImplementation(async () => undefined);
   openDashboardForEntry.mockReset();
   api.checkReachability.mockReset();
   api.historyRecent.mockReset().mockResolvedValue([recent("b", 5)]);
   useSessionStore.setState({ sessions: [] } as never);
+  useVaultStore.setState({ isUnlocked: true });
+  resetReachabilityCache();
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -171,6 +175,29 @@ describe("FolderDashboard Open all", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open all" }));
     await act(async () => undefined);
     expect(openEntry.mock.calls).toEqual([["b"]]);
+  });
+
+  it("stops before the next entry when the view closes or the vault locks", async () => {
+    const pending: Array<() => void> = [];
+    openEntry.mockImplementation(() => new Promise<undefined>((resolve) => pending.push(() => resolve(undefined))));
+    const both = [...ENTRIES, entry({ id: "e", name: "web-02", entry_type: "web", folder_id: "f1", host: "intra" })];
+
+    const view = await setup({ entries: both });
+    fireEvent.click(screen.getByRole("button", { name: "Open all" }));
+    await act(async () => undefined);
+    expect(openEntry).toHaveBeenCalledTimes(1);
+    view.unmount();
+    await act(async () => pending.shift()!());
+    expect(openEntry).toHaveBeenCalledTimes(1);
+
+    openEntry.mockClear();
+    await setup({ entries: both });
+    fireEvent.click(screen.getByRole("button", { name: "Open all" }));
+    await act(async () => undefined);
+    expect(openEntry).toHaveBeenCalledTimes(1);
+    act(() => useVaultStore.setState({ isUnlocked: false }));
+    await act(async () => pending.shift()!());
+    expect(openEntry).toHaveBeenCalledTimes(1);
   });
 
   it("asks first above five and opens the listed ones on confirm", async () => {
