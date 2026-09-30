@@ -77,6 +77,12 @@ export interface PasswordHistoryRow {
   changed_by: string | null;
 }
 
+export interface PasswordAgeRow {
+  entry_id: string;
+  created_at: string;
+  last_changed: string | null;
+}
+
 // -- Database class --
 
 export class ConduitDatabase {
@@ -446,6 +452,18 @@ export class ConduitDatabase {
 
   listAllPasswordHistory(): PasswordHistoryRow[] {
     return this.db.prepare('SELECT * FROM password_history').all() as PasswordHistoryRow[];
+  }
+
+  /** Entries that store their own password, with their last password change. Reads no secret. */
+  listPasswordAgeRows(): PasswordAgeRow[] {
+    return this.db
+      .prepare(
+        `SELECT e.id AS entry_id, e.created_at, MAX(h.changed_at) AS last_changed
+         FROM entries e LEFT JOIN password_history h ON h.entry_id = e.id
+         WHERE e.password_encrypted IS NOT NULL
+         GROUP BY e.id`
+      )
+      .all() as PasswordAgeRow[];
   }
 
   updatePasswordHistoryEncryption(id: string, passwordEncrypted: Buffer | null): void {

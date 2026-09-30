@@ -16,6 +16,8 @@ type AuditResult =
   | { type: 'rate_limited' }
   | { type: 'access_denied' };
 
+type AuditEnv = 'preview' | 'production';
+
 interface AuditEntry {
   timestamp: string;
   tool: string;
@@ -23,6 +25,11 @@ interface AuditEntry {
   parameters: unknown;
   result: AuditResult;
   duration_ms: number;
+}
+
+/** The app build that owns this MCP process; the desktop dashboard shows only its own lines. */
+export function auditEnv(): AuditEnv {
+  return process.env.CONDUIT_ENV === 'preview' ? 'preview' : 'production';
 }
 
 const SENSITIVE_FIELDS = ['password', 'private_key', 'secret', 'token', 'key'];
@@ -85,9 +92,10 @@ export class AuditLogger {
   private log(entry: AuditEntry): void {
     if (this.fd === null) return;
 
-    const redacted: AuditEntry = {
+    const redacted: AuditEntry & { env: AuditEnv } = {
       ...entry,
       parameters: redactSensitive(entry.parameters),
+      env: auditEnv(),
     };
 
     try {

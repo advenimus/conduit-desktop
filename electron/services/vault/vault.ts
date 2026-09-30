@@ -1153,7 +1153,27 @@ export class ConduitVault {
     });
   }
 
+  /**
+   * When each entry's own password was set, without decrypting anything. A history row stores
+   * the old password at the moment it changed, so its changed_at is when the current one was set.
+   */
+  listPasswordAges(): Array<{ entryId: string; setAt: string; source: 'history' | 'created' }> {
+    if (!this.isUnlocked()) return [];
+    const { db } = this.requireUnlocked();
+    return db.listPasswordAgeRows().map((row) =>
+      row.last_changed
+        ? { entryId: row.entry_id, setAt: row.last_changed, source: 'history' as const }
+        : { entryId: row.entry_id, setAt: row.created_at, source: 'created' as const },
+    );
+  }
+
   // -- Cloud sync metadata --
+
+  /** vault_meta.vault_id without creating it (getVaultId creates and syncs one). */
+  peekVaultId(): string | null {
+    const { db } = this.requireUnlocked();
+    return db.getMeta('vault_id') ?? null;
+  }
 
   /** Get or create a persistent UUID for this vault (stored in vault_meta). */
   getVaultId(): string {
