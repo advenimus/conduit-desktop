@@ -124,3 +124,77 @@ describe("VaultHub (spec 3.11)", () => {
     document.removeEventListener("conduit:unlock-vault", unlock);
   });
 });
+
+describe("VaultHub startup vault marks (docs/AUTO_UNLOCK.md 2.6)", () => {
+  const status = (over: Record<string, unknown>) => ({
+    platform: "darwin",
+    store: { usable: true, reason: "ok", storeName: "system keychain" },
+    startupVault: { kind: "personal", path: ACME, lineageId: "L1" },
+    savedPath: null,
+    currentOn: false,
+    ...over,
+  });
+
+  it("marks the startup vault with a Startup badge and the open-lock icon with screen reader text", async () => {
+    invoke.mockImplementation(async (channel) => (channel === "auto_unlock_status" ? status({ savedPath: ACME }) : undefined));
+    useVaultStore.setState({ recentVaults: [SCRATCH, ACME] });
+    render(<VaultHub />);
+    await nextTask();
+    const acme = rowButton(ACME) as HTMLButtonElement;
+    expect(acme).toHaveTextContent("Startup");
+    expect(acme.querySelector('[title="Unlocks automatically on this computer"]')).not.toBeNull();
+    expect(acme.querySelector(".sr-only")).toHaveTextContent("Unlocks automatically on this computer");
+    expect(rowButton(SCRATCH)).not.toHaveTextContent("Startup");
+  });
+
+  it("Clear All asks first only when it would forget a saved unlock", async () => {
+    invoke.mockImplementation(async (channel) => (channel === "auto_unlock_status" ? status({ savedPath: ACME }) : channel === "settings_clear_recent_vaults" ? [] : undefined));
+    useVaultStore.setState({ recentVaults: [ACME] });
+    const { default: StartupConfirmHost } = await import("../StartupConfirmHost");
+    render(
+      <>
+        <VaultHub />
+        <StartupConfirmHost />
+      </>,
+    );
+    await nextTask();
+    fireEvent.click(screen.getByRole("button", { name: "Clear All" }));
+    await nextTask();
+    expect(screen.getByRole("heading", { name: "Clear recent vaults?" })).toBeInTheDocument();
+    expect(invoke.mock.calls.map((c) => c[0])).not.toContain("settings_clear_recent_vaults");
+    const clearButtons = screen.getAllByRole("button", { name: "Clear All" });
+    fireEvent.click(clearButtons[clearButtons.length - 1]);
+    await nextTask();
+    expect(invoke.mock.calls.map((c) => c[0])).toContain("settings_clear_recent_vaults");
+  });
+
+  it("Clear All is one click without a saved unlock", async () => {
+    invoke.mockImplementation(async (channel) => (channel === "auto_unlock_status" ? status({ savedPath: null }) : channel === "settings_clear_recent_vaults" ? [] : undefined));
+    useVaultStore.setState({ recentVaults: [ACME] });
+    render(<VaultHub />);
+    await nextTask();
+    fireEvent.click(screen.getByRole("button", { name: "Clear All" }));
+    await nextTask();
+    expect(invoke.mock.calls.map((c) => c[0])).toContain("settings_clear_recent_vaults");
+  });
+
+  it("the row menu offers the startup actions and runs them through main", async () => {
+    let menuItems: { id: string; label: string }[] = [];
+    invoke.mockImplementation(async (channel, args) => {
+      if (channel === "auto_unlock_status") return status({ savedPath: ACME });
+      if (channel === "show_context_menu_popup") {
+        menuItems = (args as { items: { id: string; label: string }[] }).items;
+        return "stop";
+      }
+      if (channel === "startup_vault_set") return { status: status({ startupVault: { kind: "hub" } }), forgot: true };
+      return undefined;
+    });
+    useVaultStore.setState({ recentVaults: [ACME] });
+    render(<VaultHub />);
+    await nextTask();
+    fireEvent.contextMenu(rowButton(ACME) as HTMLButtonElement);
+    await nextTask();
+    expect(menuItems.map((i) => i.label).filter(Boolean)).toEqual(["Stop Opening at Startup", "Turn Off Automatic Unlock", "Remove from Recents", "Copy Path"]);
+    expect(invoke.mock.calls.find((c) => c[0] === "startup_vault_set")?.[1]).toEqual({ kind: "hub" });
+  });
+});

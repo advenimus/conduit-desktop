@@ -14,6 +14,9 @@ import { resolveBiometricKeys, restoreBiometricAfterPasswordChange } from './bio
 import { teardownBackupServices } from './vault-lock-flow.js';
 import { wireBackupServices } from './vault-wiring.js';
 import { openPersonalAndFinish, requireMasterPassword } from './vault-unlock.js';
+import { withStartupPathMoved } from './startup-vault-core.js';
+import { resealAfterPasswordChange, savedUnlockForCurrent } from './auto-unlock-lifecycle.js';
+import { lifecycleDeps } from './startup-vault.js';
 
 const VAULT_EXTENSION = '.conduit';
 const SIDE_FILE_SUFFIXES = ['-wal', '-shm'] as const;
@@ -43,9 +46,11 @@ function requirePersonalUnlocked(state: AppState, what: 'rename' | 'change passw
 
 function recordRenameInSettings(oldPath: string, newPath: string): void {
   const settings = readSettings();
-  settings.last_vault_path = newPath;
-  settings.recent_vaults = settings.recent_vaults.map((p) => (p === oldPath ? newPath : p));
-  writeSettings(settings);
+  writeSettings(withStartupPathMoved({
+    ...settings,
+    last_vault_path: newPath,
+    recent_vaults: settings.recent_vaults.map((p) => (p === oldPath ? newPath : p)),
+  }, oldPath, newPath));
 }
 
 async function renameShared(state: AppState, oldPath: string, fileName: string, masterPassword: string): Promise<string> {
@@ -128,6 +133,8 @@ async function changePassword(state: AppState, args: unknown): Promise<void> {
   const engine = state.appSync.isEngineManaged();
   const previousPassword = state.currentMasterPassword;
   const biometricBefore = await resolveBiometricKeys(state, state.currentVaultPath);
+  const autoUnlock = lifecycleDeps(state);
+  const autoUnlockBefore = savedUnlockForCurrent(autoUnlock);
 
   // Stop in-flight backups before re-encryption.
   teardownBackupServices(state);
@@ -148,6 +155,7 @@ async function changePassword(state: AppState, args: unknown): Promise<void> {
   }
   wireBackupServices(state, a.newPassword);
   await restoreBiometricAfterPasswordChange(state, biometricBefore, a.newPassword);
+  await resealAfterPasswordChange(autoUnlock, autoUnlockBefore, a.newPassword);
   console.info('[vault] vault password changed', { engine });
 }
 

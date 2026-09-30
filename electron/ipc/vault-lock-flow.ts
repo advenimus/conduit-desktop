@@ -7,6 +7,7 @@
 
 import type { AppState } from '../services/state.js';
 import type { LockedReason } from '../services/vault-session/host.js';
+import { emitPersonalLocked, type LockCause } from './vault-events.js';
 
 /** The AppState members the lock flows touch (tests pass fakes). */
 export type LockFlowState = Pick<
@@ -41,10 +42,11 @@ export function teardownBackupServices(state: TeardownState): void {
 /**
  * Manual lock: sessions close, the last changes publish (3 s cap), the lease is released. An
  * unlock still in progress is cancelled and closed, and a displaced save finishes first, so
- * ConduitVault.lock() never closes the working copy under a running cycle.
+ * ConduitVault.lock() never closes the working copy under a running cycle. True when there was
+ * something to lock.
  */
-export async function lockPersonalVault(state: LockFlowState): Promise<void> {
-  if (!state.vault.isUnlocked() && !state.appSync.hasSession()) return;
+export async function lockPersonalVault(state: LockFlowState, cause: LockCause = 'other'): Promise<boolean> {
+  if (!state.vault.isUnlocked() && !state.appSync.hasSession()) return false;
   try {
     await state.closeAllSessions();
   } catch (err) {
@@ -56,6 +58,8 @@ export async function lockPersonalVault(state: LockFlowState): Promise<void> {
   state.chatStore.lock();
   state.vault.lock();
   state.personalLockReason = null;
+  emitPersonalLocked({ cause });
+  return true;
 }
 
 /** Displaced by another device: the key and backups go, open sessions keep running. */

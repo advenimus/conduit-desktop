@@ -155,7 +155,7 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
   const renderTab = () => {
     switch (activeTab) {
       case "general":
-        return <GeneralTab settings={settings} setSettings={setSettings} onClose={onClose} />;
+        return <GeneralTab settings={settings} setSettings={setSettings} onClose={onClose} onNavigate={setActiveTab} />;
       case "appearance":
         return <AppearanceTab settings={settings} setSettings={setSettings} onClose={onClose} />;
       case "security":

@@ -24,4 +24,11 @@ describe("mergeChangedSettings", () => {
     const fresh = { ...original, theme: "system" };
     expect(mergeChangedSettings(fresh, null, { ...original, ui_scale: 1.25 })).toEqual({ ...original, ui_scale: 1.25 });
   });
+
+  it("never overwrites startup_vault that Settings > General wrote over IPC (docs/AUTO_UNLOCK.md 2.4)", () => {
+    const before = { ...original, startup_vault: null as unknown };
+    const fresh = { ...before, startup_vault: { kind: "personal", path: "/v/Work.conduit", lineageId: "L1" } };
+    const edited = { ...before, theme: "light" };
+    expect(mergeChangedSettings(fresh, before, edited).startup_vault).toEqual(fresh.startup_vault);
+  });
 });

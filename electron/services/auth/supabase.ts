@@ -62,6 +62,8 @@ export class AuthService {
   private pendingSignOutReason: string | null = null;
   private hasLoggedNoSession = false;
   private stateChangeCallbacks: Array<(state: AuthState) => void> = [];
+  private initialized = false;
+  private initializedCallbacks: Array<(state: AuthState) => void> = [];
   private readonly isLocalSupabase: boolean;
 
   constructor() {
@@ -153,6 +155,32 @@ export class AuthService {
       return await this.initPromise;
     } finally {
       this.initPromise = null;
+      this.markInitialized();
+    }
+  }
+
+  /** True once the first initialize() has finished (it clears its promise, so it cannot be awaited later). */
+  hasInitialized(): boolean {
+    return this.initialized;
+  }
+
+  /** Runs once, when the first initialize() finishes; at once when it already has. */
+  onInitialized(cb: (state: AuthState) => void): void {
+    if (this.initialized) cb(this.currentState);
+    else this.initializedCallbacks.push(cb);
+  }
+
+  private markInitialized(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+    const callbacks = this.initializedCallbacks;
+    this.initializedCallbacks = [];
+    for (const cb of callbacks) {
+      try {
+        cb(this.currentState);
+      } catch (err) {
+        console.error('[auth] an initialized listener failed', { name: err instanceof Error ? err.name : 'Error' });
+      }
     }
   }
 
@@ -504,7 +532,7 @@ export class AuthService {
    * Called by the main process when the OS opens a conduit:// URL.
    */
   async handleDeepLinkTokens(accessToken: string, refreshToken: string): Promise<void> {
-    console.log('[auth] handleDeepLinkTokens called, access_token length:', accessToken.length, 'refresh_token:', refreshToken);
+    console.log('[auth] handleDeepLinkTokens called, access_token length:', accessToken.length, 'refresh_token length:', refreshToken.length);
 
     const { data, error } = await this.supabase.auth.setSession({
       access_token: accessToken,

@@ -12,15 +12,19 @@ import { AppState } from '../services/state.js';
 import { logAudit } from '../services/audit.js';
 import { completePersonalUnlock, installVaultAccessHandlers } from './vault-wiring.js';
 import { lockPersonalVault } from './vault-lock-flow.js';
+import type { LockCause } from './vault-events.js';
 import { registerPersonalUnlockHandlers } from './vault-unlock.js';
 import { registerVaultManageHandlers } from './vault-manage.js';
 
 export { rebuildMutationCallback, wireBackupServices } from './vault-wiring.js';
 export { teardownBackupServices } from './vault-lock-flow.js';
 
-/** Lock the vault from the main process: sessions close, changes publish, the lease is released. */
-export async function lockVaultFromMain(): Promise<void> {
-  await lockPersonalVault(AppState.getInstance());
+/**
+ * Lock the vault from the main process: sessions close, changes publish, the lease is released.
+ * True when a personal vault was open (or opening) and is now locked.
+ */
+export async function lockVaultFromMain(cause: LockCause = 'other'): Promise<boolean> {
+  return lockPersonalVault(AppState.getInstance(), cause);
 }
 
 /** The shared tail of every personal unlock: chat store, recent vaults, backups, biometric key. */

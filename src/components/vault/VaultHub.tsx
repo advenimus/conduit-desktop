@@ -4,9 +4,11 @@ import { useTeamStore, type TeamVaultSummary } from "../../stores/teamStore";
 import { useAuthStore } from "../../stores/authStore";
 import { useAppIcon } from "../../hooks/useAppIcon";
 import { invoke } from "../../lib/electron";
-import { showContextMenu } from "../../utils/contextMenu";
 import PendingVaultsWarning, { PendingBadge } from "../sync/PendingVaultsWarning";
-import { AlertCircleIcon, CheckIcon, FingerprintIcon } from "../../lib/icons";
+import { AlertCircleIcon, CheckIcon, FingerprintIcon, LockOpenIcon } from "../../lib/icons";
+import { useStartupVaultStore } from "../../stores/startupVaultStore";
+import { INDICATOR_TEXT } from "../../lib/startup-vault-copy";
+import { clearRecentVaultsWithConfirm, openRecentVaultMenu, openTeamVaultMenu } from "./recentVaultMenu";
 import { Badge, Button, IconSlot, ListRow, Spinner, type IconSource } from "../ui";
 import { errorText } from "../../lib/errorText";
 
@@ -15,7 +17,9 @@ import { errorText } from "../../lib/errorText";
  * Split layout: left panel (branding + actions), right panel (vault lists by section).
  */
 export default function VaultHub() {
-  const { recentVaults, autoConnectError, isLoading, removeRecentVault, clearRecentVaults } = useVaultStore();
+  const { recentVaults, autoConnectError, isLoading } = useVaultStore();
+  const startupStatus = useStartupVaultStore((s) => s.status);
+  const startupVault = startupStatus?.startupVault ?? null;
   const { teamVaults, isLoading: teamLoading } = useTeamStore();
   const { isTeamMember, authMode } = useAuthStore();
 
@@ -40,6 +44,10 @@ export default function VaultHub() {
   useEffect(() => {
     checkBiometricForVaults();
   }, [checkBiometricForVaults]);
+
+  useEffect(() => {
+    void useStartupVaultStore.getState().refresh();
+  }, [recentVaults]);
   const isSignedIn = authMode === "authenticated" || authMode === "cached";
   const showTeamSection = isSignedIn && isTeamMember;
   const showTeamUpgrade = isSignedIn && !isTeamMember;
@@ -102,10 +110,12 @@ export default function VaultHub() {
         last_team_vault_id?: string | null;
       }>("settings_get");
 
-      if (settings.last_vault_type === "team" && settings.last_team_vault_id) {
+      const chosen = startupVault?.kind === "team" ? startupVault.teamVaultId : null;
+      const teamVaultId = chosen ?? (settings.last_vault_type === "team" ? settings.last_team_vault_id : null);
+      if (teamVaultId) {
         vaultState.setAutoConnectInProgress(true);
         vaultState.setShowVaultHub(false);
-        await vaultState.openTeamVault(settings.last_team_vault_id);
+        await vaultState.openTeamVault(teamVaultId);
         vaultState.setAutoConnectInProgress(false);
         vaultState.setShowVaultHub(false);
       }
@@ -117,20 +127,6 @@ export default function VaultHub() {
     }
   };
 
-  const handleRecentVaultContextMenu = async (e: React.MouseEvent, vaultPath: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const selected = await showContextMenu(e.clientX, e.clientY, [
-      { id: "remove", label: "Remove from Recents", icon: "close" },
-      { id: "sep", label: "", type: "separator" },
-      { id: "copy", label: "Copy Path", icon: "copy" },
-    ]);
-    if (selected === "remove") {
-      await removeRecentVault(vaultPath);
-    } else if (selected === "copy") {
-      await navigator.clipboard.writeText(vaultPath);
-    }
-  };
 
   const hasTeamVaults = showTeamSection && teamVaults.length > 0;
   const hasRecentVaults = recentVaults.length > 0;
@@ -200,6 +196,7 @@ export default function VaultHub() {
                           <ListRow
                             key={vault.id}
                             onClick={() => handleTeamVault(vault)}
+                            onContextMenu={(e) => void openTeamVaultMenu(e, vault)}
                             disabled={isOffline || isLoading}
                             leading={<RowTile icon="users" className="bg-info-bg text-info" />}
                             description={vault.description || undefined}
@@ -210,6 +207,7 @@ export default function VaultHub() {
                                     Offline
                                   </Badge>
                                 )}
+                                {startupVault?.kind === "team" && startupVault.teamVaultId === vault.id && <StartupBadge />}
                                 <span>
                                   {vault.member_count} {vault.member_count === 1 ? "member" : "members"}
                                 </span>
@@ -259,7 +257,7 @@ export default function VaultHub() {
                   <div>
                     <div className="flex items-center justify-between mb-2 px-1">
                       <SectionTitle icon="lock" className="">Recent Vaults</SectionTitle>
-                      <Button variant="link" size="sm" onClick={() => clearRecentVaults()}>
+                      <Button variant="link" size="sm" onClick={() => void clearRecentVaultsWithConfirm()}>
                         Clear All
                       </Button>
                     </div>
@@ -279,7 +277,7 @@ export default function VaultHub() {
                           <ListRow
                             key={vaultPath}
                             onClick={() => handlePersonalVault(vaultPath)}
-                            onContextMenu={(e) => handleRecentVaultContextMenu(e, vaultPath)}
+                            onContextMenu={(e) => void openRecentVaultMenu(e, vaultPath)}
                             disabled={isLoading}
                             title={vaultPath}
                             leading={<RowTile icon="folderOpen" className="bg-well text-ink-muted" />}
@@ -287,6 +285,13 @@ export default function VaultHub() {
                             meta={
                               <>
                                 <PendingBadge vaultPath={vaultPath} />
+                                {startupVault?.kind === "personal" && startupVault.path === vaultPath && <StartupBadge />}
+                                {startupStatus?.savedPath === vaultPath && (
+                                  <span className="inline-flex" title={INDICATOR_TEXT}>
+                                    <LockOpenIcon size={16} className="text-ink-muted" />
+                                    <span className="sr-only">{INDICATOR_TEXT}</span>
+                                  </span>
+                                )}
                                 {biometricVaults.has(vaultPath) && <FingerprintIcon size={16} className="text-info" />}
                               </>
                             }
@@ -333,6 +338,15 @@ function RowTile({ icon, className }: { icon: IconSource; className: string }) {
     <span className={`flex size-7 items-center justify-center rounded-md ${className}`}>
       <IconSlot icon={icon} />
     </span>
+  );
+}
+
+/** The startup vault's row mark; the row's context menu (right-click, or Shift+F10 on the row) changes it. */
+function StartupBadge() {
+  return (
+    <Badge tone="neutral" title="Opens when Conduit starts. Right-click the row to change it.">
+      Startup
+    </Badge>
   );
 }
 

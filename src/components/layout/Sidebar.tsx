@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronDownIcon, ClockIcon } from "../../lib/icons";
+import { ChevronDownIcon, ClockIcon, LockOpenIcon } from "../../lib/icons";
+import { useStartupVaultStore } from "../../stores/startupVaultStore";
+import { INDICATOR_TEXT } from "../../lib/startup-vault-copy";
 import { Badge, Button, Callout, IconButton, SearchInput, cx } from "../ui";
 import EntryTree from "../entries/EntryTree";
 import { TeamInvitationBanner } from "./TeamInvitationBanner";
@@ -57,6 +59,7 @@ export default function Sidebar() {
   const canCreateEntries = useTeamStore((s) => s.canCreate);
   const { isTeamMember } = useAuthStore();
   const { vaultType, teamVaultId, isNetworkVault } = useVaultStore();
+  const autoUnlockOn = useStartupVaultStore((s) => s.status?.currentOn ?? false) && vaultType === "personal";
   const { isTrialing, trialDaysRemaining, trialEligible, trialUrgency } = useTierStore();
   const [trialPromoDismissed, setTrialPromoDismissed] = useState(() =>
     localStorage.getItem("conduit:trial-promo-dismissed") === "true"
@@ -316,9 +319,15 @@ export default function Sidebar() {
             data-cv-vault-switcher
             onClick={() => setShowVaultMenu(!showVaultMenu)}
             className="-ml-1 flex h-6 max-w-full min-w-0 items-center gap-0.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover"
-            title={isNetworkVault ? `Network vault — ${currentVaultPath}` : (currentVaultPath ?? "Open a vault")}
+            title={`${isNetworkVault ? `Network vault — ${currentVaultPath}` : (currentVaultPath ?? "Open a vault")}${autoUnlockOn ? ` · ${INDICATOR_TEXT}` : ""}`}
           >
             <span className="min-w-0 truncate">{vaultName}</span>
+            {autoUnlockOn && (
+              <span data-cv-auto-unlock-indicator="" className="inline-flex shrink-0">
+                <LockOpenIcon size={12} className="text-ink-faint" />
+                <span className="sr-only">{INDICATOR_TEXT}</span>
+              </span>
+            )}
             <ChevronDownIcon size={16} className="shrink-0 text-ink-muted" />
           </button>
           {showVaultMenu && (

@@ -1,7 +1,8 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { useVaultStore } from "../../../stores/vaultStore";
 import { FingerprintIcon } from "../../../lib/icons";
-import { Callout, Card, SectionHeader, Switch } from "../../ui";
+import { Callout, Card, IconSlot, SectionHeader, Switch, type IconSource } from "../../ui";
+import AutoUnlockSetting from "./AutoUnlockSetting";
 import { HINT } from "../settings-styles";
 import IdleLockSetting from "../../sync/IdleLockSetting";
 import type { TabProps } from "../SettingsHelpers";
@@ -103,6 +104,8 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
         </div>
       )}
 
+      <AutoUnlockSetting notice={(children) => <NoticeCard icon="lockOpen">{children}</NoticeCard>} />
+
       <div>
         <SectionHeader title="Auto-lock" />
         <IdleLockSetting
@@ -114,10 +117,10 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
   );
 }
 
-function NoticeCard({ children }: { children: ReactNode }) {
+function NoticeCard({ children, icon = FingerprintIcon }: { children: ReactNode; icon?: IconSource }) {
   return (
     <Card className="flex items-start gap-3">
-      <FingerprintIcon size={20} className="mt-0.5 shrink-0 text-ink-faint" />
+      <IconSlot icon={icon} size={20} className="mt-0.5 shrink-0 text-ink-faint" />
       {children}
     </Card>
   );

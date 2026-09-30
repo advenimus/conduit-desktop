@@ -49,6 +49,10 @@ export interface SyncIpcDeps {
   /** The vault password changed through a sync flow: backups, chat store, biometric follow. */
   passwordChanged(password: string): Promise<void>;
   showItemInFolder(filePath: string): void;
+  /** The open vault was released: a saved unlock and startup choice for it go (docs/AUTO_UNLOCK.md 3.7). */
+  released?(): void;
+  /** Make my own copy succeeded: the startup choice moves to the copy. */
+  ownCopyMade?(copy: Dto.ForkResultDto): void;
 }
 
 export const COPY_ACTIONS: readonly Dto.CopyAction[] = ['trash', 'ignore', 'review', 'merge', 'separate'];
@@ -60,7 +64,33 @@ function defaultDeps(): SyncIpcDeps {
     appSync: () => state.appSync,
     passwordChanged: (password) => applyVaultPasswordChange(state, password),
     showItemInFolder: (filePath) => shell.showItemInFolder(filePath),
+    released: () => void followOwnership((l, d) => l.afterRelease(d, state.currentVaultPath)),
+    ownCopyMade: (copy) => void followOwnership((l, d) => l.afterOwnCopy(d, state.currentVaultPath, copy)),
   };
+}
+
+type Lifecycle = typeof import('./auto-unlock-lifecycle.js');
+type LifecycleDepsOf = import('./auto-unlock-lifecycle.js').LifecycleDeps;
+
+async function followOwnership(run: (l: Lifecycle, d: LifecycleDepsOf) => void): Promise<void> {
+  try {
+    const [lifecycle, { lifecycleDeps }] = await Promise.all([import('./auto-unlock-lifecycle.js'), import('./startup-vault.js')]);
+    run(lifecycle, lifecycleDeps());
+  } catch (err) {
+    console.warn('[sync] startup vault follow-up failed', { name: err instanceof Error ? err.name : 'Error' });
+  }
+}
+
+async function releaseOwnership(deps: SyncIpcDeps): Promise<Dto.ReleaseOwnershipResult> {
+  const res = await deps.appSync().releaseOwnership();
+  if (res.released) deps.released?.();
+  return res;
+}
+
+async function makeOwnCopy(deps: SyncIpcDeps, a: IpcArgs): Promise<Dto.ForkResultDto> {
+  const copy = await deps.appSync().makeOwnCopy(requireString(a.ticket, 'ticket'), requireVaultTarget(a.targetPath, 'target path'));
+  deps.ownCopyMade?.(copy);
+  return copy;
 }
 
 /** Copies the engine knows about (scan result, status list, copy prompts), by resolved path. */
@@ -144,8 +174,6 @@ export function registerSyncHandlers(deps: SyncIpcDeps = defaultDeps(), ipc: Ipc
   on('vault_session_lock_here', () => deps.appSync().answerConflict('lock-here'));
   on('vault_session_stop_waiting', (a) => deps.appSync().stopWaiting(requireString(a.deviceId, 'device')));
   on('vault_session_open_now', () => deps.appSync().openNow());
-  on('sync_release_ownership', () => deps.appSync().releaseOwnership());
-  on('sync_make_own_copy', (a) =>
-    deps.appSync().makeOwnCopy(requireString(a.ticket, 'ticket'), requireVaultTarget(a.targetPath, 'target path')),
-  );
+  on('sync_release_ownership', () => releaseOwnership(deps));
+  on('sync_make_own_copy', (a) => makeOwnCopy(deps, a));
 }

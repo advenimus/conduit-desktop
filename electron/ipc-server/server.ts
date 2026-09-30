@@ -30,6 +30,7 @@ import {
   parseSendKeysRequest,
 } from './terminal-requests.js';
 import { hasConflict, lockedResponse, vaultFailure } from './vault-guard.js';
+import { isMcpHeld, mcpHeldResponse } from './mcp-hold.js';
 
 // ---------- IPC Protocol Types ----------
 
@@ -156,6 +157,8 @@ export async function handleRequest(
       authenticated: !!authState?.user,
     });
   }
+
+  if (isMcpHeld()) return mcpHeldResponse();
 
   // Defense-in-depth: block MCP tool calls for tiers without mcp_enabled.
   // Free/Pro/Team all have mcp_enabled=true; local-mode users have no profile

@@ -13,6 +13,7 @@ import { getLocalNetworkStatus } from '../services/local-network.js';
 import type { EngineType } from '../services/ai/engines/engine.js';
 import { isKnownEngineType } from '../services/ai/cli-harnesses.js';
 import { clearRecentVaults, removeRecentVault, type RecentVaultDeps } from './recent-vaults.js';
+import { parseStartupVault, type StartupVault } from './startup-vault-core.js';
 import { applyAppearanceMigration, migrateAppearance, type AppearanceSettings } from '../services/appearance-migration.js';
 import { windowBackground } from '../services/appearance-palette.js';
 
@@ -116,6 +117,8 @@ export interface AppSettings {
   personal_sync_enabled: boolean;
   // Idle auto-lock of the personal vault in minutes; 0 = off
   vault_idle_lock_minutes: number;
+  // What opens at startup (docs/AUTO_UNLOCK.md 3.5); null = the last team vault used, else the Vault Hub
+  startup_vault: StartupVault | null;
 }
 
 const defaultSettings: AppSettings = {
@@ -150,6 +153,7 @@ const defaultSettings: AppSettings = {
   engine_picker_completed: false,
   personal_sync_enabled: true,
   vault_idle_lock_minutes: 0,
+  startup_vault: null,
 };
 
 export function settingsPath(): string {
@@ -208,6 +212,7 @@ export function readSettings(): AppSettings {
     if ('sidebar_mode' in parsed) {
       delete (parsed as Record<string, unknown>).sidebar_mode;
     }
+    parsed.startup_vault = parseStartupVault(raw.startup_vault);
     if (!isKnownEngineType(String(parsed.default_engine))) {
       parsed.default_engine = 'claude-code';
     }
@@ -243,15 +248,17 @@ export function updateRecentVaults(vaultPath: string): void {
 }
 
 async function recentVaultDeps(): Promise<RecentVaultDeps<AppSettings>> {
-  const [{ removeBiometricForPath }, { getBiometricService }] = await Promise.all([
+  const [{ removeBiometricForPath }, { getBiometricService }, { getAutoUnlockStore }] = await Promise.all([
     import('./biometric-lineage.js'),
     import('../services/vault/biometric.js'),
+    import('../services/vault/auto-unlock-electron.js'),
   ]);
   return {
     read: readSettings,
     write: writeSettings,
     removeBiometric: (vaultPath) => removeBiometricForPath(AppState.getInstance(), vaultPath),
     removeAllBiometric: () => getBiometricService().removeAll(),
+    forgetAllAutoUnlock: () => getAutoUnlockStore().removeAll(),
   };
 }
 

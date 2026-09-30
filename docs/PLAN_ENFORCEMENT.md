@@ -1612,7 +1612,7 @@ The M1 rollback reopens the security holes in 2.7 (except the RPC guard); use it
 Decisions (beyond the approved product decisions):
 1. Owner tag is a new register `_sync/owner/account`, not the Free claim's `a` field.
 2. Not-owner is answered only at acquire (after the password check), so "Make my own copy" has a verified key; peek refuses early only for update required and the device cap.
-3. The copy uses an in-memory ticket (key held 10 minutes in the main process), so biometric unlocks can make a copy too.
+3. The copy uses an in-memory ticket (key held 10 minutes in the main process), so biometric and automatic (`auto_unlock`, docs/AUTO_UNLOCK.md) unlocks can make a copy too.
 4. Grace length, release cooldown, version minimums and the cap fallback live in a new `app_config` table; the cap itself is a tier key.
 5. Release keeps the owner row and adds a 7-day cooldown after becoming owner, so hand-back loops are slow.
 6. The lease lock moves from per (account, vault) to per account.

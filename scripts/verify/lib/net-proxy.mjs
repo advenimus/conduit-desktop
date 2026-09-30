@@ -52,9 +52,17 @@ export async function startNetProxy(targetPort, { targetHost = '127.0.0.1', host
   const pairs = new Set();
   const counts = { accepted: 0, refused: 0, reset: 0 };
   let cutNow = false;
+  let stallNow = false;
   let closed = false;
+  const held = new Set();
 
   const server = net.createServer((client) => {
+    if (stallNow && !closed) {
+      held.add(client);
+      client.on('error', () => held.delete(client));
+      client.on('close', () => held.delete(client));
+      return;
+    }
     if (cutNow || closed) {
       counts.refused += 1;
       client.resetAndDestroy();
@@ -81,6 +89,13 @@ export async function startNetProxy(targetPort, { targetHost = '127.0.0.1', host
   const port = await listenOutsideReserved(server, host);
   const url = `http://${host}:${port}`;
 
+  function releaseHeld() {
+    for (const client of [...held]) {
+      held.delete(client);
+      client.resetAndDestroy();
+    }
+  }
+
   function resetAll() {
     for (const pair of [...pairs]) {
       pairs.delete(pair);
@@ -100,9 +115,16 @@ export async function startNetProxy(targetPort, { targetHost = '127.0.0.1', host
       cutNow = true;
       resetAll();
     },
+    /** Supabase hangs: open connections are reset, new ones are accepted and never answered. */
+    stall() {
+      stallNow = true;
+      resetAll();
+    },
     restore() {
       if (closed) throw new Error('net-proxy: restore() after close()');
       cutNow = false;
+      stallNow = false;
+      releaseHeld();
     },
     isCut: () => cutNow,
     /** {accepted, refused, reset, open}: connections passed, refused while cut, reset by cut(), open now. */
@@ -111,6 +133,7 @@ export async function startNetProxy(targetPort, { targetHost = '127.0.0.1', host
       if (closed) return;
       closed = true;
       resetAll();
+      releaseHeld();
       await closeServer(server);
     },
   };

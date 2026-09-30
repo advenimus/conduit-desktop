@@ -17,6 +17,7 @@ interface Fields {
   recent_vaults: string[];
   last_vault_path: string | null;
   theme: string;
+  startup_vault?: import('../startup-vault-core.js').StartupVault | null;
 }
 
 const A = '/v/a.conduit';
@@ -25,6 +26,7 @@ const B = '/v/b.conduit';
 function harness(initial: Fields, removeBiometric: (p: string) => Promise<void> = async () => undefined) {
   let stored = initial;
   const removeAll = vi.fn();
+  const forgetAll = vi.fn(() => 1);
   const deps: RecentVaultDeps<Fields> = {
     read: () => stored,
     write: (s) => {
@@ -32,8 +34,9 @@ function harness(initial: Fields, removeBiometric: (p: string) => Promise<void> 
     },
     removeBiometric: vi.fn(removeBiometric),
     removeAllBiometric: removeAll,
+    forgetAllAutoUnlock: forgetAll,
   };
-  return { deps, stored: () => stored, removeAll };
+  return { deps, stored: () => stored, removeAll, forgetAll };
 }
 
 describe('recent vault removal', () => {
@@ -65,6 +68,45 @@ describe('recent vault removal', () => {
     expect(clearRecentVaults(h.deps)).toEqual([]);
     expect(h.stored()).toEqual({ recent_vaults: [], last_vault_path: null, theme: 'x' });
     expect(h.removeAll).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the startup vault leaving the recent list (docs/AUTO_UNLOCK.md 3.7)', () => {
+  const startup = { kind: 'personal' as const, path: A, lineageId: 'L1' };
+
+  it('Remove resets it to the hub and forgets the saved unlock', async () => {
+    const h = harness({ recent_vaults: [A, B], last_vault_path: A, theme: 'x', startup_vault: startup });
+    await removeRecentVault(h.deps, A);
+    expect(h.stored().startup_vault).toEqual({ kind: 'hub' });
+    expect(h.forgetAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('removing another vault keeps the startup vault and its saved unlock', async () => {
+    const h = harness({ recent_vaults: [A, B], last_vault_path: A, theme: 'x', startup_vault: startup });
+    await removeRecentVault(h.deps, B);
+    expect(h.stored().startup_vault).toEqual(startup);
+    expect(h.forgetAll).not.toHaveBeenCalled();
+  });
+
+  it('Clear All resets a personal startup vault, keeps a team one, and forgets every saved unlock', () => {
+    const h = harness({ recent_vaults: [A], last_vault_path: A, theme: 'x', startup_vault: startup });
+    clearRecentVaults(h.deps);
+    expect(h.stored().startup_vault).toEqual({ kind: 'hub' });
+    expect(h.forgetAll).toHaveBeenCalledTimes(1);
+    const team = { kind: 'team' as const, teamVaultId: 't' };
+    const t = harness({ recent_vaults: [A], last_vault_path: A, theme: 'x', startup_vault: team });
+    clearRecentVaults(t.deps);
+    expect(t.stored().startup_vault).toEqual(team);
+  });
+
+  it('a failed forget never fails the removal', async () => {
+    const h = harness({ recent_vaults: [A], last_vault_path: A, theme: 'x', startup_vault: startup });
+    h.forgetAll.mockImplementation(() => {
+      throw new Error('fs');
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect(await removeRecentVault(h.deps, A)).toEqual([]);
+    warn.mockRestore();
   });
 });
 

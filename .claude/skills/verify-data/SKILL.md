@@ -1,6 +1,6 @@
 ---
 name: verify-data
-description: Run the live vault data suites (password changes, vault lifecycle, copies of a vault, local and cloud backups, offline and team resilience) against the real Conduit app and a local Supabase. Use after changing master-password or key epochs, Recently deleted or redaction, rename and file binding, the separate-vault fork, damaged-copy recovery, the idle lock, the Sync settings tab, conflict or user copies, side files, snapshots and undo, local or cloud backup and restore, offline leases, the cached tier, team vaults beside personal sync, or export and import, or when asked to verify any of these live. Each suite also runs alone. Fully isolated; about 10 minutes for all five.
+description: Run the live vault data suites (password changes, vault lifecycle, copies of a vault, local and cloud backups, offline and team resilience) against the real Conduit app and a local Supabase. Use after changing master-password or key epochs, Recently deleted or redaction, rename and file binding, the separate-vault fork, damaged-copy recovery, the idle lock, the Sync settings tab, conflict or user copies, side files, snapshots and undo, local or cloud backup and restore, offline leases, the cached tier, team vaults beside personal sync, or export and import, the startup vault and automatic unlock (startup suite), or when asked to verify any of these live. Each suite also runs alone. Fully isolated; about 10 minutes for all five.
 ---
 
 # /verify-data: vault data suites
@@ -20,6 +20,7 @@ spans several of them or the user asks for it:
 | `lifecycle` | `node scripts/verify/run.mjs lifecycle` | 3 min | Recently deleted and "Delete permanently" (4.7), rename and the other device's rebind (5.9), separate vault, damaged working copy, idle auto-lock, Settings > Sync. |
 | `copies` | `node scripts/verify/run.mjs copies` | 2 min | Cloud conflict copies, user copies, older-desktop side files, mass-change snapshot and undo, two devices on two copies (5.5, 5.8, 5.10). |
 | `backup` | `node scripts/verify/run.mjs backup` | 2 min | Local backup, rollback and restore as a new vault, cloud backup plan gate and downgrade (5.10, 8.1, 8.2). |
+| `startup` | `node scripts/verify/run.mjs startup` | 3.5 min | Startup vault and automatic unlock (`docs/AUTO_UNLOCK.md` 8.2): the saved unlock across a relaunch, Lock and the screen lock keep asking, the escape hatch, Go to Vault Hub, a stale saved password, no automatic take-over, a missing file, sign-out and account switch forget it, the MCP hold, a team startup vault. Not part of `verify:data`. |
 | `resilience` | `node scripts/verify/run.mjs resilience` | 2.5 min | Offline open and reconnect, a take-over learned on reconnect, the cached Pro tier, team vaults beside personal sync, export and import (4.2, 6.5 to 6.8). |
 
 ## What it proves
