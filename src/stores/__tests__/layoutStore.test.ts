@@ -86,3 +86,15 @@ describe("layoutStore and the pinned Home tab", () => {
     expect(paneIds("pane-a")).toEqual([]);
   });
 });
+
+describe("layoutStore session subscription", () => {
+  it("treats a missing sessions list as empty instead of throwing", async () => {
+    const { useSessionStore } = await import("../sessionStore");
+    setRoot(leaf("pane-a", []));
+    useSessionStore.setState({ sessions: [{ id: "a", type: "local_shell", title: "Terminal", status: "connected" }] as never });
+    expect(paneIds("pane-a")).toEqual(["a"]);
+    expect(() => useSessionStore.setState({ sessions: null as never })).not.toThrow();
+    expect(paneIds("pane-a")).toEqual([]);
+    useSessionStore.setState({ sessions: [] });
+  });
+});

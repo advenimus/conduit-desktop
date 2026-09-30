@@ -552,7 +552,7 @@ let prevSessionIds: string[] = [];
 
 useSessionStore.subscribe((state) => {
   if (layoutSyncing) return;
-  const currentIds = state.sessions.map((s) => s.id);
+  const currentIds = (state.sessions ?? []).map((s) => s.id);
   const currentSet = new Set(currentIds);
   const prevSet = new Set(prevSessionIds);
 
