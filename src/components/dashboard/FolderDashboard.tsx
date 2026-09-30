@@ -70,8 +70,8 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
   return (
     <div className="flex-1 flex flex-col bg-editor overflow-y-auto h-full" data-cv-folder-view={folderId}>
       {/* Header */}
-      <div className="p-6 border-b border-divider">
-        <div className={`${CONTENT_WIDTH} flex items-center gap-3`}>
+      <div className="py-6 border-b border-divider">
+        <div className={`${CONTENT_WIDTH} flex items-center gap-3 px-6`}>
           <FolderIcon size={28} stroke={1.5} className={folderColor.className} style={folderColor.style} />
           <div className="flex-1 min-w-0">
             <h2 className="text-title font-semibold text-ink truncate">{folder.name}</h2>

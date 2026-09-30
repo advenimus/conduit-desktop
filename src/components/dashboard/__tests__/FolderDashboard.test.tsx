@@ -80,7 +80,8 @@ describe("FolderDashboard header", () => {
     const { container } = await setup();
     const header = container.querySelector(".border-b.border-divider") as HTMLElement;
     expect(header.className).not.toMatch(/max-w-4xl/);
-    expect((header.firstElementChild as HTMLElement).className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "w-full", "max-w-4xl"]));
+    expect((header.firstElementChild as HTMLElement).className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "w-full", "max-w-4xl", "px-6"]));
+    expect(header.className.split(" ")).not.toContain("p-6");
     const list = container.querySelector("[data-cv-folder-list]") as HTMLElement;
     expect(list.closest(".max-w-4xl")).not.toBeNull();
   });
