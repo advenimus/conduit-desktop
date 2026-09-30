@@ -1,7 +1,7 @@
 # Conduit Features
 
 > **Auto-maintained**: This document is updated whenever a new feature is implemented.
-> Last updated: 2026-09-26
+> Last updated: 2026-09-29
 
 ---
 
@@ -795,8 +795,27 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Mid-session disconnect detection: SSH drops, VNC server closes, and web load failures update UI in real-time
 - Local shell auto-close: clean exit (code 0) removes tab; non-zero shows error overlay
 
+### Home Dashboard
+- **Pinned Home tab**: always the first tab of the first pane while a vault is open; it has no close button, cannot be dragged away, and comes back after a lock or a vault switch
+- **Getting back**: Cmd+Shift+H (Ctrl+Shift+H on Windows and Linux), View > Home in the app menu, or the Home button in the side bar footer; an empty pane shows Home too
+- **Quick bar**: search box that finds entries and folders by name, host or tag and opens them in place (Up, Down, Enter, Escape), plus Quick Connect and New Entry
+- **Recently connected**: the last 8 entries opened on this device, with Copy password and View info
+- **Open now**: live sessions with their status; click one to jump to its tab
+- **Favorites**: as before
+- **Needs attention** (only when something is wrong): changes to review, sync paused or failing, backups that failed or are older than a set number of days, passwords older than a set age, the plan's connection or device limit, and a trial that ends soon
+- **AI activity**: recent MCP tool calls from AI agents on this device, read from the MCP audit log (tool, target entry, result and time only)
+- **Vault status and counts**: as before, with Command entries counted
+- **Customize**: show or hide each section, set the password and backup age warnings, and clear the connection history; saved per device
+- **Connection history**: kept on this device only, outside the vault file, per vault; stores entry ids, protocol, times and outcome (no hosts or credentials); 90 days and at most 5,000 connections per vault
+
+### Folder View
+- Right-click a folder > "View Info", or pick a folder in the Home search, to open it as a tab
+- Searchable list of every entry in the folder and its sub-folders, sorted by name, type, last connection or status
+- **Open all** opens the folder's SSH, RDP, VNC and web entries (asks first when there are more than 5)
+- **Is it up?** per row, or **Check all** (up to 50 entries, four at a time)
+
 ### Entry Dashboard
-- Detail view when selecting an entry in the sidebar (host, username, password, domain, tags, notes)
+- Detail view of an entry, opened with "View Info" (host, username, password, domain, tags, notes)
 - Copy buttons for username, password, and host
 - Open in external app: launch connections in system default applications
   - Web → system browser
@@ -808,6 +827,8 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Two-column layout: details on left, markdown notes on right (when notes exist)
 - **Selectable text**: All detail values (host, username, revealed password) and markdown notes are highlightable and copyable via text selection
 - **Secret copy button**: `!!secret!!` values in markdown notes show a copy button when revealed, in addition to being selectable
+- **Is it up?**: checks a direct TCP connection from this device to the entry's host and port (3 second timeout, no proxy) and shows the answer time or why it failed
+- **Recent connections**: the last 20 connections to the entry from this device, with result and duration
 - **View Info tab**: Right-click any entry → "View Info" to open the dashboard as a persistent tab alongside active sessions
   - Access notes, credentials, TOTP codes, and connection details even while sessions are open
   - Also available from the session tab right-click menu ("View Info")

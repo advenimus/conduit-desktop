@@ -2061,6 +2061,8 @@ Wave 3 restyles dialogs, screens, session views, the picker and toasts, one dire
 
 #### R3-DASHBOARD: Home, entry and folder dashboards
 
+> **Superseded (2026-09-29):** `docs/DASHBOARD.md` replaces the Home dashboard, the folder dashboard and the entry dashboard additions below. Its rule "texts and order unchanged" no longer applies to those screens; the restyle suite's `home-dashboard-full-window` inventory and shot 40 need new fixtures after that work lands.
+
 **Owns:** `src/components/dashboard/**`
 
 **Deliverables:**
