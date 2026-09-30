@@ -2,8 +2,10 @@
  * Own-row Realtime subscription (spec 6.2 displacement signal, 6.5, 9.5 notes): UPDATEs of
  * personal_vault_sessions filtered by device_id; rows of other vaults are ignored; a row whose
  * lease_id differs from ours means another running copy with this device identity acquired
- * (superseded); status 'displaced' with our lease id means take-over or plan limit. Realtime is
- * only a fast path: the next heartbeat (at most 30 s) is the fallback.
+ * (superseded); status 'displaced' with our lease id means take-over, plan limit or device cap.
+ * A not-owner or update-required row carries no detail for the notice, so it asks for a
+ * heartbeat at once (which answers with the detail). Realtime is only a fast path: the next
+ * heartbeat (at most 30 s) is the fallback.
  */
 
 import type { LeaseTracker } from './lease.js';
@@ -16,7 +18,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export type RealtimeVerdict =
   | { readonly kind: 'ignore' }
   | { readonly kind: 'superseded' }
-  | { readonly kind: 'displaced'; readonly reason: 'takeover' | 'plan_limit'; readonly byDeviceId: string | null };
+  | { readonly kind: 'displaced'; readonly reason: 'takeover' | 'plan_limit' | 'device_cap'; readonly byDeviceId: string | null }
+  | { readonly kind: 'refused'; readonly reason: 'not_owner' | 'update_required' };
 
 const IGNORE: RealtimeVerdict = { kind: 'ignore' };
 const SUPERSEDED: RealtimeVerdict = { kind: 'superseded' };
@@ -44,7 +47,8 @@ export function classifyRealtimeRow(
   }
   if (row.status !== 'displaced') return IGNORE;
   const reason = row.displaced_reason;
-  if (reason !== 'takeover' && reason !== 'plan_limit') return IGNORE;
+  if (reason === 'not_owner' || reason === 'update_required') return { kind: 'refused', reason };
+  if (reason !== 'takeover' && reason !== 'plan_limit' && reason !== 'device_cap') return IGNORE;
   const by = row.displaced_by_device;
   return { kind: 'displaced', reason, byDeviceId: typeof by === 'string' && UUID_RE.test(by) ? by.toLowerCase() : null };
 }
@@ -63,6 +67,8 @@ export interface SessionRealtimeDeps {
    */
   readonly lookupName?: (deviceId: string) => Promise<string | null>;
   readonly onDisplaced: (reason: DisplacementReason, byDeviceName: string | null) => void;
+  /** A heartbeat now, for rows whose notice needs the heartbeat's detail; absent: displace without it. */
+  readonly beatNow?: () => void;
   /** This launch's session nonce (SessionConfig.sessionNonce); see classifyRealtimeRow. */
   readonly sessionNonce?: string;
 }
@@ -127,6 +133,12 @@ export class SessionRealtime {
       host.logger.warn(`${P} realtime: lease superseded by another running copy with this device identity`);
       lease.onSuperseded();
       this.deps.onDisplaced('superseded', null);
+      return;
+    }
+    if (verdict.kind === 'refused') {
+      host.logger.info(`${P} realtime: lease refused by the server`, { reason: verdict.reason });
+      if (this.deps.beatNow !== undefined) this.deps.beatNow();
+      else this.deps.onDisplaced(verdict.reason, null);
       return;
     }
     const byId = verdict.byDeviceId;

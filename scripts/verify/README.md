@@ -31,6 +31,7 @@ in all); each suite alone adds about 8 s of setup.
 | `copies` | 5 | 105 to 145 s | `verify-data` | Conflict copies, user copies, side files, mass-change undo, two copies |
 | `lifecycle` | 6 | 160 s | `verify-data` | Recently deleted, rename and rebind, separate vault, damaged copy, idle lock, Sync tab |
 | `mcp` | 6 | 44 s | `verify-mcp` | MCP tools, no daily quota, MCP writes that sync, conflicts, lock errors, audit log |
+| `ownership` | 9 | 164 s | `verify-ownership` | Vault owner and grace, Make my own copy, release, owner tag signed out and offline, device cap, minimum version, cloud backup plan gate (`docs/PLAN_ENFORCEMENT.md` 7.3) |
 | `password` | 4 | 50 s | `verify-data` | Master-password change on a synced vault |
 | `resilience` | 5 | 148 s | `verify-data` | Offline open and reconnect, cached tier, team vaults, export and import |
 | `smoke` | 2 | 4 s | none | Harness health |
@@ -39,6 +40,8 @@ in all); each suite alone adds about 8 s of setup.
 
 A suite with `optIn: true` runs only when it is named; `all` (the default) leaves it out. `--help` lists
 the opt-in suites.
+
+`ownership` needs the plan enforcement migrations (`20260929161642` to `20260929161756`) on the local stack; it moves the grace and cooldown clocks by updating `personal_vault_owners` and `personal_vault_guest_grace`, inserts fake lease rows for the device cap, and sets `app_config.min_app_version` for one scenario (reset to `0.0.0` when the scenario ends and again at cleanup). Devices are `o1a` to `o9a`, folders `<cloud>/o1` to `<cloud>/o9`.
 
 `sync`'s `file-safety` watches the whole cloud folder from the sync suite's first scenario on, so in a
 full run it also covers the files the earlier suites left there.
@@ -103,17 +106,32 @@ Nothing touches the user's dev profile (`~/Library/Application Support/conduit/c
 - applies `20260501000000_add_parent_entry_id.sql` and every migration dated `20260926000000` or later on every run, so repo
   changes are picked up (they are idempotent);
 - then applies `scripts/verify/sql/local-parity.sql` (`lib/supabase-parity.mjs`), in one transaction
-  behind an advisory lock so parallel runs never replace the same function at once. It mirrors
-  production: the team-sync RPC `upsert_vault_entry_versioned` with the 23-argument
-  `p_parent_entry_id` signature (EXECUTE for `authenticated` only), the private `vaults` storage bucket
-  with its four `storage.objects` policies (cloud backup), and the `get_team_members_with_email` grant;
-- checks tiers (free `vault_max_open_devices=1`, pro and team `-1`, `mcp_daily_quota=-1`), the
+  behind an advisory lock so parallel runs never replace the same function at once. It adds what no
+  migration creates: the private `vaults` storage bucket and the `get_team_members_with_email` grant.
+  The migrations create the guarded team-sync RPC `upsert_vault_entry_versioned` (23 arguments,
+  `20260929161642`) and the bucket's four `storage.objects` policies (`20260929161756`);
+- checks tiers (free `vault_max_open_devices=1`, pro and team `-1`, `account_max_active_devices=5` on all
+  three, `max_cloud_backup_vaults` free `0`, pro `10`, team `-1`, `mcp_daily_quota=-1`), the
   `vault_session_*` functions, the bucket, all four policies, the 23-argument RPC, and that
   `authenticated` can execute the team RLS helpers (`is_team_member`, `is_team_admin`,
   `is_team_vault_member`, `is_team_vault_admin`, `team_vault_has_members`, `shares_team_as_admin`,
   granted by `20260927020444_team_rls_helper_execute.sql`) and `get_team_members_with_email`;
+- `createTeam` gives each team a dummy `stripe_subscription_id`: the seat trigger of `20260929161642`
+  refuses members of a team without one;
 - the stale-user sweep first deletes teams owned by stale `verify-*` users (a team blocks its owner's
   deletion).
+
+## Database tests (`npm run test:sql`)
+
+`run-sql-tests.mjs` runs the plan enforcement tests of `docs/PLAN_ENFORCEMENT.md` 7.1 without the app
+(about 20 seconds): `ensureLocalSupabase()`, then every `supabase/pending/<version>_*.sql` (migrations that
+wait for a client release), then `supabase/tests/plan_enforcement_team.sql` and `plan_enforcement.sql` (sharing
+`_plan_enforcement_helpers.sql`; one `begin ... rollback` per case,
+`ok <id>` per passed case, stops at the first failed assert), `supabase/tests/plan_enforcement_rollback.sql`
+(the rollback files applied and checked inside a rolled-back transaction), the two-connection races
+T4 and O9 (`lib/sql-test-races.mjs`) and the PostgREST cases H1 and H2 with a real user's JWT. Logs go
+to `.verify/sql-tests/<time>/`. Applying `supabase/pending/` leaves those migrations on the local stack
+until the next `/verify` run re-applies `20260929161756`.
 
 ## Writing a suite
 
@@ -644,6 +662,15 @@ Restyle devices also launch with `CV_KEEP_POPUPS=1`: popup menus and the picker 
 and a test device is rarely the active app, so the launcher keeps them open until the suite closes them.
 The launcher also records global shortcuts instead of registering them (`globalThis.__cvShortcut`) and
 tracks the native views attached to a window (`globalThis.__cvAttachedWebViews`, rule G9).
+
+Every device runs in quiet mode: its windows are invisible and click-through, it never takes keyboard
+focus, and on macOS it has no Dock icon, so a run does not interrupt whoever is using the machine. The
+harness drives pages over CDP, which needs neither. To watch a run, set `CV_QUIET=0`
+(`CV_QUIET=0 node scripts/verify/run.mjs sync`). The app reads window focus for heartbeat activity
+and toast overlays, so the two suites that depend on them ran in quiet mode before this became the
+default: `node scripts/verify/run.mjs ownership sync` passed all 17 scenarios in 218.6 s on
+2026-09-29. If a focus-dependent check fails only in quiet mode, rerun it with `CV_QUIET=0` before
+calling it an app bug.
 
 ## Gotchas
 

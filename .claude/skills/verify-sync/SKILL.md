@@ -86,7 +86,8 @@ In `.verify/<runId>/`:
    timeout without a measured reason. If a check disagrees with `docs/MULTI_DEVICE_SYNC.md`, say so
    and cite the section.
 5. A scenario that passes only sometimes is a real race: report it.
-6. Finish with the full `npm run verify:sync`, and `npm run verify` before shipping.
+6. Finish with the full `npm run verify:sync`. Run every suite (`npm run verify`) only when the user
+   asks for it or for a release candidate.
 
 Known wording: after a take-over the locked-out modal is titled "Opened on <device>"; "Vault locked"
 is used for plan-limit and owner-claim cases. All test devices share this machine's name.

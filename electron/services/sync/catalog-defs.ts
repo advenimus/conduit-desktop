@@ -40,6 +40,8 @@ export const META_ROW_ID = 'meta';
 export const SYNC_ROW = { key: 'key', owner: 'owner', dismiss: 'dismiss', device: 'device' } as const;
 export const EPOCH_REG = 'epoch';
 export const OWNER_REG = 'owner';
+/** `_sync/owner/account`: the in-file owner tag (plan enforcement 3.1), next to the Free owner claim. */
+export const ACCOUNT_REG = 'account';
 
 export const TABLE_NAME: Readonly<Record<ContentTbl, string>> = { 1: 'entries', 2: 'folders', 3: 'password_history' };
 export const CONTENT_TBLS: readonly ContentTbl[] = [TBL.entries, TBL.folders, TBL.history];
@@ -149,6 +151,7 @@ const META_DEFS: readonly RegisterDef[] = [
 
 const EPOCH_DEF = def(TBL.sync, EPOCH_REG, 'text', 'special', { columns: [], label: 'Master password' });
 const OWNER_DEF = def(TBL.sync, OWNER_REG, 'json', 'auto', { columns: [], label: 'Owner claim' });
+const ACCOUNT_DEF = def(TBL.sync, ACCOUNT_REG, 'json', 'auto', { columns: [], label: 'Vault owner' });
 const DISMISS_DEF = def(TBL.sync, '', 'flag', 'auto', { family: 'dismiss', columns: [], label: 'Dismissed suggestion' });
 const DEVICE_DEF = def(TBL.sync, '', 'json', 'auto', { family: 'device', columns: [], label: 'Device' });
 
@@ -188,7 +191,7 @@ export function registerDef(key: RegKey): RegisterDef | null {
 
 function syncRegisterDef(rowId: string, reg: string): RegisterDef | null {
   if (rowId === SYNC_ROW.key) return reg === EPOCH_REG ? EPOCH_DEF : null;
-  if (rowId === SYNC_ROW.owner) return reg === OWNER_REG ? OWNER_DEF : null;
+  if (rowId === SYNC_ROW.owner) return reg === OWNER_REG ? OWNER_DEF : reg === ACCOUNT_REG ? ACCOUNT_DEF : null;
   if (reg.length === 0) return null;
   if (rowId === SYNC_ROW.dismiss) return DISMISS_DEF;
   if (rowId === SYNC_ROW.device) return DEVICE_DEF;
@@ -225,6 +228,7 @@ export function regKey(tbl: Tbl, rowId: string, reg: string): RegKey {
 export const metaRegKey = (reg: 'vault_id' | 'cloud_sync_enabled'): RegKey => regKey(TBL.meta, META_ROW_ID, reg);
 export const epochRegKey = (): RegKey => regKey(TBL.sync, SYNC_ROW.key, EPOCH_REG);
 export const ownerRegKey = (): RegKey => regKey(TBL.sync, SYNC_ROW.owner, OWNER_REG);
+export const ownerTagRegKey = (): RegKey => regKey(TBL.sync, SYNC_ROW.owner, ACCOUNT_REG);
 export const dismissRegKey = (hash: string): RegKey => regKey(TBL.sync, SYNC_ROW.dismiss, hash);
 export const deviceRegKey = (deviceUuid: string): RegKey => regKey(TBL.sync, SYNC_ROW.device, deviceUuid);
 export const configReg = (configKey: string): string => CONFIG_PREFIX + configKey;

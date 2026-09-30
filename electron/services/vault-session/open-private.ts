@@ -16,7 +16,7 @@ import type { AcquireResult } from './session-client.js';
 import { Rollback } from './open-async.js';
 import type { OpenContext } from './open-deps.js';
 import { fileProblemError, VAULT_EXISTS_MESSAGE } from './open-errors.js';
-import { acquireLease, earlyInUseCheck } from './open-gate.js';
+import { acquireLease, earlyInUseCheck, type CopySource } from './open-gate.js';
 import type { VaultLocation } from './open-location.js';
 import { verifyPrivatePassword } from './open-password.js';
 import type { OpenedPersonalVault } from './open-personal-vault.js';
@@ -44,6 +44,11 @@ function startPrivateSession(ctx: OpenContext, lineageId: string, acquire: Acqui
   return { lineageId, shared: false, runtime, replica: null, engine: null, unlock: null, firstCyclePending: false };
 }
 
+/** A private file is its own copy source; its key is PBKDF2 of the password with the file's salt. */
+function privateCopySource(ctx: OpenContext, salt: string | null): CopySource {
+  return { source: { kind: 'shared', path: ctx.sharedPath }, keys: salt === null ? [] : [ctx.kdf(ctx.input.password, salt)] };
+}
+
 /** Private vault: early check, password (PBKDF2 + verification token), acquire, then the existing in-place unlock. */
 export async function openPrivateVault(ctx: OpenContext, loc: VaultLocation): Promise<OpenedPersonalVault> {
   const file = await readPrivateLineage(ctx);
@@ -51,7 +56,7 @@ export async function openPrivateVault(ctx: OpenContext, loc: VaultLocation): Pr
   verifyPrivatePassword(ctx, file.meta);
   const rollback = new Rollback(ctx.host.logger);
   try {
-    const acquire = await acquireLease(ctx, loc, file.lineageId, null, rollback);
+    const acquire = await acquireLease(ctx, loc, file.lineageId, null, rollback, privateCopySource(ctx, file.meta.salt));
     await ctx.host.access.openPrivateInPlace(ctx.sharedPath, ctx.input.password);
     return startPrivateSession(ctx, file.lineageId, acquire);
   } catch (err) {
@@ -72,7 +77,7 @@ async function createPrivate(ctx: OpenContext, loc: VaultLocation): Promise<Open
   const file = await readPrivateLineage(ctx);
   const rollback = new Rollback(ctx.host.logger);
   try {
-    const acquire = await acquireLease(ctx, loc, file.lineageId, null, rollback);
+    const acquire = await acquireLease(ctx, loc, file.lineageId, null, rollback, privateCopySource(ctx, file.meta.salt));
     return startPrivateSession(ctx, file.lineageId, acquire);
   } catch (err) {
     await rollback.run();
@@ -89,7 +94,7 @@ async function createShared(ctx: OpenContext, loc: VaultLocation): Promise<Opene
   const binding: FileBinding = { sharedPath: ctx.sharedPath, realpath: loc.realpath, fileId: random.uuid() };
   const rollback = new Rollback(ctx.host.logger);
   try {
-    const acquire = await acquireLease(ctx, loc, lineageId, binding.fileId, rollback);
+    const acquire = await acquireLease(ctx, loc, lineageId, binding.fileId, rollback, { source: { kind: 'shared', path: ctx.sharedPath }, keys: [key] });
     const lineageDir = lineagePaths(ctx.config.machineDir, lineageId).dir;
     rollback.push('remove new lineage folder', () => ctx.host.fs.rm(lineageDir, { recursive: true, force: true }));
     const opened = await ctx.c.openReplica(

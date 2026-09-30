@@ -9,7 +9,7 @@ const LAUNCHER_MAIN = `import fs from 'node:fs';
 import cp from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { View, app, globalShortcut, ipcMain } from 'electron';
+import { BrowserWindow, View, app, globalShortcut, ipcMain } from 'electron';
 
 const appData = process.env.CV_APPDATA;
 const mainJs = process.env.CV_MAIN_JS;
@@ -97,6 +97,39 @@ View.prototype.removeChildView = function (child, ...rest) {
 globalThis.__cvAttachedWebViews = () => [...attachedViews]
   .filter((v) => v.webContents && !v.webContents.isDestroyed())
   .map((v) => ({ id: v.webContents.id, url: v.webContents.getURL() }));
+
+// Quiet mode (default; CV_QUIET=0 turns it off): test devices stay invisible and click-through, never
+// take keyboard focus and show no Dock icon, so a run does not interrupt whoever is using the machine.
+// The harness drives pages over CDP, which needs neither OS focus nor a visible window; the switches
+// keep invisible windows rendering and their timers at full speed.
+if (process.env.CV_QUIET !== '0') {
+  for (const sw of ['disable-backgrounding-occluded-windows', 'disable-renderer-backgrounding', 'disable-background-timer-throttling']) {
+    app.commandLine.appendSwitch(sw);
+  }
+  if (process.platform === 'darwin') {
+    app.setActivationPolicy('accessory');
+    if (app.dock) {
+      app.dock.show = () => Promise.resolve();
+      app.dock.bounce = () => -1;
+    }
+  }
+  app.focus = () => {};
+  const win = BrowserWindow.prototype;
+  const setOpacity = win.setOpacity;
+  const setIgnoreMouseEvents = win.setIgnoreMouseEvents;
+  win.show = function show() {
+    return this.showInactive();
+  };
+  win.focus = function focus() {};
+  win.moveTop = function moveTop() {};
+  win.setOpacity = function quietOpacity() {};
+  win.setIgnoreMouseEvents = function quietIgnoreMouse() {};
+  app.on('browser-window-created', (_event, created) => {
+    setOpacity.call(created, 0);
+    setIgnoreMouseEvents.call(created, true);
+    created.webContents.setBackgroundThrottling(false);
+  });
+}
 
 await import(pathToFileURL(mainJs).href);
 `;

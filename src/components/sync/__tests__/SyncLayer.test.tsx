@@ -23,7 +23,7 @@ describe("SyncLayer", () => {
     const onUnlock = vi.fn();
     document.addEventListener("conduit:unlock-vault", onUnlock);
     useSyncStore.setState({
-      displaced: { lineageId: "L", reason: "takeover", byDeviceName: "iPhone", openConnections: 2, runningJobs: 0, changesSaved: true, fileName: null },
+      displaced: { lineageId: "L", reason: "takeover", byDeviceName: "iPhone", openConnections: 2, runningJobs: 0, changesSaved: true, fileName: null, minVersion: null, released: false, deviceCap: null },
     });
     render(<SyncLayer />);
     expect(screen.getByText("This vault is now open on iPhone.")).toBeInTheDocument();
@@ -52,6 +52,8 @@ describe("SyncLayer stacking (spec 6.8, 7.2)", () => {
     lineageId: "L",
     holders: [{ deviceId: "d", deviceName: "MacBook", platform: "darwin", fileName: null, fileId: null, location: null, lastActiveMs: null, busySessions: 0, busyJobs: 0 }],
     answerByMs: Date.now() + 30_000,
+    cause: "vault_limit" as const,
+    deviceCap: null,
   };
 
   it("shows the saving overlay while a displaced device saves, then the soft-lock notice", () => {
@@ -59,7 +61,7 @@ describe("SyncLayer stacking (spec 6.8, 7.2)", () => {
     const { rerender } = render(<SyncLayer />);
     expect(screen.getByText("Opened on iPhone")).toBeInTheDocument();
     expect(screen.getByText("Saving your last changes...")).toBeInTheDocument();
-    useSyncStore.getState().setDisplaced({ lineageId: "L", reason: "takeover", byDeviceName: "iPhone", openConnections: 0, runningJobs: 0, changesSaved: true, fileName: null });
+    useSyncStore.getState().setDisplaced({ lineageId: "L", reason: "takeover", byDeviceName: "iPhone", openConnections: 0, runningJobs: 0, changesSaved: true, fileName: null, minVersion: null, released: false, deviceCap: null });
     rerender(<SyncLayer />);
     expect(screen.queryByText("Saving your last changes...")).toBeNull();
     expect(screen.getByText("This vault is now open on iPhone.")).toBeInTheDocument();
@@ -110,6 +112,10 @@ describe("TakeoverDialog", () => {
     fileName: "Vault.conduit",
     locationDiffers: true,
     via: "server",
+    cause: "vault_limit",
+    deviceCap: null,
+    displaceDeviceName: null,
+    alsoLockDeviceName: null,
   };
 
   it("words the holder, the busy sessions and the Free rule, with Upgrade", () => {

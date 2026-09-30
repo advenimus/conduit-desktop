@@ -10,10 +10,11 @@ import { PRESENCE_FUTURE_TOLERANCE_MS } from '../sync/presence.js';
 import type { ReplicaPort } from '../sync/replica.js';
 import type { SessionRowView, SyncLogger, Timers } from '../sync/host.js';
 import type { FileHint, SyncState } from '../sync/types.js';
-import { effectiveLimit, lastLimitDue, type EffectiveLimit } from './effective-limit.js';
+import { effectiveLimit, lastLimitDue, LAST_LIMIT_REFRESH_MS, type EffectiveLimit } from './effective-limit.js';
 import type { LeaseTracker } from './lease.js';
 import type { HeartbeatContext } from './heartbeat.js';
-import type { AcquireArgs } from './session-client.js';
+import type { AcquireArgs, Ownership } from './session-client.js';
+import type { OwnerCheck } from '../sync/types.js';
 import { expectedMarkers, uncoveredMarkers, type ExpectedMarker } from './stale-wait.js';
 import type { SessionHost } from './host.js';
 
@@ -99,6 +100,45 @@ export function recordLastLimit(replica: ReplicaPort | null, host: Pick<SessionH
   });
 }
 
+/** 3.3: the ownerCheck a confirmed answer leads to; undefined keeps the stored one ('unowned' and unknown answers). */
+export function ownerCheckFor(ownership: Ownership | null, hint: string, atMs: number): OwnerCheck | undefined {
+  if (ownership?.kind === 'owner') return { hint, kind: 'owner', untilMs: null, atMs };
+  if (ownership?.kind === 'grace') return { hint, kind: 'grace', untilMs: ownership.untilMs, atMs };
+  return undefined;
+}
+
+/** A new check, or the same one gone stale (refreshed like lastLimit so an offline unlock compares a recent time). */
+export function ownerCheckDue(prev: OwnerCheck | null, next: OwnerCheck): boolean {
+  if (prev === null || prev.hint !== next.hint || prev.kind !== next.kind || prev.untilMs !== next.untilMs) return true;
+  const ageMs = next.atMs - prev.atMs;
+  return !(ageMs >= 0 && ageMs < LAST_LIMIT_REFRESH_MS);
+}
+
+/** 3.3: a confirmed grant or heartbeat `ok` into local.json ownerCheck, when a write is due. Shared vaults only. */
+export function recordOwnerCheck(
+  replica: ReplicaPort | null,
+  host: Pick<SessionHost, 'clock' | 'logger'>,
+  ownership: Ownership | null,
+  hint: string | null,
+): void {
+  if (replica === null || hint === null) return;
+  const next = ownerCheckFor(ownership, hint, host.clock.now());
+  if (next === undefined) return;
+  guarded(host.logger, 'write ownerCheck', () => {
+    if (!ownerCheckDue(replica.local().ownerCheck ?? null, next)) return;
+    replica.updateLocal((l) => ({ ...l, ownerCheck: next }));
+  });
+}
+
+/** 3.3: a confirmed not-owner answer or a confirmed release clears the check. */
+export function clearOwnerCheck(replica: ReplicaPort | null, host: Pick<SessionHost, 'logger'>): void {
+  if (replica === null) return;
+  guarded(host.logger, 'clear ownerCheck', () => {
+    if ((replica.local().ownerCheck ?? null) === null) return;
+    replica.updateLocal((l) => ({ ...l, ownerCheck: null }));
+  });
+}
+
 export interface FileFacts {
   readonly fileName: string | null;
   readonly fileId: string | null;
@@ -116,6 +156,8 @@ export interface AcquireInputs {
   readonly sessionNonce: string;
   readonly facts: FileFacts;
   readonly takeover: boolean;
+  /** p_claim: true only for a take-over the user chose; background re-acquires never claim. */
+  readonly claim: boolean;
 }
 
 export function acquireArgsFor(host: Pick<SessionHost, 'device'>, input: AcquireInputs): AcquireArgs {
@@ -131,6 +173,7 @@ export function acquireArgsFor(host: Pick<SessionHost, 'device'>, input: Acquire
     fileId: input.facts.fileId,
     location: input.facts.location,
     takeover: input.takeover,
+    claim: input.claim,
   };
 }
 

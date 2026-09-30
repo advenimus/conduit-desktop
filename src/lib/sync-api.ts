@@ -10,6 +10,7 @@ import type {
   ForkResultDto,
   PasswordFlowResult,
   RecentlyDeletedItem,
+  ReleaseOwnershipResult,
   ResolveGroupRequest,
   ResolveRequest,
   ResolveResult,
@@ -82,7 +83,12 @@ export const syncApi = {
   deletePermanently: (rows: readonly SyncRowKey[] | null, all: boolean) =>
     invoke<void>("sync_delete_permanently", all ? { all: true } : { rows: rows ?? [] }),
 
-  pickVaultFile: (mode: "open" | "save") => invoke<string | null>("vault_pick_file", { mode }),
+  releaseOwnership: () => invoke<ReleaseOwnershipResult>("sync_release_ownership"),
+  makeOwnCopy: (ticket: string, targetPath: string) => invoke<ForkResultDto>("sync_make_own_copy", { ticket, targetPath }),
+
+  pickVaultFile: (mode: "open" | "save", opts?: { defaultDir?: string | null }) =>
+    invoke<string | null>("vault_pick_file", opts?.defaultDir ? { mode, defaultDir: opts.defaultDir } : { mode }),
   openPricing: () => invoke<void>("auth_open_pricing"),
+  openTeamTrial: () => invoke<void>("auth_open_team_trial"),
 };
 

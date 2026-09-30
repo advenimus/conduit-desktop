@@ -60,6 +60,7 @@ function acquireArgs(deviceId: string, name: string, over: Partial<AcquireArgs> 
     fileId: FILE,
     location: 'icloud:Vaults',
     takeover: false,
+    claim: true,
     ...over,
   };
 }
@@ -96,7 +97,7 @@ describe('FakeSessionServer (9.5)', () => {
     expect(denied.kind === 'denied' && denied.holders.map((h) => h.deviceName)).toEqual(['MacBook']);
     expect(await c.peek({ vaultKey: VAULT, deviceId: DEV_B })).toMatchObject({ kind: 'ok', limit: 1 });
     leaseOf(await c.acquire(acquireArgs(DEV_B, 'Windows PC', { takeover: true })));
-    expect(await c.heartbeat(beatArgs(DEV_A, leaseA))).toEqual({ kind: 'displaced', reason: 'takeover', byDeviceName: 'Windows PC' });
+    expect(await c.heartbeat(beatArgs(DEV_A, leaseA))).toEqual({ kind: 'displaced', reason: 'takeover', byDeviceName: 'Windows PC', minVersion: null, released: false });
   });
 
   it('take-over displaces idle devices before busy ones', async () => {
@@ -123,7 +124,7 @@ describe('FakeSessionServer (9.5)', () => {
     }
     await c.heartbeat(beatArgs(DEV_A, leases.get(DEV_A)!, { busy: { sessions: 3, jobs: 1 } }));
     w.server.setLimit(USER, 1);
-    expect(await c.heartbeat(beatArgs(DEV_C, leases.get(DEV_C)!))).toEqual({ kind: 'displaced', reason: 'plan_limit', byDeviceName: 'MacBook' });
+    expect(await c.heartbeat(beatArgs(DEV_C, leases.get(DEV_C)!))).toEqual({ kind: 'displaced', reason: 'plan_limit', byDeviceName: 'MacBook', minVersion: null, released: false });
     expect(await c.heartbeat(beatArgs(DEV_B, leases.get(DEV_B)!))).toMatchObject({ kind: 'displaced', reason: 'plan_limit' });
     expect(await c.heartbeat(beatArgs(DEV_A, leases.get(DEV_A)!, { busy: { sessions: 3, jobs: 1 } }))).toMatchObject({ kind: 'ok', limit: 1 });
   });
@@ -143,7 +144,7 @@ describe('FakeSessionServer (9.5)', () => {
       lease.onHeartbeat(await c.heartbeat(beatArgs(DEV_A, leaseA)), w.clock.now());
       return uncoveredSideFilesFlag(lease, replica, w.logger, w.clock.now());
     };
-    lease.onAcquire({ kind: 'granted', leaseId: leaseA, limit: -1, sessions: [], serverNowMs: null }, w.clock.now());
+    lease.onAcquire({ kind: 'granted', leaseId: leaseA, limit: -1, sessions: [], serverNowMs: null, deviceCap: null, ownership: null }, w.clock.now());
     expect(await viewOfA()).toBe(false);
     await w.clock.advance(5_000);
     await c.heartbeat(beatArgs(DEV_B, leaseB, { active: false, flags: { sideFiles: true } }));
@@ -219,6 +220,8 @@ describe('FakeSessionServer (9.5)', () => {
     const w = world();
     const c = w.client();
     w.server.setLimit(USER, -1);
+    // Refused acquires write no row, so the device cap must be off to reach the daily guard.
+    w.server.plan.setDeviceCap(USER, -1);
     for (let i = 0; i < 201; i++) {
       const dev = `aaaaaaaa-1111-4111-8111-${i.toString(16).padStart(12, '0')}`;
       await c.acquire(acquireArgs(dev, `D${i}`));

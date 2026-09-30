@@ -34,7 +34,7 @@ function status(over: Partial<SyncStatus>): SyncStatus {
 }
 
 function displaced(over: Partial<DisplacedEvent>): DisplacedEvent {
-  return { lineageId: "L", reason: "takeover", byDeviceName: "iPhone", openConnections: 3, runningJobs: 0, changesSaved: true, fileName: null, ...over };
+  return { lineageId: "L", reason: "takeover", byDeviceName: "iPhone", openConnections: 3, runningJobs: 0, changesSaved: true, fileName: null, minVersion: null, released: false, deviceCap: null, ...over };
 }
 
 describe("formatAgo and small words", () => {

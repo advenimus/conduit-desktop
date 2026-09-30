@@ -3,7 +3,7 @@ import { toast } from "../common/Toast";
 import type { OpenErrorPayload, TakeoverHolder } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
 import { Card } from "../ui";
-import { deviceNameOr, holderActivity, holderBusyText, providerName } from "./sync-copy";
+import { DEFAULT_DEVICE_CAP, deviceHolderLine, deviceNameOr, holderActivity, holderBusyText, providerName } from "./sync-copy";
 
 type OpenElsewhere = Extract<OpenErrorPayload, { code: "VAULT_OPEN_ELSEWHERE" }>;
 
@@ -31,9 +31,49 @@ function HolderLine({ holder }: { holder: TakeoverHolder }) {
   );
 }
 
+/** S1b: a Free take-over that also locks another device for the account's device cap. */
+export function alsoLocksText(payload: OpenElsewhere): string | null {
+  if (payload.alsoLockDeviceName == null) return null;
+  const n = payload.deviceCap ?? DEFAULT_DEVICE_CAP;
+  return `Conduit will also lock your vaults on ${deviceNameOr(payload.alsoLockDeviceName)}, because you're using Conduit on ${n} devices.`;
+}
+
+/** S1: too many devices. [Use here instead] locks the least recently used one. */
+function DeviceCapDialog({ payload, busy, onUseHere, onCancel }: TakeoverDialogProps) {
+  const n = payload.deviceCap ?? payload.holders.length;
+  const victim = deviceNameOr(payload.displaceDeviceName ?? payload.holders[0]?.deviceName);
+  return (
+    <SyncDialogFrame
+      icon="devices"
+      tone="warn"
+      title="Too many devices"
+      onEscape={onCancel}
+      footer={
+        <>
+          <DialogButton onClick={onCancel} disabled={busy}>Cancel</DialogButton>
+          <DialogButton variant="primary" onClick={onUseHere} loading={busy} loadingLabel="Opening..." autoFocus>
+            Use here instead
+          </DialogButton>
+        </>
+      }
+    >
+      <p className="text-ink">You're using Conduit on {n} devices. Close one to use it here.</p>
+      {payload.holders.map((h) => (
+        <Card key={h.deviceId}>
+          <p className="text-ink">{deviceHolderLine(h)}</p>
+        </Card>
+      ))}
+      <p>Conduit will lock your vaults on {victim}, the one you used least recently.</p>
+    </SyncDialogFrame>
+  );
+}
+
 /** 6.5: the vault is open on another device. [Use here instead] re-runs the unlock with takeover. */
-export default function TakeoverDialog({ payload, busy, onUseHere, onCancel }: TakeoverDialogProps) {
+export default function TakeoverDialog(props: TakeoverDialogProps) {
+  const { payload, busy, onUseHere, onCancel } = props;
+  if (payload.cause === "device_cap") return <DeviceCapDialog {...props} />;
   const first = payload.holders[0] ?? null;
+  const alsoLocks = alsoLocksText(payload);
   const freePlan = payload.limit === 1;
   return (
     <SyncDialogFrame
@@ -63,6 +103,7 @@ export default function TakeoverDialog({ payload, busy, onUseHere, onCancel }: T
         </p>
       )}
       {freePlan && <p className="text-ink-muted">On the Free plan a vault can be open on one device at a time.</p>}
+      {alsoLocks && <p>{alsoLocks}</p>}
     </SyncDialogFrame>
   );
 }

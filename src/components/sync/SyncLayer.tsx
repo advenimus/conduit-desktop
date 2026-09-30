@@ -13,6 +13,7 @@ import OtherCopiesPanel from "./OtherCopiesPanel";
 import RecentlyDeletedPanel from "./RecentlyDeletedPanel";
 import MassChangeNotice from "./MassChangeNotice";
 import RestorePreviewDialog from "./RestorePreviewDialog";
+import ReleaseVaultDialog from "./ReleaseVaultDialog";
 
 const EPOCH_KINDS: ReadonlySet<SyncPrompt["kind"]> = new Set(["epoch-newer", "epoch-legacy", "epoch-concurrent"]);
 
@@ -51,6 +52,7 @@ export default function SyncLayer() {
   const sessionConflict = useSyncStore((s) => s.sessionConflict);
   const deferred = useSyncStore((s) => s.deferredPrompts);
   const view = useSyncStore((s) => s.view);
+  const releaseOpen = useSyncStore((s) => s.releaseDialogOpen);
 
   const waiting = currentWaiting(openWaiting, state);
   const showWaitDialog = waiting !== null && (openWaiting !== null || waiting.blocking);
@@ -69,6 +71,7 @@ export default function SyncLayer() {
       {displacing && !displaced && <DisplacingOverlay event={displacing} />}
       {displaced && <DisplacedDialog event={displaced} />}
       {sessionConflict && <SessionConflictDialog event={sessionConflict} />}
+      {releaseOpen && <ReleaseVaultDialog />}
     </>
   );
 }

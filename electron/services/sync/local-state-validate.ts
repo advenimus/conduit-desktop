@@ -21,6 +21,7 @@ import type {
   LocalJson,
   LocalNotice,
   LocalNoticeKind,
+  OwnerCheck,
   Pmem,
   RegKey,
   SideFileTuple,
@@ -245,8 +246,15 @@ const candidateLabels: Check<Readonly<Record<string, string>>> = (v, at, errs) =
   return ok ? out : undefined;
 };
 
+const ownerCheck = obj<OwnerCheck>({
+  hint: hash16,
+  kind: literal(['owner', 'grace'] as const),
+  untilMs: nullable(msTime),
+  atMs: msTime,
+});
+
 /** Keys added after the first local.json format; older files lack them. */
-const LOCAL_JSON_OPTIONAL_KEYS: ReadonlySet<string> = new Set(['sideFilesConfirmedAtMs', 'dropStagedAfterPublish', 'sealLocalCopiesPending']);
+const LOCAL_JSON_OPTIONAL_KEYS: ReadonlySet<string> = new Set(['sideFilesConfirmedAtMs', 'dropStagedAfterPublish', 'sealLocalCopiesPending', 'ownerCheck']);
 
 const localJson = obj<LocalJson>({
   version: literal([LOCAL_JSON_VERSION] as const),
@@ -276,6 +284,7 @@ const localJson = obj<LocalJson>({
   sideFilesConfirmedAtMs: nullable(msTime),
   dropStagedAfterPublish: bool,
   sealLocalCopiesPending: bool,
+  ownerCheck: nullable(ownerCheck),
 }, LOCAL_JSON_OPTIONAL_KEYS);
 
 /** Strict validation of parsed JSON (types, hex lengths, known notice kinds). */

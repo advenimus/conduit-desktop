@@ -20,8 +20,9 @@ export const ACQUIRE: AcquireArgs = {
   fileName: 'Vault.conduit',
   fileId: FILE_ID,
   location: 'Dropbox',
-  // The loop must force takeover false on re-acquire whatever the runtime passes.
+  // The loop must force takeover and claim false on re-acquire whatever the runtime passes.
   takeover: true,
+  claim: true,
 };
 
 export const okBeat = (limit = 1): RpcResult => rpcOk({ status: 'ok', limit, sessions: [], server_now: TS });
@@ -92,7 +93,7 @@ export class HeartbeatHarness {
 
   /** Lease granted now (LEASE, limit 1), then start(). */
   startConfirmed(limit = 1): void {
-    this.lease.onAcquire({ kind: 'granted', leaseId: LEASE, limit, sessions: [], serverNowMs: null }, this.t.clock.now());
+    this.lease.onAcquire({ kind: 'granted', leaseId: LEASE, limit, sessions: [], serverNowMs: null, deviceCap: null, ownership: null }, this.t.clock.now());
     this.loop.start();
   }
 

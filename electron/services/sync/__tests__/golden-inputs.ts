@@ -92,6 +92,8 @@ function canonCases(): CaseInput[] {
     c('meta cloud_sync_enabled', M, 'meta', 'cloud_sync_enabled', 'true'),
     c('_sync epoch', S, 'key', 'epoch', '00112233445566778899aabbccddeeff'),
     c('_sync owner JSON', S, 'owner', 'owner', '{"d":"device-uuid","a":null}'),
+    c('_sync owner tag JSON', S, 'owner', 'account', '{"a":"0123456789abcdef0123456789abcdef"}'),
+    c('_sync owner tag released', S, 'owner', 'account', '{"a":null}'),
     c('_sync dismiss flag', S, 'dismiss', 'abcd', 1),
     c('_sync device presence JSON', S, 'device', 'device-uuid', '{"platform":"darwin","name":"MacBook","last_active_ms":1759000000000}'),
   ];

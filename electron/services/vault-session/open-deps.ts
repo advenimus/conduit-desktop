@@ -33,6 +33,7 @@ import type { LocalWrite, PresenceValue, SyncContext, SyncState } from '../sync/
 import { claimWrites, evaluateClaims, unlockClaimAction, type ClaimInputs, type ClaimVerdict } from './claims.js';
 import { claimsApply, effectiveLimit, type EffectiveLimit, type LimitInputs } from './effective-limit.js';
 import { LeaseTracker } from './lease.js';
+import { OwnCopyTickets } from './own-copy-tickets.js';
 import { readWorkingStateCopy, type StagingHost } from './open-staging.js';
 import { SessionClient, type SessionClientPort } from './session-client.js';
 import { PersonalVaultRuntime, type RuntimeDeps } from './session-runtime.js';
@@ -94,6 +95,8 @@ export const REAL_COLLABORATORS: OpenCollaborators = {
 
 /** Process lifetime, like the registry the app creates at start (3.1 incarnation per launch). */
 const DEFAULT_INCARNATIONS = new IncarnationRegistry();
+/** Process lifetime; the app passes its own store so lock, sign-out and quit can clear it. */
+const DEFAULT_TICKETS = new OwnCopyTickets();
 
 /** Everything one open needs; built once per openPersonalVault call. */
 export interface OpenContext {
@@ -106,6 +109,8 @@ export interface OpenContext {
   readonly replicaDeps: ReplicaDeps;
   readonly client: SessionClientPort;
   readonly lease: LeaseTracker;
+  /** "Make my own copy" keys of not-owner refusals (plan enforcement 4.5). */
+  readonly tickets: OwnCopyTickets;
   readonly stagingDir: string;
   /** Absolute path as the user named it (binding shared_path). */
   readonly sharedPath: string;
@@ -149,6 +154,7 @@ export function makeOpenContext(input: OpenPersonalVaultInput, deps: OpenDeps): 
     replicaDeps: { host, incarnations: deps.incarnations ?? DEFAULT_INCARNATIONS, verifyCommits: deps.verifyCommits },
     client: c.createClient(host),
     lease: c.createLease(),
+    tickets: deps.tickets ?? DEFAULT_TICKETS,
     stagingDir: path.join(config.syncRoot, PEEK_DIR_NAME),
     sharedPath,
     fileName: path.basename(sharedPath),

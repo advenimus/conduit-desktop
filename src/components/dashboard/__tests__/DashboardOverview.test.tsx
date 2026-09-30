@@ -6,18 +6,21 @@ import { useEntryStore } from "../../../stores/entryStore";
 import { useSyncStore } from "../../../stores/syncStore";
 import { useTierStore } from "../../../stores/tierStore";
 import { useVaultStore } from "../../../stores/vaultStore";
-import { entry, folder, rowParts } from "./fixtures";
+import { entry, folder, minutesAgo, rowParts } from "./fixtures";
 
 // Stores read settings through window.electron while these modules load.
 vi.hoisted(() => {
   Object.assign(globalThis, { electron: { invoke: async () => null, on: () => () => undefined } });
 });
 
+// One shared time, so a slow run cannot order the rows by millisecond drift.
+const UPDATED_AT = minutesAgo(13);
+
 const ENTRIES = [
-  entry({ id: "w", name: "Intranet Status", entry_type: "web", is_favorite: true, tags: ["prod"] }),
-  entry({ id: "s", name: "web-01", entry_type: "ssh", is_favorite: true }),
-  entry({ id: "d", name: "Runbook", entry_type: "document" }),
-  entry({ id: "c", name: "Domain Admin", entry_type: "credential" }),
+  entry({ id: "w", name: "Intranet Status", entry_type: "web", is_favorite: true, tags: ["prod"], updated_at: UPDATED_AT }),
+  entry({ id: "s", name: "web-01", entry_type: "ssh", is_favorite: true, updated_at: UPDATED_AT }),
+  entry({ id: "d", name: "Runbook", entry_type: "document", updated_at: UPDATED_AT }),
+  entry({ id: "c", name: "Domain Admin", entry_type: "credential", updated_at: UPDATED_AT }),
 ];
 
 const setSelectedEntry = vi.fn();

@@ -51,13 +51,13 @@ describe('acquire (6.3 step 5)', () => {
   });
 
   it('granted on Pro: presence only', async () => {
-    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: -1, sessions: [], serverNowMs: null };
+    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: -1, sessions: [], serverNowMs: null, deviceCap: null, ownership: null };
     await openPersonalVault(openInput(vaultPath), h.deps);
     expect(h.replicas.last().applied[0]?.writes).toHaveLength(1);
   });
 
   it('denied after the peek (a race) shows the dialog again and opens nothing', async () => {
-    h.client.acquireResult = { kind: 'denied', limit: 1, holders: [holder('MacBook')], sessions: [], serverNowMs: null };
+    h.client.acquireResult = { kind: 'denied', cause: 'vault_limit', limit: 1, deviceCap: null, holders: [holder('MacBook')], alsoLocks: null, sessions: [], serverNowMs: null };
     const err = await refusal(openPersonalVault(openInput(vaultPath), h.deps));
     expect(JSON.parse(err.message)).toMatchObject({ code: 'VAULT_OPEN_ELSEWHERE', via: 'server', holders: [holder('MacBook')] });
     expect(h.replicas.opened).toHaveLength(0);
@@ -96,7 +96,7 @@ describe('stale-file wait inputs (6.11, 12 rows 8/26)', () => {
   for (const [plan, limit] of [['Free', 1], ['Pro', -1]] as const) {
     it(`${plan}: the runtime starts with the acquire sessions, and our file id matches their markers`, async () => {
       const rows = [sessionRow({ fileId: 'file-1', marker: { dev: 9, ms: 700, c: 0 } })];
-      h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit, sessions: rows, serverNowMs: null };
+      h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit, sessions: rows, serverNowMs: null, deviceCap: null, ownership: null };
       await openPersonalVault(openInput(vaultPath), h.deps);
       const runtime = h.runtimes[0];
       expect(runtime?.started).toMatchObject({ kind: 'granted', limit, sessions: rows });
@@ -128,7 +128,7 @@ describe('seeding W (6.3 step 6, 4.4 G1)', () => {
     );
     h.bound.set(vaultPath, LINEAGE);
     const sessions = [sessionRow()];
-    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: 1, sessions, serverNowMs: null };
+    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: 1, sessions, serverNowMs: null, deviceCap: null, ownership: null };
     h.g1Outcome = 'synced';
     await openPersonalVault(openInput(vaultPath), h.deps);
     expect(h.waits[0]?.sessions).toEqual(sessions);
@@ -138,7 +138,7 @@ describe('seeding W (6.3 step 6, 4.4 G1)', () => {
 
   it('G1 wait timing out falls back to genesis', async () => {
     h.shared.set(vaultPath, { kind: 'ok', bytes: S_BYTES, cls: presyncClass(presyncMeta) });
-    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: 1, sessions: [sessionRow()], serverNowMs: null };
+    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: 1, sessions: [sessionRow()], serverNowMs: null, deviceCap: null, ownership: null };
     h.g1Outcome = 'timeout';
     await openPersonalVault(openInput(vaultPath), h.deps);
     expect(h.replicas.opened[0]?.seed).toEqual({ kind: 'genesis', sharedBytes: S_BYTES });
@@ -151,11 +151,11 @@ describe('seeding W (6.3 step 6, 4.4 G1)', () => {
     fs.rmSync(`${vaultPath}-wal`);
     const now = h.t.clock.now();
     const recent = sessionRow({ sideFilesFlag: true, lastActiveMs: now - 60 * 60 * 1000 });
-    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: 1, sessions: [recent], serverNowMs: null };
+    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: 1, sessions: [recent], serverNowMs: null, deviceCap: null, ownership: null };
     await openPersonalVault(openInput(vaultPath), h.deps);
     expect(h.replicas.opened[1]?.seed).toMatchObject({ holdLegacy: true });
     const old = sessionRow({ sideFilesFlag: true, lastActiveMs: now - 3 * 60 * 60 * 1000 });
-    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: 1, sessions: [old], serverNowMs: null };
+    h.client.acquireResult = { kind: 'granted', leaseId: 'l', limit: 1, sessions: [old], serverNowMs: null, deviceCap: null, ownership: null };
     await openPersonalVault(openInput(vaultPath), h.deps);
     expect(h.replicas.opened[2]?.seed).toMatchObject({ holdLegacy: false });
   });

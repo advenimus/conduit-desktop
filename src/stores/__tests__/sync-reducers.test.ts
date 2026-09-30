@@ -48,6 +48,8 @@ function state(over: Partial<SyncStateResponse> = {}): SyncStateResponse {
     notices: [],
     pendingVaults: [],
     softLocked: false,
+    ownership: null,
+    deviceCap: null,
     ...over,
   };
 }

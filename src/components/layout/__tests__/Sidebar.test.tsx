@@ -57,6 +57,8 @@ function syncState(conflictCount = 0): SyncStateResponse {
     notices: [],
     pendingVaults: [],
     softLocked: false,
+    ownership: null,
+    deviceCap: null,
   };
 }
 

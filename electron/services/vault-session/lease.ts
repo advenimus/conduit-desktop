@@ -9,7 +9,7 @@
 import { compareHlc } from '../sync/sibling.js';
 import type { SessionRowView } from '../sync/host.js';
 import type { AppDot } from '../sync/types.js';
-import type { AcquireResult, HeartbeatResult, UnconfirmedReason } from './session-client.js';
+import type { AcquireResult, HeartbeatResult, Ownership, UnconfirmedReason } from './session-client.js';
 import type { DisplacementReason } from './host.js';
 
 /** 6.2 lease time limit (server time); also the "confirmed" window (6.8). */
@@ -40,6 +40,8 @@ function sameDot(a: AppDot, b: AppDot): boolean {
 export class LeaseTracker {
   private current: LeaseState = NONE;
   private limit: number | null = null;
+  private cap: number | null = null;
+  private owned: Ownership | null = null;
   private rows: readonly SessionRowView[] = NO_SESSIONS;
   private pendingMarker: AppDot | null = null;
   /** server_now minus our clock at the last good answer that carried it. */
@@ -71,6 +73,16 @@ export class LeaseTracker {
     return this.limit;
   }
 
+  /** account_max_active_devices from the last good acquire/heartbeat (-1 no cap), else null. */
+  deviceCap(): number | null {
+    return this.cap;
+  }
+
+  /** Ownership from the last good acquire/heartbeat that carried it (plan enforcement 2.5.1), else null. */
+  ownership(): Ownership | null {
+    return this.owned;
+  }
+
   /** Sessions from the last good acquire/heartbeat. */
   sessions(): readonly SessionRowView[] {
     return this.rows;
@@ -85,10 +97,11 @@ export class LeaseTracker {
     if (result.kind === 'granted') {
       this.current = Object.freeze({ kind: 'confirmed', leaseId: result.leaseId, lastOkMs: nowMs });
       this.remember(result.limit, result.sessions, result.serverNowMs, nowMs);
+      this.rememberPlan(result.deviceCap, result.ownership);
     } else if (result.kind === 'unconfirmed') {
       this.current = this.unconfirmed(result.reason, nowMs);
     }
-    // A denial leaves an existing lease alone: the runtime decides (6.8 reconnect conflict).
+    // A denial, not-owner or update-required answer leaves an existing lease alone: the runtime decides.
   }
 
   onHeartbeat(result: HeartbeatResult, nowMs: number): void {
@@ -98,6 +111,7 @@ export class LeaseTracker {
         if (id === null) return;
         this.current = Object.freeze({ kind: 'confirmed', leaseId: id, lastOkMs: nowMs });
         this.remember(result.limit, result.sessions, result.serverNowMs, nowMs);
+        this.rememberPlan(result.deviceCap, result.ownership);
         return;
       }
       case 'displaced':
@@ -127,7 +141,14 @@ export class LeaseTracker {
   signedOut(): void {
     this.current = NONE;
     this.limit = null;
+    this.cap = null;
+    this.owned = null;
     this.rows = NO_SESSIONS;
+  }
+
+  /** A confirmed release of ownership: the vault is unowned until the next user-started open. */
+  ownershipReleased(): void {
+    this.owned = Object.freeze({ kind: 'unowned' });
   }
 
   /** The engine published `marker` (SessionSignals.published). A newer marker replaces an older one. */
@@ -151,6 +172,11 @@ export class LeaseTracker {
     const prev = this.current;
     const sinceMs = prev.kind === 'unconfirmed' ? prev.sinceMs : nowMs;
     return Object.freeze({ kind: 'unconfirmed', leaseId: this.leaseId(), sinceMs, reason });
+  }
+
+  private rememberPlan(deviceCap: number | null, ownership: Ownership | null): void {
+    if (deviceCap !== null) this.cap = deviceCap;
+    if (ownership !== null) this.owned = ownership;
   }
 
   private remember(limit: number, sessions: readonly SessionRowView[], serverNowMs: number | null, nowMs: number): void {

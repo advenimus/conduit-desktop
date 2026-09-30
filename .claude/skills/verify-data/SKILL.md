@@ -11,7 +11,8 @@ Supabase and are driven like a user. The spec under test is `docs/MULTI_DEVICE_S
 reference is `scripts/verify/README.md`. Every suite at once is the `verify` skill; the sync engine's
 core loop (take-over, merge, conflicts, plan changes) is the `verify-sync` skill.
 
-Pick the suite that covers what you changed, run it alone, then run all five before shipping:
+Pick the suite that covers what you changed and run it alone. Run all five only when your change
+spans several of them or the user asks for it:
 
 | Suite | Run it alone | About | Covers |
 |---|---|---|---|
@@ -153,7 +154,8 @@ skill's "Read the results".
    and cite the section.
 5. A scenario that passes only sometimes is a real race: report it. Timings are noisier when other
    live runs share the machine; the final word is a run with nothing else going.
-6. Finish with `npm run verify:data`, and `npm run verify` before shipping.
+6. Finish by re-running the suite you fixed. Run every suite (`npm run verify`) only when the user
+   asks for it or for a release candidate.
 
 Suite-specific hints:
 

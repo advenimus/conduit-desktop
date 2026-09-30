@@ -112,6 +112,9 @@ describe('Displacement (6.6)', () => {
       runningJobs: 1,
       changesSaved: true,
       fileName: 'Vault.conduit',
+      minVersion: null,
+      released: false,
+      deviceCap: null,
     });
     expect(d.softLocked()).toBe(true);
     expect(d.inProgress()).toBe(false);

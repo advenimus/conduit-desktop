@@ -21,7 +21,12 @@ const BASE_MIGRATION = '20260501000000_add_parent_entry_id.sql';
 const FIRST_SYNC_VERSION = '20260926000000';
 const VERSIONED_MIGRATION = /^(\d{14})_.+\.sql$/;
 const SESSION_RPCS = ['vault_session_peek', 'vault_session_acquire', 'vault_session_heartbeat', 'vault_session_release', 'vault_session_abandon'];
-const EXPECTED_TIERS = { free: '1', pro: '-1', team: '-1' };
+// vault_max_open_devices, account_max_active_devices (20260929161800), max_cloud_backup_vaults (20260929161756).
+const EXPECTED_TIERS = {
+  free: { devices: '1', cap: '5', backupVaults: '0' },
+  pro: { devices: '-1', cap: '5', backupVaults: '10' },
+  team: { devices: '-1', cap: '5', backupVaults: '-1' },
+};
 const PSQL_CANDIDATES = ['/opt/homebrew/opt/libpq/bin/psql', '/usr/local/opt/libpq/bin/psql', '/usr/bin/psql'];
 
 let cachedPsql = null;
@@ -166,17 +171,20 @@ async function applyMigrations(log) {
 async function verifySchema() {
   const tierRows = await psql(
     "select name || '|' || coalesce(features->>'vault_max_open_devices', 'null') || '|' || coalesce(features->>'mcp_daily_quota', 'null') " +
+      "|| '|' || coalesce(features->>'account_max_active_devices', 'null') || '|' || coalesce(features->>'max_cloud_backup_vaults', 'null') " +
       "from public.tiers where name in ('free', 'pro', 'team') order by name",
   );
   const tiers = Object.fromEntries(tierRows.split('\n').filter(Boolean).map((l) => {
-    const [name, devices, quota] = l.split('|');
-    return [name, { devices, quota }];
+    const [name, devices, quota, cap, backupVaults] = l.split('|');
+    return [name, { devices, quota, cap, backupVaults }];
   }));
   const problems = [];
-  for (const [name, devices] of Object.entries(EXPECTED_TIERS)) {
+  for (const [name, expected] of Object.entries(EXPECTED_TIERS)) {
     if (!tiers[name]) problems.push(`tier ${name} is missing`);
     else {
-      if (tiers[name].devices !== devices) problems.push(`tier ${name} vault_max_open_devices=${tiers[name].devices}, expected ${devices}`);
+      if (tiers[name].devices !== expected.devices) problems.push(`tier ${name} vault_max_open_devices=${tiers[name].devices}, expected ${expected.devices}`);
+      if (tiers[name].cap !== expected.cap) problems.push(`tier ${name} account_max_active_devices=${tiers[name].cap}, expected ${expected.cap}`);
+      if (tiers[name].backupVaults !== expected.backupVaults) problems.push(`tier ${name} max_cloud_backup_vaults=${tiers[name].backupVaults}, expected ${expected.backupVaults}`);
       if (tiers[name].quota !== '-1') problems.push(`tier ${name} mcp_daily_quota=${tiers[name].quota}, expected -1`);
     }
   }
@@ -240,5 +248,5 @@ export async function ensureLocalSupabase(log) {
   log(`applied local-parity.sql (${PARITY_SUMMARY})`);
   await verifySchema();
   await stackStatus();
-  log(`schema ok: tiers free=1 pro=-1 team=-1, mcp_daily_quota=-1, vault_session_* present, vault_sessions_for returns heartbeat_at, ${PARITY_SUMMARY}`);
+  log(`schema ok: tiers free=1 pro=-1 team=-1, account_max_active_devices=5, max_cloud_backup_vaults 0/10/-1, mcp_daily_quota=-1, vault_session_* present, vault_sessions_for returns heartbeat_at, ${PARITY_SUMMARY}`);
 }

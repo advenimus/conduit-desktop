@@ -7,6 +7,7 @@
 
 import { InvalidSyncRequest } from '../services/sync/app-sync-dto-map.js';
 import { NO_UNSYNCED_CHANGES_MESSAGE } from '../services/sync/app-sync-lineage.js';
+import { OWN_COPY_EXPIRED_MESSAGE, OWN_COPY_UNREADABLE_MESSAGE } from '../services/sync/app-sync-own-copy.js';
 import {
   OPEN_IN_PROGRESS_MESSAGE,
   SYNC_NOT_RUNNING_MESSAGE,
@@ -58,6 +59,8 @@ const PASS_THROUGH: ReadonlySet<string> = new Set([
   NO_UNSYNCED_CHANGES_MESSAGE,
   CLOUD_BACKUP_WRONG_PASSWORD_MESSAGE,
   LOCAL_BACKUP_WRONG_PASSWORD_MESSAGE,
+  OWN_COPY_EXPIRED_MESSAGE,
+  OWN_COPY_UNREADABLE_MESSAGE,
   'Not authenticated',
 ]);
 

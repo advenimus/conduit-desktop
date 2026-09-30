@@ -27,6 +27,7 @@ import type {
 export {
   applyLocalWrites,
   ownerClaimWrite,
+  ownerTagWrite,
   prepareWrite,
   presenceWrite,
   type ApplyWritesOptions,

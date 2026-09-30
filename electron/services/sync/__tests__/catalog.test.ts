@@ -23,6 +23,7 @@ import {
   isEmptyConfigValue,
   normalizeValue,
   ownerRegKey,
+  ownerTagRegKey,
   parseContainer,
   readContentRow,
   readEntryRow,
@@ -100,6 +101,8 @@ describe('registerDef', () => {
     expect(registerDef(regKey(TBL.meta, 'meta', 'salt'))).toBeNull();
     expect(registerDef(epochRegKey())).toMatchObject({ cls: 'special', kind: 'text' });
     expect(registerDef(ownerRegKey())).toMatchObject({ cls: 'auto', kind: 'json' });
+    expect(registerDef(ownerTagRegKey())).toMatchObject({ cls: 'auto', kind: 'json', label: 'Vault owner' });
+    expect(registerDef(regKey(TBL.sync, 'owner', 'other'))).toBeNull();
     expect(registerDef(dismissRegKey('abc'))).toMatchObject({ family: 'dismiss', kind: 'flag' });
     expect(registerDef(deviceRegKey('uuid-1'))).toMatchObject({ family: 'device', kind: 'json' });
     expect(registerDef(regKey(TBL.sync, 'key', 'other'))).toBeNull();

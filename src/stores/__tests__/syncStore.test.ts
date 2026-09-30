@@ -16,7 +16,7 @@ function state(over: Partial<SyncStateResponse> = {}): SyncStateResponse {
   return {
     enabled: true, killSwitch: false,
     vault: { lineageId: "L1", path: "/V.conduit", fileName: "V.conduit", shared: true, engine: true },
-    status: status(), deviceLimit: null, sideFiles: [], notices: [], pendingVaults: [], softLocked: false, ...over,
+    status: status(), deviceLimit: null, sideFiles: [], notices: [], pendingVaults: [], softLocked: false, ownership: null, deviceCap: null, ...over,
   };
 }
 

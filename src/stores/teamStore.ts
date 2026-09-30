@@ -1,5 +1,10 @@
 import { create } from 'zustand';
 import { invoke } from '../lib/electron';
+import { errorText } from '../lib/errorText';
+import { toast } from '../components/common/Toast';
+
+const ACCEPT_ERROR_TITLE = 'Could not join the team';
+const ACCEPT_RETRY_TEXT = 'Check your connection and try again.';
 
 // ---------- Types ----------
 
@@ -230,6 +235,9 @@ export const useTeamStore = create<TeamStoreState>((set, get) => ({
     } catch (err) {
       console.error('[team] Failed to accept invitation:', err);
       set({ isLoading: false, error: 'Failed to accept invitation' });
+      const detail = errorText(err, ACCEPT_RETRY_TEXT);
+      // Main sends the title as its own fallback when the route gave no text (network failure, timeout, 5xx).
+      toast.error(ACCEPT_ERROR_TITLE, detail.replace(/\.$/, '') === ACCEPT_ERROR_TITLE ? ACCEPT_RETRY_TEXT : detail);
     }
   },
 

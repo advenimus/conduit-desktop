@@ -1,6 +1,7 @@
-// Production parity for the local stack: scripts/verify/sql/local-parity.sql (the team-sync RPC with
-// the parent_entry_id signature, the 'vaults' storage bucket and its four storage.objects policies,
-// and the team members RPC grant).
+// Production parity for the local stack: scripts/verify/sql/local-parity.sql (the 'vaults' storage
+// bucket and the team members RPC grant). The migrations now create the team-sync RPC with the
+// parent_entry_id signature (20260929161642) and the bucket's four storage.objects policies
+// (20260929161756); parityProblems still checks both.
 // Applied on every run after the migrations, under an advisory lock so parallel runs never replace
 // the same function at the same time.
 

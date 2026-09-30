@@ -82,7 +82,8 @@ In `.verify/<runId>/`:
 4. Never make it pass by weakening an assertion, removing a check, skipping a scenario, lowering the
    call count or raising a timeout without a measured reason.
 5. A scenario that passes only sometimes is a real race: report it.
-6. Finish with the full `npm run verify:mcp`, and `npm run verify` before shipping.
+6. Finish with the full `npm run verify:mcp`. Run every suite (`npm run verify`) only when the user
+   asks for it or for a release candidate.
 
 ## Cleanup guarantees
 

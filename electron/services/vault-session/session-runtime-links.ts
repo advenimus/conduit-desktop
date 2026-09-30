@@ -45,7 +45,7 @@ export function startServerLinks(input: LinkInputs): ServerLinks {
     client,
     lease,
     host,
-    acquireArgs: () => acquireArgsFor(host, { ...ids, sessionNonce: config.sessionNonce, facts: input.facts(), takeover: false }),
+    acquireArgs: () => acquireArgsFor(host, { ...ids, sessionNonce: config.sessionNonce, facts: input.facts(), takeover: false, claim: false }),
     context: () => heartbeatContextFor(input.facts(), input.sideFilesPresent(), input.pendingPublish()),
     events: input.events,
   });
@@ -61,6 +61,7 @@ export function startServerLinks(input: LinkInputs): ServerLinks {
       return res.kind === 'ok' ? (res.holders.find((h) => h.deviceId.toLowerCase() === id.toLowerCase())?.deviceName ?? null) : null;
     },
     onDisplaced: input.onDisplaced,
+    beatNow: () => void heartbeat.beatNow(),
     sessionNonce: config.sessionNonce,
   });
   heartbeat.start();

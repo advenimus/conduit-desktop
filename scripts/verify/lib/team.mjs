@@ -55,8 +55,9 @@ export async function createTeam(run, owner, { name, seats = 5, members = [] } =
   counter += 1;
   const slug = `verify-${run.runId}-${counter}`.toLowerCase();
   const teamName = name ?? `Verify team ${run.shortId}-${counter}`;
+  // A dummy subscription id: the seat trigger (20260929161642) refuses members of a team without one.
   const id = await psql(
-    "insert into public.teams (name, slug, owner_id, max_seats) values (:'name', :'slug', :'owner', :'seats') returning id",
+    "insert into public.teams (name, slug, owner_id, max_seats, stripe_subscription_id) values (:'name', :'slug', :'owner', :'seats', 'sub_' || :'slug') returning id",
     { vars: { name: teamName, slug, owner: owner.id, seats: String(seats) } },
   );
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error(`Team insert returned ${JSON.stringify(id)}`);

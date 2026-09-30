@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { invoke, listenSync } from "../../lib/electron";
 import { useSyncStore } from "../../stores/syncStore";
-import { useVaultStore } from "../../stores/vaultStore";
+import { useVaultStore, type SoftLockReason } from "../../stores/vaultStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { toast } from "../common/Toast";
 import type {
@@ -9,6 +9,7 @@ import type {
   DisplacedEvent,
   DisplacingEvent,
   OpenWaitingEvent,
+  OwnershipChangedEvent,
   SessionConflictEvent,
   SyncNoticeEvent,
   SyncStatus,
@@ -16,10 +17,15 @@ import type {
 import { handleSyncNotice } from "./sync-notices";
 import { deviceNameOr } from "./sync-copy";
 
+/** Soft-lock reason of a displacement (plan enforcement 4.4): device_cap reads as open elsewhere. */
+function softLockReason(ev: DisplacedEvent): SoftLockReason {
+  return ev.reason === "not_owner" || ev.reason === "update_required" ? ev.reason : "open_elsewhere";
+}
+
 /** Displaced: lock the vault view but keep sessions, tabs and layout (soft lock). */
 function onDisplaced(ev: DisplacedEvent): void {
   useSyncStore.getState().setDisplacing(null);
-  useVaultStore.getState().setSoftLocked();
+  useVaultStore.getState().setSoftLocked(softLockReason(ev));
   useEntryStore.getState().clearSelection();
   useEntryStore.setState({ entries: [], folders: [] });
   if (ev.reason === "yielded") {
@@ -45,6 +51,7 @@ function subscribeMainEvents(): Array<() => void> {
     listenSync<ConflictsChangedEvent>("sync:conflicts-changed", (e) => store().applyConflictsChanged(e.payload)),
     listenSync<SyncNoticeEvent>("sync:notice", (e) => handleSyncNotice(e.payload)),
     listenSync<OpenWaitingEvent>("sync:open-waiting", (e) => store().setOpenWaiting(e.payload?.waiting ?? null)),
+    listenSync<OwnershipChangedEvent>("vault:session-ownership", () => void store().refresh()),
     listenSync<DisplacingEvent>("vault:session-displacing", (e) => store().setDisplacing(e.payload)),
     listenSync<DisplacedEvent>("vault:session-displaced", (e) => onDisplaced(e.payload)),
     listenSync<SessionConflictEvent>("vault:session-conflict", (e) => store().setSessionConflict(e.payload)),

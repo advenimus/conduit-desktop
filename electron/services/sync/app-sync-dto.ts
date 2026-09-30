@@ -164,7 +164,16 @@ export type SyncNoticeEvent =
 
 // ---------- Device sessions (vault:session-*) ----------
 
-export type DisplacementReason = 'takeover' | 'plan_limit' | 'owner_claim' | 'superseded' | 'reconnect_unanswered' | 'yielded';
+export type DisplacementReason =
+  | 'takeover'
+  | 'plan_limit'
+  | 'device_cap'
+  | 'not_owner'
+  | 'update_required'
+  | 'owner_claim'
+  | 'superseded'
+  | 'reconnect_unanswered'
+  | 'yielded';
 
 /** A device that has the vault open (take-over dialog, reconnect conflict). */
 export interface TakeoverHolder {
@@ -177,6 +186,13 @@ export interface TakeoverHolder {
   readonly lastActiveMs: number | null;
   readonly busySessions: number;
   readonly busyJobs: number;
+  /** Device-cap lists: personal vaults this device has open. */
+  readonly vaults?: number | null;
+}
+
+/** Payload of `vault:session-ownership`: the confirmed owner answer changed; read sync_get_state again. */
+export interface OwnershipChangedEvent {
+  readonly lineageId: string;
 }
 
 /** Payload of `vault:session-displacing`: vault access is blocked while the last changes save. */
@@ -196,6 +212,12 @@ export interface DisplacedEvent {
   /** false: the last changes stay on this device and sync at the next unlock. */
   readonly changesSaved: boolean;
   readonly fileName: string | null;
+  /** update_required: the minimum version. */
+  readonly minVersion: string | null;
+  /** not_owner: this account released the vault earlier. */
+  readonly released: boolean;
+  /** device_cap: the account's device cap as last confirmed, else null. */
+  readonly deviceCap: number | null;
 }
 
 /** Payload of `vault:session-conflict`: [Use here instead] [Lock here]; soft lock at answerByMs. */
@@ -203,6 +225,9 @@ export interface SessionConflictEvent {
   readonly lineageId: string;
   readonly holders: readonly TakeoverHolder[];
   readonly answerByMs: number;
+  /** 'device_cap': too many devices; holders[0] is the device that would lock. */
+  readonly cause: 'vault_limit' | 'device_cap';
+  readonly deviceCap: number | null;
 }
 
 /** Payload of `sync:open-waiting` (a wait inside an unlock, before the vault is open). */
@@ -217,7 +242,10 @@ export type OpenErrorCode =
   | 'VAULT_PASSWORD_CHANGED_ELSEWHERE'
   | 'VAULT_FILE_UNREADABLE'
   | 'VAULT_FOREIGN_FILE'
-  | 'VAULT_WORKING_COPY_DAMAGED';
+  | 'VAULT_WORKING_COPY_DAMAGED'
+  | 'VAULT_NOT_OWNER'
+  | 'VAULT_SIGN_IN_REQUIRED'
+  | 'VAULT_UPDATE_REQUIRED';
 
 export type OpenErrorPayload =
   | {
@@ -227,6 +255,13 @@ export type OpenErrorPayload =
       readonly fileName: string;
       readonly locationDiffers: boolean;
       readonly via: 'server' | 'claim';
+      /** 'device_cap': too many devices; holders are the account's devices. */
+      readonly cause: 'vault_limit' | 'device_cap';
+      readonly deviceCap: number | null;
+      /** device_cap: the device a take-over locks. */
+      readonly displaceDeviceName: string | null;
+      /** The take-over also locks this device for the device cap; '' when unnamed. */
+      readonly alsoLockDeviceName: string | null;
     }
   | {
       readonly code: 'VAULT_PASSWORD_CHANGED_ELSEWHERE';
@@ -249,7 +284,22 @@ export type OpenErrorPayload =
       readonly fileName: string;
       /** Unlock again with recoverWorkingCopy: true to rebuild it from the shared file. */
       readonly recoverable: boolean;
-    };
+    }
+  | {
+      readonly code: 'VAULT_NOT_OWNER';
+      readonly fileName: string;
+      /** Refused offline by the owner tag: no copy can be made yet. */
+      readonly offline: boolean;
+      readonly graceEndedMs: number | null;
+      /** This account released the vault earlier. */
+      readonly released: boolean;
+      /** Pass to sync_make_own_copy; null when no copy can be made. */
+      readonly copyTicket: string | null;
+      /** The original's folder: where the Save dialog opens. */
+      readonly copyDir: string | null;
+    }
+  | { readonly code: 'VAULT_SIGN_IN_REQUIRED'; readonly fileName: string }
+  | { readonly code: 'VAULT_UPDATE_REQUIRED'; readonly fileName: string; readonly minVersion: string };
 
 // ---------- sync_get_state ----------
 
@@ -284,6 +334,13 @@ export interface PendingVault {
   readonly fileName: string | null;
 }
 
+/** Who owns the open personal vault; 'unknown' signed out or without a confirmed answer. */
+export type VaultOwnership =
+  | { readonly kind: 'owner'; readonly releaseAfterMs: number | null; readonly sharedUntilMs: number | null }
+  | { readonly kind: 'grace'; readonly untilMs: number }
+  | { readonly kind: 'unowned' }
+  | { readonly kind: 'unknown' };
+
 export interface SyncStateResponse {
   /** Multi-device sync on this device (settings personal_sync_enabled; no UI, support only). */
   readonly enabled: boolean;
@@ -300,6 +357,10 @@ export interface SyncStateResponse {
   readonly pendingVaults: readonly PendingVault[];
   /** Displaced: the vault is locked here, connections keep running. */
   readonly softLocked: boolean;
+  /** null with no personal vault open. */
+  readonly ownership: VaultOwnership | null;
+  /** account_max_active_devices from the last confirmed answer (-1 no cap), else null. */
+  readonly deviceCap: number | null;
 }
 
 // ---------- Devices ----------
@@ -344,6 +405,13 @@ export interface ForkResultDto {
 }
 
 export type SyncNowResult = { readonly outcome: string | null };
+
+/** sync_release_ownership; 'unconfirmed' is a transport or server problem. */
+export type ReleaseOwnershipResult =
+  | { readonly released: true }
+  | { readonly released: false; readonly reason: 'too_soon'; readonly retryAfterMs: number }
+  | { readonly released: false; readonly reason: 'not_owner' }
+  | { readonly released: false; readonly reason: 'unconfirmed' };
 
 export type SetEnabledResult =
   | { readonly ok: true; readonly enabled: boolean }

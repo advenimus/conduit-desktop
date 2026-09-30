@@ -16,6 +16,8 @@ export interface TierCapabilities {
   readonly is_team_member: boolean;
   /** Present only when the tier defines it (-1 unlimited). */
   readonly vault_max_open_devices?: number;
+  /** Devices with any personal vault open, per account (-1 no cap); display only, the server decides. */
+  readonly account_max_active_devices?: number;
   readonly personal_sync?: PersonalSyncSwitch;
 }
 
@@ -54,6 +56,7 @@ export function buildTierCapabilities(profile: TierProfileLike): TierCapabilitie
   const features = profile.tier?.features ?? {};
   // Team members are unlimited whatever their tier row says (server vault_device_limit agrees).
   const limit = profile.is_team_member ? -1 : deviceLimitFeature(features.vault_max_open_devices);
+  const deviceCap = deviceLimitFeature(features.account_max_active_devices);
   return {
     cli_agents_enabled: !!features.cli_agents_enabled,
     mcp_enabled: !!features.mcp_enabled,
@@ -63,6 +66,7 @@ export function buildTierCapabilities(profile: TierProfileLike): TierCapabilitie
     tier_display_name: profile.tier?.display_name ?? 'Free',
     is_team_member: profile.is_team_member,
     ...(limit === undefined ? {} : { vault_max_open_devices: limit }),
+    ...(deviceCap === undefined ? {} : { account_max_active_devices: deviceCap }),
     personal_sync: personalSyncFeature(features.personal_sync),
   };
 }

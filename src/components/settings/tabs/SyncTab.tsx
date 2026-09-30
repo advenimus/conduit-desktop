@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useSyncStore } from "../../../stores/syncStore";
 import { useVaultStore } from "../../../stores/vaultStore";
 import { useTierStore } from "../../../stores/tierStore";
+import { useAuthStore } from "../../../stores/authStore";
 import { activeStatus } from "../../../stores/sync-reducers";
 import { errorText } from "../../../lib/errorText";
 import { toast } from "../../common/Toast";
@@ -9,7 +10,7 @@ import SyncDevicesList from "../../sync/SyncDevicesList";
 import SyncNoticeList from "../../sync/SyncNoticeList";
 import { Button, Card, SectionHeader } from "../../ui";
 import { HINT } from "../settings-styles";
-import { deviceLimitText, statusDetail, statusLabel } from "../../sync/sync-copy";
+import { deviceCapText, deviceLimitText, ownerLineText, releaseAfterText, statusDetail, statusLabel } from "../../sync/sync-copy";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -67,6 +68,29 @@ function StatusBlock() {
   );
 }
 
+/** S11 owner line; the owner (signed in) gets [Release this vault...] (S12), disabled during the cooldown. */
+function OwnerBlock() {
+  const ownership = useSyncStore((s) => s.state?.ownership ?? null);
+  const signedIn = useAuthStore((s) => s.isAuthenticated);
+  const line = ownerLineText(ownership, signedIn);
+  if (line === null) return null;
+  const owner = ownership?.kind === "owner" ? ownership : null;
+  const tooSoon = owner !== null && owner.releaseAfterMs !== null && owner.releaseAfterMs > Date.now();
+  return (
+    <div data-cv-sync-owner={ownership?.kind ?? ""} className="mb-3 space-y-1 px-1">
+      <p data-cv-sync-owner-line="" className="text-body text-ink">{line}</p>
+      {owner !== null && signedIn && (
+        <div className="flex items-center gap-2">
+          <Button size="sm" disabled={tooSoon} onClick={() => useSyncStore.getState().setReleaseDialogOpen(true)}>
+            Release this vault...
+          </Button>
+          {tooSoon && owner.releaseAfterMs !== null && <span className={HINT}>{releaseAfterText(owner.releaseAfterMs)}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Settings > Sync: plan limit, status, devices and review tools. Sync itself has no on/off switch. */
 export default function SyncTab() {
   const vaultType = useVaultStore((s) => s.vaultType);
@@ -74,6 +98,9 @@ export default function SyncTab() {
   const tierLimit = useTierStore((s) => s.maxOpenDevices);
   const engineRunning = useSyncStore((s) => activeStatus(s.state) !== null);
   const killSwitch = useSyncStore((s) => s.state?.killSwitch ?? false);
+  const stateCap = useSyncStore((s) => s.state?.deviceCap ?? null);
+  const tierCap = useTierStore((s) => s.accountMaxActiveDevices);
+  const capText = deviceCapText(stateCap ?? tierCap);
 
   useEffect(() => {
     void useSyncStore.getState().refresh();
@@ -88,11 +115,13 @@ export default function SyncTab() {
         <p data-cv-sync-plan="" className={`mt-2 px-1 ${HINT}`}>
           Your plan: a vault can be open {deviceLimitText(stateLimit ?? tierLimit)}
           {stateLimit?.source === "dev-override" ? " (dev override)" : ""}. Team vaults sync through your team.
+          {capText && ` ${capText}`}
         </p>
         {killSwitch && <p data-cv-sync-paused="" className="mt-2 px-1 text-meta text-warning">Conduit paused syncing for now. Your changes are saved on this device.</p>}
       </Section>
       {vaultType === "personal" && (
         <Section title="This vault">
+          <OwnerBlock />
           <StatusBlock />
         </Section>
       )}

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { OPEN_ELSEWHERE_MESSAGE, hasConflict, lockedResponse, vaultFailure } from '../vault-guard.js';
+import { NOT_OWNER_MESSAGE, OPEN_ELSEWHERE_MESSAGE, hasConflict, lockedResponse, vaultFailure } from '../vault-guard.js';
 
 function state(opts: { team?: boolean; reason?: string | null; conflict?: (id: string) => boolean } = {}) {
   const personal = {};
@@ -34,6 +34,22 @@ describe('MCP vault guard', () => {
     const blocked = Object.assign(new Error('Vault is locked'), { reason: 'open_elsewhere' });
     expect(vaultFailure('ENTRY_ERROR', blocked).payload).toMatchObject({ code: 'VAULT_LOCKED', reason: 'open_elsewhere' });
     expect(vaultFailure('ENTRY_ERROR', new Error('Entry not found')).payload).toEqual({ code: 'ENTRY_ERROR', message: 'Error: Entry not found' });
+  });
+
+  it('S19 and S20: a soft lock for another account or an old app says why', () => {
+    expect(lockedResponse(state({ reason: 'not_owner' }), 'Vault is locked').payload).toEqual({
+      code: 'VAULT_LOCKED',
+      message: 'The vault is locked: it belongs to another Conduit account.',
+      reason: 'not_owner',
+    });
+    expect(lockedResponse(state({ reason: 'update_required' }), 'Vault is locked').payload).toEqual({
+      code: 'VAULT_LOCKED',
+      message: 'The vault is locked: update Conduit to use it.',
+      reason: 'update_required',
+    });
+    const raced = Object.assign(new Error('Vault is locked'), { reason: 'not_owner' });
+    expect(vaultFailure('ENTRY_ERROR', raced).payload).toMatchObject({ code: 'VAULT_LOCKED', reason: 'not_owner', message: NOT_OWNER_MESSAGE });
+    expect(lockedResponse(state({ reason: 'something_else' }), 'Vault is locked').payload).toEqual({ code: 'VAULT_LOCKED', message: 'Vault is locked' });
   });
 
   it('reports has_conflict for the personal vault only and never throws', () => {

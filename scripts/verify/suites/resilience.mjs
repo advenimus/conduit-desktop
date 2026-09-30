@@ -194,7 +194,12 @@ async function cachedProOffline(ctx) {
   const ua = deviceUuid(a);
   await waitLease(ctx, user.email, ua, (r) => r.status === 'active', { label: 'A holds a lease' });
   // A signed-out device counts as Free (6.7): it writes an owner claim that limit-1 devices honor.
+  // It must have confirmed ownership while signed in first, or the owner tag refuses it (plan enforcement 3.4).
   const l = await ctx.launchDevice('r3l');
+  await flows.signIn(l, user);
+  await flows.openVault(l, vault, PW, { expect: 'unlocked' });
+  await flows.lockVault(l);
+  await flows.signOut(l);
   await flows.enterLocalMode(l);
   // 6.11 signed out: r3a's presence says it has the vault open, so r3l may briefly show "Getting the latest changes".
   const first = await flows.openVault(l, vault, PW);
@@ -236,7 +241,8 @@ async function cachedProOffline(ctx) {
   ctx.step('three devices have the Pro vault open; r3b\'s offline edit reached r3a');
   for (const d of [a, b]) ctx.check(!(await displacedShown(d)), `${d.name} keeps the vault`);
   const rows = await ctx.leaseRows(user.email);
-  ctx.checkEqual(rows.map((r) => [r.device_id, r.status]), [[ua, 'active']], 'only r3a (online) holds a server lease');
+  // r3l's released row is from its signed-in open before it went signed out.
+  ctx.checkEqual(rows.filter((r) => r.status === 'active').map((r) => r.device_id), [ua], 'only r3a (online) holds a server lease');
 }
 
 // ---------- R4: team vaults beside personal sync ----------

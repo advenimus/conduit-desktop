@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useVaultStore } from "../../../../stores/vaultStore";
-import type { CloudSyncState } from "../../../../stores/vaultStore";
+import type { CloudBackupNotice, CloudSyncState } from "../../../../stores/vaultStore";
+import { invoke } from "../../../../lib/electron";
+import { cloudBackupNoticeText } from "./cloud-backup-notice";
 import { CloudIcon, CloudOffIcon } from "../../../../lib/icons";
 import { toast } from "../../../common/Toast";
 import BackupHistoryPanel from "../../../vault/BackupHistoryPanel";
@@ -14,6 +16,27 @@ function statusText(state: CloudSyncState): string {
   if (state.status === "syncing") return "Backing up...";
   if (state.status === "error") return `Error: ${state.error}`;
   return "No cloud backup yet";
+}
+
+function openPricing(): void {
+  invoke("auth_open_pricing").catch((err) => {
+    console.error("[backup] Failed to open pricing:", err);
+    toast.error("Could not open the pricing page");
+  });
+}
+
+/** S16, S17, S24: why the server refused the last upload. */
+function NoticeLine({ notice }: { notice: CloudBackupNotice }) {
+  return (
+    <div data-cv-cloud-backup-notice={notice.kind} className="flex items-center gap-2">
+      <p className="text-label text-warning">{cloudBackupNoticeText(notice)}</p>
+      {notice.kind === "plan" && (
+        <Button size="sm" onClick={openPricing}>
+          Upgrade
+        </Button>
+      )}
+    </div>
+  );
 }
 
 interface CloudBackupSectionProps {
@@ -64,6 +87,9 @@ export function CloudBackupSection({ allowed, onOpenManager }: CloudBackupSectio
   };
 
   const enabled = cloudSyncState?.enabled === true;
+  const notice = cloudSyncState?.notice ?? null;
+  // A refusal's notice replaces the error line; S17 rides next to a successful backup.
+  const showStatus = !(notice !== null && cloudSyncState?.status === "error");
 
   return (
     <div data-cv-cloud-backup-section="" className="space-y-3 border-t border-divider pt-4">
@@ -76,9 +102,10 @@ export function CloudBackupSection({ allowed, onOpenManager }: CloudBackupSectio
         onChange={() => void toggle()}
       />
 
+      {notice !== null && <NoticeLine notice={notice} />}
       {cloudSyncState?.enabled && (
         <>
-          <p className="text-label text-ink-muted">{statusText(cloudSyncState)}</p>
+          {showStatus && <p className="text-label text-ink-muted">{statusText(cloudSyncState)}</p>}
           <div className="flex items-center gap-2">
             <Button size="sm" loading={syncing} loadingLabel="Backing up..." onClick={() => void backUpNow()}>
               Back Up Now

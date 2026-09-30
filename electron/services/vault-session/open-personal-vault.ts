@@ -20,6 +20,7 @@ import type { WaitingState } from '../sync/host.js';
 import type { SyncState, UnlockDecision } from '../sync/types.js';
 import type { PersonalVaultRuntime } from './session-runtime.js';
 import type { SessionConfig, SessionHost } from './host.js';
+import type { OwnCopyTickets } from './own-copy-tickets.js';
 import { makeOpenContext, type OpenCollaborators, type OpenContext } from './open-deps.js';
 import { INVALID_PASSWORD_MESSAGE, PersonalVaultOpenError } from './open-errors.js';
 import { earlyInUseCheck } from './open-gate.js';
@@ -99,6 +100,8 @@ export interface OpenDeps {
   readonly assembleEngine?: (input: AssembleInput) => SyncEngine;
   /** The process-lifetime registry created at app start; defaults to one module-level registry. */
   readonly incarnations?: IncarnationRegistry;
+  /** The app's "Make my own copy" tickets; defaults to one module-level store. */
+  readonly tickets?: OwnCopyTickets;
   /** Tests: the replica reloads W after every commit and checks the digest. */
   readonly verifyCommits?: boolean;
   /** Test seams: any subset of the collaborators; the rest are the real modules. */

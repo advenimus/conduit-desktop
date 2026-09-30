@@ -34,6 +34,8 @@ function stateWith(prompts: readonly SyncPrompt[]): SyncStateResponse {
     notices: [],
     pendingVaults: [],
     softLocked: false,
+    ownership: null,
+    deviceCap: null,
   };
 }
 

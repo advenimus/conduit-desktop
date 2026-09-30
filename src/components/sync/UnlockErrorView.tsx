@@ -3,6 +3,9 @@ import type { UnlockOptions } from "../../stores/vault-unlock-errors";
 import TakeoverDialog from "./TakeoverDialog";
 import PasswordChangedElsewhereDialog from "./PasswordChangedElsewhereDialog";
 import DamagedWorkingCopyDialog from "./DamagedWorkingCopyDialog";
+import NotOwnerDialog from "./NotOwnerDialog";
+import SignInRequiredDialog from "./SignInRequiredDialog";
+import UpdateRequiredDialog from "./UpdateRequiredDialog";
 
 /** One-line text for structured errors that need no dialog, else null. */
 export function openErrorLine(payload: OpenErrorPayload): string | null {
@@ -65,6 +68,12 @@ export default function UnlockErrorView({ payload, busy, error, onRetry, onCance
           onCancel={onCancel}
         />
       );
+    case "VAULT_NOT_OWNER":
+      return <NotOwnerDialog payload={payload} onCancel={onCancel} />;
+    case "VAULT_SIGN_IN_REQUIRED":
+      return <SignInRequiredDialog onCancel={onCancel} />;
+    case "VAULT_UPDATE_REQUIRED":
+      return <UpdateRequiredDialog minVersion={payload.minVersion} onCancel={onCancel} />;
     default:
       return null;
   }

@@ -41,6 +41,7 @@ export function defaultLocalJson(lineageId: string, dev: Dev, incarnation: strin
     candidateLabels: {},
     contentRepairShas: [],
     sideFilesConfirmedAtMs: null,
+    ownerCheck: null,
   };
 }
 

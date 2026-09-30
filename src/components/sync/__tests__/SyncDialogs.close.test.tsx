@@ -44,7 +44,7 @@ afterEach(() => {
 
 const holder = { deviceId: "d", deviceName: "MacBook", platform: "darwin", fileName: null, fileId: null, location: null, lastActiveMs: null, busySessions: 0, busyJobs: 0 };
 const hint = { file_id: "f", location: "icloud:Docs", file_name: "Vault.conduit" };
-const displacedEvent = { lineageId: "L", reason: "yielded", byDeviceName: "iPhone", openConnections: 0, runningJobs: 0, changesSaved: true, fileName: null } as const;
+const displacedEvent = { lineageId: "L", reason: "yielded", byDeviceName: "iPhone", openConnections: 0, runningJobs: 0, changesSaved: true, fileName: null, minVersion: null, released: false, deviceCap: null } as const;
 const waiting = { purpose: "stale-file", devices: [{ deviceId: "d", deviceName: "MacBook", savedAtMs: null }], blocking: true, stopOffered: false, sinceMs: 0 } as const;
 
 interface EscapeCase {
@@ -101,7 +101,7 @@ const ESCAPE_RUNS: readonly EscapeCase[] = [
   {
     title: "Vault open on another device",
     render: (c) => (
-      <TakeoverDialog payload={{ code: "VAULT_OPEN_ELSEWHERE", holders: [holder], limit: 3, fileName: "Vault", locationDiffers: false, via: "server" }} busy={false} onUseHere={vi.fn()} onCancel={c} />
+      <TakeoverDialog payload={{ code: "VAULT_OPEN_ELSEWHERE", holders: [holder], limit: 3, fileName: "Vault", locationDiffers: false, via: "server", cause: "vault_limit", deviceCap: null, displaceDeviceName: null, alsoLockDeviceName: null }} busy={false} onUseHere={vi.fn()} onCancel={c} />
     ),
     closed: (c) => expect(c).toHaveBeenCalledTimes(1),
   },
@@ -110,7 +110,7 @@ const ESCAPE_RUNS: readonly EscapeCase[] = [
 /** The dialogs that swallow Escape: a password prompt, a countdown, a blocking wait and the saving overlay. */
 const ESCAPE_SWALLOWED: readonly { readonly title: string; readonly render: () => ReactElement }[] = [
   { title: "Syncing paused", render: () => <EpochPromptDialog prompt={{ kind: "epoch-newer", id: "e1", changedByDeviceName: "MacBook", changedMs: 0 }} /> },
-  { title: "Also open on MacBook", render: () => <SessionConflictDialog event={{ lineageId: "L", holders: [holder], answerByMs: Date.now() + 30_000 }} /> },
+  { title: "Also open on MacBook", render: () => <SessionConflictDialog event={{ lineageId: "L", holders: [holder], answerByMs: Date.now() + 30_000, cause: "vault_limit", deviceCap: null }} /> },
   { title: "Getting the latest changes", render: () => <WaitingForDriveDialog waiting={waiting} duringUnlock /> },
   { title: "Locking this vault here", render: () => <DisplacingOverlay event={{ lineageId: "L", reason: "yielded", byDeviceName: "iPhone" }} /> },
 ];

@@ -66,7 +66,7 @@ function rig(): Rig {
 }
 
 function granted(limit: number): AcquireResult {
-  return { kind: 'granted', leaseId: LEASE, limit, sessions: [], serverNowMs: null };
+  return { kind: 'granted', leaseId: LEASE, limit, sessions: [], serverNowMs: null, deviceCap: null, ownership: null };
 }
 
 describe('sign-out while a heartbeat is due', () => {

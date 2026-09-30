@@ -9,6 +9,7 @@ import SyncBanner from "./SyncBanner";
 import PromptBanner, { MODAL_PROMPT_KINDS } from "./PromptBanner";
 import { waitingText } from "./WaitingForDriveDialog";
 import { deviceNameOr, plural } from "./sync-copy";
+import { NotOwnerLockBanner, OwnershipBanner, UpdateRequiredLockBanner } from "./OwnershipBanners";
 
 const EPOCH_PROMPT_KINDS: ReadonlySet<SyncPrompt["kind"]> = new Set(["epoch-newer", "epoch-legacy", "epoch-concurrent"]);
 
@@ -79,7 +80,7 @@ function ReviewBanner({ count }: { count: number }) {
   );
 }
 
-/** Status strips above the main area: soft lock, stale-file wait, prompts, "N to review". */
+/** Status strips above the main area: soft lock, ownership, stale-file wait, prompts, "N to review". */
 export default function SyncBanners() {
   const lockedReason = useVaultStore((s) => s.lockedReason);
   const state = useSyncStore((s) => s.state);
@@ -88,8 +89,10 @@ export default function SyncBanners() {
   const closedFor = useSyncStore((s) => s.reviewBannerClosedFor);
 
   if (lockedReason === "open_elsewhere") return <SoftLockBanner />;
+  if (lockedReason === "not_owner") return <NotOwnerLockBanner />;
+  if (lockedReason === "update_required") return <UpdateRequiredLockBanner />;
   const status = activeStatus(state);
-  if (status === null) return null;
+  if (status === null) return <OwnershipBanner />;
   const waiting = currentWaiting(openWaiting, state);
   const prompts = visiblePrompts(state, deferred).filter((p) => !MODAL_PROMPT_KINDS.has(p.kind));
   const deferredPassword = (status.prompts ?? []).find((p) => EPOCH_PROMPT_KINDS.has(p.kind) && deferred.has(p.id)) ?? null;
@@ -97,6 +100,7 @@ export default function SyncBanners() {
   const fileName = state?.vault?.fileName ?? status.fileName ?? "this vault";
   return (
     <>
+      <OwnershipBanner />
       {waiting && !waiting.blocking && <WaitingBanner waiting={waiting} />}
       {deferredPassword && <DeferredPasswordBanner promptId={deferredPassword.id} />}
       {prompts.map((p) => <PromptBanner key={p.id} prompt={p} fileName={fileName} />)}
