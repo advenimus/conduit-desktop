@@ -10,12 +10,11 @@ import VaultSwitcherMenu from "../vault/VaultSwitcherMenu";
 import { useEntryStore } from "../../stores/entryStore";
 import { useVaultStore } from "../../stores/vaultStore";
 import { useSidebarStore, selectIsDocked } from "../../stores/sidebarStore";
-import { useSessionStore } from "../../stores/sessionStore";
-import { useLayoutStore, findLeaf, getAllLeaves } from "../../stores/layoutStore";
 import { useAuthStore } from "../../stores/authStore";
 import { useTeamStore, type TeamVaultSummary } from "../../stores/teamStore";
 import { useTierStore } from "../../stores/tierStore";
 import { invoke } from "../../lib/electron";
+import { openHome } from "../../lib/openHome";
 import CloudSyncIndicator from "../vault/CloudSyncIndicator";
 import TeamSyncIndicator from "../vault/TeamSyncIndicator";
 import PersonalSyncIndicator from "../sync/PersonalSyncIndicator";
@@ -159,48 +158,6 @@ export default function Sidebar() {
   const handleSettings = () => {
     document.dispatchEvent(new CustomEvent("conduit:settings"));
   };
-
-  const handleHome = useCallback(() => {
-    const HOME_ID = "__home__";
-    const sessionStore = useSessionStore.getState();
-    const layoutStore = useLayoutStore.getState();
-
-    // If home session already exists, activate it
-    const existing = sessionStore.sessions.find((s) => s.id === HOME_ID);
-    if (existing) {
-      const allLeaves = getAllLeaves(layoutStore.root);
-      const pane = allLeaves.find((l) => l.sessionIds.includes(HOME_ID));
-      if (pane) {
-        layoutStore.setFocusedPane(pane.id);
-        layoutStore.setActiveSessionInPane(pane.id, HOME_ID);
-      }
-      return;
-    }
-
-    // No sessions at all — clear selection to show dashboard naturally
-    if (sessionStore.sessions.length === 0) {
-      useEntryStore.getState().clearSelection();
-      return;
-    }
-
-    // Create home session
-    sessionStore.addSession({
-      id: HOME_ID,
-      type: "dashboard",
-      title: "Home",
-      status: "connected",
-    });
-
-    // Move it to leftmost position in the focused pane
-    const { focusedPaneId, root } = useLayoutStore.getState();
-    const pane = findLeaf(root, focusedPaneId);
-    if (pane) {
-      const currentIndex = pane.sessionIds.indexOf(HOME_ID);
-      if (currentIndex > 0) {
-        layoutStore.reorderSessionInPane(focusedPaneId, currentIndex, 0);
-      }
-    }
-  }, []);
 
   // Team vault unlock/setup handlers — dispatch events for App.tsx
   const handleNeedDeviceSetup = () => {
@@ -483,7 +440,7 @@ export default function Sidebar() {
             <TeamSyncIndicator />
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <IconButton icon="home" label="Home" onClick={handleHome} />
+            <IconButton icon="home" label="Home" onClick={openHome} />
             <IconButton icon="settings" label="Settings" title="Settings (Ctrl+,)" onClick={handleSettings} />
           </div>
         </div>

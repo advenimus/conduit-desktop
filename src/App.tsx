@@ -56,6 +56,8 @@ import { useStartupVaultStore } from "./stores/startupVaultStore";
 import { goToVaultHubFromStartup, installStartupInputReporters, reportInputScreen, runStartupVault } from "./lib/startup-vault";
 import { handleAutoUnlockEvent, watchVaultForStartupStatus } from "./lib/startup-vault-events";
 import StartupConfirmHost from "./components/vault/StartupConfirmHost";
+import { installHomeTabGuard, openHome } from "./lib/openHome";
+import { isHomeSession } from "./lib/dashboardSessions";
 
 /**
  * Notification controllers — manage toast + update state and push to overlay window.
@@ -179,6 +181,8 @@ function App() {
       setTimeout(() => splash.remove(), 400);
     }
   }, []);
+
+  useEffect(() => installHomeTabGuard(), []);
 
   // Initialize auth on mount
   useEffect(() => {
@@ -540,7 +544,7 @@ function App() {
     const handleCloseTab = () => {
       const layoutState = useLayoutStore.getState();
       const pane = findLeaf(layoutState.root, layoutState.focusedPaneId);
-      if (pane?.activeSessionId) {
+      if (pane?.activeSessionId && !isHomeSession(pane.activeSessionId)) {
         useSessionStore.getState().closeSession(pane.activeSessionId);
       }
     };
@@ -699,6 +703,7 @@ function App() {
     document.addEventListener("conduit:edit-folder", handleEditFolder);
     document.addEventListener("conduit:new-terminal", handleNewTerminal);
     document.addEventListener("conduit:close-tab", handleCloseTab);
+    document.addEventListener("conduit:home", openHome);
     document.addEventListener("conduit:next-tab", handleNextTab);
     document.addEventListener("conduit:prev-tab", handlePrevTab);
     document.addEventListener("conduit:split-right", handleSplitRight);
@@ -832,6 +837,7 @@ function App() {
       else if (a === "lock-vault") document.dispatchEvent(new CustomEvent("conduit:lock-vault"));
       else if (a === "switch-vault") document.dispatchEvent(new CustomEvent("conduit:lock-vault"));
       else if (a === "settings") document.dispatchEvent(new CustomEvent("conduit:settings"));
+      else if (a === "home") openHome();
       else if (a === "about") document.dispatchEvent(new CustomEvent("conduit:about"));
       else if (a === "replay-onboarding") document.dispatchEvent(new CustomEvent("conduit:replay-onboarding"));
       else if (a === "password-generator") document.dispatchEvent(new CustomEvent("conduit:password-generator"));
@@ -891,6 +897,7 @@ function App() {
       document.removeEventListener("conduit:edit-folder", handleEditFolder);
       document.removeEventListener("conduit:new-terminal", handleNewTerminal);
       document.removeEventListener("conduit:close-tab", handleCloseTab);
+      document.removeEventListener("conduit:home", openHome);
       document.removeEventListener("conduit:next-tab", handleNextTab);
       document.removeEventListener("conduit:prev-tab", handlePrevTab);
       document.removeEventListener("conduit:split-right", handleSplitRight);

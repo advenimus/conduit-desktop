@@ -13,6 +13,7 @@ const OPEN_VAULT: Readonly<Record<string, unknown>> = {
   settings_get: {},
   entry_list: [],
   folder_list: [],
+  credential_list: [],
 };
 
 function stubElectron(authMode: AuthMode, { pending, replies = {} }: { pending?: Promise<unknown>; replies?: Readonly<Record<string, unknown>> } = {}): void {
