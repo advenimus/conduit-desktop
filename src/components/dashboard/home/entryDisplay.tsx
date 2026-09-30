@@ -1,7 +1,10 @@
 import type { EntryMeta, EntryType, FolderData } from "../../../types/entry";
 import { getEntryColor, getEntryIcon } from "../../entries/entryIcons";
 import { useEntryStore } from "../../../stores/entryStore";
+import { useTierStore } from "../../../stores/tierStore";
 import { openDashboardForEntry } from "../../../lib/openDashboard";
+import { IconButton } from "../../ui";
+import { copyPassword } from "./copyPassword";
 
 export const TYPE_LABELS: Readonly<Record<EntryType | "folder", string>> = {
   ssh: "SSH",
@@ -42,4 +45,15 @@ export function openHomeEntry(entry: Pick<EntryMeta, "id" | "entry_type">): void
     return;
   }
   void useEntryStore.getState().openEntry(entry.id);
+}
+
+/** Copy password (not for entries the plan locks) and View info, the trailing actions of Home entry rows. */
+export function EntryRowActions({ entryId }: { entryId: string }) {
+  const locked = useTierStore((s) => s.lockedEntryIds.has(entryId));
+  return (
+    <>
+      {!locked && <IconButton size="sm" icon="key" label="Copy password" onClick={() => void copyPassword(entryId)} />}
+      <IconButton size="sm" icon="infoCircle" label="View info" onClick={() => openDashboardForEntry(entryId)} />
+    </>
+  );
 }

@@ -6,6 +6,7 @@
 import { ipcMain, shell, app } from 'electron';
 import { AppState, Session } from '../services/state.js';
 import { logAudit } from '../services/audit.js';
+import { ENTRY_TIER_LOCKED_MESSAGE, isEntryTierLocked } from '../services/tier-lock.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -269,6 +270,7 @@ export function registerEntryHandlers(): void {
 
   // ── entry_resolve_credential ──────────────────────────────────
   ipcMain.handle('entry_resolve_credential', async (_e, args: { id: string }) => {
+    if (isEntryTierLocked(state, args.id)) throw new Error(ENTRY_TIER_LOCKED_MESSAGE);
     return state.getActiveVault().resolveCredential(args.id);
   });
 
