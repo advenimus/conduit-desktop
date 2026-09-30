@@ -19,7 +19,7 @@ export function SearchInput({ value, onChange, onClear, wrapperClassName, classN
   return (
     <span
       className={cx(
-        "flex h-control w-full items-center gap-1.5 rounded border border-input-border bg-input px-1.5",
+        "flex h-control w-full items-center gap-1.5 rounded border border-input-border bg-input px-2",
         "focus-within:outline focus-within:outline-1 focus-within:outline-(--c-focus) focus-within:-outline-offset-1",
         wrapperClassName,
       )}

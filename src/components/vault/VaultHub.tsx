@@ -186,7 +186,7 @@ export default function VaultHub() {
                 {showTeamSection && (
                   <div>
                     <SectionTitle icon="users" iconClassName="text-info">Team Vaults</SectionTitle>
-                    <div className="rounded-md border border-card-border p-1">
+                    <div className="flex flex-col gap-1 rounded-md border border-card-border p-1">
                       {teamLoading ? (
                         <div className="flex items-center justify-center py-6 text-body text-ink-muted">
                           <Spinner size={16} text="Loading..." />
@@ -261,7 +261,7 @@ export default function VaultHub() {
                         Clear All
                       </Button>
                     </div>
-                    <div className="rounded-md border border-card-border p-1">
+                    <div className="flex flex-col gap-1 rounded-md border border-card-border p-1">
                       {recentVaults.slice(0, 5).map((vaultPath) => {
                         const fileName =
                           vaultPath

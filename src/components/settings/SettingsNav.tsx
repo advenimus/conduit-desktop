@@ -1,7 +1,7 @@
 import {
   KeyboardIcon, PaletteIcon, RobotIcon, FloppyIcon, UsersIcon, UserIcon,
   TerminalIcon, DesktopIcon, EyeIcon, GlobeIcon,
-  KeyIcon, FingerprintIcon, DeviceMobileIcon, DevicesIcon,
+  KeyIcon, FingerprintIcon, DeviceMobileIcon, CloudSyncIcon,
 } from "../../lib/icons";
 import { NavList, type NavEntry } from "../ui";
 import type { SettingsTab } from "./SettingsHelpers";
@@ -25,7 +25,7 @@ export const SETTINGS_NAV: ReadonlyArray<NavEntry> = [
   },
   { id: "ai/agent", icon: RobotIcon, label: "AI" },
   { id: "backup", icon: FloppyIcon, label: "Backup" },
-  { id: "sync", icon: DevicesIcon, label: "Sync" },
+  { id: "sync", icon: CloudSyncIcon, label: "Sync" },
   { id: "mobile", icon: DeviceMobileIcon, label: "Mobile" },
   { id: "team", icon: UsersIcon, label: "Team" },
   { id: "account", icon: UserIcon, label: "Account" },

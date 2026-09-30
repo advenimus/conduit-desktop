@@ -39,8 +39,8 @@ export default function BackupHistoryPanel({ onOpenManager }: Props) {
   return (
     <div className="pt-3 space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <HistoryIcon size={16} className="text-ink-muted" />
+        <div className="flex items-center gap-2">
+          <HistoryIcon size={16} className="shrink-0 text-ink-muted" />
           <span className="text-label font-semibold text-ink-secondary">Backup History</span>
         </div>
         {limitLabel && (

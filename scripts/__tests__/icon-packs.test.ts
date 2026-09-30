@@ -88,9 +88,9 @@ describe('icon generator --check', () => {
 });
 
 describe('icon mapping source (Material Symbols only, spec 5.3)', () => {
-  it('lists the 117 semantic names in registry order, less circleFilled: 116 rows', () => {
-    expect(SEMANTIC_ICON_NAMES).toHaveLength(117);
-    expect(ICON_MAPPING).toHaveLength(116);
+  it('lists the 118 semantic names in registry order, less circleFilled: 117 rows', () => {
+    expect(SEMANTIC_ICON_NAMES).toHaveLength(118);
+    expect(ICON_MAPPING).toHaveLength(117);
     expect(ICON_MAPPING.map((row) => row.name)).toEqual(SEMANTIC_ICON_NAMES.filter((name) => name !== 'circleFilled'));
   });
 

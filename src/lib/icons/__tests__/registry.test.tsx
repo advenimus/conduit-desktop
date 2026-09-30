@@ -91,9 +91,9 @@ describe("preloadAllIconPacks", () => {
 });
 
 describe.each(ALL_PACKS)("%s pack", (id) => {
-  it("maps all 117 names and each renders exactly one <svg>", async () => {
+  it("maps all 118 names and each renders exactly one <svg>", async () => {
     const mapping = await loadIconPack(id);
-    expect(SEMANTIC_ICON_NAMES).toHaveLength(117);
+    expect(SEMANTIC_ICON_NAMES).toHaveLength(118);
     expect(Object.keys(mapping).sort()).toEqual([...SEMANTIC_ICON_NAMES].sort());
     for (const name of SEMANTIC_ICON_NAMES) {
       const Component = mapping[name];
@@ -299,7 +299,7 @@ describe("index exports", () => {
 
   it("names one component per semantic name", () => {
     const components = Object.keys(icons).filter((key) => /^[A-Z]\w*Icon$/.test(key));
-    expect(components).toHaveLength(117);
+    expect(components).toHaveLength(118);
   });
 
   it("describes the six packs in picker order with the spec 5.8 descriptions", () => {

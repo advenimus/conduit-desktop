@@ -1047,7 +1047,7 @@ function App() {
                   icon="robot"
                   label="Toggle AI Panel"
                   pressed={showAiPanel}
-                  className="mr-1"
+                  className="mr-2"
                   onClick={() => setShowAiPanel(!showAiPanel)}
                 />
               }

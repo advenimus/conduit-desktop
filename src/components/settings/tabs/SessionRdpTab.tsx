@@ -87,7 +87,7 @@ export default function SessionRdpTab({ settings, setSettings, onApplyDisplaySca
           onPointerUp={handleScaleCommit}
           marks={["50% (smaller)", "100%", "200% (larger)"]}
         />
-        <p className={`mt-1 ${HINT}`}>
+        <p className={`mt-2 ${HINT}`}>
           Adjusts the effective resolution. Higher values make objects appear larger. Active sessions will reconnect on change.
         </p>
       </div>

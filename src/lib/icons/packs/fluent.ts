@@ -76,6 +76,7 @@ import {
   CloudRegular,
   CloudOffRegular,
   CloudArrowDownRegular,
+  CloudSyncRegular,
   BotRegular,
   SparkleRegular,
   WrenchRegular,
@@ -235,6 +236,7 @@ export const mapping: IconMapping = {
   cloud: wrap(CloudRegular),
   cloudOff: wrap(CloudOffRegular),
   cloudDownload: wrap(CloudArrowDownRegular),
+  cloudSync: wrap(CloudSyncRegular),
 
   // ── AI / Automation ──
   robot: wrap(BotRegular),

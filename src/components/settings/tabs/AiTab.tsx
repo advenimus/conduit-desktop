@@ -34,7 +34,7 @@ export default function AiTab({ settings, setSettings }: TabProps) {
                 data-selected={selected ? "" : undefined}
                 onClick={() => setSettings({ ...settings, default_engine: harness.id })}
                 className={cx(
-                  "flex items-center gap-2 rounded-md border px-2 py-1.5 text-left transition-colors duration-100",
+                  "flex items-center gap-3 rounded-md border px-3 py-2 text-left transition-colors duration-100",
                   selected ? "border-accent bg-selected-inactive" : "border-card-border bg-well hover:border-(--c-control-border)",
                 )}
               >
@@ -50,7 +50,7 @@ export default function AiTab({ settings, setSettings }: TabProps) {
             );
           })}
         </div>
-        <p className={`mt-1 ${HINT}`}>
+        <p className={`mt-2 ${HINT}`}>
           Engine selected by default when opening the AI panel. You can switch anytime in the chat header.
         </p>
       </div>
@@ -111,7 +111,7 @@ export default function AiTab({ settings, setSettings }: TabProps) {
         />
       </div>
 
-      <div className="space-y-2 border-t border-divider pt-3">
+      <div className="space-y-2 border-t border-divider pt-4">
         <label className={`${SECTION_LABEL} mb-2`}>Engine Status</label>
         {AI_HARNESSES.map((harness) => {
           const available = engineAvailability?.[harness.id] ?? false;

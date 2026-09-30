@@ -58,7 +58,7 @@ const ENTRY_TYPE_CATEGORIES: TypeCategory[] = [
 /** Step 1 of a new entry: the type chips, grouped, on neutral tiles in their entry colors. */
 export default function EntryTypeStep({ onSelect }: { onSelect: (option: TypeOption) => void }) {
   return (
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
       {ENTRY_TYPE_CATEGORIES.map((category) => (
         <div key={category.label}>
           <p className="mb-2 px-0.5 text-meta font-semibold text-ink-muted">{category.label}</p>

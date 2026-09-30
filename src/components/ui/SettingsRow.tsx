@@ -18,7 +18,7 @@ export function SettingsRow({ title, titleAside, description, toggle, className,
   const generatedId = useId();
   const toggleId = (isValidElement(toggle) && toggle.props.id) || generatedId;
   return (
-    <div className={cx("grid gap-1 border-b border-divider py-3 last:border-0", className)} {...rest}>
+    <div className={cx("grid gap-0.5 border-b border-divider py-3 last:border-0", className)} {...rest}>
       {toggle ? (
         <div data-cv-toggle-row="" className="flex items-center justify-between gap-4">
           <TitleGroup aside={titleAside}>
@@ -33,8 +33,8 @@ export function SettingsRow({ title, titleAside, description, toggle, className,
           <div className="text-body font-semibold text-ink">{title}</div>
         </TitleGroup>
       )}
-      {description && <div className="text-label text-ink-muted">{description}</div>}
-      {children && <div className="max-w-[420px]">{children}</div>}
+      {description && <div className="text-label leading-[18px] text-ink-muted">{description}</div>}
+      {children && <div className="mt-2 max-w-[420px]">{children}</div>}
     </div>
   );
 }

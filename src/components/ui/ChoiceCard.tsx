@@ -72,15 +72,17 @@ export function ChoiceCard({ value, label, description, children, className, dis
       disabled={disabled}
       onClick={() => group?.onChange(value)}
       className={cx(
-        "flex flex-col gap-1.5 rounded-md border p-2 text-left disabled:opacity-40",
+        "flex flex-col gap-2 rounded-md border p-3 text-left disabled:opacity-40",
         checked ? "border-accent bg-selected-inactive" : "border-card-border bg-transparent hover:border-(--c-control-border)",
         className,
       )}
       {...rest}
     >
       {children}
-      <span className="text-label font-semibold text-ink">{label}</span>
-      {description && <span className="text-meta text-ink-muted">{description}</span>}
+      <span className="flex flex-col gap-0.5">
+        <span className="text-label font-semibold text-ink">{label}</span>
+        {description && <span className="text-meta text-ink-muted">{description}</span>}
+      </span>
     </button>
   );
 }

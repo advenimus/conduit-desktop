@@ -77,7 +77,7 @@ function OwnerBlock() {
   const owner = ownership?.kind === "owner" ? ownership : null;
   const tooSoon = owner !== null && owner.releaseAfterMs !== null && owner.releaseAfterMs > Date.now();
   return (
-    <div data-cv-sync-owner={ownership?.kind ?? ""} className="mb-3 space-y-1 px-1">
+    <div data-cv-sync-owner={ownership?.kind ?? ""} className="mb-3 space-y-2">
       <p data-cv-sync-owner-line="" className="text-body text-ink">{line}</p>
       {owner !== null && signedIn && (
         <div className="flex items-center gap-2">
@@ -109,15 +109,15 @@ export default function SyncTab() {
   return (
     <div className="space-y-6">
       <Section title="Multi-device sync">
-        <p className="px-1 text-body text-ink-muted">
+        <p className="text-body text-ink-muted">
           Conduit merges changes from every device that opens a vault file in a synced folder.
         </p>
-        <p data-cv-sync-plan="" className={`mt-2 px-1 ${HINT}`}>
+        <p data-cv-sync-plan="" className={`mt-2 ${HINT}`}>
           Your plan: a vault can be open {deviceLimitText(stateLimit ?? tierLimit)}
           {stateLimit?.source === "dev-override" ? " (dev override)" : ""}. Team vaults sync through your team.
           {capText && ` ${capText}`}
         </p>
-        {killSwitch && <p data-cv-sync-paused="" className="mt-2 px-1 text-meta text-warning">Conduit paused syncing for now. Your changes are saved on this device.</p>}
+        {killSwitch && <p data-cv-sync-paused="" className="mt-2 text-meta text-warning">Conduit paused syncing for now. Your changes are saved on this device.</p>}
       </Section>
       {vaultType === "personal" && (
         <Section title="This vault">

@@ -20,7 +20,7 @@ export default function DisplayTab({ config, onChange, globalDefaults }: Display
   const effectiveResolution = config.resolution ?? globalDefaults.resolution;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {/* Resolution */}
       <Field label="Resolution">
         <DefaultableSelect<RdpResolution>

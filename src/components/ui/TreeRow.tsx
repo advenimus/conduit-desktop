@@ -3,9 +3,12 @@ import { ChevronDownIcon, ChevronRightIcon } from "../../lib/icons";
 import { cx } from "./cx";
 import { RowLeading, RowTrailing, rowStateClasses, type RowLeadingContent } from "./ListRow";
 
+/** Indent per tree level, shared with the side bar's EntryTree. */
+export const TREE_INDENT_PX = 12;
+
 export interface TreeRowProps extends HTMLAttributes<HTMLDivElement> {
   ref?: Ref<HTMLDivElement>;
-  /** 0 for top-level rows; 8px of indent per level. */
+  /** 0 for top-level rows; TREE_INDENT_PX of indent per level. */
   depth: number;
   /** Set for rows that can hold children; leaves leave it undefined and keep an empty twistie slot. */
   expanded?: boolean;
@@ -29,7 +32,7 @@ export function TreeRow({ depth, expanded, onToggle, selected = false, inactive 
       aria-expanded={expanded}
       aria-selected={selected ? true : undefined}
       className={cx("group/row flex h-row min-w-0 items-center gap-1.5 rounded pr-2 text-body", rowStateClasses(selected, inactive), className)}
-      style={{ paddingLeft: `calc(4px + ${depth * 8}px)`, ...style }}
+      style={{ paddingLeft: `calc(4px + ${depth * TREE_INDENT_PX}px)`, ...style }}
       {...rest}
     >
       <span

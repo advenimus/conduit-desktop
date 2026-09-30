@@ -19,7 +19,7 @@ import type { EntryType, EntryMeta, FolderData } from "../../types/entry";
 import {
   ChevronDownIcon, ChevronRightIcon, LockIcon, StarFilledIcon, UsersIcon
 } from "../../lib/icons";
-import { cx } from "../ui";
+import { TREE_INDENT_PX, cx } from "../ui";
 import { errorText } from "../../lib/errorText";
 
 interface TreeNode {
@@ -45,7 +45,6 @@ interface EntryTreeProps {
 
 /** Row inset and indent per tree level (spec 3.6, 4.14). */
 const ROW_INSET_PX = 4;
-const INDENT_PX = 8;
 /** The first indent guide runs through the middle of a top-level row's 16px twistie. */
 const GUIDE_OFFSET_PX = ROW_INSET_PX + 8;
 
@@ -67,7 +66,7 @@ function IndentGuides({ depth }: { depth: number }) {
           data-indent-guide=""
           aria-hidden="true"
           className="pointer-events-none absolute inset-y-0 w-px bg-(--c-indent-guide) opacity-0 transition-opacity duration-100 group-hover/tree:opacity-100 group-focus-within/tree:opacity-100"
-          style={{ left: `${GUIDE_OFFSET_PX + k * INDENT_PX}px` }}
+          style={{ left: `${GUIDE_OFFSET_PX + k * TREE_INDENT_PX}px` }}
         />
       ))}
     </>
@@ -896,12 +895,12 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
   const renderGroup = (group: FolderGroup) => {
     if (group.entries.length === 0) return null;
     return (
-      <div key={group.path}>
+      <div key={group.path} className="mt-2 first:mt-0">
         <div
-          className="h-row px-2 pt-2 text-meta font-semibold text-ink-muted truncate"
+          className="flex h-row items-center px-2 text-meta font-semibold text-ink-muted"
           title={group.path === "/" ? "Root" : group.path}
         >
-          {group.path === "/" ? "Root" : group.path}
+          <span className="truncate">{group.path === "/" ? "Root" : group.path}</span>
         </div>
         {group.entries.map((node) => renderNode(node, 0))}
       </div>
@@ -932,7 +931,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             "relative flex h-row items-center gap-1.5 rounded pr-2 text-body whitespace-nowrap cursor-pointer",
             rowStateClass(isDragOver, isLocked, isSelected),
           )}
-          style={{ paddingLeft: ROW_INSET_PX + depth * INDENT_PX }}
+          style={{ paddingLeft: ROW_INSET_PX + depth * TREE_INDENT_PX }}
           onClick={(e) => {
             if (e.ctrlKey || e.metaKey) {
               // Ctrl/Cmd+Click: toggle selection without toggling expand
@@ -1024,7 +1023,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1.5">
               {node.name}
               {vaultType === "personal" && <ConflictDot tbl={isFolder ? 2 : 1} rowId={node.id} />}
               {isLocked && (

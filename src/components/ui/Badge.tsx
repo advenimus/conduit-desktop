@@ -20,7 +20,7 @@ const TONE: Readonly<Record<BadgeTone, string>> = {
 
 export function Badge({ tone = "neutral", icon, className, children, ...rest }: BadgeProps) {
   return (
-    <span className={cx("inline-flex h-4 items-center gap-0.5 rounded px-1 text-badge font-semibold", TONE[tone], className)} {...rest}>
+    <span className={cx("inline-flex h-4 items-center gap-1 rounded px-1.5 text-badge font-semibold", TONE[tone], className)} {...rest}>
       {icon && <IconSlot icon={icon} size={12} compact className="shrink-0" />}
       {children}
     </span>

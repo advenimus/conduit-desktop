@@ -104,8 +104,8 @@ describe("TextInput", () => {
     render(<TextInput ref={ref} aria-label="Host" leading={<svg data-testid="lead" />} trailing={<svg data-testid="trail" />} />);
     const input = screen.getByRole("textbox");
     expect(ref.current).toBe(input);
-    expect(input.className).toContain("pl-7");
-    expect(input.className).toContain("pr-7");
+    expect(input.className).toContain("pl-8");
+    expect(input.className).toContain("pr-8");
     expect(screen.getByTestId("lead")).toBeInTheDocument();
     expect(screen.getByTestId("trail")).toBeInTheDocument();
   });

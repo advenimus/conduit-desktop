@@ -24,9 +24,9 @@ beforeAll(() => preloadAllIconPacks(), PRELOAD_TIMEOUT_MS);
 
 afterAll(() => setIconPack(DEFAULT_ICON_PACK));
 
-it('covers the six packs and all 117 semantic names', () => {
+it('covers the six packs and all 118 semantic names', () => {
   expect(ICON_PACKS.map((pack) => pack.id)).toEqual(PACK_IDS);
-  expect(SEMANTIC_ICON_NAMES).toHaveLength(117);
+  expect(SEMANTIC_ICON_NAMES).toHaveLength(118);
 });
 
 describe.each(PACK_IDS)('the %s pack in the popup menu', (id) => {

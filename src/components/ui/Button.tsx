@@ -19,12 +19,12 @@ export interface ButtonProps extends ComponentPropsWithRef<"button"> {
 }
 
 const BASE =
-  "inline-flex items-center justify-center gap-1 whitespace-nowrap rounded select-none disabled:opacity-40 disabled:pointer-events-none";
+  "inline-flex items-center justify-center whitespace-nowrap rounded select-none disabled:opacity-40 disabled:pointer-events-none";
 
 const SIZE_BOX: Readonly<Record<ButtonSize, string>> = {
-  sm: "h-control-sm px-1.5",
-  md: "h-control px-2",
-  lg: "h-control-lg px-3",
+  sm: "h-control-sm gap-1 px-2",
+  md: "h-control gap-1.5 px-3",
+  lg: "h-control-lg gap-1.5 px-4",
 };
 
 const SIZE_TEXT: Readonly<Record<ButtonSize, string>> = {

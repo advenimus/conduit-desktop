@@ -148,10 +148,10 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
           {/* Editor pane */}
           <div className="flex-1 flex flex-col border-r border-divider min-w-0">
             {/* Toolbar */}
-            <div className="flex items-center gap-0.5 px-2 py-1 border-b border-divider bg-editor flex-wrap">
+            <div className="flex items-center gap-1 px-2 py-1 border-b border-divider bg-editor flex-wrap">
               {toolbarActions.map((action, i) =>
                 "separator" in action ? (
-                  <div key={i} className="w-px h-4 bg-divider mx-1" />
+                  <div key={i} className="w-px h-4 bg-divider mx-1.5" />
                 ) : (
                   <IconButton
                     key={i}

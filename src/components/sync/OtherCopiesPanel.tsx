@@ -52,7 +52,7 @@ function CopyRow({ copy, onDone }: { copy: CopyInfo; onDone: () => void }) {
         <p data-cv-row-title="" className="truncate text-body text-ink" title={copy.path}>{copy.name}</p>
         <p data-cv-row-detail="" className="text-label text-ink-muted">{spec.text(copy)}</p>
       </div>
-      <div className="flex shrink-0 gap-1.5">
+      <div className="flex shrink-0 gap-2">
         {spec.actions.map((a) => (
           <SmallButton key={a.action} primary={a.primary} disabled={busy} onClick={() => void act(a.action)}>
             {a.label}

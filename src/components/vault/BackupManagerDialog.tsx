@@ -308,7 +308,7 @@ export default function BackupManagerDialog({ onClose }: Props) {
         </div>
       </div>
 
-      <DialogFooter>
+      <DialogFooter divided>
         <Button onClick={onClose}>Close</Button>
       </DialogFooter>
     </Dialog>

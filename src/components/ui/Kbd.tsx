@@ -10,7 +10,7 @@ export function Kbd({ onFilled = false, className, ...rest }: KbdProps) {
   return (
     <kbd
       className={cx(
-        "inline-flex h-4 items-center rounded border px-1 font-mono text-meta",
+        "inline-flex h-4 min-w-4 items-center justify-center rounded border px-1.5 font-mono text-meta",
         onFilled ? "border-white/40 text-white" : "border-control text-ink-muted",
         className,
       )}

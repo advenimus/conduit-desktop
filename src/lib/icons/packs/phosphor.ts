@@ -238,6 +238,7 @@ export const mapping: IconMapping = {
   cloud: wrap(Cloud),
   cloudOff: wrap(CloudSlash),
   cloudDownload: wrap(CloudArrowDown),
+  cloudSync: wrap(ArrowsClockwise),
 
   // ── AI / Automation ──
   robot: wrap(Robot),

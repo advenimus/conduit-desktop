@@ -102,6 +102,7 @@ export const SEMANTIC_ICON_NAMES = [
   "cloud",
   "cloudOff",
   "cloudDownload",
+  "cloudSync",
 
   // ── AI / Automation ──
   "robot",
