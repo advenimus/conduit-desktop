@@ -21,11 +21,7 @@ function StatusRow({ label, status, detail }: { label: string; status: Dashboard
           <CircleFilledIcon size={12} />
         </span>
       }
-      meta={
-        <span className="max-w-48 truncate" title={detail}>
-          {detail}
-        </span>
-      }
+      meta={<span className="max-w-48 truncate">{detail}</span>}
     >
       {label}
     </ListRow>
