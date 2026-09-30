@@ -132,7 +132,7 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
               wrapperClassName="max-w-sm"
             />
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <label htmlFor={SORT_SELECT_ID} className="text-label text-ink-muted">
+              <label htmlFor={SORT_SELECT_ID} className="whitespace-nowrap text-label text-ink-muted">
                 Sort by
               </label>
               <Select

@@ -21,9 +21,11 @@ function ResultLine({ result }: { result: ReachabilityResult }) {
   }, []);
   const text = reachabilityText(result);
   return (
-    <span className="flex min-w-0 items-center gap-2">
-      <Badge tone={text.tone}>{text.badge}</Badge>
-      <span className="truncate">
+    <span className="flex min-w-0 items-baseline gap-2">
+      <Badge tone={text.tone} className="shrink-0 self-center">
+        {text.badge}
+      </Badge>
+      <span className="min-w-0">
         {text.detail} {"·"} checked {lowerFirst(formatRelativeTime(result.checkedAt))}
       </span>
     </span>
@@ -39,13 +41,15 @@ export default function ReachabilityRow({ entry }: { entry: EntryMeta }) {
 
   const value = (
     <div data-cv-reachability="">
-      {busy ? (
-        <Spinner size={12} text="Checking..." />
-      ) : result ? (
-        <ResultLine result={result} />
-      ) : (
-        <span className="text-ink-muted">Not checked yet</span>
-      )}
+      <div className="flex min-h-5 items-center">
+        {busy ? (
+          <Spinner size={12} text="Checking..." />
+        ) : result ? (
+          <ResultLine result={result} />
+        ) : (
+          <span className="text-ink-muted">Not checked yet</span>
+        )}
+      </div>
       {port !== null && <p className="mt-0.5 text-meta text-ink-muted">{reachabilityHint(port)}</p>}
     </div>
   );

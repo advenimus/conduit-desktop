@@ -26,7 +26,6 @@ function FolderEntryRow({ item, lastConnected, reachability }: { item: FolderLis
   const result = reachability.results[entry.id];
   const last = lastConnected.get(entry.id);
   const badge = result ? reachabilityText(result) : null;
-  const hasMeta = badge !== null || last !== undefined;
   const description = rowDescription(item);
 
   return (
@@ -38,16 +37,15 @@ function FolderEntryRow({ item, lastConnected, reachability }: { item: FolderLis
       // One-line rows take the two-line inset so every icon lines up in the mixed list.
       className={description ? undefined : "gap-3! px-3!"}
       meta={
-        hasMeta ? (
-          <>
-            {badge && (
-              <Badge tone={badge.tone} title={badge.detail}>
-                {badge.badge}
-              </Badge>
-            )}
-            {last && <span>{formatRelativeTime(last)}</span>}
-          </>
-        ) : undefined
+        <>
+          {badge && (
+            <Badge tone={badge.tone} title={badge.detail}>
+              {badge.badge}
+            </Badge>
+          )}
+          {/* A fixed-width time slot keeps the badges in one column. */}
+          <span className="min-w-16 text-right">{last ? formatRelativeTime(last) : ""}</span>
+        </>
       }
       trailing={
         <>
