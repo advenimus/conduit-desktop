@@ -7,6 +7,7 @@ import { openFolderView } from "../../../lib/openDashboard";
 import { Button, Card, Kbd, ListRow, SearchInput } from "../../ui";
 import { EntryIcon, FolderIcon, openHomeEntry, typeLabel } from "./entryDisplay";
 import { searchQuick, type QuickResult } from "./quickSearch";
+import { selectEntries, selectFolders } from "./storeSelectors";
 
 const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 const CREATE_DISABLED_REASON = "View-only access";
@@ -17,8 +18,8 @@ function openResult(result: QuickResult): void {
 }
 
 export default function QuickBar() {
-  const entries = useEntryStore((s) => s.entries);
-  const folders = useEntryStore((s) => s.folders);
+  const entries = useEntryStore(selectEntries);
+  const folders = useEntryStore(selectFolders);
   const isTeamVault = useVaultStore((s) => s.vaultType === "team");
   const canCreate = useTeamStore((s) => s.canCreate);
   const createDisabled = isTeamVault && !canCreate();

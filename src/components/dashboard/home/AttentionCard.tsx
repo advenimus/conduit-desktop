@@ -14,6 +14,7 @@ import { Button, Card, cx, ListRow, SectionHeader } from "../../ui";
 import { buildAttentionItems, formatAge } from "./attention";
 import { countConnections, EntryIcon } from "./entryDisplay";
 import { useDebounced } from "./useDebounced";
+import { selectEntries } from "./storeSelectors";
 
 const ENTRIES_CHANGE_DEBOUNCE_MS = 1000;
 
@@ -118,7 +119,7 @@ function AttentionRow({ item, entries, setAt }: { item: AttentionItem } & Omit<P
 
 /** Needs attention (docs/DASHBOARD.md 4.6); hidden when nothing needs attention. */
 export default function AttentionCard({ settings }: { settings: HomeSettings }) {
-  const entries = useEntryStore((s) => s.entries);
+  const entries = useEntryStore(selectEntries);
   const syncState = useSyncStore((s) => s.state);
   const displaced = useSyncStore((s) => s.displaced);
   const sessionConflict = useSyncStore((s) => s.sessionConflict);

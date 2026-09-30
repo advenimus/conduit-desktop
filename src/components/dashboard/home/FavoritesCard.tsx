@@ -2,10 +2,11 @@ import { useMemo } from "react";
 import { useEntryStore } from "../../../stores/entryStore";
 import { Card, ListRow, SectionHeader } from "../../ui";
 import { EntryIcon, typeLabel } from "./entryDisplay";
+import { selectEntries } from "./storeSelectors";
 
 /** Favorites (docs/DASHBOARD.md 4.5): click selects, double-click opens; hidden without favorites. */
 export default function FavoritesCard() {
-  const entries = useEntryStore((s) => s.entries);
+  const entries = useEntryStore(selectEntries);
   const favorites = useMemo(() => entries.filter((e) => e.is_favorite), [entries]);
   if (favorites.length === 0) return null;
   return (

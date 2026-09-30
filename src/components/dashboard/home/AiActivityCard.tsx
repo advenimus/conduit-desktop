@@ -7,6 +7,7 @@ import { useSessionStore } from "../../../stores/sessionStore";
 import { Badge, Card, ListRow, SectionHeader } from "../../ui";
 import { formatRelativeTime } from "../relativeTime";
 import { activityTarget, outcomeBadge, toolLabel } from "./aiActivityLabels";
+import { selectEntries, selectSessions } from "./storeSelectors";
 
 /** Loads on mount, then every AI_ACTIVITY_POLL_MS while the window is visible; null hides the card. */
 function useAiActivity(): readonly AiActivityItem[] | null {
@@ -39,8 +40,8 @@ function useAiActivity(): readonly AiActivityItem[] | null {
 /** AI activity (docs/DASHBOARD.md 4.7). */
 export default function AiActivityCard({ className }: { className?: string }) {
   const items = useAiActivity();
-  const entries = useEntryStore((s) => s.entries);
-  const sessions = useSessionStore((s) => s.sessions);
+  const entries = useEntryStore(selectEntries);
+  const sessions = useSessionStore(selectSessions);
   const entryNames = useMemo(() => new Map(entries.map((e) => [e.id, e.name])), [entries]);
   const sessionTitles = useMemo(() => new Map(sessions.map((s) => [s.id, s.title])), [sessions]);
 

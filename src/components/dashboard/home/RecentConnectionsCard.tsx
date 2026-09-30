@@ -9,6 +9,7 @@ import { formatRelativeTime } from "../relativeTime";
 import { copyPassword } from "./copyPassword";
 import { EntryIcon, openHomeEntry } from "./entryDisplay";
 import { useSessionIdsKey } from "./useDebounced";
+import { selectEntries } from "./storeSelectors";
 
 const SESSION_CHANGE_DEBOUNCE_MS = 750;
 
@@ -24,7 +25,7 @@ function RecentMeta({ item }: { item: RecentConnection }) {
 
 /** Recently connected (docs/DASHBOARD.md 4.3). `refreshKey` changes after Clear connection history. */
 export default function RecentConnectionsCard({ refreshKey }: { refreshKey: number }) {
-  const entries = useEntryStore((s) => s.entries);
+  const entries = useEntryStore(selectEntries);
   const sessionsKey = useSessionIdsKey(SESSION_CHANGE_DEBOUNCE_MS);
   const [items, setItems] = useState<readonly RecentConnection[] | null>(null);
 

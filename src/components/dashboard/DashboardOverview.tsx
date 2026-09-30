@@ -16,12 +16,13 @@ import RecentConnectionsCard from "./home/RecentConnectionsCard";
 import WelcomeBlock from "./home/WelcomeBlock";
 import { countConnections } from "./home/entryDisplay";
 import { useHomeSettings } from "./home/useHomeSettings";
+import { selectCredentialCount, selectEntries, selectFolders } from "./home/storeSelectors";
 
 /** Home (docs/DASHBOARD.md 4): header, quick bar, then the cards; a hidden or empty card takes no cell. */
 export default function DashboardOverview() {
-  const entries = useEntryStore((s) => s.entries);
-  const folders = useEntryStore((s) => s.folders);
-  const credentialCount = useVaultStore((s) => s.credentials.length);
+  const entries = useEntryStore(selectEntries);
+  const folders = useEntryStore(selectFolders);
+  const credentialCount = useVaultStore(selectCredentialCount);
   const { settings, loaded } = useHomeSettings();
   const [historyVersion, setHistoryVersion] = useState(0);
 
@@ -82,9 +83,9 @@ function HomeHeader({
 
 /** Vault Status and Overview: two grid cells behind one switch. */
 function VaultStatusCells() {
-  const entries = useEntryStore((s) => s.entries);
-  const folderCount = useEntryStore((s) => s.folders.length);
-  const credentialCount = useVaultStore((s) => s.credentials.length);
+  const entries = useEntryStore(selectEntries);
+  const folderCount = useEntryStore((s) => selectFolders(s).length);
+  const credentialCount = useVaultStore(selectCredentialCount);
   const cloudSyncState = useVaultStore((s) => s.cloudSyncState);
   const localBackupState = useVaultStore((s) => s.localBackupState);
   const teamSyncState = useVaultStore((s) => s.teamSyncState);

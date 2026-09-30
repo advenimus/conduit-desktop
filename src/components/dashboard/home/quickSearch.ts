@@ -16,7 +16,7 @@ function entryRank(entry: EntryMeta, q: string): number | null {
   const byName = nameRank(entry.name, q);
   if (byName !== null) return byName;
   if (entry.host?.toLowerCase().includes(q)) return 2;
-  if (entry.tags.some((t) => t.toLowerCase().includes(q))) return 2;
+  if ((entry.tags ?? []).some((t) => t.toLowerCase().includes(q))) return 2;
   return null;
 }
 

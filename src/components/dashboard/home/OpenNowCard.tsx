@@ -6,6 +6,7 @@ import { useEntryStore } from "../../../stores/entryStore";
 import { useSessionStore, type Session, type SessionType } from "../../../stores/sessionStore";
 import { Card, cx, ListRow, SectionHeader, type IconSource } from "../../ui";
 import { EntryIcon } from "./entryDisplay";
+import { selectEntries, selectSessions } from "./storeSelectors";
 
 const OPEN_NOW_LIMIT = 8;
 
@@ -48,8 +49,8 @@ function StatusMeta({ session }: { session: Session }) {
 
 /** Open now (docs/DASHBOARD.md 4.4). */
 export default function OpenNowCard() {
-  const sessions = useSessionStore((s) => s.sessions);
-  const entries = useEntryStore((s) => s.entries);
+  const sessions = useSessionStore(selectSessions);
+  const entries = useEntryStore(selectEntries);
   const open = useMemo(() => sessions.filter(isOpenNowSession), [sessions]);
   const byId = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
 

@@ -182,6 +182,23 @@ describe("DashboardOverview (Home)", () => {
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
   });
 
+  it("treats null or missing entries, folders and credentials as empty", async () => {
+    await setup();
+    act(() => {
+      useEntryStore.setState({ entries: null, folders: undefined } as never);
+      useVaultStore.setState({ credentials: null } as never);
+    });
+    await act(async () => undefined);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Welcome to Conduit");
+
+    act(() => useEntryStore.setState({ entries: ENTRIES.map((e) => ({ ...e, tags: null })), folders: null } as never));
+    await act(async () => undefined);
+    expect(screen.getByText("5 entries · 0 credentials · 0 folders")).toBeInTheDocument();
+    expect(within(card("Overview")).getByText("0 credentials")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "web" } });
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["web-01SSH"]);
+  });
+
   it("reloads Recently connected after Clear connection history", async () => {
     api.historyClear.mockResolvedValue({ deleted: 1 });
     await setup();
