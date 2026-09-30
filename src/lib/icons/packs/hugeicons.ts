@@ -18,6 +18,7 @@ import Clock01Icon from "@hugeicons/core-free-icons/Clock01Icon";
 import CloudDownloadIcon from "@hugeicons/core-free-icons/CloudDownloadIcon";
 import CloudIcon from "@hugeicons/core-free-icons/CloudIcon";
 import CloudOffIcon from "@hugeicons/core-free-icons/CloudOffIcon";
+import CloudSyncIcon from "@hugeicons/core-free-icons/CloudSyncIcon";
 import CommandLineIcon from "@hugeicons/core-free-icons/CommandLineIcon";
 import ComputerIcon from "@hugeicons/core-free-icons/ComputerIcon";
 import ComputerPhoneSyncIcon from "@hugeicons/core-free-icons/ComputerPhoneSyncIcon";
@@ -222,6 +223,7 @@ export const mapping: IconMapping = {
   cloud: wrapHugeicon(CloudIcon, "CloudIcon"),
   cloudOff: wrapHugeicon(CloudOffIcon, "CloudOffIcon"),
   cloudDownload: wrapHugeicon(CloudDownloadIcon, "CloudDownloadIcon"),
+  cloudSync: wrapHugeicon(CloudSyncIcon, "CloudSyncIcon"),
 
   // ── AI / Automation ──
   robot: wrapHugeicon(RoboticIcon, "RoboticIcon"),

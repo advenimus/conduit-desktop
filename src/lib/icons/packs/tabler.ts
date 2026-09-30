@@ -85,6 +85,7 @@ import {
   IconQrcode,
   IconQuote,
   IconRefresh,
+  IconRefreshDot,
   IconRestore,
   IconRobot,
   IconRocket,
@@ -242,6 +243,7 @@ export const mapping: IconMapping = {
   cloud: wrap(IconCloud),
   cloudOff: wrap(IconCloudOff),
   cloudDownload: wrap(IconCloudDownload),
+  cloudSync: wrap(IconRefreshDot),
 
   // ── AI / Automation ──
   robot: wrap(IconRobot),

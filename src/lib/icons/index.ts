@@ -102,6 +102,7 @@ export const MessageChatbotIcon = createThemedIcon("messageChatbot");
 export const CloudIcon = createThemedIcon("cloud");
 export const CloudOffIcon = createThemedIcon("cloudOff");
 export const CloudDownloadIcon = createThemedIcon("cloudDownload");
+export const CloudSyncIcon = createThemedIcon("cloudSync");
 
 // ── AI / Automation ──
 export const RobotIcon = createThemedIcon("robot");

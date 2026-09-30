@@ -19,6 +19,7 @@ import {
   Clock,
   Cloud,
   CloudDownload,
+  CloudSync,
   CloudOff,
   Code,
   Columns2,
@@ -222,6 +223,7 @@ export const mapping: IconMapping = {
   cloud: wrapLucide(Cloud),
   cloudOff: wrapLucide(CloudOff),
   cloudDownload: wrapLucide(CloudDownload),
+  cloudSync: wrapLucide(CloudSync),
 
   // ── AI / Automation ──
   robot: wrapLucide(Bot),

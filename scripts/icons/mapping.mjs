@@ -105,6 +105,7 @@ export const ICON_MAPPING = Object.freeze([
   row("cloud", "cloud-outline-rounded"),
   row("cloudOff", "cloud-off-outline-rounded"),
   row("cloudDownload", "cloud-download-outline-rounded"),
+  row("cloudSync", "sync-outline-rounded"),
 
   // AI and automation
   row("robot", "smart-toy-outline-rounded"),
