@@ -105,9 +105,9 @@ afterEach(() => {
 describe("DashboardOverview (Home)", () => {
   it("sits on the editor surface in the page column", async () => {
     const { container } = await setup();
-    expect(container.firstElementChild).toHaveClass("bg-editor");
+    expect(container.firstElementChild).toHaveClass("bg-editor", "@container");
     expect(container.querySelector(".max-w-4xl.mx-auto.p-6.space-y-6")).not.toBeNull();
-    expect(container.querySelector(".grid.grid-cols-1.md\\:grid-cols-2.gap-4")).not.toBeNull();
+    expect(container.querySelector(".grid.grid-cols-1.\\@2xl\\:grid-cols-2.gap-4")).not.toBeNull();
   });
 
   it("keeps the welcome heading with the first name and the counts line, with Customize on the right", async () => {
@@ -125,7 +125,7 @@ describe("DashboardOverview (Home)", () => {
     expect(screen.getByRole("combobox")).toHaveAttribute("placeholder", "Search entries and folders...");
     expect(cardTitles()).toEqual(["Recently connected", "Open now", "Favorites", "Needs attention", "AI activity", "Vault Status", "Overview"]);
     for (const title of cardTitles()) expect(card(title as string)).toHaveClass("rounded-md", "border-card-border", "bg-well");
-    expect(card("AI activity")).toHaveClass("md:col-span-2");
+    expect(card("AI activity")).toHaveClass("@2xl:col-span-2");
   });
 
   it("hides sections that are turned off", async () => {

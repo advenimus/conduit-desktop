@@ -33,7 +33,7 @@ function setup(items = ITEMS, logFound = true) {
     entries: [entry({ id: "e1", name: "web-01", entry_type: "ssh" })],
     sessions: [{ id: "s1", type: "web", title: "Intranet", status: "connected" }],
   });
-  return render(<AiActivityCard className="md:col-span-2" />);
+  return render(<AiActivityCard className="@2xl:col-span-2" />);
 }
 
 beforeEach(() => {
@@ -64,7 +64,7 @@ describe("AiActivityCard", () => {
     expect(screen.getByText("Rate limited")).toHaveClass("bg-warning-bg");
     expect(screen.getByText("Denied")).toHaveClass("bg-danger-bg");
     expect(screen.getByText("9m ago")).toBeInTheDocument();
-    expect(screen.getByText("AI activity").closest(".border-card-border")).toHaveClass("md:col-span-2");
+    expect(screen.getByText("AI activity").closest(".border-card-border")).toHaveClass("@2xl:col-span-2");
   });
 
   it("opens entry info only for rows whose entry exists", async () => {

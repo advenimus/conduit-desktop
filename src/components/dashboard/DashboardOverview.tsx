@@ -18,7 +18,7 @@ import { countConnections } from "./home/entryDisplay";
 import { useHomeSettings } from "./home/useHomeSettings";
 import { selectCredentialCount, selectEntries, selectFolders } from "./home/storeSelectors";
 
-/** Home (docs/DASHBOARD.md 4): header, quick bar, then the cards; a hidden or empty card takes no cell. */
+/** Home (docs/DASHBOARD.md 4): header, quick bar, then the cards; a hidden or empty card takes no cell. The grid follows the pane width, since Home also fills split panes. */
 export default function DashboardOverview() {
   const entries = useEntryStore(selectEntries);
   const folders = useEntryStore(selectFolders);
@@ -31,7 +31,7 @@ export default function DashboardOverview() {
   const shown = (id: HomeSectionId) => loaded && !settings.hidden.includes(id);
 
   return (
-    <div className="flex-1 flex flex-col bg-editor overflow-y-auto h-full">
+    <div className="@container flex-1 flex flex-col bg-editor overflow-y-auto h-full">
       <div className="max-w-4xl w-full mx-auto p-6 space-y-6">
         <HomeHeader
           entryCount={entries.length}
@@ -40,12 +40,12 @@ export default function DashboardOverview() {
           onHistoryCleared={() => setHistoryVersion((v) => v + 1)}
         />
         {shown("quick") && <QuickBar />}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-4">
           {shown("recent") && <RecentConnectionsCard refreshKey={historyVersion} />}
           {shown("open-now") && <OpenNowCard />}
           {shown("favorites") && <FavoritesCard />}
           {shown("attention") && <AttentionCard settings={settings} />}
-          {shown("ai-activity") && <AiActivityCard className="md:col-span-2" />}
+          {shown("ai-activity") && <AiActivityCard className="@2xl:col-span-2" />}
           {shown("vault-status") && <VaultStatusCells />}
         </div>
       </div>
