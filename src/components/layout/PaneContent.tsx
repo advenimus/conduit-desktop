@@ -14,6 +14,7 @@ import EntryDashboard from "../dashboard/EntryDashboard";
 import FolderDashboard from "../dashboard/FolderDashboard";
 import DashboardOverview from "../dashboard/DashboardOverview";
 import { Button, Spinner } from "../ui";
+import { dashboardViewOf } from "../../lib/dashboardSessions";
 
 interface PaneContentProps {
   paneId: string;
@@ -131,10 +132,12 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
         return (
           <CommandView sessionId={session.id} entryId={session.entryId!} isActive={isActive} />
         );
-      case "dashboard":
-        return session.entryId
-          ? <EntryDashboard entryId={session.entryId} />
-          : <DashboardOverview />;
+      case "dashboard": {
+        const view = dashboardViewOf(session);
+        if (view.kind === "folder") return <FolderDashboard folderId={view.folderId} />;
+        if (view.kind === "entry") return <EntryDashboard entryId={view.entryId} />;
+        return <DashboardOverview />;
+      }
       default:
         return (
           <p className="text-ink-faint">Unsupported session type: {session.type}</p>
