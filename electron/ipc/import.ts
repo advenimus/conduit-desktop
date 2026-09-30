@@ -75,6 +75,7 @@ export function registerImportHandlers(): void {
         maxEntries: args.maxEntries ?? -1,
         existingEntryCount,
         duplicateStrategy: args.duplicateStrategy,
+        changedBy: state.authService?.getAuthState()?.user?.email ?? null,
       });
     },
   );
