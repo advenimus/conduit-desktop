@@ -151,6 +151,20 @@ describe("PaneTabBar tabs", () => {
     for (const id of ["s-term", "s-doc", "s-web", "s-rdp"]) expect(dot(id).querySelector("svg")).not.toBeNull();
   });
 
+  it("draws no dot on Home, folder view and entry info tabs, but keeps their close button", () => {
+    const pages: Session[] = [
+      { id: HOME_SESSION_ID, type: "dashboard", title: "Home", status: "connected" },
+      { id: folderViewSessionId("f1"), type: "dashboard", title: "Production", status: "connected", metadata: { folderId: "f1" } },
+      { id: "dashboard::e1", type: "dashboard", title: "web-01", status: "connected", entryId: "e1" },
+      SESSIONS[0],
+    ];
+    const { tab } = setup({ sessions: pages, active: HOME_SESSION_ID });
+    for (const s of pages.slice(0, 3)) expect(tab(s.id).querySelector('[title="connected"]')).toBeNull();
+    expect(tab(folderViewSessionId("f1")).querySelector(".cv-tab-close")).not.toBeNull();
+    expect(tab("dashboard::e1").querySelector(".cv-tab-close")).not.toBeNull();
+    expect(tab("s-term").querySelector('[title="connected"]')).not.toBeNull();
+  });
+
   it("closes a tab from its close button without selecting it", () => {
     const { tab } = setup();
     fireEvent.click(tab("s-web").querySelector(".cv-tab-close")!);

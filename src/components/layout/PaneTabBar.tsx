@@ -389,7 +389,8 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
                 <span className="cv-tab-label">{session.title}</span>
               )}
 
-              {!isHome && <StatusDot session={session} />}
+              {/* Home, folder views and entry info are pages, not connections. */}
+              {session.type !== "dashboard" && <StatusDot session={session} />}
 
               {!isHome && (
                 <IconButton
