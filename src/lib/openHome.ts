@@ -5,13 +5,14 @@ import { useSidebarStore } from "../stores/sidebarStore";
 import { HOME_SESSION_ID, HOME_TITLE } from "./dashboardSessions";
 import { focusSession } from "./focusSession";
 
-function hasHomeTab(): boolean {
-  return useSessionStore.getState().sessions.some((s) => s.id === HOME_SESSION_ID);
-}
-
-/** Puts the pinned Home tab first in the first pane when a vault is unlocked and it is missing. */
+/**
+ * Puts the pinned Home tab first in the first pane when a vault is unlocked and it is missing.
+ * A missing sessions list (the layout store and the recorder read it as empty) cannot take a tab,
+ * so the check waits for the next change.
+ */
 export function ensureHomeTab(): void {
-  if (!useVaultStore.getState().isUnlocked || hasHomeTab()) return;
+  const sessions = useSessionStore.getState().sessions;
+  if (!useVaultStore.getState().isUnlocked || !sessions || sessions.some((s) => s.id === HOME_SESSION_ID)) return;
 
   const layout = useLayoutStore.getState();
   const firstPane = getAllLeaves(layout.root)[0];

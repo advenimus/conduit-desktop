@@ -15,6 +15,19 @@ const SHELL: Session = { id: "s-shell", type: "local_shell", title: "Terminal", 
 const WEB: Session = { id: "s-web", type: "web", title: "Intranet", status: "connected" };
 
 const flush = () => new Promise<void>((resolve) => queueMicrotask(resolve));
+
+const VAULT_IPC: Record<string, unknown> = {
+  vault_open: { filePath: "/vaults/other.conduit", exists: true },
+  vault_create: "/vaults/new.conduit",
+  settings_get: { recent_vaults: [] },
+  vault_is_network_path: false,
+};
+
+function stubVaultIpc() {
+  Object.assign(globalThis, {
+    electron: { invoke: async (channel: string) => VAULT_IPC[channel] ?? null, on: () => () => undefined },
+  });
+}
 const sessionIds = () => useSessionStore.getState().sessions.map((s) => s.id);
 const firstPane = () => getAllLeaves(useLayoutStore.getState().root)[0];
 
@@ -174,6 +187,47 @@ describe("installHomeTabGuard", () => {
 
     expect(sessionIds()).toEqual([HOME_SESSION_ID]);
     expect(firstPane().sessionIds).toEqual([HOME_SESSION_ID]);
+  });
+
+  it("does not put Home back during openVault, which clears the sessions of the vault it leaves", async () => {
+    stubVaultIpc();
+    uninstall = installHomeTabGuard();
+    await flush();
+    useSessionStore.getState().addSession(SHELL);
+
+    await useVaultStore.getState().openVault("/vaults/other.conduit");
+    await flush();
+
+    expect(useVaultStore.getState().isUnlocked).toBe(false);
+    expect(sessionIds()).toEqual([]);
+    expect(firstPane().sessionIds).toEqual([]);
+  });
+
+  it("ends createVault with Home as the only tab, from a locked or an open vault", async () => {
+    stubVaultIpc();
+    setUnlocked(false);
+    uninstall = installHomeTabGuard();
+    await useVaultStore.getState().createVault("/vaults/new.conduit", "pw");
+    await flush();
+    expect(sessionIds()).toEqual([HOME_SESSION_ID]);
+    expect(firstPane().sessionIds).toEqual([HOME_SESSION_ID]);
+
+    useSessionStore.getState().addSession(SHELL);
+    await useVaultStore.getState().createVault("/vaults/second.conduit", "pw");
+    await flush();
+    expect(sessionIds()).toEqual([HOME_SESSION_ID]);
+    expect(firstPane().sessionIds).toEqual([HOME_SESSION_ID]);
+  });
+
+  it("waits out a missing sessions list without throwing, then adds Home", async () => {
+    uninstall = installHomeTabGuard();
+    await flush();
+    expect(() => useSessionStore.setState({ sessions: null as never })).not.toThrow();
+    await flush();
+    expect(useSessionStore.getState().sessions).toBeNull();
+    useSessionStore.setState({ sessions: [] });
+    await flush();
+    expect(sessionIds()).toEqual([HOME_SESSION_ID]);
   });
 
   it("stops after uninstall", async () => {
