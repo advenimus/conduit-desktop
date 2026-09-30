@@ -12,7 +12,7 @@ Four builders implement it in parallel from the commit that adds this file. Sect
 
 1. **Getting back is one step.** Home is a pinned tab that is always there while a vault is open, with a shortcut and a menu item.
 2. **One screen, no clutter.** Home shows seven sections in a fixed order. A section with nothing to show takes no space. The user can hide any section.
-3. **Restyle, not redesign.** Reuse the primitives in `src/components/ui` (`Card`, `SectionHeader`, `ListRow`, `Button`, `IconButton`, `Badge`, `SearchInput`, `Select`, `Checkbox`, `Popover`, `Spinner`, `EmptyState`) and the `--c-*` tokens through the existing Tailwind classes. No new colors, radii, shadows or type sizes. The Home page keeps `bg-editor`, `max-w-4xl mx-auto p-6 space-y-6`, and two-column `grid grid-cols-1 md:grid-cols-2 gap-4` rows.
+3. **Restyle, not redesign.** Reuse the primitives in `src/components/ui` (`Card`, `SectionHeader`, `ListRow`, `Button`, `IconButton`, `Badge`, `SearchInput`, `Select`, `Checkbox`, `Popover`, `Spinner`, `EmptyState`) and the `--c-*` tokens through the existing Tailwind classes. No new colors, radii, shadows or type sizes. The Home page keeps `bg-editor`, `max-w-4xl mx-auto p-6 space-y-6`, and two-column `grid grid-cols-1 @2xl:grid-cols-2 gap-4` rows. The page is an `@container`, so the grid follows the pane width: Home also fills split panes (3.4).
 4. **Plain words.** Every string is in section 8. No em dashes in any string.
 5. **Local and private.** Connection history stays on this device, outside the vault file, and stores entry ids only.
 
@@ -122,7 +122,7 @@ Sections top to bottom. Each is hidden when the user turns it off in Customize, 
 K = Copy password, i = View info (IconButtons shown on row hover or focus, ListRow `trailing`)
 ```
 
-Layout: header row, then the quick bar (full width), then one `grid grid-cols-1 md:grid-cols-2 gap-4` holding the cards in order: Recently connected, Open now, Favorites, Needs attention, AI activity (`md:col-span-2`), Vault Status, Overview. A hidden card takes no cell; later cards move up.
+Layout: header row, then the quick bar (full width), then one `grid grid-cols-1 @2xl:grid-cols-2 gap-4` holding the cards in order: Recently connected, Open now, Favorites, Needs attention, AI activity (`@2xl:col-span-2`), Vault Status, Overview. Two columns start at a pane width of 42rem (container query), not a window width. A hidden card takes no cell; later cards move up.
 
 ### 4.1 Header
 
@@ -286,7 +286,7 @@ P = Check if it is up, > = Open, i = View info (ListRow trailing, shown on hover
 - For ssh, rdp, vnc, web and command entries. Below the details column (left column when notes exist).
 - `SectionHeader` title "Recent connections", description "Connections from this device only."
 - Source: `dashboardApi.historyForEntry({ entryId, limit: 20 })`, loaded on mount and 750 ms after the session ids change.
-- Row: `ListRow` without `onClick`. Leading icon and label by outcome (8.2). `meta`: date and time (`toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })`), plus " · {duration}" when `durationMs` is known. Duration: under 60 s "{s} s", under 60 min "{m} min", else "{h} h {m} min".
+- Row: `ListRow` without `onClick`. Leading icon and label by outcome (8.2). `meta`: date and time (`toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })`), plus " · {duration}" when `durationMs` is known and the outcome is not `failed` (a failed row's time is the connection attempt). Duration: under 60 s "{s} s", under 60 min "{m} min", else "{h} h {m} min".
 - Empty: "No connections from this device yet." (`text-label text-ink-faint`).
 - Load error: the section shows the empty line and logs `console.warn`.
 
