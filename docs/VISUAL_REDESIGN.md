@@ -417,7 +417,7 @@ Font stacks (VS Code 1.139 `.monaco-workbench` stacks [V], set on `<html data-os
 | `--c-control-h` | 26px | `h-control` | `.monaco-text-button`, `.monaco-inputbox` [V] |
 | `--c-control-h-lg` | 32px | `h-control-lg` | [ADAPT] landing CTAs only |
 | `--c-row-h` | 22px | `h-row` | `ITEM_HEIGHT=22` [V] |
-| `--c-row-h-2line` | 36px | `h-row-2line` | [ADAPT] rows with a description |
+| `--c-row-h-2line` | 40px | `h-row-2line` | [ADAPT] rows with a description (36px before the spacing pass, 2.12) |
 | `--c-icon-sm` / `--c-icon` / `--c-icon-lg` | 12 / 16 / 24px | (props) | VS Code icon sizes [V] |
 | `--c-toolbar-btn` | 22px | `size-toolbar` | `.monaco-action-bar .action-label` [V] |
 
@@ -549,6 +549,27 @@ Known limits: hover fills are not gated; surface borders are decorative; input b
 ### 2.11 Reading tokens from JavaScript
 
 `src/lib/appearance/resolveCssColor.ts` (wave 1) resolves any token to `#rrggbb` through a probe element, composites alpha over a surface, and throws for an undeclared token. Callers: `terminalTheme.ts` and `src/utils/contextMenu.ts` (the popup menu colors, 7.1).
+
+### 2.12 Spacing
+
+The spacing pass (`advenimus/spacing-pass`) opened up icon gaps and padding without moving any control. Heights stay as in 2.5 except the two-line row. New work follows this scale:
+
+| Part | Spacing |
+|---|---|
+| Buttons | `sm` `px-2 gap-1`; `md` `px-3 gap-1.5`; `lg` `px-4 gap-1.5` |
+| Badge, Kbd | Badge `h-4 px-1.5`, icon gap 4px; Kbd `px-1.5 min-w-4`, centered; the review chip matches `px-1.5` |
+| Single-line rows | 22px (`--c-row-h`), `px-2 gap-1.5` |
+| Two-line rows | 40px (`--c-row-h-2line`), `px-3 gap-3`; `RowMeta` `gap-2`; 4px (`gap-1`) between rows in the Vault Hub cards |
+| Tree | 12px per level (`TREE_INDENT_PX`, shared by `TreeRow` and `EntryTree`); markers after a name `gap-1.5`; flat-mode group labels `mt-2` apart |
+| Side bar | Header row `gap-1 px-1.5`, switcher `gap-1.5`, right group `gap-1`; footer count group `gap-1.5`, buttons `gap-1`; search `px-2` |
+| Inputs | 8px text inset (`TextInput`, `Select`, `SearchInput`); icons 8px from the edge; trailing icon buttons `gap-1` with 8px clear of the text |
+| Containers | `Callout` md `p-3`; `ChoiceCard` `p-3 gap-2`; `SettingsRow` `gap-0.5`, control `mt-2` |
+| Dialogs | 16px sides; `DialogFooter divided` (`pt-4`) under a bordered body |
+| Menus | 24px rows; the `end` slot sits 16px (`ml-4`) after the label |
+| Toasts | `px-3 py-2.5`; message `mt-0.5`; actions `gap-2` |
+| Settings nav | `NavList` rows 28px (`h-7`) |
+
+Rhythm: 2px title to subline, 4px label to control, 8px for a 16px icon to its text and between buttons, 12px card and row padding (and a 20px icon to its text), 16px dialog edges, field gaps and above a divided footer, 24px between sections.
 
 ---
 
@@ -744,11 +765,11 @@ Geometry check: the strip is 4 + 24 + 5 = 33px; the active fill covers y = 4 to 
 
 | Element | Restyled | Keeps |
 |---|---|---|
-| Row | `flex h-tabstrip shrink-0 items-center gap-0.5 px-1` (33px, D-5; today `p-3`, 52px). Team vaults keep `border-l-2 border-l-team-border-strong bg-team`. | Order |
+| Row | `flex h-tabstrip shrink-0 items-center gap-1 px-1.5` (33px, D-5; today `p-3`, 52px). Team vaults keep `border-l-2 border-l-team-border-strong bg-team`. | Order |
 | Close / hide | `IconButton md` with the `close` glyph (today a hand-drawn 14px X), `label` and `title` exactly as today (`Hide sidebar` + `Hide sidebar (Ctrl+B)` docked, `Close sidebar` + `Close sidebar (Ctrl+B)` floating). | `SidebarWindowControls.tsx` logic |
 | Pin | `IconButton md`, `pin` / `pinFilled` at 16 (today 14), `pressed={isPinned}` (pressed look replaces the accent text); `opacity-60` stays while pinned but too narrow to dock. | `aria-pressed`, `aria-label`, the three titles |
-| Vault switcher | The wrapper becomes `relative min-w-0 flex-1`, so a long name truncates before the buttons (fixes the overlap in INVENTORY 11). The button: `-ml-1 flex h-6 max-w-full min-w-0 items-center gap-0.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover` (13px in `ink`, the most prominent text in the header, as today's 13px name; 4px of room for the inset focus ring, lesson of `4780b8c`), name `truncate`, `chevronDown` 16 `text-ink-muted`. At the default 250px, `Acme Infrastructure` shows at least 12 characters before the ellipsis (macOS). Hook `data-cv-vault-switcher`. | `title` (path, network or "Open a vault"), menu toggle |
-| Right group | `flex shrink-0 items-center gap-0.5`: favorites `IconButton md` (`star`, or `starFilled` in `text-favorite` when on), new entry (`plus`), new folder (`folderPlus`). A read-only team vault disables the two create buttons (`disabled`, `disabledReason="View-only access"`). | Titles `Show favorites only` / `Show all entries`, `New Entry (Ctrl+E)`, `New Folder (Ctrl+Shift+N)` |
+| Vault switcher | The wrapper becomes `relative min-w-0 flex-1`, so a long name truncates before the buttons (fixes the overlap in INVENTORY 11). The button: `flex h-6 max-w-full min-w-0 items-center gap-1.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover` (13px in `ink`, the most prominent text in the header, as today's 13px name; 4px of room for the inset focus ring, lesson of `4780b8c`), name `truncate`, the automatic unlock `lockOpen` 12 `text-ink-faint` when on, `chevronDown` 16 `text-ink-muted`, 6px apart. At the default 250px, `Acme Infrastructure` shows at least 12 characters before the ellipsis (macOS). Hook `data-cv-vault-switcher`. | `title` (path, network or "Open a vault"), menu toggle |
+| Right group | `flex shrink-0 items-center gap-1`: favorites `IconButton md` (`star`, or `starFilled` in `text-favorite` when on), new entry (`plus`), new folder (`folderPlus`). A read-only team vault disables the two create buttons (`disabled`, `disabledReason="View-only access"`). | Titles `Show favorites only` / `Show all entries`, `New Entry (Ctrl+E)`, `New Folder (Ctrl+Shift+N)` |
 
 **Vault switcher menu** (`VaultSwitcherMenu.tsx`) [BEFORE 21]: the container keeps its place and size (`absolute top-full left-0 mt-1 w-[280px]`, `data-context-menu`) and takes the DOM menu look: `rounded-lg border border-overlay-border bg-overlay shadow-overlay py-1`. Section headers (`Personal Vaults`, team sections): `h-6 px-3 text-meta font-semibold text-ink-muted`, no uppercase. Rows: `MenuItem` look (24px, `mx-1 px-2`, radius 6, 13px `ink-secondary`, hover and keyboard `--c-menu-selection-bg` with a 1px `--c-menu-selection-border` outline); the current vault's mark is `check` 16 in `ink-secondary` (today accent); leading icons 16 in `ink-muted`. Separators `h-px my-[5px] bg-divider`. Every row stays a `<button>` with today's text (`Lock Current Vault` is clicked by the harness, B43). The recent-vault right-click menu (a popup) is unchanged.
 
@@ -766,18 +787,18 @@ Geometry check: the strip is 4 + 24 + 5 = 33px; the active fill covers y = 4 to 
 
 | Part | Restyled (today) |
 |---|---|
-| Row | `flex h-row items-center gap-1.5 rounded pr-2 text-body whitespace-nowrap cursor-pointer`, `padding-left: calc(4px + depth * 8px)` (today 28px rows, `depth * 16 + 8`) |
+| Row | `flex h-row items-center gap-1.5 rounded pr-2 text-body whitespace-nowrap cursor-pointer`, `padding-left: calc(4px + depth * 12px)` (`TREE_INDENT_PX`; today 28px rows, `depth * 16 + 8`) |
 | Twistie | The existing `<button>` becomes a 16 × 16 box (`size-4`) with `chevronRight` / `chevronDown` at 16 (today 12) in `ink-muted`; it gains `aria-label` and `title` `Expand` / `Collapse` (D-20; today it has no name) and the hook `data-cv-tree-twistie`, by which the harness expands folders (B48); leaves keep a 16px spacer (`size-4`) so icons line up |
 | Icon | Entry icon 16 in its entry color (unchanged) |
-| Label | `text-ink-secondary`; inline markers after it: conflict dot, `lock` 12 `text-ink-faint` (locked), `lock` 12 `text-warning` (view-only folder), `starFilled` 12 `text-favorite` (today 10px icons) |
+| Label | `text-ink-secondary`; inline markers after it, 6px apart: conflict dot, `lock` 12 `text-ink-faint` (locked), `lock` 12 `text-warning` (view-only folder), `starFilled` 12 `text-favorite` (today 10px icons) |
 | Hover | `bg-hover` |
 | Selected | `bg-selected text-ink` plus `data-selected` (today `bg-conduit-600/20 text-conduit-400`) |
 | Drop target | `bg-(--c-drop-bg) outline outline-1 -outline-offset-1 outline-accent` (today a ring) |
 | Locked | `opacity-60` (unchanged) |
 | Rename input | 20px, 13px, `bg-input`, 1px `--c-focus` border, radius 2, `px-1`, `flex-1` |
 | Multi-drag badge | Inline style background `var(--c-btn-primary-bg)` instead of `#6366f1`, radius 4, 12px |
-| Indent guides | For each ancestor level k, a 1px `--c-indent-guide` line at `left: calc(12px + k * 8px)` over the row height, `opacity: 0`, fading to 1 over 100ms while the tree container is hovered or has focus within [V VS Code `renderIndentGuides: onHover`] |
-| Flat-mode group label | `h-row px-2 pt-2 text-meta font-semibold text-ink-muted truncate`, no uppercase and no letter spacing; `title` kept |
+| Indent guides | For each ancestor level k, a 1px `--c-indent-guide` line at `left: calc(12px + k * 12px)` over the row height, `opacity: 0`, fading to 1 over 100ms while the tree container is hovered or has focus within [V VS Code `renderIndentGuides: onHover`] |
+| Flat-mode group label | `flex h-row items-center px-2 text-meta font-semibold text-ink-muted`, the text in a `truncate` span, groups `mt-2 first:mt-0` apart; no uppercase and no letter spacing; `title` kept |
 | Empty states | Team vault: `users` 32 `text-ink-faint`, title `text-body text-ink-muted`, hint `text-label text-ink-faint`; others `text-body text-ink-faint`, centered; texts unchanged |
 | Root drop zone | `h-6 mx-1 mt-1 rounded`; while dragging over: `bg-(--c-drop-bg) border border-dashed border-accent` |
 
@@ -789,7 +810,7 @@ Geometry check: the strip is 4 + 24 + 5 = 33px; the active fill covers y = 4 to 
 
 | Element | Restyled | Keeps |
 |---|---|---|
-| Row 1 | `flex h-8 items-center justify-between gap-1 px-2` (today 40px) | Order |
+| Row 1 | `flex h-8 items-center justify-between gap-1 px-2` (today 40px); the count and sync group `gap-1.5`, Home and Settings `gap-1` | Order |
 | Count | `text-meta text-ink-faint tabular-nums` | Text (`9 items`, `2 favorites`) |
 | Personal sync | `IconButton`-sized (22px) button, icon 16 (today 14) in the tone color: ok `text-success`, busy `text-accent` (spinning), warn `text-warning`, error `text-danger`, off `text-ink-faint`; hover `--c-toolbar-hover` | `title`, `aria-label="Sync: {label}"`, click opens Settings > Sync |
 | `N to review` | `h-5 rounded px-1.5 text-badge font-semibold text-warning bg-warning-bg hover:underline`; hook `data-cv-review-button` | Text, `title="Review changes from your other devices"` (B13) |
@@ -842,7 +863,7 @@ These sit directly under an active tab, so they use `--c-editor` (D-19):
 
 - **Loading and team auto-connect** (`App.tsx:952-983`): `bg-editor`; the border spinner becomes `Spinner` 24 with the text as visible text; texts exactly `Loading...` (the harness treats a page whose whole text is `Loading...` as loading, B27) and `Connecting to team vault...`.
 - **Sign-in** (`AuthScreen.tsx`) [BEFORE 00] and **onboarding** (`OnboardingWizard.tsx`): primitives; `Button size="lg"` for the main actions, `text-display` titles, `Callout` for the trial note; layout and texts unchanged (`Continue without signing in` is read by the harness).
-- **Vault hub** (`VaultHub.tsx`) [BEFORE 01, 41]: the card `rounded-lg border border-card-border bg-sidebar`; left column: app icon, `Conduit` in `text-display`, subtitle `text-body text-ink-muted`, `Button size="lg" variant="primary" icon="plus"` "New Vault" and `Button size="lg" variant="secondary" icon="folderOpen"` "Open Vault File"; the column divider `border-divider`; right column: the `Recent Vaults` header (its own text, no longer drawn in capitals) as `text-meta font-semibold text-ink-muted` with the lock icon at 12, `Clear All` as `Button variant="link" size="sm"`, rows as clickable `ListRow` with a description (36px: name, then folder in `text-meta`) and a 28px `rounded-md bg-well` icon tile as `leading`. What is always visible today stays always visible (L-23): `PendingBadge` and the fingerprint icon go in the row's `meta` slot; only the chevron, hover-only today (`VaultHub.tsx:262-264`, `371-374`), goes in `trailing`. Each row stays `button[title="{path}"]` (B26, B44).
+- **Vault hub** (`VaultHub.tsx`) [BEFORE 01, 41]: the card `rounded-lg border border-card-border bg-sidebar`; left column: app icon, `Conduit` in `text-display`, subtitle `text-body text-ink-muted`, `Button size="lg" variant="primary" icon="plus"` "New Vault" and `Button size="lg" variant="secondary" icon="folderOpen"` "Open Vault File"; the column divider `border-divider`; right column: the `Recent Vaults` header (its own text, no longer drawn in capitals) as `text-meta font-semibold text-ink-muted` with the lock icon at 12, `Clear All` as `Button variant="link" size="sm"`, rows as clickable `ListRow` with a description (40px: name, then folder in `text-meta`), 4px apart in the card (`flex flex-col gap-1`) and a 28px `rounded-md bg-well` icon tile as `leading`. What is always visible today stays always visible (L-23): `PendingBadge` and the fingerprint icon go in the row's `meta` slot; only the chevron, hover-only today (`VaultHub.tsx:262-264`, `371-374`), goes in `trailing`. Each row stays `button[title="{path}"]` (B26, B44).
 - **Home dashboard** (`dashboard/`) [BEFORE 40]: `Card`, `ListRow`, `Button`, `SectionHeader`; the counts line `text-body text-ink-muted`; `Quick Connect` primary button with its `Kbd` hint. Entry rows are clickable `ListRow`s (double-click kept) with the relative time or the type label in `meta`, always visible as today (`DashboardOverview.tsx:283-291`); the type label drops its CSS uppercase (8.4).
 
 ### 3.12 Dialogs, Settings and the Appearance tab
@@ -934,17 +955,17 @@ The primitives in `src/components/ui/` landed in wave 1 and are only used by the
 
 | Part | Recipe | Source |
 |---|---|---|
-| Base | `inline-flex items-center justify-center gap-1 whitespace-nowrap rounded border select-none transition-colors duration-100 disabled:opacity-40 disabled:pointer-events-none` + `data-cv-text-button` (2px outside focus ring) | [V] VS Code text buttons |
-| `sm` | `h-control-sm px-1.5 text-meta` (22px, 11px) | [V] small button |
-| `md` (default) | `h-control px-2 text-label` (26px, 12px) | [V] `.monaco-text-button` |
-| `lg` | `h-control-lg px-3 text-body` (32px) | [ADAPT] landing CTAs only |
+| Base | `inline-flex items-center justify-center whitespace-nowrap rounded border select-none transition-colors duration-100 disabled:opacity-40 disabled:pointer-events-none` + `data-cv-text-button` (2px outside focus ring) | [V] VS Code text buttons |
+| `sm` | `h-control-sm gap-1 px-2 text-meta` (22px, 11px) | [V] small button |
+| `md` (default) | `h-control gap-1.5 px-3 text-label` (26px, 12px) | [V] `.monaco-text-button` |
+| `lg` | `h-control-lg gap-1.5 px-4 text-body` (32px) | [ADAPT] landing CTAs only |
 | `primary` | `bg-btn-primary hover:bg-btn-primary-hover text-white border-transparent` | [V] |
 | `secondary` | `bg-(--c-btn-secondary-bg) text-(--c-btn-secondary-fg) border-(--c-btn-secondary-border) hover:bg-(--c-btn-secondary-hover)` | [V] |
 | `ghost` | `bg-transparent border-transparent text-ink-secondary hover:bg-hover hover:text-ink` | |
 | `ghost-danger` (restyle, wave 3) | `bg-transparent border-transparent text-danger hover:bg-hover` | Sign Out and Delete Cloud Backup |
 | `danger` | `bg-btn-danger hover:bg-btn-danger-hover text-white border-transparent` | |
 | `link` | `h-auto px-0 border-0 bg-transparent text-link hover:text-link-hover hover:underline` | [V] |
-| Icon | 16px (`sm`: 12px), 4px gap | [V] |
+| Icon | 16px with a 6px gap (`sm`: 12px, 4px gap) | 2.12 |
 | Loading | a spinning `loader` at the icon size replaces the icon; the label stays visible (`loadingLabel` or the children); `aria-busy`; disabled | busy texts the harness reads (B35) |
 
 Footer order: secondary first, primary last, as today.
@@ -1044,9 +1065,9 @@ Native `title` only: a native tooltip cannot be covered by a native web view. Ev
 
 | Primitive | Recipe |
 |---|---|
-| `Badge` | `inline-flex items-center h-4 px-1 rounded text-badge font-semibold`; tones neutral `bg-selected text-ink-secondary`, accent `bg-badge text-white`, warning, danger, success on their tints |
+| `Badge` | `inline-flex items-center gap-1 h-4 px-1.5 rounded text-badge font-semibold`; tones neutral `bg-selected text-ink-secondary`, accent `bg-badge text-white`, warning, danger, success on their tints |
 | `CountBadge` | `min-w-[18px] min-h-[18px] px-[5px] rounded-full text-badge`, accent |
-| `Kbd` | `inline-flex items-center h-4 px-1 rounded border border-control text-meta font-mono text-ink-muted`; **(restyle, wave 3)** `onFilled` for a key hint inside a filled button: `border-white/40 text-white` |
+| `Kbd` | `inline-flex items-center justify-center h-4 min-w-4 px-1.5 rounded border border-control text-meta font-mono text-ink-muted`; **(restyle, wave 3)** `onFilled` for a key hint inside a filled button: `border-white/40 text-white` |
 | `Spinner` | the `loader` icon spinning at 12, 16 or 24; optional visible `text`; never `role="status"` |
 
 ### 4.13 Containers
@@ -1054,18 +1075,18 @@ Native `title` only: a native tooltip cannot be covered by a native web view. Ev
 | Primitive | Recipe |
 |---|---|
 | `Card` | `rounded-md border border-card-border bg-well p-3` |
-| `ChoiceCard` + `ChoiceGroup` | group `role="radiogroup"`, grid; card `role="radio" aria-checked data-cv-choice`, `flex flex-col gap-1.5 rounded-md border border-card-border p-2 text-left hover:border-(--c-control-border)`; checked `border-accent bg-selected-inactive` + `data-selected`; 2px outside focus ring |
-| `Callout` | `flex gap-2 rounded-md border p-2.5 text-label`; tones `info`, `warning`, `danger`, `success` on their tints; title `font-semibold text-ink`; body `text-ink-secondary`; actions row of `Button sm`; `size="sm"` uses `p-2`. **(restyle, salvage `ee3bc39`)** `onDismiss` adds an in-flow `IconButton sm` `close` at the top right labeled `dismissLabel` (default `Dismiss`) |
+| `ChoiceCard` + `ChoiceGroup` | group `role="radiogroup"`, grid; card `role="radio" aria-checked data-cv-choice`, `flex flex-col gap-2 rounded-md border border-card-border p-3 text-left hover:border-(--c-control-border)`, label and description in a `flex-col gap-0.5`; checked `border-accent bg-selected-inactive` + `data-selected`; 2px outside focus ring |
+| `Callout` | `flex gap-2 rounded-md border p-3 text-label`; tones `info`, `warning`, `danger`, `success` on their tints; title `font-semibold text-ink`; body `text-ink-secondary`; actions row of `Button sm`; `size="sm"` uses `p-2`. **(restyle, salvage `ee3bc39`)** `onDismiss` adds an in-flow `IconButton sm` `close` at the top right labeled `dismissLabel` (default `Dismiss`) |
 | `Banner` | the 26px banner (3.8), `role="status"`, text in `span.flex-1` + `data-cv-banner-text`. **(restyle)** Actions are `Button size="sm"` (22px): `{label, onClick, disabled?, primary?}`, `variant="primary"` when `primary`, else `secondary` (D-27; wave 1 drew underlined links). The divider is `box-shadow: inset 0 -1px 0 var(--c-divider)` (salvage `ca9659c`); `status={false}` omits `role="status"` for the offline banners; `align="center"` centers the icon, text and actions as one group, the text span not growing (the offline banners, as today; the harness reads `span.flex-1` only inside `role="status"` banners, B15) |
 | `EmptyState` | `flex flex-col items-center gap-2 py-8 text-center`; icon 32 `text-ink-faint`; title `text-body text-ink-secondary`; description `text-label text-ink-muted` |
-| `SectionHeader` | `<h3 class="text-label font-semibold text-ink-secondary">` (stays an `h3`, B37) |
-| `SettingsRow` | `grid gap-1 py-3 border-b border-divider last:border-0`; title `text-body font-semibold text-ink`; description `text-label text-ink-muted`; the Backup toggles keep their `<label>` and a direct-child `Switch` (B22, B39). **(restyle, wave 3)** `titleAside` sits right after the title, outside its `<label>`, so the label keeps its exact text (a badge such as "Pro and Team") |
+| `SectionHeader` | `<h3 class="text-label font-semibold text-ink-secondary">` (stays an `h3`, B37); description `mt-0.5` |
+| `SettingsRow` | `grid gap-0.5 py-3 border-b border-divider last:border-0`; title `text-body font-semibold text-ink`; description `text-label leading-[18px] text-ink-muted`; the control `mt-2 max-w-[420px]`; the Backup toggles keep their `<label>` and a direct-child `Switch` (B22, B39). **(restyle, wave 3)** `titleAside` sits right after the title, outside its `<label>`, so the label keeps its exact text (a badge such as "Pro and Team") |
 
 ### 4.14 ListRow and TreeRow
 
-`ListRow`: `flex items-center gap-1.5 h-row px-2 rounded text-body text-ink-secondary`; a `<button>` when clickable; states hover `bg-hover`, selected `bg-selected text-ink`, unfocused selection `bg-selected-inactive`; `description` makes it 36px with a `text-meta text-ink-muted` line. **(restyle, wave 3)** `detail`: a further line under the description (the picker's tags); the row then grows to fit with `py-1` instead of a fixed height. `leading`: an icon source draws in a 16px box; **(restyle)** an element (the hub's 28px icon tile, an entry icon) sizes itself in a `shrink-0` slot. **(restyle)** `meta`: always visible, after the label and inside the clickable button, `shrink-0 text-meta text-ink-faint` (badges, timestamps, type labels; L-23). `trailing`: small `IconButton`s or a decorative chevron, revealed on hover or focus-within by opacity (B45), outside the clickable button.
+`ListRow`: `flex items-center gap-1.5 h-row px-2 rounded text-body text-ink-secondary` (with a description `gap-3 px-3`); a `<button>` when clickable; states hover `bg-hover`, selected `bg-selected text-ink`, unfocused selection `bg-selected-inactive`; `description` makes it 40px with a `text-meta text-ink-muted` line. **(restyle, wave 3)** `detail`: a further line under the description (the picker's tags); the row then grows to fit with `py-1` instead of a fixed height. `leading`: an icon source draws in a 16px box; **(restyle)** an element (the hub's 28px icon tile, an entry icon) sizes itself in a `shrink-0` slot. **(restyle)** `meta`: always visible, after the label and inside the clickable button, `shrink-0 gap-2 text-meta text-ink-faint` (badges, timestamps, type labels; L-23). `trailing`: small `IconButton`s or a decorative chevron, revealed on hover or focus-within by opacity (B45), outside the clickable button.
 
-`TreeRow`: 22px, `padding-left: calc(4px + depth * 8px)`, a 16px twistie slot on every row, 6px gaps. The entry tree applies this recipe to its own rows (3.6) without `role="treeitem"` (D-20).
+`TreeRow`: 22px, `padding-left: calc(4px + depth * TREE_INDENT_PX)` (12px), a 16px twistie slot on every row, 6px gaps. The entry tree applies this recipe to its own rows (3.6) without `role="treeitem"` (D-20).
 
 ### 4.15 Toasts
 
