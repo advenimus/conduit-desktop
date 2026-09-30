@@ -3,9 +3,9 @@ import { cx } from "./cx";
 
 export interface TextInputProps extends ComponentPropsWithRef<"input"> {
   invalid?: boolean;
-  /** A 16px icon 6px from the left edge. */
+  /** A 16px icon 8px from the left edge. */
   leading?: ReactNode;
-  /** A 16px icon or a small IconButton, centered 6px from the right edge. */
+  /** A 16px icon or a small IconButton, centered 8px from the right edge. */
   trailing?: ReactNode;
 }
 
@@ -21,8 +21,8 @@ export function TextInput({ invalid = false, leading, trailing, className, type 
         "h-control w-full text-body leading-4",
         FIELD_COLORS,
         invalid ? "border-danger" : "border-input-border",
-        leading ? "pl-7" : "pl-1.5",
-        trailing ? "pr-7" : "pr-1.5",
+        leading ? "pl-8" : "pl-2",
+        trailing ? "pr-8" : "pr-2",
         className,
       )}
       {...rest}
@@ -32,13 +32,13 @@ export function TextInput({ invalid = false, leading, trailing, className, type 
   return (
     <span className="relative block w-full">
       {leading && (
-        <span className="pointer-events-none absolute left-1.5 top-1/2 flex size-4 -translate-y-1/2 items-center justify-center text-ink-muted">
+        <span className="pointer-events-none absolute left-2 top-1/2 flex size-4 -translate-y-1/2 items-center justify-center text-ink-muted">
           {leading}
         </span>
       )}
       {input}
       {trailing && (
-        <span className="absolute right-1.5 top-1/2 flex size-4 -translate-y-1/2 items-center justify-center">{trailing}</span>
+        <span className="absolute right-2 top-1/2 flex size-4 -translate-y-1/2 items-center justify-center">{trailing}</span>
       )}
     </span>
   );

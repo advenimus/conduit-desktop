@@ -35,7 +35,7 @@ export interface NavListProps extends Omit<ComponentPropsWithRef<"nav">, "onChan
   onChange: (id: string) => void;
 }
 
-const ROW = "flex h-row w-full items-center gap-2 rounded text-left text-body";
+const ROW = "flex h-7 w-full items-center gap-2 rounded text-left text-body";
 
 function rowState(selected: boolean): string {
   return selected ? "bg-selected text-ink" : "text-ink-secondary hover:bg-hover";
@@ -137,7 +137,7 @@ export function NavList({ items, value, onChange, className, ref, ...rest }: Nav
       {items.map((entry) => {
         if (entry.kind === "label") {
           return (
-            <div key={entry.id} className="flex h-row items-center px-2 text-meta font-semibold text-ink-muted">
+            <div key={entry.id} className="flex h-7 items-center px-2 text-meta font-semibold text-ink-muted">
               {entry.label}
             </div>
           );

@@ -45,13 +45,13 @@ export function ToastCard({ type, toastId = "", title, message, actions, progres
   return (
     <div
       data-toast={toastId}
-      className={cx("flex w-full max-w-[450px] items-start gap-2 rounded-lg border border-overlay-border bg-overlay p-2 shadow-overlay", className)}
+      className={cx("flex w-full max-w-[450px] items-start gap-2 rounded-lg border border-overlay-border bg-overlay px-3 py-2.5 shadow-overlay", className)}
       {...rest}
     >
-      <IconSlot icon={style.glyph} className={cx("ml-1 mt-0.5 shrink-0", style.color)} />
+      <IconSlot icon={style.glyph} className={cx("mt-0.5 shrink-0", style.color)} />
       <div className="min-w-0 flex-1">
         <p className="text-body font-semibold text-ink">{title}</p>
-        {message && <p className="text-body text-ink-secondary">{message}</p>}
+        {message && <p className="mt-0.5 text-body text-ink-secondary">{message}</p>}
         {progress && (
           <div className="mt-1.5">
             {(progress.leftLabel || progress.rightLabel) && (
@@ -66,7 +66,7 @@ export function ToastCard({ type, toastId = "", title, message, actions, progres
           </div>
         )}
         {actions && actions.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-2">
             {actions.map((action) => (
               <Button key={action.id} size="sm" variant={action.variant ?? "secondary"} icon={action.icon} onClick={action.onClick}>
                 {action.label}
@@ -75,7 +75,7 @@ export function ToastCard({ type, toastId = "", title, message, actions, progres
           </div>
         )}
       </div>
-      {onClose && <IconButton size="sm" icon="close" label="Dismiss" onClick={onClose} />}
+      {onClose && <IconButton size="sm" icon="close" label="Dismiss" onClick={onClose} className="-mr-1 -mt-0.5" />}
     </div>
   );
 }

@@ -100,9 +100,14 @@ export function DialogBody({ className, children, ...rest }: ComponentPropsWithR
 }
 
 /** Must stay the last child of the panel (or of the form): the harness reads `root > div:last-child button` (B3). */
-export function DialogFooter({ className, children, ...rest }: ComponentPropsWithRef<"div">) {
+export interface DialogFooterProps extends ComponentPropsWithRef<"div"> {
+  /** Under a bordered body: pt-4 so the buttons clear the divider. */
+  divided?: boolean;
+}
+
+export function DialogFooter({ divided = false, className, children, ...rest }: DialogFooterProps) {
   return (
-    <div data-cv-dialog-footer="" className={cx("flex flex-wrap justify-end gap-2 px-4 pb-4 pt-2", className)} {...rest}>
+    <div data-cv-dialog-footer="" className={cx("flex flex-wrap justify-end gap-2 px-4 pb-4", divided ? "pt-4" : "pt-2", className)} {...rest}>
       {children}
     </div>
   );

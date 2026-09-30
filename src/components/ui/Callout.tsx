@@ -39,7 +39,7 @@ export function Callout({
 }: CalloutProps) {
   const style = TONE[tone];
   return (
-    <div className={cx("flex gap-2 rounded-md border text-label", size === "sm" ? "p-2" : "p-2.5", style.box, className)} {...rest}>
+    <div className={cx("flex gap-2 rounded-md border text-label", size === "sm" ? "p-2" : "p-3", style.box, className)} {...rest}>
       <IconSlot icon={icon ?? style.glyph} className={cx("mt-px shrink-0", style.icon)} />
       <div className="min-w-0 flex-1">
         {title && <p className="font-semibold text-ink">{title}</p>}

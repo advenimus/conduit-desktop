@@ -109,7 +109,7 @@ export function MenuItem({ onSelect, icon, danger = false, keepOpen = false, end
     >
       {icon && <IconSlot icon={icon} className={cx("shrink-0", danger ? "text-danger" : "text-ink-muted")} />}
       <span className="min-w-0 flex-1 truncate">{children}</span>
-      {end}
+      {end != null && end !== false && <span className="ml-4 flex shrink-0 items-center text-meta text-ink-faint">{end}</span>}
     </button>
   );
 }

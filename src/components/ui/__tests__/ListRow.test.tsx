@@ -130,7 +130,7 @@ describe("ListRow meta and leading (spec 4.14, L-23)", () => {
 });
 
 describe("TreeRow", () => {
-  it("is a treeitem with aria-level, aria-expanded on containers and 8px indent per level", () => {
+  it("is a treeitem with aria-level, aria-expanded on containers and 12px indent per level", () => {
     const onToggle = vi.fn();
     render(
       <div role="tree" aria-label="Entries">
@@ -148,8 +148,8 @@ describe("TreeRow", () => {
     expect(leaf).toHaveAttribute("aria-level", "3");
     expect(leaf).not.toHaveAttribute("aria-expanded");
     expect(leaf).toHaveAttribute("aria-selected", "true");
-    // 4px + 2 levels × 8px; jsdom folds the calc() to calc(20px).
-    expect(leaf.style.paddingLeft).toMatch(/^calc\((4px \+ 16px|20px)\)$/);
+    // 4px + 2 levels × 12px; jsdom folds the calc() to calc(28px).
+    expect(leaf.style.paddingLeft).toMatch(/^calc\((4px \+ 24px|28px)\)$/);
     expect(folder.style.paddingLeft).toMatch(/^calc\((4px \+ 0px|4px)\)$/);
     expect(folder.querySelector("[data-twistie]")).not.toBeNull();
     expect(leaf.querySelector("[data-twistie]")).not.toBeNull();

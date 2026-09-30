@@ -16,7 +16,7 @@ export function SectionHeader({ title, description, actions, className, ...rest 
         <h3 className="min-w-0 flex-1 text-label font-semibold text-ink-secondary">{title}</h3>
         {actions}
       </div>
-      {description && <p className="text-meta text-ink-muted">{description}</p>}
+      {description && <p className="mt-0.5 text-meta text-ink-muted">{description}</p>}
     </div>
   );
 }

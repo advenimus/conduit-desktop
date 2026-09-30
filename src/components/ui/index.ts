@@ -39,5 +39,5 @@ export { SectionHeader, type SectionHeaderProps } from "./SectionHeader";
 export { SettingsRow, type SettingsRowProps } from "./SettingsRow";
 
 export { ListRow, type ListRowProps, type RowLeadingContent } from "./ListRow";
-export { TreeRow, type TreeRowProps } from "./TreeRow";
+export { TREE_INDENT_PX, TreeRow, type TreeRowProps } from "./TreeRow";
 export { ToastCard, type ToastCardAction, type ToastCardProgress, type ToastCardProps, type ToastCardType } from "./ToastCard";

@@ -38,7 +38,7 @@ export function RowsSection() {
           </ListRow>
         </div>
       </Demo>
-      <Demo label="TreeRow: twisties, leaf slot, 8px indent, selected, trailing actions on focus" className="block">
+      <Demo label="TreeRow: twisties, leaf slot, 12px indent, selected, trailing actions on focus" className="block">
         <div role="tree" aria-label="Entries" className="flex w-80 flex-col rounded border border-card-border bg-sidebar px-1 py-1">
           <TreeRow depth={0} expanded={open} onToggle={() => setOpen((o) => !o)} leading="folder" tabIndex={0}>
             Servers

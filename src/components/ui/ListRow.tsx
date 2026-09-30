@@ -19,7 +19,7 @@ export interface ListRowProps extends Omit<HTMLAttributes<HTMLElement>, "onClick
   meta?: ReactNode;
   /** Small IconButtons or a decorative chevron, shown on hover or focus-within and hidden with opacity only (B45). */
   trailing?: ReactNode;
-  /** A second line; the row becomes 36px. */
+  /** A second line; the row becomes 40px. */
   description?: ReactNode;
   /** A further line under the description (tags); the row then grows to fit. */
   detail?: ReactNode;
@@ -56,7 +56,7 @@ export function RowLeading({ leading }: { leading?: RowLeadingContent }) {
 }
 
 export function RowMeta({ children }: { children: ReactNode }) {
-  return <span className="flex shrink-0 items-center gap-1 text-meta text-ink-faint">{children}</span>;
+  return <span className="flex shrink-0 items-center gap-2 text-meta text-ink-faint">{children}</span>;
 }
 
 export function RowTrailing({ children }: { children: ReactNode }) {
@@ -68,7 +68,7 @@ export function RowTrailing({ children }: { children: ReactNode }) {
 }
 
 /**
- * A 22px row (36px with a description, taller with a detail line), spec 4.14. Clickable rows are a <button> (B44); a clickable row
+ * A 22px row (40px with a description, taller with a detail line), spec 4.14. Clickable rows are a <button> (B44); a clickable row
  * with trailing actions wraps that button, so no button sits inside another.
  */
 export function ListRow({
@@ -88,7 +88,11 @@ export function ListRow({
   ...rest
 }: ListRowProps) {
   const height = detail ? "h-auto py-1" : description ? "h-row-2line" : "h-row";
-  const rowBox = cx("flex w-full min-w-0 items-center gap-1.5 rounded px-2 text-left text-body disabled:opacity-40", height);
+  const rowBox = cx(
+    "flex w-full min-w-0 items-center rounded text-left text-body disabled:opacity-40",
+    description ? "gap-3 px-3" : "gap-1.5 px-2",
+    height,
+  );
   const state = rowStateClasses(selected, inactive);
   const selection = selectionAttributes(selected, role);
   const content = (
