@@ -118,7 +118,7 @@ export default function AccountTab({ onClose }: AccountTabProps) {
                 </Button>
               </div>
             ) : (
-              <Button variant="ghost-danger" onClick={() => setShowSignOutConfirm(true)}>
+              <Button variant="ghost-danger" className="-ml-3" onClick={() => setShowSignOutConfirm(true)}>
                 Sign Out
               </Button>
             )}

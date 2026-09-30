@@ -155,7 +155,7 @@ export function LocalBackupSection() {
                   <div
                     key={backup.fullPath}
                     data-cv-backup-row=""
-                    className="flex items-center justify-between border-b border-divider px-2 py-1.5 text-label last:border-b-0 hover:bg-hover"
+                    className="flex items-center justify-between border-b border-divider px-3 py-2 text-label last:border-b-0 hover:bg-hover"
                   >
                     <div className="min-w-0 flex-1">
                       <span data-cv-backup-name="" className="block truncate text-ink-secondary">{backup.name}</span>

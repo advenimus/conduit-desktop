@@ -1,4 +1,5 @@
-import { Card, IconSlot, Select } from "../ui";
+import { Card, IconSlot, Select, cx } from "../ui";
+import { HINT } from "../settings/settings-styles";
 
 interface IdleLockOption {
   readonly minutes: number;
@@ -34,11 +35,11 @@ export default function IdleLockSetting({ minutes, onChange }: IdleLockSettingPr
   const value = normalizeIdleMinutes(minutes);
   return (
     <Card className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <IconSlot icon="clock" size={20} className={value > 0 ? "text-link" : "text-ink-faint"} />
-        <div>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <IconSlot icon="clock" size={20} className={cx("shrink-0", value > 0 ? "text-link" : "text-ink-faint")} />
+        <div className="min-w-0">
           <p className="text-body font-semibold text-ink">Lock the vault when idle</p>
-          <p className="mt-0.5 text-label text-ink-muted">Locks when this computer is idle or its screen locks. Open connections close.</p>
+          <p className={`mt-0.5 ${HINT}`}>Locks when this computer is idle or its screen locks. Open connections close.</p>
         </div>
       </div>
       <div className="w-40 shrink-0">

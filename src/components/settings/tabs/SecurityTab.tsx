@@ -78,9 +78,9 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
           ) : (
             <div className="space-y-3">
               <Card className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <FingerprintIcon size={20} className={biometricEnabled ? "text-(--c-accent)" : "text-ink-faint"} />
-                  <div>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <FingerprintIcon size={20} className={`shrink-0 ${biometricEnabled ? "text-(--c-accent)" : "text-ink-faint"}`} />
+                  <div className="min-w-0">
                     <p className="text-body font-semibold text-ink">Quick Unlock</p>
                     <p className={`mt-0.5 ${HINT}`}>
                       {biometricEnabled
@@ -94,7 +94,7 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
 
               {error && <Callout tone="danger">{error}</Callout>}
 
-              <p className={`px-1 ${HINT}`}>
+              <p className={HINT}>
                 Your master password is stored encrypted in the system keychain.
                 Touch ID or Apple Watch authentication is required to access it.
                 You can always use your master password as a fallback.

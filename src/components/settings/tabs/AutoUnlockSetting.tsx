@@ -4,7 +4,7 @@ import { useVaultStore } from "../../../stores/vaultStore";
 import { AUTO_UNLOCK_SHORT_WARNING, toastAutoUnlockOff, vaultName } from "../../../lib/startup-vault-copy";
 import { errorText } from "../../../lib/errorText";
 import AutoUnlockWarningDialog from "../../vault/AutoUnlockWarningDialog";
-import { Button, Callout, Card, IconSlot, SectionHeader, Switch } from "../../ui";
+import { Button, Callout, Card, IconSlot, SectionHeader, Switch, cx } from "../../ui";
 import { HINT } from "../settings-styles";
 
 interface AutoUnlockSettingProps {
@@ -70,9 +70,9 @@ export default function AutoUnlockSetting({ notice }: AutoUnlockSettingProps) {
     return (
       <div className="space-y-3">
         <Card className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <IconSlot icon="lockOpen" size={20} className={on ? "text-(--c-accent)" : "text-ink-faint"} />
-            <div>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <IconSlot icon="lockOpen" size={20} className={cx("shrink-0", on ? "text-(--c-accent)" : "text-ink-faint")} />
+            <div className="min-w-0">
               <p className="text-body font-semibold text-ink">Unlock automatically at startup</p>
               <p className={`mt-0.5 ${HINT}`}>
                 {on ? `${name} opens without the master password when Conduit starts` : `Open ${name} without the master password when Conduit starts`}
@@ -95,7 +95,7 @@ export default function AutoUnlockSetting({ notice }: AutoUnlockSettingProps) {
         {on && (
           <>
             <Callout tone="warning">{AUTO_UNLOCK_SHORT_WARNING}</Callout>
-            <p className={`px-1 ${HINT}`}>Your master password is kept in the {status.store.storeName} on this computer.</p>
+            <p className={HINT}>Your master password is kept in the {status.store.storeName} on this computer.</p>
           </>
         )}
       </div>
