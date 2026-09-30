@@ -1,165 +1,195 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import DashboardOverview from "../DashboardOverview";
+import { resetHomeSettings } from "../home/useHomeSettings";
+import { dashboardApi } from "../../../lib/dashboardApi";
 import { useAuthStore } from "../../../stores/authStore";
 import { useEntryStore } from "../../../stores/entryStore";
+import { useSessionStore } from "../../../stores/sessionStore";
 import { useSyncStore } from "../../../stores/syncStore";
+import { useTeamStore } from "../../../stores/teamStore";
 import { useTierStore } from "../../../stores/tierStore";
 import { useVaultStore } from "../../../stores/vaultStore";
+import type { HomeSectionId } from "../../../types/dashboard";
 import { entry, folder, minutesAgo, rowParts } from "./fixtures";
 
 // Stores read settings through window.electron while these modules load.
-vi.hoisted(() => {
-  Object.assign(globalThis, { electron: { invoke: async () => null, on: () => () => undefined } });
+const invoke = vi.hoisted(() => {
+  const fn = vi.fn(async (_channel: string, _args?: unknown): Promise<unknown> => null);
+  Object.assign(globalThis, { electron: { invoke: fn, on: () => () => undefined } });
+  return fn;
 });
+vi.mock("../../../lib/dashboardApi", () => ({
+  dashboardApi: {
+    historyRecent: vi.fn(),
+    historyClear: vi.fn(),
+    passwordAges: vi.fn(),
+    aiActivity: vi.fn(),
+  },
+}));
 
-// One shared time, so a slow run cannot order the rows by millisecond drift.
-const UPDATED_AT = minutesAgo(13);
+const api = vi.mocked(dashboardApi);
 
 const ENTRIES = [
-  entry({ id: "w", name: "Intranet Status", entry_type: "web", is_favorite: true, tags: ["prod"], updated_at: UPDATED_AT }),
-  entry({ id: "s", name: "web-01", entry_type: "ssh", is_favorite: true, updated_at: UPDATED_AT }),
-  entry({ id: "d", name: "Runbook", entry_type: "document", updated_at: UPDATED_AT }),
-  entry({ id: "c", name: "Domain Admin", entry_type: "credential", updated_at: UPDATED_AT }),
+  entry({ id: "w", name: "Intranet Status", entry_type: "web", is_favorite: true, tags: ["prod"] }),
+  entry({ id: "s", name: "web-01", entry_type: "ssh", is_favorite: true }),
+  entry({ id: "k", name: "deploy-job", entry_type: "command" }),
+  entry({ id: "d", name: "Runbook", entry_type: "document" }),
+  entry({ id: "c", name: "Domain Admin", entry_type: "credential" }),
 ];
 
 const setSelectedEntry = vi.fn();
 const openEntry = vi.fn();
 
 interface Setup {
-  trialDays?: number;
-  maxConnections?: number;
+  hidden?: HomeSectionId[];
   entries?: typeof ENTRIES;
+  folders?: ReturnType<typeof folder>[];
+  maxConnections?: number;
+  trialDays?: number;
 }
 
-function setup(opts: Setup = {}) {
+async function setup(opts: Setup = {}) {
+  invoke.mockImplementation(async (channel: string) => (channel === "ui_state_get" ? { hidden: opts.hidden ?? [] } : null));
   useEntryStore.setState({
     entries: opts.entries ?? ENTRIES,
-    folders: [folder({ id: "f1", name: "Production" }), folder({ id: "f2", name: "Staging" })],
+    folders: opts.folders ?? [folder({ id: "f1", name: "Production" }), folder({ id: "f2", name: "Staging" })],
     setSelectedEntry,
     openEntry,
   } as never);
+  useSessionStore.setState({
+    sessions: [
+      { id: "__home__", type: "dashboard", title: "Home", status: "connected" },
+      { id: "t1", type: "local_shell", title: "Terminal", status: "connected" },
+    ],
+  });
   useVaultStore.setState({
+    vaultType: "personal",
     cloudSyncState: null,
     localBackupState: { status: "idle", lastBackedUpAt: null, error: null, enabled: false, backupPath: null, retentionDays: 7 },
     credentials: [{ id: "c" }],
     teamSyncState: null,
   } as never);
+  useTeamStore.setState({ canCreate: () => true } as never);
   useTierStore.setState({
     maxConnections: opts.maxConnections ?? -1,
     isTrialing: opts.trialDays !== undefined,
     trialDaysRemaining: opts.trialDays ?? 0,
   } as never);
-  useAuthStore.setState({ authMode: "local", profile: null } as never);
-  useSyncStore.setState({ state: null } as never);
-  return render(<DashboardOverview />);
+  useAuthStore.setState({ authMode: "local", profile: { display_name: "Chris Smith" } } as never);
+  useSyncStore.setState({ state: null, displaced: null, sessionConflict: null } as never);
+  const view = render(<DashboardOverview />);
+  await act(async () => undefined);
+  return view;
 }
 
+const cardTitles = () => screen.queryAllByRole("heading", { level: 3 }).map((h) => h.textContent);
 const card = (title: string) => screen.getByRole("heading", { level: 3, name: title }).closest(".border-card-border") as HTMLElement;
 
 beforeEach(() => {
+  resetHomeSettings();
   setSelectedEntry.mockReset();
   openEntry.mockReset();
+  api.historyRecent.mockResolvedValue([
+    { entryId: "s", protocol: "ssh", lastStartedAt: minutesAgo(5), lastEndedAt: null, lastDurationMs: null, lastOutcome: "closed", count: 3 },
+  ]);
+  api.passwordAges.mockResolvedValue([{ entryId: "c", setAt: minutesAgo(60 * 24 * 400), source: "created" }]);
+  api.aiActivity.mockResolvedValue({ items: [{ at: minutesAgo(2), tool: "terminal_execute", outcome: "success", durationMs: 5, entryId: "s", sessionId: null }], logFound: true });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  resetHomeSettings();
 });
 
-describe("DashboardOverview (restyle)", () => {
-  it("sits on the editor surface", () => {
-    const { container } = setup();
+describe("DashboardOverview (Home)", () => {
+  it("sits on the editor surface in the page column", async () => {
+    const { container } = await setup();
     expect(container.firstElementChild).toHaveClass("bg-editor");
-    expect(container.querySelector(".bg-canvas, .bg-panel")).toBeNull();
+    expect(container.querySelector(".max-w-4xl.mx-auto.p-6.space-y-6")).not.toBeNull();
+    expect(container.querySelector(".grid.grid-cols-1.md\\:grid-cols-2.gap-4")).not.toBeNull();
   });
 
-  it("keeps the welcome title, the counts line and Quick Connect with its Kbd hint", () => {
-    setup();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Welcome back");
-    expect(screen.getByText("4 entries · 1 credential · 2 folders")).toHaveClass("text-body", "text-ink-muted");
-    const quick = screen.getByRole("button", { name: /Quick Connect/ });
-    expect(quick).toHaveAttribute("data-cv-text-button");
-    expect(quick).toHaveClass("bg-btn-primary");
-    expect(quick.querySelector("kbd")).toHaveTextContent(/^(⌘N|Ctrl\+N)$/);
+  it("keeps the welcome heading with the first name and the counts line, with Customize on the right", async () => {
+    await setup();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Welcome back, Chris");
+    expect(screen.getByText("5 entries · 1 credential · 2 folders")).toHaveClass("text-body", "text-ink-muted");
+    const customize = screen.getByRole("button", { name: "Customize" });
+    expect(customize).toHaveClass("h-control-sm");
   });
 
-  it("dispatches Quick Connect, search focus and tag search as before", () => {
-    setup();
-    const events: string[] = [];
-    const listen = (name: string) => document.addEventListener(name, () => events.push(name), { once: true });
-    ["conduit:quick-connect", "conduit:focus-sidebar-search", "conduit:sidebar-search"].forEach(listen);
-    fireEvent.click(screen.getByRole("button", { name: /Quick Connect/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Search entries..." }));
-    fireEvent.click(screen.getByRole("button", { name: "prod" }));
-    expect(events).toEqual(["conduit:quick-connect", "conduit:focus-sidebar-search", "conduit:sidebar-search"]);
+  it("shows every section in order when each has something to show", async () => {
+    await setup({ maxConnections: 3 });
+    await screen.findByText("Recently connected");
+    await screen.findByText("AI activity");
+    expect(screen.getByRole("combobox")).toHaveAttribute("placeholder", "Search entries and folders...");
+    expect(cardTitles()).toEqual(["Recently connected", "Open now", "Favorites", "Needs attention", "AI activity", "Vault Status", "Overview"]);
+    for (const title of cardTitles()) expect(card(title as string)).toHaveClass("rounded-md", "border-card-border", "bg-well");
+    expect(card("AI activity")).toHaveClass("md:col-span-2");
   });
 
-  it("renders the four cards in today's order with h3 section headers", () => {
-    setup();
-    const titles = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(titles).toEqual(["Favorites", "Recently Modified", "Vault Status", "Overview"]);
-    for (const title of titles) {
-      expect(card(title as string)).toHaveClass("rounded-md", "border-card-border", "bg-well");
-    }
+  it("hides sections that are turned off", async () => {
+    await setup({ hidden: ["quick", "favorites", "vault-status"] });
+    await screen.findByText("Recently connected");
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Quick Connect/ })).toBeNull();
+    await waitFor(() => expect(cardTitles()).toEqual(["Recently connected", "Open now", "Needs attention", "AI activity"]));
   });
 
-  it("draws favorites as clickable rows with the type label in meta, without CSS uppercase", () => {
-    setup();
+  it("hides sections that have nothing to show", async () => {
+    api.historyRecent.mockResolvedValue([]);
+    api.passwordAges.mockResolvedValue([]);
+    api.aiActivity.mockResolvedValue({ items: [], logFound: false });
+    await setup({ entries: ENTRIES.map((e) => ({ ...e, is_favorite: false })) });
+    act(() => useSessionStore.setState({ sessions: [] }));
+    await act(async () => undefined);
+    expect(cardTitles()).toEqual(["Vault Status", "Overview"]);
+  });
+
+  it("draws favorites with the type label, selects on click and opens on double-click", async () => {
+    await setup();
     const rows = within(card("Favorites")).getAllByRole("button");
     expect(rows.map(rowParts)).toEqual([
       { label: "Intranet Status", meta: "Web" },
       { label: "web-01", meta: "SSH" },
     ]);
-    for (const row of rows) {
-      expect(row).toHaveClass("h-row");
-      expect(row.querySelector(".uppercase")).toBeNull();
-    }
-  });
-
-  it("draws recently modified rows with the relative time in meta, always visible", () => {
-    setup();
-    const rows = within(card("Recently Modified")).getAllByRole("button");
-    expect(rows.map((r) => rowParts(r).label)).toEqual(["Intranet Status", "web-01", "Runbook"]);
-    for (const row of rows) {
-      const meta = row.querySelector(".text-meta.text-ink-faint") as HTMLElement;
-      expect(meta).toHaveTextContent("13m ago");
-      expect(meta.className).not.toMatch(/opacity-0/);
-    }
-  });
-
-  it("selects on click and opens on double-click", () => {
-    setup();
-    const row = within(card("Recently Modified")).getByRole("button", { name: /web-01/ });
-    fireEvent.click(row);
+    fireEvent.click(rows[1]);
     expect(setSelectedEntry).toHaveBeenCalledWith("s");
-    fireEvent.doubleClick(row);
+    fireEvent.doubleClick(rows[1]);
     expect(openEntry).toHaveBeenCalledWith("s");
   });
 
-  it("keeps the empty texts", () => {
-    setup({ entries: [] });
-    expect(within(card("Favorites")).getByText("Star entries to add them here")).toBeInTheDocument();
-    expect(within(card("Recently Modified")).getByText("No recent entries")).toBeInTheDocument();
-  });
-
-  it("colors the status dots and the usage bar with tokens", () => {
-    setup({ maxConnections: 3, trialDays: 2 });
+  it("keeps the vault status rows and adds Command to the overview tiles", async () => {
+    await setup({ maxConnections: 3, trialDays: 2 });
     const status = card("Vault Status");
     expect(within(status).getByText("Local Backup")).toBeInTheDocument();
-    expect(within(status).getByText("Disabled")).toBeInTheDocument();
-    expect(within(status).getByText("Plan Usage")).toBeInTheDocument();
-    expect(within(status).getByText("2/3")).toBeInTheDocument();
+    expect(within(status).getByText("3/3")).toBeInTheDocument();
     expect(within(status).getByText("2 days remaining")).toHaveClass("text-danger");
-    expect(status.querySelector("[style*='width']")).toHaveClass("bg-accent");
-    expect(status.innerHTML).not.toMatch(/(red|yellow|green)-400|conduit-/);
-  });
-
-  it("keeps the overview tiles and counts", () => {
-    setup();
     const overview = card("Overview");
-    for (const label of ["SSH", "RDP", "VNC", "Web"]) expect(within(overview).getByText(label)).toBeInTheDocument();
+    expect(overview.querySelector(".grid-cols-3")).not.toBeNull();
+    for (const label of ["SSH", "RDP", "VNC", "Web", "Command"]) expect(within(overview).getByText(label)).toBeInTheDocument();
     expect(within(overview).getByText("1 credential")).toBeInTheDocument();
     expect(within(overview).getByText("1 document")).toBeInTheDocument();
     expect(within(overview).getByText("2 folders")).toBeInTheDocument();
+  });
+
+  it("shows the welcome block for an empty vault", async () => {
+    await setup({ entries: [], folders: [] });
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Welcome to Conduit");
+    expect(screen.getByText("Get started by creating your first entry or connecting to a remote host.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New Entry" })).toHaveClass("bg-btn-primary");
+    expect(screen.getByRole("button", { name: "Quick Connect" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+  });
+
+  it("reloads Recently connected after Clear connection history", async () => {
+    api.historyClear.mockResolvedValue({ deleted: 1 });
+    await setup();
+    await screen.findByText("Recently connected");
+    const before = api.historyRecent.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Customize" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear connection history..." }));
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Clear history" }));
+    await waitFor(() => expect(api.historyRecent.mock.calls.length).toBe(before + 1));
   });
 });
