@@ -18,6 +18,9 @@ vi.mock("../../../utils/contextMenu", () => ({
   showContextMenu: (...args: unknown[]) => showContextMenu(...args),
 }));
 
+const openers = vi.hoisted(() => ({ openFolderView: vi.fn(), openDashboardForEntry: vi.fn() }));
+vi.mock("../../../lib/openDashboard", () => openers);
+
 const FOLDERS = [
   { id: "f1", name: "Production", parent_id: null, sort_order: 0 },
   { id: "f2", name: "Databases", parent_id: "f1", sort_order: 0 },
@@ -30,14 +33,21 @@ const ENTRIES = [
   { id: "e4", name: "Locked Box", entry_type: "rdp", folder_id: null, sort_order: 1, is_favorite: false },
 ] as unknown as EntryMeta[];
 
-function setup({ expanded = ["f1", "f2"], selected = [] as string[], locked = [] as string[] } = {}) {
+function setup({
+  expanded = ["f1", "f2"],
+  selected = [] as string[],
+  locked = [] as string[],
+  vaultType = "personal",
+  role = null as string | null,
+  canManagePermissions = false,
+} = {}) {
   vi.stubGlobal("electron", {
     invoke: vi.fn(async (cmd: string, args?: { key?: string }) =>
       cmd === "ui_state_get" && args?.key?.startsWith("expanded-folders::") ? expanded : null,
     ),
     on: vi.fn(() => () => undefined),
   });
-  useVaultStore.setState({ vaultType: "personal", currentVaultPath: "/v/Acme.conduit", teamVaultId: null } as never);
+  useVaultStore.setState({ vaultType, currentVaultPath: "/v/Acme.conduit", teamVaultId: vaultType === "team" ? "t1" : null } as never);
   useEntryStore.setState({
     entries: ENTRIES,
     folders: FOLDERS,
@@ -50,7 +60,7 @@ function setup({ expanded = ["f1", "f2"], selected = [] as string[], locked = []
     isEntryLocked: (id: string) => locked.includes(id),
     maxConnections: -1,
   } as never);
-  useTeamStore.setState({ getEffectiveRole: () => null, canManagePermissions: () => false } as never);
+  useTeamStore.setState({ getEffectiveRole: () => role, canManagePermissions: () => canManagePermissions } as never);
   useSyncStore.setState({ conflictKeys: new Set<string>() } as never);
 }
 
@@ -58,6 +68,8 @@ const rowOf = (name: string) => screen.getByText(name).closest("[style]") as HTM
 
 beforeEach(() => {
   showContextMenu.mockReset();
+  openers.openFolderView.mockReset();
+  openers.openDashboardForEntry.mockReset();
 });
 
 afterEach(() => {
@@ -179,5 +191,55 @@ describe("EntryTree flat mode", () => {
     render(<EntryTree searchQuery="zzz" />);
     await waitFor(() => expect(screen.getByText("No matching entries")).toBeTruthy());
     expect(screen.getByText("No matching entries").className).toContain("text-body");
+  });
+});
+
+type MenuItem = { id: string; label: string; icon?: string; type?: string };
+
+async function menuFor(name: string, choose: string | null = null): Promise<MenuItem[]> {
+  showContextMenu.mockResolvedValue(choose);
+  await act(async () => {
+    fireEvent.contextMenu(rowOf(name));
+  });
+  await waitFor(() => expect(showContextMenu).toHaveBeenCalled());
+  const calls = showContextMenu.mock.calls;
+  return calls[calls.length - 1][2] as MenuItem[];
+}
+
+describe("EntryTree View Info", () => {
+  it("puts View Info first in a folder menu, then a separator, and opens the folder view", async () => {
+    setup();
+    render(<EntryTree />);
+    await screen.findByText("db-01");
+    const items = await menuFor("Production", "view_info");
+    expect(items[0]).toMatchObject({ id: "view_info", label: "View Info", icon: "infoCircle" });
+    expect(items[1].type).toBe("separator");
+    expect(items[2].id).toBe("new_entry");
+    await waitFor(() => expect(openers.openFolderView).toHaveBeenCalledWith("f1"));
+    expect(openers.openDashboardForEntry).not.toHaveBeenCalled();
+  });
+
+  it("gives a team viewer View Info alone, and no doubled separator before Manage Permissions", async () => {
+    setup({ vaultType: "team", role: "viewer" });
+    const { unmount } = render(<EntryTree />);
+    await screen.findByText("db-01");
+    expect((await menuFor("Production")).map((i) => i.id)).toEqual(["view_info"]);
+    unmount();
+
+    showContextMenu.mockReset();
+    setup({ vaultType: "team", role: "viewer", canManagePermissions: true });
+    render(<EntryTree />);
+    await screen.findByText("db-01");
+    expect((await menuFor("Production")).map((i) => i.id)).toEqual(["view_info", "sep_perms", "manage_permissions"]);
+  });
+
+  it("uses the info icon for an entry's View Info and opens its info tab", async () => {
+    setup();
+    render(<EntryTree />);
+    await screen.findByText("db-01");
+    const items = await menuFor("web-01", "view_info");
+    expect(items.find((i) => i.id === "view_info")).toMatchObject({ label: "View Info", icon: "infoCircle" });
+    await waitFor(() => expect(openers.openDashboardForEntry).toHaveBeenCalledWith("e1"));
+    expect(openers.openFolderView).not.toHaveBeenCalled();
   });
 });

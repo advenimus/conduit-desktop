@@ -21,6 +21,7 @@ import { useTierStore } from "../../stores/tierStore";
 import { useDragContext } from "./DragContext";
 import { toast } from "../common/Toast";
 import { openDashboardForEntry } from "../../lib/openDashboard";
+import { dashboardViewOf, isHomeSession } from "../../lib/dashboardSessions";
 import { AI_HARNESSES } from "../../lib/ai-harnesses";
 import { IconButton, cx } from "../ui";
 import type { EntryMeta } from "../../types/entry";
@@ -35,6 +36,9 @@ const typeIcons: Record<SessionType, React.ReactNode> = {
   command: <PlayerPlayIcon size={16} />,
   dashboard: <InfoCircleIcon size={16} />,
 };
+
+const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
+const HOME_TAB_TOOLTIP = IS_MAC ? "Home (Cmd+Shift+H)" : "Home (Ctrl+Shift+H)";
 
 // Chromium reports line-based wheel deltas for some mice; a line is about one row of text.
 const WHEEL_LINE_PX = 16;
@@ -235,6 +239,7 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
   const handleContextMenu = async (e: React.MouseEvent, sessionId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isHomeSession(sessionId)) return;
 
     const session = sessions.find((s) => s.id === sessionId);
     const entry = session?.entryId
@@ -268,14 +273,18 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
     startDrag(sessionId, paneId);
   };
 
+  // Nothing lands before Home: a drop on the Home tab means the slot right after it.
+  const dropSlot = (index: number) => (isHomeSession(paneSessions[index]?.id) ? index + 1 : index);
+
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    setDropIndex(index);
+    setDropIndex(dropSlot(index));
   };
 
-  const handleDrop = (e: React.DragEvent, index: number) => {
+  const handleDrop = (e: React.DragEvent, tabIndex: number) => {
     e.preventDefault();
+    const index = dropSlot(tabIndex);
     console.debug('[PaneTabBar] drop', { index, dragIndex });
     const sessionId = e.dataTransfer.getData("application/conduit-session");
 
@@ -339,55 +348,63 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
         onDrop={handleTabBarDrop}
         onDragLeave={() => setDropIndex(null)}
       >
-        {paneSessions.map((session, index) => (
-          <div
-            key={session.id}
-            data-cv-tab={session.id}
-            data-active={paneActiveSessionId === session.id ? "" : undefined}
-            data-drop-target={dragIndex !== null && dropIndex === index && dragIndex !== index ? "" : undefined}
-            data-dragging={dragIndex === index ? "" : undefined}
-            className="cv-tab"
-            draggable={renamingId !== session.id}
-            onDragStart={(e) => handleDragStart(e, session.id, index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragLeave={() => setDropIndex(null)}
-            onDrop={(e) => handleDrop(e, index)}
-            onDragEnd={handleDragEnd}
-            onClick={() => handleTabClick(session.id)}
-            onContextMenu={(e) => handleContextMenu(e, session.id)}
-          >
-            <span className="cv-tab-fill" />
-            <TabIcon sessionType={session.type} entryId={session.entryId} />
+        {paneSessions.map((session, index) => {
+          const isHome = isHomeSession(session.id);
+          return (
+            <div
+              key={session.id}
+              data-cv-tab={session.id}
+              data-cv-home-tab={isHome ? "" : undefined}
+              title={isHome ? HOME_TAB_TOOLTIP : undefined}
+              data-active={paneActiveSessionId === session.id ? "" : undefined}
+              data-drop-target={dragIndex !== null && dropIndex === index && dragIndex !== index ? "" : undefined}
+              data-dragging={dragIndex === index ? "" : undefined}
+              className={cx("cv-tab", isHome && "pr-2")}
+              draggable={!isHome && renamingId !== session.id}
+              onDragStart={(e) => handleDragStart(e, session.id, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={() => setDropIndex(null)}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+              onClick={() => handleTabClick(session.id)}
+              onContextMenu={(e) => handleContextMenu(e, session.id)}
+            >
+              <span className="cv-tab-fill" />
+              <TabIcon session={session} />
 
-            {renamingId === session.id ? (
-              <input
-                ref={renameInputRef}
-                className="cv-tab-rename h-5 rounded-xs border border-focus bg-input px-1 text-body text-ink"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitRename(session.id);
-                  if (e.key === "Escape") setRenamingId(null);
-                }}
-                onBlur={() => commitRename(session.id)}
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <span className="cv-tab-label">{session.title}</span>
-            )}
+              {renamingId === session.id ? (
+                <input
+                  ref={renameInputRef}
+                  className="cv-tab-rename h-5 rounded-xs border border-focus bg-input px-1 text-body text-ink"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitRename(session.id);
+                    if (e.key === "Escape") setRenamingId(null);
+                  }}
+                  onBlur={() => commitRename(session.id)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <span className="cv-tab-label">{session.title}</span>
+              )}
 
-            <StatusDot session={session} />
+              {/* Home, folder views and entry info are pages, not connections. */}
+              {session.type !== "dashboard" && <StatusDot session={session} />}
 
-            <IconButton
-              size="sm"
-              tone="inherit"
-              icon="close"
-              label={`Close ${session.title}`}
-              className="cv-tab-close"
-              onClick={(e) => handleCloseTab(e, session.id)}
-            />
-          </div>
-        ))}
+              {!isHome && (
+                <IconButton
+                  size="sm"
+                  tone="inherit"
+                  icon="close"
+                  label={`Close ${session.title}`}
+                  className="cv-tab-close"
+                  onClick={(e) => handleCloseTab(e, session.id)}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="cv-tabstrip-slot">
@@ -463,10 +480,24 @@ function StatusDot({ session }: { session: Session }) {
   );
 }
 
-function TabIcon({ sessionType, entryId }: { sessionType: SessionType; entryId?: string }) {
+function TabIcon({ session }: { session: Session }) {
+  const entryId = session.entryId;
   const entry = useEntryStore((s) =>
     entryId ? s.entries.find((e) => e.id === entryId) : undefined,
   );
+  const view = session.type === "dashboard" ? dashboardViewOf(session) : null;
+  const folderId = view?.kind === "folder" ? view.folderId : null;
+  const folder = useEntryStore((s) => (folderId ? s.folders.find((f) => f.id === folderId) : undefined));
+
+  if (folder) {
+    const Icon = getEntryIcon("folder", false, folder.icon);
+    const colorResult = getEntryColor("folder", folder.color);
+    return (
+      <span className="flex">
+        <Icon size={16} className={colorResult.className} style={colorResult.style} />
+      </span>
+    );
+  }
 
   if (entry) {
     const Icon = getEntryIcon(entry.entry_type, false, entry.icon);
@@ -478,9 +509,9 @@ function TabIcon({ sessionType, entryId }: { sessionType: SessionType; entryId?:
     );
   }
 
-  if (sessionType === "dashboard" && !entryId) {
+  if (view?.kind === "home") {
     return <span className="flex"><HomeIcon size={16} className="text-link" /></span>;
   }
 
-  return <span className="flex">{typeIcons[sessionType]}</span>;
+  return <span className="flex">{typeIcons[session.type]}</span>;
 }

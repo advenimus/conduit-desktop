@@ -1,25 +1,30 @@
 import type { CloudSyncState, LocalBackupState, TeamSyncState } from "../../stores/vaultStore";
-import { Card, SectionHeader } from "../ui";
+import { CircleFilledIcon } from "../../lib/icons";
+import { Card, cx, ListRow, SectionHeader } from "../ui";
 import { useDeviceSyncRow, type DashboardRowStatus } from "../sync/useDeviceSyncRow";
 import { formatRelativeTime } from "./relativeTime";
 
-const DOT_COLOR: Readonly<Record<DashboardRowStatus, string>> = {
-  ok: "bg-(--c-state-connected)",
-  error: "bg-(--c-state-error)",
-  syncing: "bg-(--c-state-connecting)",
-  idle: "bg-ink-faint",
-  disabled: "bg-ink-faint",
+// The Open now dot colors (the tab StatusDot); off and idle rows are faint.
+const DOT_TONE: Readonly<Record<DashboardRowStatus, string>> = {
+  ok: "text-(--c-state-connected)",
+  error: "text-(--c-state-error)",
+  syncing: "text-(--c-state-connecting)",
+  idle: "text-ink-faint",
+  disabled: "text-ink-faint",
 };
 
 function StatusRow({ label, status, detail }: { label: string; status: DashboardRowStatus; detail: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className={`w-1.5 h-1.5 rounded-full ${DOT_COLOR[status]}`} />
-        <span className="text-label text-ink">{label}</span>
-      </div>
-      <span className="text-label text-ink-muted truncate ml-2">{detail}</span>
-    </div>
+    <ListRow
+      leading={
+        <span className={cx("flex", DOT_TONE[status])} data-status={status}>
+          <CircleFilledIcon size={12} />
+        </span>
+      }
+      meta={<span className="max-w-48 truncate">{detail}</span>}
+    >
+      {label}
+    </ListRow>
   );
 }
 
@@ -79,25 +84,20 @@ export default function VaultStatusCard({
   const deviceSync = useDeviceSyncRow();
   return (
     <Card>
-      <SectionHeader title="Vault Status" />
-      <div className="space-y-2.5">
-        {deviceSync && <StatusRow label="Device Sync" status={deviceSync.status} detail={deviceSync.detail} />}
+      <SectionHeader title="Vault status" />
+      <div className="space-y-px">
+        {deviceSync && <StatusRow label="Device sync" status={deviceSync.status} detail={deviceSync.detail} />}
 
-        {authMode !== "local" && <StatusRow label="Cloud Backup" {...cloudStatus(cloudSyncState)} />}
+        {authMode !== "local" && <StatusRow label="Cloud backup" {...cloudStatus(cloudSyncState)} />}
 
-        <StatusRow label="Local Backup" {...localStatus(localBackupState)} />
+        <StatusRow label="Local backup" {...localStatus(localBackupState)} />
 
-        {authMode !== "local" && teamSyncState && <StatusRow label="Team Sync" {...teamStatus(teamSyncState)} />}
+        {authMode !== "local" && teamSyncState && <StatusRow label="Team sync" {...teamStatus(teamSyncState)} />}
 
         {maxConnections > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-label text-ink-muted">Plan Usage</span>
-              <span className="text-label text-ink-muted">
-                {connectionCount}/{maxConnections}
-              </span>
-            </div>
-            <div className="h-1.5 bg-divider rounded-full overflow-hidden">
+            <ListRow meta={`${connectionCount}/${maxConnections}`}>Plan usage</ListRow>
+            <div className="mx-2 mb-1 h-1.5 overflow-hidden rounded-full bg-divider">
               <div
                 className={`h-full rounded-full transition-all ${usageColor(connectionCount, maxConnections)}`}
                 style={{ width: `${Math.min(100, (connectionCount / maxConnections) * 100)}%` }}
@@ -107,12 +107,15 @@ export default function VaultStatusCard({
         )}
 
         {isTrialing && trialDaysRemaining >= 0 && (
-          <div className="flex items-center justify-between pt-1 border-t border-divider">
-            <span className="text-label text-ink-muted">Trial</span>
-            <span className={`text-label font-medium ${trialColor(trialDaysRemaining)}`}>
-              {trialDaysRemaining} {trialDaysRemaining === 1 ? "day" : "days"} remaining
-            </span>
-          </div>
+          <ListRow
+            meta={
+              <span className={`font-medium ${trialColor(trialDaysRemaining)}`}>
+                {trialDaysRemaining} {trialDaysRemaining === 1 ? "day" : "days"} remaining
+              </span>
+            }
+          >
+            Trial
+          </ListRow>
         )}
       </div>
     </Card>

@@ -5,7 +5,7 @@
  * and connection entries in the Conduit vault.
  */
 
-import type { ConduitVault, FolderData } from '../vault/vault.js';
+import type { ConduitVault, FolderData, UpdateEntryInput } from '../vault/vault.js';
 import type {
   ImportPreviewEntry,
   ImportEntryResult,
@@ -20,6 +20,8 @@ export interface ImportOptions {
   existingEntryCount: number;
   /** How to handle duplicate entries. */
   duplicateStrategy?: DuplicateStrategy;
+  /** Recorded as `changed_by` on password history rows written by overwrites. */
+  changedBy?: string | null;
 }
 
 /**
@@ -62,6 +64,17 @@ export function detectDuplicates(
  */
 export function executeImport(vault: ConduitVault, entries: ImportPreviewEntry[], options: ImportOptions): ImportResult {
   return vault.runNonInteractive(() => importEntries(vault, entries, options));
+}
+
+/** Overwrites like the entry edit path: the old username and password go to password history first. */
+function overwriteEntry(vault: ConduitVault, id: string, input: UpdateEntryInput, changedBy: string | null): void {
+  const existing = vault.getEntry(id);
+  const passwordChanging = input.password !== undefined && input.password !== existing.password;
+  const usernameChanging = input.username !== undefined && input.username !== existing.username;
+  if (passwordChanging || usernameChanging) {
+    vault.recordPasswordHistory(id, existing.username, existing.password, changedBy);
+  }
+  vault.updateEntry(id, input);
 }
 
 function importEntries(vault: ConduitVault, entries: ImportPreviewEntry[], options: ImportOptions): ImportResult {
@@ -178,12 +191,12 @@ function importEntries(vault: ConduitVault, entries: ImportPreviewEntry[], optio
       // overwrite
       try {
         const folderId = entry.folderPath ? (folderMap.get(entry.folderPath) ?? null) : null;
-        vault.updateEntry(entry.existingEntryId, {
+        overwriteEntry(vault, entry.existingEntryId, {
           name: `${entry.name} (Credential)`,
           username: entry.username,
           password: entry.password,
           folder_id: folderId,
-        });
+        }, options.changedBy ?? null);
         rdmToConduitId.set(entry.rdmId, entry.existingEntryId);
         imported++;
         results.push({
@@ -299,7 +312,7 @@ function importEntries(vault: ConduitVault, entries: ImportPreviewEntry[], optio
       }
       // overwrite
       try {
-        vault.updateEntry(entry.existingEntryId, {
+        overwriteEntry(vault, entry.existingEntryId, {
           name: entry.name,
           host: entry.host,
           port: entry.port,
@@ -310,7 +323,7 @@ function importEntries(vault: ConduitVault, entries: ImportPreviewEntry[], optio
           config: entry.config,
           notes: entry.notes,
           folder_id: folderId,
-        });
+        }, options.changedBy ?? null);
         rdmToConduitId.set(entry.rdmId, entry.existingEntryId);
         imported++;
         results.push({

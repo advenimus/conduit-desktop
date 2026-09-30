@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { generateTotpCode, type TotpResult } from "../../lib/totp";
 import { useEntryStore } from "../../stores/entryStore";
 import { useSessionStore } from "../../stores/sessionStore";
+import { entryInfoSessionId } from "../../lib/dashboardSessions";
 import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import { toast } from "../common/Toast";
 import { invoke } from "../../lib/electron";
@@ -15,6 +16,12 @@ import {
 import { Button, IconButton } from "../ui";
 import { DetailLabel, DetailRow, TotpCountdown } from "./EntryDetailParts";
 import { errorText } from "../../lib/errorText";
+import ReachabilityRow from "./entry/ReachabilityRow";
+import ConnectionHistorySection from "./entry/ConnectionHistorySection";
+import { isCheckable } from "./reachability/reachabilityTarget";
+import { typeLabel } from "./home/entryDisplay";
+
+const HISTORY_TYPES: ReadonlySet<string> = new Set(["ssh", "rdp", "vnc", "web", "command"]);
 
 interface EntryDashboardProps {
   entryId: string;
@@ -130,7 +137,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
   const handleOpen = () => {
     if (entry.entry_type !== "credential") {
       // If viewing from a dashboard tab, close it first so the new session replaces it
-      const dashboardSessionId = `dashboard::${entryId}`;
+      const dashboardSessionId = entryInfoSessionId(entryId);
       const { sessions, closeSession } = useSessionStore.getState();
       if (sessions.some((s) => s.id === dashboardSessionId)) {
         closeSession(dashboardSessionId);
@@ -169,7 +176,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-title font-semibold text-ink truncate">{entry.name}</h2>
-            <p className="text-label text-ink-muted capitalize">{entry.entry_type}</p>
+            <p className="text-label text-ink-muted">{typeLabel(entry.entry_type)}</p>
           </div>
           <div className="flex items-center gap-0.5">
             <IconButton
@@ -230,6 +237,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
                 }
               />
             )}
+            {isCheckable(entry) && <ReachabilityRow entry={entry} />}
             {entry.entry_type !== "document" && displayUsername && (
               <DetailRow
                 label="Username"
@@ -321,6 +329,8 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
             <DetailRow label="Created" icon={<CalendarIcon size={16} />} value={formatRelativeDate(entry.created_at)} />
             <DetailRow label="Modified" icon={<ClockIcon size={16} />} value={formatRelativeDate(entry.updated_at)} last />
           </div>
+
+          {HISTORY_TYPES.has(entry.entry_type) && <ConnectionHistorySection entryId={entryId} />}
         </div>
 
         {/* Right: Notes (only when notes exist) */}

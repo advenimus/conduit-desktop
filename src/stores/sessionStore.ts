@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { invoke } from "../lib/electron";
 import { disposeTerminalEntry } from "../components/sessions/TerminalView";
 import { disposeCommandEntry } from "../components/sessions/CommandView";
+import { isHomeSession } from "../lib/dashboardSessions";
 
 export type SessionType = "local_shell" | "ssh" | "rdp" | "vnc" | "web" | "document" | "command" | "dashboard";
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
@@ -68,6 +69,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   removeSession: (id) =>
     set((state) => {
+      // The pinned Home tab only leaves through clearAll.
+      if (isHomeSession(id)) return state;
       const newSessions = state.sessions.filter((s) => s.id !== id);
       const newActiveId =
         state.activeSessionId === id
@@ -123,6 +126,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   replaceSessionId: (oldId, newId, updates) =>
     set((state) => {
+      if (isHomeSession(oldId)) return state;
       const session = state.sessions.find((s) => s.id === oldId);
       if (!session) return state;
       return {
@@ -165,6 +169,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   closeSession: async (id) => {
+    if (isHomeSession(id)) return;
     const session = get().sessions.find((s) => s.id === id);
     try {
       if (session?.type === "document" || session?.type === "dashboard") {

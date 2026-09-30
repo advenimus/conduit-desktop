@@ -12,6 +12,7 @@ vi.mock("../../../lib/electron", () => ({
   listen: vi.fn(async () => () => undefined),
 }));
 vi.mock("../../../utils/contextMenu", () => ({ showContextMenu: vi.fn(async () => null) }));
+vi.mock("../../dashboard/DashboardOverview", () => ({ default: () => <div data-testid="home-overview" /> }));
 
 function leaf(id: string, sessionIds: string[] = []): LayoutNode {
   return { type: "leaf", id, sessionIds, activeSessionId: sessionIds[0] ?? null };
@@ -67,27 +68,22 @@ describe("panes", () => {
     expect(container.querySelectorAll("[data-tabbar]")).toHaveLength(2);
   });
 
-  it("show today's text in an empty extra pane on the session surface", () => {
-    setup(split("horizontal", leaf("pane-a"), leaf("pane-b")));
-    const text = screen.getAllByText("Drag a tab here or open a new session")[0];
-    expect(text.className).toBe("text-body");
-    expect(text.parentElement!.className).toContain("bg-editor");
-    expect(text.parentElement!.className).toContain("text-ink-muted");
+  it("show Home in the only pane when it has no sessions", () => {
+    setup(leaf("pane-a"));
+    expect(screen.getAllByTestId("home-overview")).toHaveLength(1);
   });
 
-  it("show the empty-vault welcome on primitives with today's texts and order", () => {
-    setup(leaf("pane-a"));
-    const title = screen.getByRole("heading", { name: "Welcome to Conduit" });
-    expect(title.className).toContain("text-title");
-    const buttons = [...title.parentElement!.querySelectorAll("button")];
-    expect(buttons.map((b) => b.textContent)).toEqual(["New Entry", "Quick Connect"]);
-    expect(buttons.every((b) => b.hasAttribute("data-cv-text-button"))).toBe(true);
-    expect(buttons[0].className).toContain("bg-btn-primary");
-    const onNew = vi.fn();
-    document.addEventListener("conduit:new-entry", onNew);
-    fireEvent.click(buttons[0]);
-    expect(onNew).toHaveBeenCalledTimes(1);
-    document.removeEventListener("conduit:new-entry", onNew);
+  it("show Home in an empty extra pane beside a pane with sessions, without the old drag hint", () => {
+    const { container } = setup(split("horizontal", leaf("pane-a", ["s-doc"]), leaf("pane-b")), [DOC]);
+    const areas = [...container.querySelectorAll("[data-cv-session-area]")];
+    expect(areas[0].querySelector("[data-testid=home-overview]")).toBeNull();
+    expect(areas[1].querySelector("[data-testid=home-overview]")).not.toBeNull();
+    expect(screen.queryByText("Drag a tab here or open a new session")).toBeNull();
+  });
+
+  it("show Home in two empty panes at once", () => {
+    setup(split("horizontal", leaf("pane-a"), leaf("pane-b")));
+    expect(screen.getAllByTestId("home-overview")).toHaveLength(2);
   });
 
   it("show a Spinner with today's text while a session connects", () => {

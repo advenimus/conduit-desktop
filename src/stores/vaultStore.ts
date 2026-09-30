@@ -353,6 +353,8 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       const result = await invoke<{ filePath: string; exists: boolean }>("vault_open", { filePath });
       const resultPath = result.filePath;
       const exists = result.exists;
+      // Locked in the same step as the reset, so the Home tab guard does not add Home to the old vault.
+      set({ isUnlocked: false });
       useSessionStore.getState().clearAll();
       useEntryStore.getState().clearSelection();
       useLayoutStore.getState().resetLayout();

@@ -93,6 +93,14 @@ const shortcuts: Shortcut[] = [
     description: "Lock Vault",
   },
   {
+    key: "h",
+    ctrl: true,
+    shift: true,
+    action: () =>
+      document.dispatchEvent(new CustomEvent("conduit:home")),
+    description: "Go to Home",
+  },
+  {
     key: "F2",
     action: () =>
       document.dispatchEvent(new CustomEvent("conduit:rename-selected")),

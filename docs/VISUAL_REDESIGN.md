@@ -1084,7 +1084,7 @@ Native `title` only: a native tooltip cannot be covered by a native web view. Ev
 
 ### 4.14 ListRow and TreeRow
 
-`ListRow`: `flex items-center gap-1.5 h-row px-2 rounded text-body text-ink-secondary` (with a description `gap-3 px-3`); a `<button>` when clickable; states hover `bg-hover`, selected `bg-selected text-ink`, unfocused selection `bg-selected-inactive`; `description` makes it 40px with a `text-meta text-ink-muted` line. **(restyle, wave 3)** `detail`: a further line under the description (the picker's tags); the row then grows to fit with `py-1` instead of a fixed height. `leading`: an icon source draws in a 16px box; **(restyle)** an element (the hub's 28px icon tile, an entry icon) sizes itself in a `shrink-0` slot. **(restyle)** `meta`: always visible, after the label and inside the clickable button, `shrink-0 gap-2 text-meta text-ink-faint` (badges, timestamps, type labels; L-23). `trailing`: small `IconButton`s or a decorative chevron, revealed on hover or focus-within by opacity (B45), outside the clickable button.
+`ListRow`: `flex items-center gap-1.5 h-row px-2 rounded text-body text-ink-secondary` (with a description `gap-3 px-3`); a `<button>` when clickable; states hover `bg-hover`, selected `bg-selected text-ink`, unfocused selection `bg-selected-inactive`; `description` makes it 40px with a `text-meta text-ink-muted` line. **(restyle, wave 3)** `detail`: a further line under the description (the picker's tags); the row then grows to fit with `py-1` instead of a fixed height. `leading`: an icon source draws in a 16px box; **(restyle)** an element (the hub's 28px icon tile, an entry icon) sizes itself in a `shrink-0` slot. **(restyle)** `meta`: always visible, after the label and inside the clickable button, `shrink-0 gap-2 text-meta text-ink-faint` (badges, timestamps, type labels; L-23). `trailing`: small `IconButton`s or a decorative chevron, revealed on hover or focus-within by opacity (B45), outside the clickable button. **(dashboard)** `trailingOverlay`: the trailing actions sit over the meta (absolute, right, on the card's `bg-well` with the hover tint) and the meta fades out on hover or focus-within, so a row with actions keeps the width and right edge of rows without them; the wrapper then has no `pr-1`. Home's Recently connected and Favorites use it (`docs/DASHBOARD.md` 4.3).
 
 `TreeRow`: 22px, `padding-left: calc(4px + depth * TREE_INDENT_PX)` (12px), a 16px twistie slot on every row, 6px gaps. The entry tree applies this recipe to its own rows (3.6) without `role="treeitem"` (D-20).
 
@@ -1544,6 +1544,8 @@ A failure found by an integrator goes back to the file's owner in that wave, or 
      Nothing else differs on that screen: the three remaining section labels stay `<label>` elements (6.4).
 
      **(wave 3, R3-DASHBOARD)** A second entry, `home-dashboard-full-window`: the Home dashboard's type labels drop CSS `uppercase` (rule 1 of 8.4), and in the Favorites row the label is part of the button's text, which the case-insensitive rule does not cover (only part of the text was uppercase). **Removed** `{tag: button, text: "Intranet Status WEB"}`, **inserted where it stood** `{tag: button, text: "Intranet Status Web"}`.
+
+     **(dashboard, `docs/DASHBOARD.md`)** The `home-dashboard-full-window` entry now describes the new Home in shot 40's state (only the pinned Home tab; the suite clears the connection history first, and its data leaves AI activity and Needs attention hidden). **Inserted before** `New Local Shell`: `{tag: div, text: "Home", title: "Home (Cmd+Shift+H)"}`. **Removed** `Quick Connect ⌘N` and `Search entries...`, **inserted** `Customize`, the input `{placeholder: "Search entries and folders...", aria: "Search entries and folders"}`, `Quick Connect ⌘N` and `New Entry`. **Removed** the two Favorites rows, **inserted** `Intranet Status Web` and `web-01 SSH`, each followed by `{title: "Copy password"}` and `{title: "View info"}`. **Removed** `Recently Modified` and its six rows. **Removed** `Vault Status`, **inserted** `Vault status`. Derived from the capture script's real inventory, not yet confirmed by a live `restyle --strict --only tabs` run; shot 40's composite needs that run too.
 4. **Geometry rules.** Each rule needs hooks that a later package adds. On a screen where a rule's hooks are missing, the rule reports `pending` in `inventory-diff.txt` instead of failing; `--strict` turns every pending rule into a failure. R2-SHELL's integration and every later run use `--strict`. Height rules check only the elements that already carry their hook.
 
 | Rule | Checks | Needs | Hook added by |
@@ -2060,6 +2062,8 @@ Wave 3 restyles dialogs, screens, session views, the picker and toasts, one dire
 - `node scripts/redesign/check-owns.mjs R3-SYNC --base advenimus/visual-restyle` exits 0
 
 #### R3-DASHBOARD: Home, entry and folder dashboards
+
+> **Superseded (2026-09-29):** `docs/DASHBOARD.md` replaces the Home dashboard, the folder dashboard and the entry dashboard additions below. Its rule "texts and order unchanged" no longer applies to those screens; the restyle suite's `home-dashboard-full-window` inventory and shot 40 need new fixtures after that work lands.
 
 **Owns:** `src/components/dashboard/**`
 

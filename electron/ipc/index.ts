@@ -34,6 +34,7 @@ import { registerBiometricHandlers } from './biometric.js';
 import { registerStartupVaultHandlers } from './startup-vault.js';
 import { registerSyncHandlers } from './sync.js';
 import { registerSyncReviewHandlers } from './sync-review.js';
+import { registerDashboardHandlers } from './dashboard.js';
 
 export function registerIpcHandlers(): void {
   const state = AppState.getInstance();
@@ -128,4 +129,7 @@ export function registerIpcHandlers(): void {
 
   // ── Global auto-type commands ─────────────────────────────
   registerAutotypeHandlers();
+
+  // ── Home dashboard: connection history, password ages, AI activity, reachability ──
+  registerDashboardHandlers();
 }

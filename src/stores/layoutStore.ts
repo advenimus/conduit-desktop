@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useSessionStore } from "./sessionStore";
+import { HOME_SESSION_ID, isHomeSession } from "../lib/dashboardSessions";
 
 // ---- Types ----
 
@@ -100,6 +101,22 @@ function updateBranchSizes(
   ];
   if (newChildren[0] === node.children[0] && newChildren[1] === node.children[1]) return node;
   return { ...node, children: newChildren };
+}
+
+// Home stays first in its pane: moving Home keeps it there, and other tabs land at index 1 or later.
+function reorderIds(ids: string[], fromIndex: number, toIndex: number): string[] {
+  const moved = ids[fromIndex];
+  if (moved === undefined) return ids;
+  if (!ids.includes(HOME_SESSION_ID)) {
+    const next = ids.filter((_, i) => i !== fromIndex);
+    next.splice(toIndex, 0, moved);
+    return next;
+  }
+  const others = ids.filter((id) => !isHomeSession(id));
+  if (isHomeSession(moved)) return [HOME_SESSION_ID, ...others];
+  const next = others.filter((id) => id !== moved);
+  next.splice(Math.max(toIndex, 1) - 1, 0, moved);
+  return [HOME_SESSION_ID, ...next];
 }
 
 // Collapse an empty leaf inside a root, returning [newRoot, newFocusedPaneId | null]
@@ -253,6 +270,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   },
 
   splitPane: (paneId, direction, sessionId, position = "after") => {
+    if (isHomeSession(sessionId)) return;
     set((state) => {
       const pane = findLeaf(state.root, paneId);
       if (!pane) return state;
@@ -315,6 +333,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   },
 
   moveSessionToPane: (sessionId, targetPaneId) => {
+    if (isHomeSession(sessionId)) return;
     set((state) => {
       const sourcePane = findLeafForSession(state.root, sessionId);
       if (!sourcePane || sourcePane.id === targetPaneId) return state;
@@ -361,6 +380,7 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   },
 
   moveSessionToNewSplit: (sessionId, targetPaneId, direction, position = "after") => {
+    if (isHomeSession(sessionId)) return;
     set((state) => {
       const sourcePane = findLeafForSession(state.root, sessionId);
       if (!sourcePane) return state;
@@ -493,12 +513,10 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   reorderSessionInPane: (paneId, fromIndex, toIndex) => {
     if (fromIndex === toIndex) return;
     set((state) => ({
-      root: updateLeaf(state.root, paneId, (leaf) => {
-        const sessionIds = [...leaf.sessionIds];
-        const [moved] = sessionIds.splice(fromIndex, 1);
-        sessionIds.splice(toIndex, 0, moved);
-        return { ...leaf, sessionIds };
-      }),
+      root: updateLeaf(state.root, paneId, (leaf) => ({
+        ...leaf,
+        sessionIds: reorderIds(leaf.sessionIds, fromIndex, toIndex),
+      })),
     }));
   },
 
@@ -534,7 +552,7 @@ let prevSessionIds: string[] = [];
 
 useSessionStore.subscribe((state) => {
   if (layoutSyncing) return;
-  const currentIds = state.sessions.map((s) => s.id);
+  const currentIds = (state.sessions ?? []).map((s) => s.id);
   const currentSet = new Set(currentIds);
   const prevSet = new Set(prevSessionIds);
 

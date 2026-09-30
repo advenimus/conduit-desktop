@@ -34,12 +34,58 @@
     },
     {
       "screen": "home-dashboard-full-window",
-      "reason": "The Home dashboard type labels drop CSS uppercase (8.4 rule 1)",
+      "reason": "The Home dashboard of docs/DASHBOARD.md replaces the old one (its section 4). Shot 40's state: only the pinned Home tab and no connection history, so Recently connected and Open now hide; no audit log, fresh passwords and no backups, so AI activity and Needs attention hide. Type labels drop CSS uppercase (8.4 rule 1).",
       "changes": [
         {
-          "reason": "Favorites row type label in title case",
-          "remove": [{ "tag": "button", "text": "Intranet Status WEB" }],
-          "insert": [{ "tag": "button", "text": "Intranet Status Web" }]
+          "reason": "The pinned Home tab sits before the tab bar's right-hand buttons (DASHBOARD.md 3.1)",
+          "insertBefore": { "tag": "button", "title": "New Local Shell" },
+          "insert": [{ "tag": "div", "text": "Home", "title": "Home (Cmd+Shift+H)" }]
+        },
+        {
+          "reason": "Customize joins the header; the quick bar is the search box, Quick Connect and New Entry (DASHBOARD.md 4.1, 4.2)",
+          "remove": [
+            { "tag": "button", "text": "Quick Connect ⌘N" },
+            { "tag": "button", "text": "Search entries..." }
+          ],
+          "insert": [
+            { "tag": "button", "text": "Customize" },
+            { "tag": "input", "type": "text", "placeholder": "Search entries and folders...", "aria": "Search entries and folders" },
+            { "tag": "button", "text": "Quick Connect ⌘N" },
+            { "tag": "button", "text": "New Entry" }
+          ]
+        },
+        {
+          "reason": "Favorites rows: type label in title case, then Copy password and View info (DASHBOARD.md 4.5)",
+          "remove": [
+            { "tag": "button", "text": "Intranet Status WEB" },
+            { "tag": "button", "text": "web-01 SSH" }
+          ],
+          "insert": [
+            { "tag": "button", "text": "Intranet Status Web" },
+            { "tag": "button", "title": "Copy password", "aria": "Copy password" },
+            { "tag": "button", "title": "View info", "aria": "View info" },
+            { "tag": "button", "text": "web-01 SSH" },
+            { "tag": "button", "title": "Copy password", "aria": "Copy password" },
+            { "tag": "button", "title": "View info", "aria": "View info" }
+          ]
+        },
+        {
+          "reason": "Recently Modified is gone; Recently connected takes its place and hides without history (DASHBOARD.md 2, 4.3)",
+          "remove": [
+            { "tag": "h3", "text": "Recently Modified" },
+            { "tag": "button", "text": "Intranet Status <ago>" },
+            { "tag": "button", "text": "web-01 <ago>" },
+            { "tag": "button", "text": "Runbook <ago>" },
+            { "tag": "button", "text": "Build Mac <ago>" },
+            { "tag": "button", "text": "DC-01 <ago>" },
+            { "tag": "button", "text": "db-01 <ago>" }
+          ],
+          "insert": []
+        },
+        {
+          "reason": "The card title is in sentence case (DASHBOARD.md 4.8)",
+          "remove": [{ "tag": "h3", "text": "Vault Status" }],
+          "insert": [{ "tag": "h3", "text": "Vault status" }]
         }
       ]
     }

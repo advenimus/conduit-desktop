@@ -12,7 +12,7 @@ import { showContextMenu, type PopupMenuItem } from "../../utils/contextMenu";
 import { getTypeableActiveSession, typeIntoActiveSession, typeUsernameTabPassword, globalTypeText, globalTypeUsernameTabPassword } from "../../utils/autotype";
 import { toast } from "../common/Toast";
 import { generateTotpCode } from "../../lib/totp";
-import { openDashboardForEntry } from "../../lib/openDashboard";
+import { openDashboardForEntry, openFolderView } from "../../lib/openDashboard";
 import UpgradeBanner from "../upgrade/UpgradeBanner";
 import CredentialPicker from "../vault/CredentialPicker";
 import type { EntryType, EntryMeta, FolderData } from "../../types/entry";
@@ -538,7 +538,9 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
       const role = vaultType === "team" ? (getEffectiveRole(node.id) ?? "viewer") : "admin";
       const canEdit = role === "admin" || role === "editor";
 
+      items.push({ id: "view_info", label: "View Info", icon: "infoCircle" });
       if (canEdit) {
+        items.push({ id: "sep_info", label: "", type: "separator" });
         items.push({ id: "new_entry", label: "New Entry", icon: "plus" });
         items.push({ id: "new_folder", label: "New Folder", icon: "folderPlus" });
         items.push({ id: "sep1", label: "", type: "separator" });
@@ -592,7 +594,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           }
           items.push({ id: "open_with", label: "Open With", icon: "ellipsis", children: openWithChildren });
         }
-        items.push({ id: "view_info", label: "View Info", icon: "home" });
+        items.push({ id: "view_info", label: "View Info", icon: "infoCircle" });
         items.push({ id: "sep0", label: "", type: "separator" });
         if (canEdit) {
           items.push({ id: "edit", label: "Edit", icon: "pencil" });
@@ -646,7 +648,8 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         openEntry(node.id);
         break;
       case "view_info":
-        openDashboardForEntry(node.id);
+        if (node.kind === "folder") openFolderView(node.id);
+        else openDashboardForEntry(node.id);
         break;
       case "open_external":
         invoke("entry_open_external", { id: node.id }).catch((err: unknown) => {

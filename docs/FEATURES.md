@@ -1,7 +1,7 @@
 # Conduit Features
 
 > **Auto-maintained**: This document is updated whenever a new feature is implemented.
-> Last updated: 2026-09-26
+> Last updated: 2026-09-29
 
 ---
 
@@ -521,7 +521,7 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 - Automatic credential decryption (per-type built-in keys, no passphrase needed)
 - Supported types: SSH, RDP, VNC (AppleRemoteDesktop), Web, Group (folder + credential), Credential (PasswordList, ApiKey, simple), DataEntry/SecureNote (→ document), Document (local file read)
 - Preview step: grouped by folder, status badges (ready, decrypt-failed, unsupported, duplicate)
-- **Duplicate detection**: Entries matching by name + type + host are flagged as duplicates during preview, with "Overwrite All" or "Skip All" strategy prompt before import
+- **Duplicate detection**: Entries matching by name + type + host are flagged as duplicates during preview, with "Overwrite All" or "Skip All" strategy prompt before import; an overwrite that changes the username or password keeps the old one in password history, like an edit
 - Batch import with tier-limit enforcement (partial import)
 - Folder structure recreation
 - Group credential extraction
@@ -795,8 +795,31 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Mid-session disconnect detection: SSH drops, VNC server closes, and web load failures update UI in real-time
 - Local shell auto-close: clean exit (code 0) removes tab; non-zero shows error overlay
 
+### Home Dashboard
+- **Pinned Home tab**: always the first tab of the first pane while a vault is open; it has no close button, cannot be dragged away, and comes back after a lock or a vault switch
+- **Getting back**: Cmd+Shift+H (Ctrl+Shift+H on Windows and Linux), View > Home in the app menu, or the Home button in the side bar footer; an empty pane shows Home too, in one column when the pane is narrow
+- **Quick bar**: search box that finds entries and folders by name, host or tag and opens them in place (Up, Down, Enter, Escape), plus Quick Connect and New Entry
+- **Recently connected**: the last 8 entries opened on this device ("Open" for one that is open now); click to open, and Copy password and View info appear over the time on hover
+- **Open now**: live sessions with their status; click one to jump to its tab
+- **Favorites**: click to open, with the same Copy password and View info actions
+- Copy password is not offered for an entry your plan locks, and the app refuses it for those entries
+- **Needs attention** (only when something is wrong): changes to review, sync paused or failing, backups that failed or are older than a set number of days, passwords older than a set age, the plan's connection or device limit, and a trial that ends soon
+- **AI activity**: recent MCP tool calls from AI agents on this device, read from the MCP audit log (tool, target entry with its type icon, result and time only); checked every 30 seconds only while Home is the tab in view and the window is visible, and empty while the vault is locked
+- **Vault status and overview**: sync and backup status rows, plan usage and trial; Overview shows a tile for each connection type that has entries
+- **Customize**: show or hide each section, set the password and backup age warnings, and clear the connection history; saved per device. With every section hidden, Home says how to show them again
+- **Connection history**: kept on this device only, outside the vault file, per vault; stores entry ids, protocol, times and outcome (no hosts or credentials); 90 days and at most 5,000 connections per vault. The file is readable by your user only (macOS and Linux), and a damaged file is set aside and started fresh
+- Changing only an entry's username also counts as a password change for the password age warning
+
+### Folder View
+- Right-click a folder > "View Info", or pick a folder in the Home search, to open it as a tab
+- Searchable list of every entry in the folder and its sub-folders, sorted by name, type, last connection or status
+- **Open all** opens the folder's SSH, RDP, VNC and web entries (asks first when there are more than 5)
+- **Is it up?** per row, or **Check all** (up to 50 entries, four at a time); results stay until the vault locks and show in entry info too, and are dropped when the entry's host or port changes
+- Same width as Home, with the same type tiles in the same order
+- Open all stops when you close the folder view or the vault locks
+
 ### Entry Dashboard
-- Detail view when selecting an entry in the sidebar (host, username, password, domain, tags, notes)
+- Detail view of an entry, opened with "View Info" (host, username, password, domain, tags, notes)
 - Copy buttons for username, password, and host
 - Open in external app: launch connections in system default applications
   - Web → system browser
@@ -808,7 +831,10 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Two-column layout: details on left, markdown notes on right (when notes exist)
 - **Selectable text**: All detail values (host, username, revealed password) and markdown notes are highlightable and copyable via text selection
 - **Secret copy button**: `!!secret!!` values in markdown notes show a copy button when revealed, in addition to being selectable
-- **View Info tab**: Right-click any entry → "View Info" to open the dashboard as a persistent tab alongside active sessions
+- The header names the entry type as SSH, RDP, VNC, Web, Command, Document or Credential
+- **Is it up?**: checks a direct TCP connection from this device to the entry's host and port (3 second timeout, no proxy) and shows the answer time ("under 1 ms" for a very fast answer) or why it failed; a name lookup that hangs holds its check slot until it returns, so it cannot pile up
+- **Recent connections**: the last 20 connections to the entry from this device, with result, and how long it stayed connected
+- **View Info tab**: Right-click any entry → "View Info" to open the dashboard as a persistent tab alongside active sessions (no status dot on the tab; the same for Home and folder view tabs)
   - Access notes, credentials, TOTP codes, and connection details even while sessions are open
   - Also available from the session tab right-click menu ("View Info")
   - Deduplicates: only one info tab per entry, re-selecting activates the existing tab

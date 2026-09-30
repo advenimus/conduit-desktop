@@ -19,6 +19,12 @@ export interface ListRowProps extends Omit<HTMLAttributes<HTMLElement>, "onClick
   meta?: ReactNode;
   /** Small IconButtons or a decorative chevron, shown on hover or focus-within and hidden with opacity only (B45). */
   trailing?: ReactNode;
+  /**
+   * The trailing actions cover the meta instead of taking their own column: the meta fades out on
+   * hover or focus-within, so the row keeps the width and right edge of rows without actions. The
+   * actions sit on the Card surface (`bg-well`) so they hide the text under them.
+   */
+  trailingOverlay?: boolean;
   /** A second line; the row becomes 40px. */
   description?: ReactNode;
   /** A further line under the description (tags); the row then grows to fit. */
@@ -55,16 +61,25 @@ export function RowLeading({ leading }: { leading?: RowLeadingContent }) {
   );
 }
 
-export function RowMeta({ children }: { children: ReactNode }) {
-  return <span className="flex shrink-0 items-center gap-2 text-meta text-ink-faint">{children}</span>;
-}
+const REVEAL = "opacity-0 transition-opacity duration-100 group-hover/row:opacity-100 group-focus-within/row:opacity-100";
+const OVERLAY =
+  "absolute inset-y-0 right-0 rounded-r bg-well pl-1 pr-1.5 group-hover/row:bg-[image:linear-gradient(var(--c-hover),var(--c-hover))]";
 
-export function RowTrailing({ children }: { children: ReactNode }) {
+export function RowMeta({ children, fades = false }: { children: ReactNode; fades?: boolean }) {
   return (
-    <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-100 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
+    <span
+      className={cx(
+        "flex shrink-0 items-center gap-2 text-meta text-ink-faint",
+        fades && "transition-opacity duration-100 group-hover/row:opacity-0 group-focus-within/row:opacity-0",
+      )}
+    >
       {children}
     </span>
   );
+}
+
+export function RowTrailing({ children, overlay = false }: { children: ReactNode; overlay?: boolean }) {
+  return <span className={cx("flex shrink-0 items-center gap-0.5", REVEAL, overlay && OVERLAY)}>{children}</span>;
 }
 
 /**
@@ -77,6 +92,7 @@ export function ListRow({
   leading,
   meta,
   trailing,
+  trailingOverlay = false,
   description,
   detail,
   onClick,
@@ -95,6 +111,7 @@ export function ListRow({
   );
   const state = rowStateClasses(selected, inactive);
   const selection = selectionAttributes(selected, role);
+  const overlay = trailingOverlay && Boolean(trailing);
   const content = (
     <>
       <RowLeading leading={leading} />
@@ -103,15 +120,15 @@ export function ListRow({
         {description && <span className="truncate text-meta text-ink-muted">{description}</span>}
         {detail && <span className="mt-0.5 text-meta text-ink-muted">{detail}</span>}
       </span>
-      {meta !== undefined && meta !== null && meta !== false && <RowMeta>{meta}</RowMeta>}
+      {meta !== undefined && meta !== null && meta !== false && <RowMeta fades={overlay}>{meta}</RowMeta>}
     </>
   );
 
   if (!onClick) {
     return (
-      <div ref={ref as Ref<HTMLDivElement>} role={role} {...selection} className={cx("group/row", rowBox, state, className)} {...rest}>
+      <div ref={ref as Ref<HTMLDivElement>} role={role} {...selection} className={cx("group/row", overlay && "relative", rowBox, state, className)} {...rest}>
         {content}
-        {trailing && <RowTrailing>{trailing}</RowTrailing>}
+        {trailing && <RowTrailing overlay={overlay}>{trailing}</RowTrailing>}
       </div>
     );
   }
@@ -134,11 +151,11 @@ export function ListRow({
   }
 
   return (
-    <div role={role} {...selection} className={cx("group/row relative flex min-w-0 items-center rounded pr-1", state)}>
+    <div role={role} {...selection} className={cx("group/row relative flex min-w-0 items-center rounded", !overlay && "pr-1", state)}>
       <button ref={ref as Ref<HTMLButtonElement>} type="button" disabled={disabled} onClick={onClick} className={cx(rowBox, "flex-1", className)} {...rest}>
         {content}
       </button>
-      <RowTrailing>{trailing}</RowTrailing>
+      <RowTrailing overlay={overlay}>{trailing}</RowTrailing>
     </div>
   );
 }

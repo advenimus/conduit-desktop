@@ -211,15 +211,40 @@ describe('allowed deltas', () => {
     for (const d of deltas) for (const c of d.changes) expect(c.reason).toBeTruthy();
   });
 
-  it('passes the Home dashboard with the Favorites type label in title case, and nothing else', () => {
+  // The new Home as the capture script read it in shot 40's state (.verify/dashboard/final/<mode>-home-alone-inventory.json),
+  // without the cards that the restyle suite's data leaves hidden (Needs attention, AI activity).
+  const NEW_HOME: Control[] = [
+    { tag: 'div', text: 'Home', title: 'Home (Cmd+Shift+H)' },
+    { tag: 'button', title: 'New Local Shell', aria: 'New Local Shell' },
+    { tag: 'button', title: 'Toggle AI Panel', aria: 'Toggle AI Panel', pressed: 'false' },
+    { tag: 'h1', text: 'Welcome back' },
+    { tag: 'button', text: 'Customize' },
+    { tag: 'input', aria: 'Search entries and folders', type: 'text', placeholder: 'Search entries and folders...' },
+    { tag: 'button', text: 'Quick Connect ⌘N' },
+    { tag: 'button', text: 'New Entry' },
+    { tag: 'h3', text: 'Favorites' },
+    { tag: 'button', text: 'Intranet Status Web' },
+    { tag: 'button', title: 'Copy password', aria: 'Copy password' },
+    { tag: 'button', title: 'View info', aria: 'View info' },
+    { tag: 'button', text: 'web-01 SSH' },
+    { tag: 'button', title: 'Copy password', aria: 'Copy password' },
+    { tag: 'button', title: 'View info', aria: 'View info' },
+    { tag: 'h3', text: 'Vault status' },
+    { tag: 'h3', text: 'Overview' },
+  ];
+
+  it('passes the new Home dashboard in shot 40\'s state, and fails the old one or a missing Home tab', () => {
     const reference = ref.loadBeforeInventory().screens['home-dashboard-full-window'];
-    const before = { screen: 'home-dashboard-full-window', kind: 'controls', items: reference.items } as Inventory;
     const items = reference.items as Control[];
-    expect(items.filter((c) => c.text === 'Intranet Status WEB')).toHaveLength(1);
-    const after = (text: string) => ({ ...before, items: items.map((c) => (c.text === 'Intranet Status WEB' ? { ...c, text } : c)) });
-    expect(inv.compareInventory(before, after('Intranet Status Web'), deltas)).toEqual({ ok: true, lines: [] });
-    expect(inv.compareInventory(before, after('Intranet Status Website'), deltas).ok).toBe(false);
-    expect(inv.compareInventory({ ...before, screen: 'other' }, { ...after('Intranet Status Web'), screen: 'other' }, deltas).ok).toBe(false);
+    const before = { screen: 'home-dashboard-full-window', kind: 'controls', items } as Inventory;
+    const sideBar = items.slice(0, items.findIndex((c) => c.title === 'New Local Shell'));
+    const after = (home: Control[]) => ({ ...before, items: [...sideBar, ...home] });
+    expect(inv.compareInventory(before, after(NEW_HOME), deltas)).toEqual({ ok: true, lines: [] });
+    expect(inv.compareInventory(before, before, deltas).ok).toBe(false);
+    expect(inv.compareInventory(before, after(NEW_HOME.slice(1)), deltas).ok).toBe(false);
+    const renamed = NEW_HOME.map((c) => (c.text === 'Vault status' ? { ...c, text: 'Vault Status' } : c));
+    expect(inv.compareInventory(before, after(renamed), deltas).ok).toBe(false);
+    expect(inv.compareInventory({ ...before, screen: 'other' }, { ...after(NEW_HOME), screen: 'other' }, deltas).ok).toBe(false);
   });
 
   it('passes the Appearance tab with the Icon pack section in the Platform Theme slot', () => {

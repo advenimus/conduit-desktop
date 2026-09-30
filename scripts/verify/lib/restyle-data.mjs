@@ -246,11 +246,35 @@ export function sidebarMode(device) {
 }
 
 /** Closes every session and waits until no tab is left. */
+/** The pinned Home tab's session id (src/lib/dashboardSessions.ts HOME_SESSION_ID); it cannot be closed. */
+export const HOME_SESSION_ID = '__home__';
+
+/** Closes every session but the pinned Home tab and waits until only Home (or nothing, while locked) is left. */
 export async function closeAllSessions(device) {
-  await withStores(device, async (_, s) => {
-    for (const x of [...s.session.getState().sessions]) await s.session.getState().closeSession(x.id);
+  await withStores(device, async (home, s) => {
+    for (const x of [...s.session.getState().sessions]) if (x.id !== home) await s.session.getState().closeSession(x.id);
     return true;
-  }, null, { label: 'close all sessions' });
+  }, HOME_SESSION_ID, { label: 'close all sessions' });
+  await waitFor(
+    () => withStores(device, (home, s) => (s.session.getState().sessions ?? []).every((x) => x.id === home), HOME_SESSION_ID, { label: 'read sessions' }),
+    { timeoutMs: 15_000, label: `${device.name}: every tab but Home closed` },
+  );
+}
+
+/**
+ * Clears this vault's local connection history the way Customize does, so every Home view loads it
+ * again and Recently connected hides. A bare IPC call would leave the rows Home already loaded.
+ */
+export function clearConnectionHistory(device) {
+  const source = `(async () => {
+    const [{ dashboardApi }, { bumpHistoryVersion }] = await Promise.all([
+      import('/src/lib/dashboardApi.ts'), import('/src/components/dashboard/home/homeFeeds.ts'),
+    ]);
+    await dashboardApi.historyClear();
+    bumpHistoryVersion();
+    return true;
+  })()`;
+  return withTimeout(device.page.evaluate(source), 30_000, `${device.name}: clear connection history`);
 }
 
 /** Clicks the side bar footer's Home button (the Home dashboard tab). */
