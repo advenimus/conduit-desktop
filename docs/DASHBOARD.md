@@ -179,7 +179,7 @@ Hidden when there are no items. Items are built by a pure function (`buildAttent
 | `cloud-backup-stale` | as above, not failed, `lastSyncedAt` older than `backupStaleDays` | warning | "No cloud backup in {n} days" | "Last backup {relative time}." | "Open Backup settings" |
 | `password-age` | `passwordAgeDays` not null and one or more existing entries have `setAt` older than it | warning | "{n} password older than {period}" / "{n} passwords older than {period}" | "Change old passwords to keep your accounts safe." | "Show" / "Hide": toggles a list under the item |
 | `connection-limit` | `maxConnections > 0` and connection count >= `maxConnections` | warning | "All {max} connections on your plan are in use" | "Upgrade to add more." | "See plans": `invoke("auth_open_pricing")` |
-| `device-limit` | `sync.displaced?.cause === "device_cap"` or `sync.sessionConflict?.cause === "device_cap"` | warning | "Device limit reached" | "Your plan allows {cap} devices at once." (`deviceCap` from the event, else `DEFAULT_DEVICE_CAP`) | "See plans" |
+| `device-limit` | `sync.displaced?.reason === "device_cap"` or `sync.sessionConflict?.cause === "device_cap"` | warning | "Device limit reached" | "Your plan allows {cap} devices at once." (`deviceCap` from the event, else `DEFAULT_DEVICE_CAP`) | "See plans" |
 | `trial-ending` | `isTrialing` and 0 <= days <= `TRIAL_WARN_DAYS` (7) | danger when days <= 3, else warning | "Your Pro trial ends today" / "Your Pro trial ends tomorrow" / "Your Pro trial ends in {n} days" | "Upgrade to keep Pro features." | "See plans" |
 
 - A backup that is off, or never ran, is not an item.
@@ -664,3 +664,9 @@ Each package works in its own worktree branched from the contract commit, commit
 1. `npx vitest run`, `cd mcp && npx vitest run`, both `tsc` runs, `npm run lint`, `npm run build`.
 2. One app run with a one-off capture script: unlock a vault with a few entries, favorites, a sub-folder and a password older than 180 days; check Home (all sections, then Customize hiding two sections), the search results, the pinned tab with no close button, Cmd+Shift+H from a session, lock and unlock (Home comes back), a folder view with a check and Open all confirm, and an entry info tab with a check and history.
 3. Known follow-up, not in this work: refresh the restyle suite's `home-dashboard-full-window` inventory and shot 40.
+
+## 12. Known limits
+
+- **Password ages after a vault import.** Importing a Conduit vault export (`electron/services/vault/export-import.ts`) creates new entries and does not bring their password history, so an imported password counts from the import time.
+- **Password ages in a team vault.** A team sync pull (`electron/services/vault/team-sync.ts` `mergeCloudEntry`) applies a newer password without writing a history row on this device. The age is right once the other device's `vault_password_history` row arrives (Realtime or the next reconcile); until then, or when that row never reached the cloud, the entry shows the age of its previous password.
+- An RDM import that overwrites a duplicate records the old username and password in password history, like the entry edit path (`overwriteEntry` in `electron/services/import/rdm-importer.ts`).
