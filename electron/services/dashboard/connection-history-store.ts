@@ -24,6 +24,29 @@ export const HISTORY_SCHEMA_VERSION = 1;
 export const PRUNE_EVERY_INSERTS = 50;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const SIDE_FILE_SUFFIXES = ['-wal', '-shm'] as const;
+const OWNER_ONLY = 0o600;
+
+function isDamagedFileError(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && (code.startsWith('SQLITE_CORRUPT') || code === 'SQLITE_NOTADB');
+}
+
+/** Keeps the damaged file and its WAL together so a new file never picks up the old WAL. */
+function moveAside(filePath: string, now: Date): void {
+  const aside = `${filePath}.damaged-${now.getTime()}`;
+  for (const suffix of ['', ...SIDE_FILE_SUFFIXES]) {
+    if (fs.existsSync(filePath + suffix)) fs.renameSync(filePath + suffix, aside + suffix);
+  }
+}
+
+/** SQLite gives new WAL and SHM files the mode of the database file, so it is set first. */
+function restrictToOwner(file: string, create: boolean): void {
+  if (process.platform === 'win32') return;
+  if (create) fs.closeSync(fs.openSync(file, 'a', OWNER_ONLY));
+  else if (!fs.existsSync(file)) return;
+  fs.chmodSync(file, OWNER_ONLY);
+}
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS connection_history (
@@ -95,9 +118,24 @@ export class ConnectionHistoryStore {
     this.newId = opts.newId ?? (() => crypto.randomUUID());
   }
 
-  /** Opens (or creates) the file, marks rows left open by a crash as interrupted, then prunes. */
+  /**
+   * Opens (or creates) the file, marks rows left open by a crash as interrupted, then prunes. A
+   * damaged file is moved aside and a new one is created, since history is only a convenience.
+   */
   static open(filePath: string, opts: HistoryStoreOptions = {}): ConnectionHistoryStore {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    try {
+      return ConnectionHistoryStore.openFile(filePath, opts);
+    } catch (err) {
+      if (!isDamagedFileError(err)) throw err;
+      console.warn('[dashboard] connection history file is damaged; starting a new one', { code: (err as { code: string }).code });
+      moveAside(filePath, (opts.now ?? (() => new Date()))());
+      return ConnectionHistoryStore.openFile(filePath, opts);
+    }
+  }
+
+  private static openFile(filePath: string, opts: HistoryStoreOptions): ConnectionHistoryStore {
+    restrictToOwner(filePath, true);
     const db = new Database(filePath);
     try {
       db.pragma('journal_mode = WAL');
@@ -106,14 +144,15 @@ export class ConnectionHistoryStore {
       if ((db.pragma('user_version', { simple: true }) as number) < HISTORY_SCHEMA_VERSION) {
         db.pragma(`user_version = ${HISTORY_SCHEMA_VERSION}`);
       }
+      const store = new ConnectionHistoryStore(db, opts);
+      store.interruptOpenRows();
+      store.prune();
+      for (const suffix of SIDE_FILE_SUFFIXES) restrictToOwner(filePath + suffix, false);
+      return store;
     } catch (err) {
       db.close();
       throw err;
     }
-    const store = new ConnectionHistoryStore(db, opts);
-    store.interruptOpenRows();
-    store.prune();
-    return store;
   }
 
   start(vaultKey: string, entryId: string, protocol: HistoryProtocol): string {
@@ -202,8 +241,9 @@ export class ConnectionHistoryStore {
     this.db.close();
   }
 
-  private interruptOpenRows(): void {
-    this.db.prepare(`UPDATE connection_history SET outcome = 'interrupted' WHERE outcome = 'open'`).run();
+  /** Rows left open by a crash or a renderer reload; the renderer can no longer end them. */
+  interruptOpenRows(): number {
+    return this.db.prepare(`UPDATE connection_history SET outcome = 'interrupted' WHERE outcome = 'open'`).run().changes;
   }
 
   private finish(id: string, startedAt: string, outcome: HistoryEndOutcome): void {

@@ -3,7 +3,7 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConnectionHistoryStore, HISTORY_SCHEMA_VERSION, PRUNE_EVERY_INSERTS } from '../connection-history-store.js';
 import { HISTORY_MAX_ROWS_PER_VAULT, HISTORY_RETENTION_DAYS } from '../dashboard-dto.js';
 
@@ -40,6 +40,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const s of stores) {
     try {
       s.close();
@@ -211,5 +212,54 @@ describe('crash and quit', () => {
     const rows = rawRows();
     expect(rows.find((r) => r.id === a)).toMatchObject({ outcome: 'closed', duration_ms: 5000, ended_at: new Date(T0 + 5000).toISOString() });
     expect(rows.find((r) => r.id === b)).toMatchObject({ outcome: 'failed' });
+  });
+});
+
+describe('opening the file', () => {
+  it('marks open rows interrupted on request, for a renderer that reloaded', () => {
+    const store = open();
+    const a = store.start('vault:a', 'e1', 'ssh');
+    const b = store.start('team:t', 'e2', 'rdp');
+    store.end(b, 'closed');
+    expect(store.interruptOpenRows()).toBe(1);
+    expect(rawRows().find((r) => r.id === a)).toMatchObject({ outcome: 'interrupted', ended_at: null });
+    expect(rawRows().find((r) => r.id === b)).toMatchObject({ outcome: 'closed' });
+  });
+
+  it.skipIf(process.platform === 'win32')('keeps the file and its WAL readable by the owner only', () => {
+    const store = open();
+    store.start('vault:a', 'e1', 'ssh');
+    for (const f of [file, `${file}-wal`, `${file}-shm`]) {
+      expect(fs.statSync(f).mode & 0o777, f).toBe(0o600);
+    }
+  });
+
+  it.skipIf(process.platform === 'win32')('tightens a file created with wider permissions', () => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    open().close();
+    fs.chmodSync(file, 0o644);
+    open();
+    expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+  });
+
+  it('moves a damaged file aside and starts a new one', () => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, 'this is not a database file '.repeat(40));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = open();
+    expect(store.start('vault:a', 'e1', 'ssh')).toBe('row-1');
+    const aside = fs.readdirSync(path.dirname(file)).filter((n) => n.startsWith('connection-history.db.damaged-'));
+    expect(aside).toEqual([`connection-history.db.damaged-${T0}`]);
+    expect(rawRows()).toHaveLength(1);
+  });
+
+  it('closes the handle and rethrows when a step after opening fails', () => {
+    const close = vi.spyOn(Database.prototype, 'close');
+    vi.spyOn(ConnectionHistoryStore.prototype, 'prune').mockImplementation(() => {
+      throw Object.assign(new Error('disk I/O error'), { code: 'SQLITE_IOERR' });
+    });
+    expect(() => open()).toThrow('disk I/O error');
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(fs.readdirSync(path.dirname(file)).some((n) => n.includes('damaged'))).toBe(false);
   });
 });
