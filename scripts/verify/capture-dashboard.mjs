@@ -12,7 +12,9 @@ import path from 'node:path';
 import { buildForRun, startVite } from './lib/app.mjs';
 import { scenarioContext } from './lib/context.mjs';
 import { createRunContext, freePort, installSignalHandlers, VERIFY_DIR } from './lib/run-context.mjs';
-import { clickInTopDialog, openTerminal, setSidebar, startTestSite, vaultPath, withStores } from './lib/restyle-data.mjs';
+import { clearConnectionHistory, clickInTopDialog, closeAllSessions, openTerminal, setSidebar, startTestSite, vaultPath, withStores } from './lib/restyle-data.mjs';
+import { captureInventory } from './lib/inventory.mjs';
+import { screen as restyleScreen } from './lib/restyle-screens.mjs';
 import { launchInMode, regions } from './lib/restyle-flows.mjs';
 import { createVault, enterLocalMode, lockVault, openVault, refreshEntries, waitForScreen } from './lib/flows.mjs';
 import { captureWindow, cropCapture } from './lib/window-capture.mjs';
@@ -238,13 +240,20 @@ async function homeScreens(d, rec, sessions) {
   await scrollHome(d, 'top');
   await rec.shot('home-top', 'Home, top: header, quick bar, Recently connected, Open now, Favorites, Needs attention');
   await scrollHome(d, 'bottom');
-  await rec.shot('home-bottom', 'Home, bottom: AI activity, Vault Status, Overview');
+  await rec.shot('home-bottom', 'Home, bottom: AI activity, Vault status, Overview');
 
-  await clickText(d, 'Show', { exact: true, selector: '[data-attention="password-age"] button' });
-  await waitForText(d, 'Hide');
+  await scrollHome(d, 'top');
+  await hoverRow(d, 'Recently connected', 'web-01');
+  await rec.shot('home-row-actions-hover', 'Recently connected row under the pointer: Copy password and View info cover the time');
+  await hoverRow(d, 'Favorites', 'Intranet Status');
+  await rec.shot('favorites-row-actions-hover', 'Favorites row under the pointer: the same actions over the type label');
+  await d.page.mouse.move(5, 400);
+
+  await clickText(d, 'Show entries', { exact: true, selector: '[data-attention="password-age"] button' });
+  await waitForText(d, 'Hide entries');
   await scrollHome(d, '[data-attention="password-age"]');
   await rec.shot('attention-password-list', 'Needs attention with the old password list open (web-01 1 year, db-01 8 months)');
-  await clickText(d, 'Hide', { exact: true, selector: '[data-attention="password-age"] button' });
+  await clickText(d, 'Hide entries', { exact: true, selector: '[data-attention="password-age"] button' });
 
   await setSidebar(d, 'docked');
   await scrollHome(d, 'top');
@@ -274,6 +283,43 @@ async function homeScreens(d, rec, sessions) {
   await waitFor(async () => (await activeSession(d)) === HOME, { timeoutMs: 5_000, label: 'Home active' }).catch(() => null);
   rec.check('Cmd+Shift+H goes back to Home', (await activeSession(d)) === HOME, await activeSession(d));
   await rec.shot('home-after-shortcut', 'After Cmd+Shift+H: Home is the active tab');
+}
+
+/** Moves the pointer over the row labelled `label` in the Home card titled `card`. */
+async function hoverRow(d, card, label) {
+  const box = await withTimeout(d.page.evaluate(({ c, l }) => {
+    const heading = [...document.querySelectorAll('h3')].find((h) => h.textContent === c && h.getClientRects().length > 0);
+    const row = [...(heading?.closest('.border-card-border')?.querySelectorAll('.group\\/row') ?? [])].find((r) => r.textContent?.startsWith(l));
+    const rect = row?.getBoundingClientRect();
+    return rect ? { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 } : null;
+  }, { c: card, l: label }), 10_000, `${d.name}: find ${label} in ${card}`);
+  if (!box) throw new Error(`no ${label} row in ${card}`);
+  await d.page.mouse.move(box.x, box.y);
+}
+
+/**
+ * Home as the restyle suite's shot 40 sees it: only the pinned Home tab, no connection history, the
+ * side bar docked. Saves the home-dashboard-full-window inventory for refreshing that suite's delta.
+ */
+async function homeAloneScreen(d, rec, mode) {
+  await closeAllSessions(d);
+  await withStores(d, (_, s) => {
+    const layout = s.layout.getState();
+    const walk = (n) => (n.type === 'leaf' ? [n] : n.children.flatMap(walk));
+    for (const leaf of walk(layout.root)) if (leaf.sessionIds.length === 0) layout.collapsePaneIfEmpty(leaf.id);
+    return true;
+  }, null, { label: 'collapse empty panes' });
+  await clearConnectionHistory(d);
+  await setSidebar(d, 'docked');
+  await activate(d, HOME);
+  await waitForText(d, 'Welcome back');
+  await sleep(1_000);
+  const text = await bodyText(d);
+  rec.check('Home alone hides Recently connected and Open now', !text.includes('Recently connected') && !text.includes('Open now'), null);
+  await scrollHome(d, 'top');
+  await rec.shot('home-alone', 'Only the pinned Home tab and no connection history (the restyle suite\'s shot 40 state)');
+  const inventory = await captureInventory(d, restyleScreen('home-dashboard-full-window'));
+  fs.writeFileSync(path.join(OUT_DIR, `${mode}-home-alone-inventory.json`), `${JSON.stringify(inventory, null, 2)}\n`);
 }
 
 async function folderScreens(d, rec, ids) {
@@ -310,7 +356,8 @@ async function entryInfoScreens(d, rec, ids) {
     }, id, { label: `open ${label} info` });
     await waitForText(d, 'Is it up?');
     await waitForText(d, 'Recent connections');
-    await clickIn(d, 'button', 'Check');
+    // Folder view checks are shared with entry info, so the row may already offer Check again.
+    await clickIn(d, 'button', (await bodyText(d)).includes('Check again') ? 'Check again' : 'Check');
     await waitForText(d, 'Check again', { timeoutMs: 10_000 });
     const text = await bodyText(d);
     const expected = id === ids.site ? ['Up', 'Connected now', 'Connected'] : ['Port closed', 'Could not connect'];
@@ -353,6 +400,7 @@ async function captureMode(ctx, { mode, net }) {
     await step('folder view', () => folderScreens(d, rec, ids));
     await step('entry info', () => entryInfoScreens(d, rec, ids));
     await step('split pane', () => splitScreen(d, rec));
+    await step('home alone', () => homeAloneScreen(d, rec, mode));
   } catch (err) {
     failures.push(`${mode} setup: ${err.message.split('\n')[0]}`);
     log(`${mode} setup failed: ${err.stack}`);

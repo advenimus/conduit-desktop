@@ -41,7 +41,7 @@ Removed or replaced behavior:
 
 - Selecting an entry or folder in the side bar no longer shows its dashboard in an empty single pane. With a pinned Home tab the first pane is never empty while a vault is open. "View Info" opens entry info and folder views as tabs.
 - Home drops the tag chips and the "Recently Modified" list. The search box matches tags.
-- `docs/VISUAL_REDESIGN.md` R3-DASHBOARD and the restyle suite's `home-dashboard-full-window` inventory describe the old Home. That inventory will not match after this work; refreshing its fixtures needs a live run of the restyle suite (11.2). Home keeps the "Welcome back" heading, which the restyle suite waits for. The harness's `closeAllSessions` (`scripts/verify/lib/restyle-data.mjs`) closes every tab but Home and treats "only Home left" as done, and the suite clears the connection history before shot 40 so Home shows the same cards on every run.
+- `docs/VISUAL_REDESIGN.md` R3-DASHBOARD and the restyle suite's `home-dashboard-full-window` inventory describe the old Home. That inventory will not match after this work; its allowed delta is refreshed from a real capture, and a live run of the restyle suite still has to confirm it (11.2). Home keeps the "Welcome back" heading, which the restyle suite waits for. The harness's `closeAllSessions` (`scripts/verify/lib/restyle-data.mjs`) closes every tab but Home and treats "only Home left" as done, and the suite clears the connection history before shot 40 so Home shows the same cards on every run.
 
 ## 3. Home tab and navigation
 
@@ -203,7 +203,7 @@ Hidden when there are no items. Items are built by a pure function (`buildAttent
 
 ### 4.8 Vault status (`vault-status`)
 
-- **Vault status** (`VaultStatusCard`, title "Vault status"): each status row is a `ListRow` with a 12 px filled dot as `leading` (the Open now colors: connected, error, connecting; faint for off and idle) and the detail as `meta` (`text-meta text-ink-faint`, truncated at 12rem with the full text as its tooltip). Labels in sentence case: "Device sync", "Cloud backup", "Local backup", "Team sync", "Plan usage" (with its bar under the row), "Trial".
+- **Vault status** (`VaultStatusCard`, title "Vault status"): each status row is a `ListRow` with a 12 px filled dot as `leading` (the Open now colors: connected, error, connecting; faint for off and idle) and the detail as `meta` (`text-meta text-ink-faint`, truncated at 12rem; an error's full text is also the detail of its Needs attention item). Labels in sentence case: "Device sync", "Cloud backup", "Local backup", "Team sync", "Plan usage" (with its bar under the row), "Trial".
 - **Overview** (`OverviewCard`): the shared type tiles (`TypeTiles`, order SSH, RDP, VNC, Web, Command, `grid-cols-3`) for the connection types that have entries; zero tiles are not drawn. No counts line (the header already has the counts). The card hides when no connection type has entries.
 - Both cards hide together with this one switch ("Vault status and overview").
 
@@ -679,7 +679,7 @@ Each package works in its own worktree branched from the contract commit, commit
 
 1. `npx vitest run`, `cd mcp && npx vitest run`, both `tsc` runs, `npm run lint`, `npm run build`.
 2. One app run with a one-off capture script: unlock a vault with a few entries, favorites, a sub-folder and a password older than 180 days; check Home (all sections, then Customize hiding two sections), the search results, the pinned tab with no close button, Cmd+Shift+H from a session, lock and unlock (Home comes back), a folder view with a check and Open all confirm, and an entry info tab with a check and history.
-3. Known follow-up, needs a live run: refresh the restyle suite's `home-dashboard-full-window` inventory (its allowed delta in `scripts/verify/fixtures/restyle/allowed-deltas.json`) and the composite of shot 40 with `node scripts/verify/run.mjs restyle --strict --only tabs`. The harness side is ready: `closeAllSessions` leaves only Home, and the suite clears the connection history before shot 40.
+3. Known follow-up, needs a live run: confirm the restyle suite's `home-dashboard-full-window` inventory and the composite of shot 40 with `node scripts/verify/run.mjs restyle --strict --only tabs`. The harness side is ready: `closeAllSessions` leaves only Home, the suite clears the connection history before shot 40 (through the renderer, so Home reloads), and the allowed delta in `scripts/verify/fixtures/restyle/allowed-deltas.json` describes the new Home. That delta comes from the real inventory the capture script saves (`.verify/dashboard/final/<mode>-home-alone-inventory.json`), mapped onto the suite's data; only the live run confirms it.
 
 ## 12. Known limits
 
