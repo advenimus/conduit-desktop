@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
-import { HOME_RECENT_LIMIT, type RecentConnection } from "../../../types/dashboard";
-import { dashboardApi } from "../../../lib/dashboardApi";
-import { openDashboardForEntry } from "../../../lib/openDashboard";
+import { useMemo } from "react";
+import type { RecentConnection } from "../../../types/dashboard";
 import { useEntryStore } from "../../../stores/entryStore";
 import type { EntryMeta } from "../../../types/entry";
-import { Badge, Card, IconButton, ListRow, SectionHeader } from "../../ui";
+import { Badge, Card, ListRow, SectionHeader } from "../../ui";
 import { formatRelativeTime } from "../relativeTime";
-import { copyPassword } from "./copyPassword";
-import { EntryIcon, openHomeEntry } from "./entryDisplay";
-import { useSessionIdsKey } from "./useDebounced";
+import { EntryIcon, EntryRowActions, openHomeEntry } from "./entryDisplay";
+import { useRecentConnectionsFeed } from "./homeFeeds";
 import { selectEntries } from "./storeSelectors";
 
-const SESSION_CHANGE_DEBOUNCE_MS = 750;
-
 function RecentMeta({ item }: { item: RecentConnection }) {
-  if (item.lastOutcome === "open") return <>Now</>;
+  if (item.lastOutcome === "open") return <>Open</>;
   return (
     <>
       {item.lastOutcome === "failed" && <Badge tone="danger">Failed</Badge>}
@@ -23,27 +18,10 @@ function RecentMeta({ item }: { item: RecentConnection }) {
   );
 }
 
-/** Recently connected (docs/DASHBOARD.md 4.3). `refreshKey` changes after Clear connection history. */
-export default function RecentConnectionsCard({ refreshKey }: { refreshKey: number }) {
+/** Recently connected (docs/DASHBOARD.md 4.3). Loads only while `active` (the Home view is its pane's active tab). */
+export default function RecentConnectionsCard({ active = true }: { active?: boolean }) {
   const entries = useEntryStore(selectEntries);
-  const sessionsKey = useSessionIdsKey(SESSION_CHANGE_DEBOUNCE_MS);
-  const [items, setItems] = useState<readonly RecentConnection[] | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    dashboardApi
-      .historyRecent({ limit: HOME_RECENT_LIMIT })
-      .then((rows) => {
-        if (alive) setItems(rows);
-      })
-      .catch((err) => {
-        console.warn("[home] connection_history_recent failed:", err);
-        if (alive) setItems(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [sessionsKey, refreshKey]);
+  const items = useRecentConnectionsFeed(active);
 
   const rows = useMemo(() => {
     const byId = new Map(entries.map((e) => [e.id, e]));
@@ -72,12 +50,8 @@ function RecentRow({ item, entry }: { item: RecentConnection; entry: EntryMeta }
       leading={<EntryIcon entry={entry} />}
       meta={<RecentMeta item={item} />}
       onClick={() => openHomeEntry(entry)}
-      trailing={
-        <>
-          <IconButton size="sm" icon="key" label="Copy password" onClick={() => void copyPassword(entry.id)} />
-          <IconButton size="sm" icon="infoCircle" label="View info" onClick={() => openDashboardForEntry(entry.id)} />
-        </>
-      }
+      trailingOverlay
+      trailing={<EntryRowActions entryId={entry.id} />}
     >
       {entry.name}
     </ListRow>

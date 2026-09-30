@@ -48,6 +48,11 @@ interface HomeSettingsState {
 const useHomeSettingsStore = create<HomeSettingsState>(() => ({ settings: DEFAULT_HOME_SETTINGS, loaded: false }));
 let loading: Promise<void> | null = null;
 
+/** Reads the saved settings once; App calls it at start so the first Home paint already knows the hidden sections. */
+export function preloadHomeSettings(): void {
+  ensureLoaded();
+}
+
 function ensureLoaded(): void {
   if (loading) return;
   loading = invoke<unknown>("ui_state_get", { key: HOME_SETTINGS_KEY })

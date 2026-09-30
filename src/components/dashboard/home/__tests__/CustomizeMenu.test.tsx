@@ -52,7 +52,7 @@ describe("CustomizeMenu", () => {
       "Favorites",
       "Needs attention",
       "AI activity",
-      "Vault status",
+      "Vault status and overview",
     ]);
     expect(boxes.every((b) => (b as HTMLInputElement).checked)).toBe(true);
     const passwords = within(p).getByLabelText("Warn about passwords older than") as HTMLSelectElement;

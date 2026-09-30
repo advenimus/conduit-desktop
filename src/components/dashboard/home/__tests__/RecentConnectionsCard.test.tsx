@@ -8,6 +8,8 @@ import { toast } from "../../../common/Toast";
 import type { RecentConnection } from "../../../../types/dashboard";
 import { entry, minutesAgo, rowParts } from "../../__tests__/fixtures";
 import { seedHomeStores } from "./homeTestStores";
+import { bumpHistoryVersion } from "../homeFeeds";
+import { useVaultStore } from "../../../../stores/vaultStore";
 
 vi.hoisted(() => {
   Object.assign(globalThis, { electron: { invoke: async () => null, on: () => () => undefined } });
@@ -28,10 +30,10 @@ const ENTRIES = [
   entry({ id: "w1", name: "Intranet", entry_type: "web" }),
 ];
 
-function setup(rows: RecentConnection[]) {
+function setup(rows: RecentConnection[], locked: string[] = []) {
   recent.mockResolvedValue(rows);
-  const actions = seedHomeStores({ entries: ENTRIES });
-  const view = render(<RecentConnectionsCard refreshKey={0} />);
+  const actions = seedHomeStores({ entries: ENTRIES, locked });
+  const view = render(<RecentConnectionsCard />);
   return { actions, ...view };
 }
 
@@ -48,12 +50,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("RecentConnectionsCard", () => {
-  it("lists entries that still exist, with Now, Failed and the relative time", async () => {
+  it("lists entries that still exist, with Open, Failed and the relative time", async () => {
     setup([row("s1", "open", 1), row("gone", "closed", 2), row("r1", "closed", 125), row("w1", "failed", 60 * 26)]);
     await screen.findByText("Recently connected");
     expect(recent).toHaveBeenCalledWith({ limit: 8 });
     expect(rowButtons().map(rowParts)).toEqual([
-      { label: "web-01", meta: "Now" },
+      { label: "web-01", meta: "Open" },
       { label: "DC01", meta: "2h ago" },
       { label: "Intranet", meta: "FailedYesterday" },
     ]);
@@ -101,15 +103,15 @@ describe("RecentConnectionsCard", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     recent.mockRejectedValue(new Error("nope"));
     seedHomeStores({ entries: ENTRIES });
-    const second = render(<RecentConnectionsCard refreshKey={0} />);
+    const second = render(<RecentConnectionsCard />);
     await waitFor(() => expect(warn).toHaveBeenCalledWith(expect.stringContaining("connection_history_recent"), expect.anything()));
     expect(second.container).toBeEmptyDOMElement();
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it("reloads 750 ms after the session ids change and when the refresh key changes", async () => {
+  it("reloads 750 ms after the session ids change and after Clear connection history", async () => {
     vi.useFakeTimers();
-    const { rerender } = setup([row("s1", "closed", 5)]);
+    setup([row("s1", "closed", 5)]);
     await act(async () => undefined);
     expect(recent).toHaveBeenCalledTimes(1);
     act(() => useSessionStore.setState({ sessions: [{ id: "x", type: "ssh", title: "web-01", status: "connecting", entryId: "s1" }] }));
@@ -120,8 +122,48 @@ describe("RecentConnectionsCard", () => {
     act(() => useSessionStore.setState({ sessions: [{ id: "x", type: "ssh", title: "web-01", status: "connected", entryId: "s1" }] }));
     await act(async () => vi.advanceTimersByTime(1000));
     expect(recent).toHaveBeenCalledTimes(2);
-    rerender(<RecentConnectionsCard refreshKey={1} />);
+    act(() => bumpHistoryVersion());
     await act(async () => undefined);
     expect(recent).toHaveBeenCalledTimes(3);
+  });
+
+  it("hides Copy password for an entry the plan locks and keeps View info", async () => {
+    setup([row("s1", "closed", 5), row("r1", "closed", 9)], ["s1"]);
+    await screen.findByText("web-01");
+    expect(screen.getAllByRole("button", { name: "Copy password" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "View info" })).toHaveLength(2);
+    const lockedRow = rowButtons()[0].parentElement as HTMLElement;
+    expect(within(lockedRow).queryByRole("button", { name: "Copy password" })).toBeNull();
+  });
+
+  it("lays the row actions over the meta", async () => {
+    setup([row("s1", "closed", 5)]);
+    await screen.findByText("web-01");
+    const slot = screen.getByRole("button", { name: "View info" }).parentElement as HTMLElement;
+    expect(slot.className.split(" ")).toContain("absolute");
+  });
+
+  it("shares one load between Home views and loads nothing while inactive", async () => {
+    recent.mockResolvedValue([row("s1", "closed", 5)]);
+    seedHomeStores({ entries: ENTRIES });
+    const hidden = render(<RecentConnectionsCard active={false} />);
+    await act(async () => undefined);
+    expect(recent).not.toHaveBeenCalled();
+    render(<RecentConnectionsCard />);
+    render(<RecentConnectionsCard />);
+    await act(async () => undefined);
+    expect(recent).toHaveBeenCalledTimes(1);
+    expect(within(hidden.container).getByText("web-01")).toBeInTheDocument();
+  });
+
+  it("loads again after the vault locks and unlocks", async () => {
+    act(() => useVaultStore.setState({ isUnlocked: true }));
+    setup([row("s1", "closed", 5)]);
+    await screen.findByText("web-01");
+    expect(recent).toHaveBeenCalledTimes(1);
+    act(() => useVaultStore.setState({ isUnlocked: false }));
+    act(() => useVaultStore.setState({ isUnlocked: true }));
+    await act(async () => undefined);
+    expect(recent).toHaveBeenCalledTimes(2);
   });
 });

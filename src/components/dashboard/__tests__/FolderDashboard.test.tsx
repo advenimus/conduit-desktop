@@ -76,6 +76,15 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("FolderDashboard header", () => {
+  it("caps the content at Home's width while the header divider spans the pane", async () => {
+    const { container } = await setup();
+    const header = container.querySelector(".border-b.border-divider") as HTMLElement;
+    expect(header.className).not.toMatch(/max-w-4xl/);
+    expect((header.firstElementChild as HTMLElement).className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "w-full", "max-w-4xl"]));
+    const list = container.querySelector("[data-cv-folder-list]") as HTMLElement;
+    expect(list.closest(".max-w-4xl")).not.toBeNull();
+  });
+
   it("sits on the editor surface and keeps the header texts", async () => {
     const { container } = await setup();
     expect(container.firstElementChild).toHaveClass("bg-editor");
@@ -84,10 +93,11 @@ describe("FolderDashboard header", () => {
     expect(container.querySelector(".bg-canvas, .bg-panel")).toBeNull();
   });
 
-  it("keeps the type cards and drops the distribution bar, Recent Activity and Entry Age", async () => {
-    await setup();
+  it("keeps the type tiles in Home's order and drops the distribution bar, Recent Activity and Entry Age", async () => {
+    const { container } = await setup();
     expect(screen.getByText("SSH").closest(".border-card-border")).not.toBeNull();
-    expect(screen.getByText("Credentials")).toBeInTheDocument();
+    const tiles = container.querySelector("[data-cv-type-tiles]") as HTMLElement;
+    expect([...tiles.children].map((t) => t.querySelector(".text-meta")?.textContent)).toEqual(["SSH", "RDP", "Document", "Credential"]);
     for (const gone of ["Type Distribution", "Recent Activity", "Entry Age"]) {
       expect(screen.queryByText(gone)).toBeNull();
     }
@@ -165,7 +175,7 @@ describe("FolderDashboard list", () => {
     expect(button).toBeEnabled();
     const badge = within(rowFor("DC-01")).getByText("Port closed");
     expect(badge).toHaveClass("text-warning");
-    expect(badge).toHaveAttribute("title", "The host answered, but nothing is listening on port 3389");
+    expect(badge).toHaveAttribute("title", "Nothing is listening on port 3389");
   });
 });
 

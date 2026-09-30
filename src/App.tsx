@@ -57,6 +57,7 @@ import { goToVaultHubFromStartup, installStartupInputReporters, reportInputScree
 import { handleAutoUnlockEvent, watchVaultForStartupStatus } from "./lib/startup-vault-events";
 import StartupConfirmHost from "./components/vault/StartupConfirmHost";
 import { installHomeTabGuard, openHome } from "./lib/openHome";
+import { preloadHomeSettings } from "./components/dashboard/home/useHomeSettings";
 import { isHomeSession } from "./lib/dashboardSessions";
 
 /**
@@ -183,6 +184,7 @@ function App() {
   }, []);
 
   useEffect(() => installHomeTabGuard(), []);
+  useEffect(preloadHomeSettings, []);
 
   // Initialize auth on mount
   useEffect(() => {

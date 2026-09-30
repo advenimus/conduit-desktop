@@ -7,6 +7,7 @@ import { useTeamStore } from "../../../../stores/teamStore";
 import { useTierStore } from "../../../../stores/tierStore";
 import { useVaultStore } from "../../../../stores/vaultStore";
 import type { EntryMeta, FolderData } from "../../../../types/entry";
+import { resetHomeFeeds } from "../homeFeeds";
 
 export interface HomeStores {
   entries?: EntryMeta[];
@@ -14,6 +15,8 @@ export interface HomeStores {
   sessions?: Session[];
   vaultType?: "personal" | "team";
   canCreate?: boolean;
+  /** Entry ids the plan locks. */
+  locked?: string[];
 }
 
 /** Seeds every store the Home cards read with quiet defaults; returns the entry store actions as mocks. */
@@ -33,8 +36,9 @@ export function seedHomeStores(opts: HomeStores = {}) {
     teamSyncState: null,
   } as never);
   useTeamStore.setState({ canCreate: () => opts.canCreate ?? true } as never);
-  useTierStore.setState({ maxConnections: -1, isTrialing: false, trialDaysRemaining: -1 } as never);
+  useTierStore.setState({ maxConnections: -1, isTrialing: false, trialDaysRemaining: -1, lockedEntryIds: new Set(opts.locked ?? []) } as never);
   useAuthStore.setState({ authMode: "local", profile: null } as never);
   useSyncStore.setState({ state: null, displaced: null, sessionConflict: null } as never);
+  resetHomeFeeds();
   return actions;
 }

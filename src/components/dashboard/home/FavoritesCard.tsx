@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { useEntryStore } from "../../../stores/entryStore";
 import { Card, ListRow, SectionHeader } from "../../ui";
-import { EntryIcon, typeLabel } from "./entryDisplay";
+import { EntryIcon, EntryRowActions, openHomeEntry, typeLabel } from "./entryDisplay";
 import { selectEntries } from "./storeSelectors";
 
-/** Favorites (docs/DASHBOARD.md 4.5): click selects, double-click opens; hidden without favorites. */
+/** Favorites (docs/DASHBOARD.md 4.5): a click opens, like Recently connected; hidden without favorites. */
 export default function FavoritesCard() {
   const entries = useEntryStore(selectEntries);
   const favorites = useMemo(() => entries.filter((e) => e.is_favorite), [entries]);
@@ -18,10 +18,9 @@ export default function FavoritesCard() {
             key={entry.id}
             leading={<EntryIcon entry={entry} />}
             meta={typeLabel(entry.entry_type)}
-            onClick={() => useEntryStore.getState().setSelectedEntry(entry.id)}
-            onDoubleClick={() => {
-              if (entry.entry_type !== "credential") void useEntryStore.getState().openEntry(entry.id);
-            }}
+            onClick={() => openHomeEntry(entry)}
+            trailingOverlay
+            trailing={<EntryRowActions entryId={entry.id} />}
           >
             {entry.name}
           </ListRow>

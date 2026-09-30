@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { useEntryStore } from "../../stores/entryStore";
 import { useVaultStore } from "../../stores/vaultStore";
 import { useTierStore } from "../../stores/tierStore";
 import { useAuthStore } from "../../stores/authStore";
-import type { HomeSectionId } from "../../types/dashboard";
+import { HOME_SECTION_IDS, type HomeSectionId } from "../../types/dashboard";
 import VaultStatusCard from "./VaultStatusCard";
 import AiActivityCard from "./home/AiActivityCard";
 import AttentionCard from "./home/AttentionCard";
@@ -15,20 +14,25 @@ import QuickBar from "./home/QuickBar";
 import RecentConnectionsCard from "./home/RecentConnectionsCard";
 import WelcomeBlock from "./home/WelcomeBlock";
 import { countConnections } from "./home/entryDisplay";
+import { bumpHistoryVersion } from "./home/homeFeeds";
 import { useHomeSettings } from "./home/useHomeSettings";
 import { selectCredentialCount, selectEntries, selectFolders } from "./home/storeSelectors";
 
-/** Home (docs/DASHBOARD.md 4): header, quick bar, then the cards; a hidden or empty card takes no cell. The grid follows the pane width, since Home also fills split panes. */
-export default function DashboardOverview() {
+/**
+ * Home (docs/DASHBOARD.md 4): header, quick bar, then the cards; a hidden or empty card takes no
+ * cell. The grid follows the pane width, since Home also fills split panes. `active` is false while
+ * the Home tab is mounted behind another tab; the cards then stop loading.
+ */
+export default function DashboardOverview({ active = true }: { active?: boolean }) {
   const entries = useEntryStore(selectEntries);
   const folders = useEntryStore(selectFolders);
   const credentialCount = useVaultStore(selectCredentialCount);
   const { settings, loaded } = useHomeSettings();
-  const [historyVersion, setHistoryVersion] = useState(0);
 
   if (entries.length === 0 && folders.length === 0) return <WelcomeBlock />;
 
   const shown = (id: HomeSectionId) => loaded && !settings.hidden.includes(id);
+  const allHidden = HOME_SECTION_IDS.every((id) => settings.hidden.includes(id));
 
   return (
     <div className="@container flex-1 flex flex-col bg-editor overflow-y-auto h-full">
@@ -37,15 +41,16 @@ export default function DashboardOverview() {
           entryCount={entries.length}
           credentialCount={credentialCount}
           folderCount={folders.length}
-          onHistoryCleared={() => setHistoryVersion((v) => v + 1)}
+          onHistoryCleared={bumpHistoryVersion}
         />
+        {loaded && allHidden && <p className="text-label text-ink-faint">All sections are hidden. Use Customize to show them.</p>}
         {shown("quick") && <QuickBar />}
-        <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-4">
-          {shown("recent") && <RecentConnectionsCard refreshKey={historyVersion} />}
+        <div className="grid grid-cols-1 items-start gap-4 @2xl:grid-cols-2">
+          {shown("recent") && <RecentConnectionsCard active={active} />}
           {shown("open-now") && <OpenNowCard />}
           {shown("favorites") && <FavoritesCard />}
           {shown("attention") && <AttentionCard settings={settings} />}
-          {shown("ai-activity") && <AiActivityCard className="@2xl:col-span-2" />}
+          {shown("ai-activity") && <AiActivityCard className="@2xl:col-span-2" active={active} />}
           {shown("vault-status") && <VaultStatusCells />}
         </div>
       </div>
@@ -81,11 +86,9 @@ function HomeHeader({
   );
 }
 
-/** Vault Status and Overview: two grid cells behind one switch. */
+/** Vault status and Overview: two grid cells behind one switch. */
 function VaultStatusCells() {
   const entries = useEntryStore(selectEntries);
-  const folderCount = useEntryStore((s) => selectFolders(s).length);
-  const credentialCount = useVaultStore(selectCredentialCount);
   const cloudSyncState = useVaultStore((s) => s.cloudSyncState);
   const localBackupState = useVaultStore((s) => s.localBackupState);
   const teamSyncState = useVaultStore((s) => s.teamSyncState);
@@ -105,7 +108,7 @@ function VaultStatusCells() {
         isTrialing={isTrialing}
         trialDaysRemaining={trialDaysRemaining}
       />
-      <OverviewCard entries={entries} credentialCount={credentialCount} folderCount={folderCount} />
+      <OverviewCard entries={entries} />
     </>
   );
 }

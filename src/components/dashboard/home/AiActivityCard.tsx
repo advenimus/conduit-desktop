@@ -1,47 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import { AI_ACTIVITY_POLL_MS, HOME_AI_ACTIVITY_LIMIT, type AiActivityItem } from "../../../types/dashboard";
-import { dashboardApi } from "../../../lib/dashboardApi";
+import { useMemo } from "react";
 import { openDashboardForEntry } from "../../../lib/openDashboard";
 import { useEntryStore } from "../../../stores/entryStore";
 import { useSessionStore } from "../../../stores/sessionStore";
 import { Badge, Card, ListRow, SectionHeader } from "../../ui";
 import { formatRelativeTime } from "../relativeTime";
 import { activityTarget, outcomeBadge, toolLabel } from "./aiActivityLabels";
+import { EntryIcon } from "./entryDisplay";
+import { useAiActivityFeed } from "./homeFeeds";
 import { selectEntries, selectSessions } from "./storeSelectors";
 
-/** Loads on mount, then every AI_ACTIVITY_POLL_MS while the window is visible; null hides the card. */
-function useAiActivity(): readonly AiActivityItem[] | null {
-  const [items, setItems] = useState<readonly AiActivityItem[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    const load = () => {
-      dashboardApi
-        .aiActivity({ limit: HOME_AI_ACTIVITY_LIMIT })
-        .then((res) => {
-          if (alive) setItems(res.logFound ? res.items : null);
-        })
-        .catch((err) => {
-          console.warn("[home] ai_activity_recent failed:", err);
-          if (alive) setItems(null);
-        });
-    };
-    load();
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") load();
-    }, AI_ACTIVITY_POLL_MS);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
-  return items;
-}
-
-/** AI activity (docs/DASHBOARD.md 4.7). */
-export default function AiActivityCard({ className }: { className?: string }) {
-  const items = useAiActivity();
+/** AI activity (docs/DASHBOARD.md 4.7). Polls only while `active` (the Home view is its pane's active tab). */
+export default function AiActivityCard({ className, active = true }: { className?: string; active?: boolean }) {
+  const items = useAiActivityFeed(active);
   const entries = useEntryStore(selectEntries);
   const sessions = useSessionStore(selectSessions);
+  const entriesById = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
   const entryNames = useMemo(() => new Map(entries.map((e) => [e.id, e.name])), [entries]);
   const sessionTitles = useMemo(() => new Map(sessions.map((s) => [s.id, s.title])), [sessions]);
 
@@ -53,18 +26,18 @@ export default function AiActivityCard({ className }: { className?: string }) {
         {items.map((item, index) => {
           const target = activityTarget(item, entryNames, sessionTitles);
           const badge = outcomeBadge(item.outcome);
-          const entryId = item.entryId && entryNames.has(item.entryId) ? item.entryId : null;
+          const entry = item.entryId ? entriesById.get(item.entryId) : undefined;
           return (
             <ListRow
               key={`${item.at}-${index}`}
-              leading="sparkles"
+              leading={entry ? <EntryIcon entry={entry} /> : "sparkles"}
               meta={
                 <>
                   {badge && <Badge tone={badge.tone}>{badge.text}</Badge>}
                   {formatRelativeTime(item.at)}
                 </>
               }
-              onClick={entryId ? () => openDashboardForEntry(entryId) : undefined}
+              onClick={entry ? () => openDashboardForEntry(entry.id) : undefined}
             >
               {toolLabel(item.tool)}
               {target ? ` · ${target}` : ""}

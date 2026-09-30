@@ -198,7 +198,7 @@ export const HOME_SECTION_LABELS: Readonly<Record<HomeSectionId, string>> = {
   favorites: 'Favorites',
   attention: 'Needs attention',
   'ai-activity': 'AI activity',
-  'vault-status': 'Vault status',
+  'vault-status': 'Vault status and overview',
 };
 
 /** Persisted per device with ui_state_set under HOME_SETTINGS_KEY. */

@@ -131,7 +131,7 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
         const view = dashboardViewOf(session);
         if (view.kind === "folder") return <FolderDashboard folderId={view.folderId} />;
         if (view.kind === "entry") return <EntryDashboard entryId={view.entryId} />;
-        return <DashboardOverview />;
+        return <DashboardOverview active={isPaneActive} />;
       }
       default:
         return (

@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { useEntryStore } from "../../stores/entryStore";
 import { useTierStore } from "../../stores/tierStore";
 import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
-import type { EntryType } from "../../types/entry";
-import { Button, Card, IconButton, SearchInput, Select } from "../ui";
+import { Button, IconButton, SearchInput, Select } from "../ui";
+import TypeTiles, { countByType } from "./TypeTiles";
 import CheckAllButton from "./folder/CheckAllButton";
 import FolderEntryList from "./folder/FolderEntryList";
 import OpenAllButton from "./folder/OpenAllButton";
@@ -22,15 +22,8 @@ interface FolderDashboardProps {
   folderId: string;
 }
 
-const TYPE_LABELS: Record<EntryType, string> = {
-  ssh: "SSH",
-  rdp: "RDP",
-  vnc: "VNC",
-  web: "Web",
-  credential: "Credentials",
-  document: "Documents",
-  command: "Commands",
-};
+// The page content keeps Home's width; the header's divider still spans the pane.
+const CONTENT_WIDTH = "mx-auto w-full max-w-4xl";
 
 const SORT_SELECT_ID = "folder-view-sort";
 
@@ -55,13 +48,7 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
     [folders, folderId],
   );
 
-  const typeCounts = useMemo(() => {
-    const counts: Partial<Record<EntryType, number>> = {};
-    for (const { entry } of allItems) {
-      counts[entry.entry_type] = (counts[entry.entry_type] ?? 0) + 1;
-    }
-    return counts;
-  }, [allItems]);
+  const typeCounts = useMemo(() => countByType(allItems.map((item) => item.entry)), [allItems]);
 
   const listed = useMemo(
     () => sortFolderItems(filterFolderItems(allItems, query), sort, { lastConnected, results: reachability.results }),
@@ -77,7 +64,6 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
   }
 
   const total = allItems.length;
-  const typeEntries = Object.entries(typeCounts) as [EntryType, number][];
   const FolderIcon = getEntryIcon("folder", true, folder.icon);
   const folderColor = getEntryColor("folder", folder.color);
 
@@ -85,7 +71,7 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
     <div className="flex-1 flex flex-col bg-editor overflow-y-auto h-full" data-cv-folder-view={folderId}>
       {/* Header */}
       <div className="p-6 border-b border-divider">
-        <div className="flex items-center gap-3">
+        <div className={`${CONTENT_WIDTH} flex items-center gap-3`}>
           <FolderIcon size={28} stroke={1.5} className={folderColor.className} style={folderColor.style} />
           <div className="flex-1 min-w-0">
             <h2 className="text-title font-semibold text-ink truncate">{folder.name}</h2>
@@ -102,56 +88,41 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
         </div>
       </div>
 
-      {/* Summary cards */}
-      {typeEntries.length > 0 && (
-        <div className="p-6 pb-2 flex flex-wrap gap-3">
-          {typeEntries.map(([type, count]) => {
-            const Icon = getEntryIcon(type, false);
-            const colorResult = getEntryColor(type);
-            return (
-              <Card key={type} className="flex items-center gap-3">
-                <Icon size={18} stroke={1.5} className={colorResult.className} style={colorResult.style} />
-                <div>
-                  <p className="text-title font-semibold text-ink">{count}</p>
-                  <p className="text-label text-ink-muted">{TYPE_LABELS[type]}</p>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {total > 0 && (
-        <section className="px-6 pt-4 pb-6">
-          <div className="mb-3 flex items-center gap-3">
-            <SearchInput
-              value={query}
-              onChange={setQuery}
-              placeholder="Search this folder..."
-              aria-label="Search this folder"
-              wrapperClassName="max-w-sm"
-            />
-            <div className="ml-auto flex shrink-0 items-center gap-2">
-              <label htmlFor={SORT_SELECT_ID} className="whitespace-nowrap text-label text-ink-muted">
-                Sort by
-              </label>
-              <Select
-                id={SORT_SELECT_ID}
-                value={sort}
-                onChange={(e) => setSort(e.target.value as FolderSort)}
-                wrapperClassName="w-40"
-              >
-                {FOLDER_SORT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
+      <div className={CONTENT_WIDTH}>
+        {/* Summary cards */}
+        <TypeTiles counts={typeCounts} className="grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] px-6 pt-6 pb-2" />
+        {total > 0 && (
+          <section className="px-6 pt-4 pb-6">
+            <div className="mb-3 flex items-center gap-3">
+              <SearchInput
+                value={query}
+                onChange={setQuery}
+                placeholder="Search this folder..."
+                aria-label="Search this folder"
+                wrapperClassName="max-w-sm"
+              />
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <label htmlFor={SORT_SELECT_ID} className="whitespace-nowrap text-label text-ink-muted">
+                  Sort by
+                </label>
+                <Select
+                  id={SORT_SELECT_ID}
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as FolderSort)}
+                  wrapperClassName="w-40"
+                >
+                  {FOLDER_SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
-          </div>
-          <FolderEntryList items={listed} lastConnected={lastConnected} reachability={reachability} />
-        </section>
-      )}
+            <FolderEntryList items={listed} lastConnected={lastConnected} reachability={reachability} />
+          </section>
+        )}
+      </div>
 
       {/* Empty state */}
       {total === 0 && (

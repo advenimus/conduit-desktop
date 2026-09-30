@@ -67,6 +67,15 @@ describe("AiActivityCard", () => {
     expect(screen.getByText("AI activity").closest(".border-card-border")).toHaveClass("@2xl:col-span-2");
   });
 
+  it("leads with the entry's type icon when the entry is known, else sparkles", async () => {
+    setup();
+    await screen.findByText("AI activity");
+    const lead = (text: string) => screen.getByText(text).closest(".h-row")!.querySelector("svg")!.getAttribute("class") ?? "";
+    expect(lead("Entry list")).toContain("sparkles");
+    expect(lead("Website screenshot · Intranet")).toContain("sparkles");
+    expect(lead("Terminal execute · web-01")).not.toContain("sparkles");
+  });
+
   it("opens entry info only for rows whose entry exists", async () => {
     setup();
     await screen.findByText("AI activity");
@@ -110,5 +119,26 @@ describe("AiActivityCard", () => {
     unmount();
     await act(async () => vi.advanceTimersByTime(60_000));
     expect(activity).toHaveBeenCalledTimes(3);
+  });
+
+  it("shares one poller between Home views and stops when none is the active tab", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "visibilityState", "get").mockImplementation(() => "visible");
+    const first = setup();
+    const second = render(<AiActivityCard />);
+    const behind = render(<AiActivityCard active={false} />);
+    await act(async () => undefined);
+    expect(activity).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTime(30_000));
+    expect(activity).toHaveBeenCalledTimes(2);
+    expect(behind.container).not.toBeEmptyDOMElement();
+    first.unmount();
+    second.unmount();
+    await act(async () => vi.advanceTimersByTime(90_000));
+    expect(activity).toHaveBeenCalledTimes(2);
+    behind.rerender(<AiActivityCard active />);
+    await act(async () => undefined);
+    expect(activity).toHaveBeenCalledTimes(3);
+    behind.unmount();
   });
 });
