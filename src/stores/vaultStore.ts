@@ -9,6 +9,7 @@ import { useSyncStore } from "./syncStore";
 import { classifyUnlockError, unlockArgs, type UnlockOptions } from "./vault-unlock-errors";
 import { failUnlock, showRestorePreview, unlockSucceeded } from "./vault-sync-hooks";
 import type { RestoreResult } from "../types/sync";
+import { errorText } from "../lib/errorText";
 
 export type { UnlockOptions } from "./vault-unlock-errors";
 
@@ -366,7 +367,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     } catch (err) {
       set({
         isLoading: false,
-        error: typeof err === "string" ? err : "Failed to open vault",
+        error: errorText(err, "Failed to open vault"),
       });
       throw err;
     }
@@ -421,7 +422,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       return credential;
     } catch (err) {
       const msg =
-        typeof err === "string" ? err : "Failed to create credential";
+        errorText(err, "Failed to create credential");
       set({ error: msg });
       throw err;
     }
@@ -461,7 +462,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       return credential;
     } catch (err) {
       const msg =
-        typeof err === "string" ? err : "Failed to update credential";
+        errorText(err, "Failed to update credential");
       set({ error: msg });
       throw err;
     }
@@ -474,7 +475,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       await get().loadCredentials();
     } catch (err) {
       const msg =
-        typeof err === "string" ? err : "Failed to delete credential";
+        errorText(err, "Failed to delete credential");
       set({ error: msg });
       throw err;
     }
@@ -742,7 +743,7 @@ export const useVaultStore = create<VaultState>((set, get) => ({
       await useTeamStore.getState().loadMyVaultRole(teamVaultId);
       await useTeamStore.getState().loadFolderPermissions(teamVaultId);
     } catch (err) {
-      const msg = typeof err === "string" ? err : "Failed to open team vault";
+      const msg = errorText(err, "Failed to open team vault");
       set({ isLoading: false, error: msg });
       throw err;
     }

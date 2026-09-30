@@ -1,4 +1,5 @@
 import { CheckIcon, CloseIcon, FloppyIcon, PlayerSkipForwardIcon } from "../../../lib/icons";
+import { Button, IconButton, cx } from "../../ui";
 export type PickerStep = "username" | "password" | "submit" | "review";
 
 export interface PickedSelectors {
@@ -23,6 +24,12 @@ interface WebAutofillBarProps {
   onCancel: () => void;
 }
 
+const SELECTOR_LABELS: ReadonlyArray<{ key: keyof PickedSelectors; label: string }> = [
+  { key: "usernameSelector", label: "User:" },
+  { key: "passwordSelector", label: "Pass:" },
+  { key: "submitSelector", label: "Submit:" },
+];
+
 export default function WebAutofillBar({
   pickerStep,
   pickedSelectors,
@@ -36,50 +43,31 @@ export default function WebAutofillBar({
   if (pickerStep === "review") {
     const hasAny = pickedSelectors.usernameSelector || pickedSelectors.passwordSelector || pickedSelectors.submitSelector;
     return (
-      <div className="flex-none h-8 bg-panel border-b border-stroke flex items-center px-3 gap-2">
-        <span className="text-xs text-ink-faint truncate flex-1">
-          {pickedSelectors.usernameSelector && (
-            <span className="inline-flex items-center gap-1 mr-2">
-              <span className="text-blue-400">User:</span>
-              <code className="text-[10px] bg-raised px-1 rounded max-w-[120px] truncate inline-block align-middle">
-                {pickedSelectors.usernameSelector}
-              </code>
-            </span>
-          )}
-          {pickedSelectors.passwordSelector && (
-            <span className="inline-flex items-center gap-1 mr-2">
-              <span className="text-blue-400">Pass:</span>
-              <code className="text-[10px] bg-raised px-1 rounded max-w-[120px] truncate inline-block align-middle">
-                {pickedSelectors.passwordSelector}
-              </code>
-            </span>
-          )}
-          {pickedSelectors.submitSelector && (
-            <span className="inline-flex items-center gap-1">
-              <span className="text-blue-400">Submit:</span>
-              <code className="text-[10px] bg-raised px-1 rounded max-w-[120px] truncate inline-block align-middle">
-                {pickedSelectors.submitSelector}
-              </code>
-            </span>
+      <div className="flex-none h-8 bg-editor border-b border-divider flex items-center px-3 gap-2">
+        <span className="text-label text-ink-faint truncate flex-1">
+          {SELECTOR_LABELS.map(({ key, label }, i) =>
+            pickedSelectors[key] ? (
+              <span key={key} className={cx("inline-flex items-center gap-1", i < SELECTOR_LABELS.length - 1 && "mr-2")}>
+                <span className="text-info">{label}</span>
+                <code className="text-badge bg-code px-1 rounded max-w-[120px] truncate inline-block align-middle">
+                  {pickedSelectors[key]}
+                </code>
+              </span>
+            ) : null,
           )}
           {!hasAny && <span className="text-ink-faint">No selectors picked — skip all to cancel</span>}
         </span>
-        <button
+        <Button
+          size="sm"
+          variant="primary"
+          icon={FloppyIcon}
           onClick={onSave}
           disabled={!hasAny || pickerSaving}
-          className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           title="Save selectors to entry"
         >
-          <FloppyIcon size={14} />
           {pickerSaving ? "Saving..." : "Save"}
-        </button>
-        <button
-          onClick={onCancel}
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-raised hover:bg-stroke text-ink-muted transition-colors"
-          title="Cancel"
-        >
-          <CloseIcon size={14} />
-        </button>
+        </Button>
+        <IconButton size="sm" icon={CloseIcon} label="Cancel" onClick={onCancel} />
       </div>
     );
   }
@@ -89,38 +77,22 @@ export default function WebAutofillBar({
   const hasPicked = pickedSelectors.usernameSelector || pickedSelectors.passwordSelector;
 
   return (
-    <div className="flex-none h-8 bg-blue-950/50 border-b border-blue-500/30 flex items-center px-3 gap-2">
-      <span className="text-xs text-blue-300 font-medium">
+    <div className="flex-none h-8 bg-info-bg border-b border-info-border flex items-center px-3 gap-2">
+      <span className="text-label font-semibold text-info">
         {stepNum}/3
       </span>
-      <span className="text-xs text-blue-200 truncate flex-1">
+      <span className="text-label text-ink-secondary truncate flex-1">
         {PICKER_STEP_LABELS[pickerStep as Exclude<PickerStep, "review">]}
       </span>
       {hasPicked && (
-        <button
-          onClick={onFinish}
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-green-300 hover:bg-green-800/40 transition-colors"
-          title="Skip remaining steps and review"
-        >
-          <CheckIcon size={14} />
+        <Button size="sm" variant="secondary" icon={CheckIcon} onClick={onFinish} title="Skip remaining steps and review">
           Done
-        </button>
+        </Button>
       )}
-      <button
-        onClick={onSkip}
-        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-blue-300 hover:bg-blue-800/50 transition-colors"
-        title="Skip this step"
-      >
-        <PlayerSkipForwardIcon size={14} />
+      <Button size="sm" variant="ghost" icon={PlayerSkipForwardIcon} onClick={onSkip} title="Skip this step">
         Skip
-      </button>
-      <button
-        onClick={onCancel}
-        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-raised hover:bg-stroke text-ink-muted transition-colors"
-        title="Cancel picker"
-      >
-        <CloseIcon size={14} />
-      </button>
+      </Button>
+      <IconButton size="sm" icon={CloseIcon} label="Cancel picker" onClick={onCancel} />
     </div>
   );
 }

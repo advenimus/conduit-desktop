@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import SshKeyGeneratorDialog from "./SshKeyGeneratorDialog";
-import { ShieldLockIcon } from "../../lib/icons";
+import { IconButton } from "../ui";
 
 interface SshKeyGenerateButtonProps {
   onKeyGenerated: (privateKey: string) => void;
@@ -16,28 +15,19 @@ export default function SshKeyGenerateButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setShowDialog(true)}
-        className="p-1 text-ink-faint hover:text-conduit-400"
-        title="SSH Key Generator"
-      >
-        <ShieldLockIcon size={16} />
-      </button>
-      {showDialog &&
-        createPortal(
-          <SshKeyGeneratorDialog
-            onClose={() => setShowDialog(false)}
-            onUseKey={(key, fullResult) => {
-              onKeyGenerated(key);
-              if (fullResult && onFullKeyGenerated) {
-                onFullKeyGenerated(fullResult);
-              }
-              setShowDialog(false);
-            }}
-          />,
-          document.body
-        )}
+      <IconButton size="sm" icon="shieldLock" label="SSH Key Generator" onClick={() => setShowDialog(true)} />
+      {showDialog && (
+        <SshKeyGeneratorDialog
+          onClose={() => setShowDialog(false)}
+          onUseKey={(key, fullResult) => {
+            onKeyGenerated(key);
+            if (fullResult && onFullKeyGenerated) {
+              onFullKeyGenerated(fullResult);
+            }
+            setShowDialog(false);
+          }}
+        />
+      )}
     </>
   );
 }

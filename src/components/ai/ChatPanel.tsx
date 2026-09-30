@@ -1,14 +1,26 @@
-import { useState, useRef, useEffect } from "react";
-import { SendIcon, LoaderIcon, UserIcon, PlusIcon, AlertTriangleIcon, PencilIcon, RefreshIcon, PlayerStopFilledIcon, TerminalIcon, ChevronDownIcon } from "../../lib/icons";
+import { useState, useRef, useEffect, type KeyboardEvent } from "react";
+import { UserIcon, AlertTriangleIcon, PencilIcon, TerminalIcon, ChevronDownIcon } from "../../lib/icons";
 import { useAiStore, initEngineStreamListener, initEngineModelRefreshListener, ENGINE_SLASH_COMMANDS } from "../../stores/aiStore";
 import type { EngineType } from "../../stores/aiStore";
 import { invoke } from "../../lib/electron";
+import type { IconComponent, IconProps } from "../../lib/icons";
+import { Button, IconButton, Menu, MenuItem, Spinner, cx } from "../ui";
 import EngineLogo from "./EngineLogo";
 import { ENGINE_TYPES, getHarness, isEngineType } from "../../lib/ai-harnesses";
 import EnginePicker from "./EnginePicker";
 import ModelPicker from "./ModelPicker";
 import MessageBlockRenderer from "./blocks/MessageBlockRenderer";
 import TerminalView from "../sessions/TerminalView";
+
+// Stable per-engine components: MenuItem takes an icon component, and a new one per render would remount the logo.
+const ENGINE_ICONS: Readonly<Record<EngineType, IconComponent>> = Object.freeze(
+  Object.fromEntries(
+    ENGINE_TYPES.map((type) => [type, ({ size, className }: IconProps) => <EngineLogo type={type} size={size} className={className} />]),
+  ) as Record<EngineType, IconComponent>,
+);
+
+const AVATAR = "flex size-8 shrink-0 items-center justify-center rounded-full";
+const ASSISTANT_BUBBLE = "border border-card-border bg-well text-ink";
 
 export default function ChatPanel() {
   const {
@@ -57,6 +69,18 @@ export default function ChatPanel() {
   // current session without touching the saved default_engine in settings.
   const [engineSwitcherOpen, setEngineSwitcherOpen] = useState(false);
   const engineSwitcherRef = useRef<HTMLDivElement>(null);
+  const engineButtonRef = useRef<HTMLButtonElement>(null);
+
+  const closeEngineSwitcher = () => {
+    setEngineSwitcherOpen(false);
+    engineButtonRef.current?.focus();
+  };
+
+  const onEngineMenuKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    closeEngineSwitcher();
+  };
 
   useEffect(() => {
     if (!engineSwitcherOpen) return;
@@ -220,70 +244,58 @@ export default function ChatPanel() {
   const showPicker = pickerNeeded === true;
 
   return (
-    <div className="flex flex-col h-full bg-canvas">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-        <div className="flex items-center gap-2 min-w-0">
+    <div className="flex flex-col h-full bg-sidebar">
+      <div data-cv-ai-header className="flex h-tabstrip shrink-0 items-center justify-between gap-1 px-2">
+        <div className="flex min-w-0 items-center gap-1">
           {/* Active engine — click to temporarily swap for this session.
               Doesn't touch the saved default; change that in Settings. */}
           <div className="relative" ref={engineSwitcherRef}>
             <button
+              ref={engineButtonRef}
+              type="button"
               onClick={() => setEngineSwitcherOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-well border border-stroke hover:bg-raised text-ink-muted hover:text-ink"
+              aria-haspopup="menu"
+              aria-expanded={engineSwitcherOpen}
+              className="flex h-6 items-center gap-1.5 rounded px-1.5 text-label font-semibold text-ink-secondary hover:bg-hover hover:text-ink"
               title="Switch engine for this session"
             >
-              <EngineLogo type={activeEngineType} size={14} />
-              <span className="text-xs">
-                {getHarness(activeEngineType).name}
-              </span>
-              <ChevronDownIcon size={12} className="text-ink-faint" />
+              <EngineLogo type={activeEngineType} size={16} />
+              <span>{getHarness(activeEngineType).name}</span>
+              <ChevronDownIcon size={16} className="text-ink-muted" />
             </button>
             {engineSwitcherOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-panel border border-stroke rounded-md shadow-lg z-20 min-w-[200px] py-1 max-h-72 overflow-y-auto">
-                {ENGINE_TYPES.map((type) => {
-                  const active = activeEngineType === type;
-                  return (
-                    <button
+              <div className="absolute top-full left-0 mt-1 z-20 min-w-[200px] max-h-72 overflow-y-auto rounded-lg border border-overlay-border bg-overlay shadow-overlay">
+                <Menu onClose={closeEngineSwitcher} onKeyDown={onEngineMenuKeyDown}>
+                  {ENGINE_TYPES.map((type) => (
+                    <MenuItem
                       key={type}
-                      onClick={() => {
-                        // In-memory only — never write to settings here so
-                        // next launch still uses the saved default.
-                        useAiStore.getState().setActiveEngine(type);
-                        setEngineSwitcherOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-raised ${
-                        active ? 'text-ink' : 'text-ink-muted'
-                      }`}
+                      // In-memory only: never write to settings here, so the
+                      // next launch still uses the saved default.
+                      onSelect={() => useAiStore.getState().setActiveEngine(type)}
+                      icon={ENGINE_ICONS[type]}
+                      end={activeEngineType === type ? <span className="shrink-0 text-meta text-link">●</span> : undefined}
                     >
-                      <EngineLogo type={type} size={14} />
-                      <span className="flex-1">
-                        {getHarness(type).name}
-                      </span>
-                      {active && <span className="text-conduit-400 text-xs">●</span>}
-                    </button>
-                  );
-                })}
+                      {getHarness(type).name}
+                    </MenuItem>
+                  ))}
+                </Menu>
               </div>
             )}
           </div>
           {currentEngineModel && (
-            <button
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => useAiStore.getState().fetchEngineModels()}
-              className="ml-1 px-2 py-0.5 text-xs text-ink-muted hover:text-ink bg-well hover:bg-raised border border-stroke rounded truncate max-w-[160px]"
+              className="min-w-0 max-w-[160px]"
               title={`Model: ${currentEngineModel} (click to change)`}
             >
-              {currentEngineModel}
-            </button>
+              <span className="truncate">{currentEngineModel}</span>
+            </Button>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={handleNewChat}
-            className="p-2 hover:bg-panel rounded text-ink-muted hover:text-ink"
-            title="New conversation"
-          >
-            <PlusIcon size={16} />
-          </button>
+        <div className="flex shrink-0 items-center">
+          <IconButton icon="plus" label="New conversation" onClick={handleNewChat} />
         </div>
       </div>
 
@@ -297,23 +309,20 @@ export default function ChatPanel() {
           {!showPicker && agentTerminalLoading && (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-6 h-6 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-ink-muted">Starting {getHarness(activeEngineType).name}...</span>
+                <Spinner size={24} className="text-ink-muted" />
+                <span className="text-label text-ink-muted">Starting {getHarness(activeEngineType).name}...</span>
               </div>
             </div>
           )}
           {!showPicker && agentTerminalError && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-sm">
-                <AlertTriangleIcon size={48} className="text-red-400 mx-auto mb-3" />
-                <p className="text-ink-muted mb-2 font-medium">Failed to start terminal</p>
-                <p className="text-xs text-ink-faint mb-4">{agentTerminalError}</p>
-                <button
-                  onClick={() => launchAgentTerminal(activeEngineType)}
-                  className="px-4 py-2 bg-conduit-600 hover:bg-conduit-700 text-white rounded-lg text-sm"
-                >
+                <AlertTriangleIcon size={48} className="mx-auto mb-3 text-danger" />
+                <p className="mb-2 text-body font-semibold text-ink-secondary">Failed to start terminal</p>
+                <p className="mb-4 text-label text-ink-muted">{agentTerminalError}</p>
+                <Button variant="primary" onClick={() => launchAgentTerminal(activeEngineType)}>
                   Retry
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -346,13 +355,13 @@ export default function ChatPanel() {
                   <div className="mx-auto mb-3 flex items-center justify-center">
                     <EngineLogo type={activeEngineType} size={48} className="text-ink-faint" />
                   </div>
-                  <p className="text-ink-muted mb-2">
+                  <p className="mb-2 text-body text-ink-secondary">
                     {getHarness(activeEngineType).name} Agent
                   </p>
                   {currentEngineModel && (
-                    <p className="text-xs text-conduit-400 mb-2">{currentEngineModel}</p>
+                    <p className="mb-2 text-label text-link">{currentEngineModel}</p>
                   )}
-                  <p className="text-xs text-ink-faint mb-4">
+                  <p className="mb-4 text-label text-ink-muted">
                     Send a message to start an agent session with MCP tool access
                   </p>
                 </div>
@@ -371,10 +380,10 @@ export default function ChatPanel() {
               if (isSystem) {
                 return (
                   <div key={msg.id} className="flex gap-3 justify-start">
-                    <div className="w-8 h-8 rounded-full bg-ink-faint/20 flex items-center justify-center flex-shrink-0">
-                      <TerminalIcon size={14} className="text-ink-faint" />
+                    <div className={cx(AVATAR, "bg-selected")}>
+                      <TerminalIcon size={16} className="text-ink-faint" />
                     </div>
-                    <div className="max-w-[85%] min-w-0 rounded-lg px-4 py-2 bg-well border border-stroke text-ink-muted text-sm">
+                    <div className="min-w-0 max-w-[85%] rounded-lg border border-card-border bg-well px-4 py-2 text-body text-ink-muted">
                       <MessageBlockRenderer blocks={msg.blocks} />
                     </div>
                   </div>
@@ -387,16 +396,14 @@ export default function ChatPanel() {
                   className={`group flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
                 >
                   {!isUser && (
-                    <div className="w-8 h-8 rounded-full bg-conduit-600 flex items-center justify-center flex-shrink-0">
+                    <div className={cx(AVATAR, "bg-accent")}>
                       <EngineLogo type={activeEngineType} size={16} className="text-white" />
                     </div>
                   )}
                   <div className="flex flex-col items-end gap-1 max-w-[85%] min-w-0">
-                    <div className={`rounded-lg px-4 py-2 w-full ${
-                      isUser ? "bg-conduit-600 text-white" : "bg-panel text-ink"
-                    }`}>
+                    <div className={cx("w-full rounded-lg px-4 py-2", isUser ? "bg-btn-primary text-white" : ASSISTANT_BUBBLE)}>
                       {isUser ? (
-                        <p className="whitespace-pre-wrap break-words text-sm">
+                        <p className="whitespace-pre-wrap break-words text-body">
                           {msg.blocks.map((b) => b.type === 'text' ? b.content : '').join('')}
                         </p>
                       ) : (
@@ -408,9 +415,12 @@ export default function ChatPanel() {
                     </div>
                     {/* Action buttons — visible on hover */}
                     {(canEdit || canRetry) && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         {canEdit && (
-                          <button
+                          <IconButton
+                            size="sm"
+                            icon="pencil"
+                            label="Edit message"
                             onClick={() => {
                               setEngineEditingIndex(index);
                               const textContent = msg.blocks
@@ -419,26 +429,16 @@ export default function ChatPanel() {
                               setInput(textContent);
                               textareaRef.current?.focus();
                             }}
-                            className="p-1 rounded text-ink-faint hover:text-ink hover:bg-panel"
-                            title="Edit message"
-                          >
-                            <PencilIcon size={14} />
-                          </button>
+                          />
                         )}
                         {canRetry && (
-                          <button
-                            onClick={() => retryEngineMessage(index)}
-                            className="p-1 rounded text-ink-faint hover:text-ink hover:bg-panel"
-                            title="Regenerate response"
-                          >
-                            <RefreshIcon size={14} />
-                          </button>
+                          <IconButton size="sm" icon="refresh" label="Regenerate response" onClick={() => retryEngineMessage(index)} />
                         )}
                       </div>
                     )}
                   </div>
                   {isUser && (
-                    <div className="w-8 h-8 rounded-full bg-raised flex items-center justify-center flex-shrink-0">
+                    <div className={cx(AVATAR, "bg-selected text-ink-secondary")}>
                       <UserIcon size={16} />
                     </div>
                   )}
@@ -449,15 +449,15 @@ export default function ChatPanel() {
             {/* Engine streaming blocks */}
             {engineStreamingBlocks.length > 0 && (
               <div className="flex gap-3 justify-start">
-                <div className="w-8 h-8 rounded-full bg-conduit-600 flex items-center justify-center flex-shrink-0">
+                <div className={cx(AVATAR, "bg-accent")}>
                   <EngineLogo type={activeEngineType} size={16} className="text-white" />
                 </div>
-                <div className="max-w-[85%] min-w-0 rounded-lg px-4 py-2 bg-panel">
+                <div className={cx("min-w-0 max-w-[85%] rounded-lg px-4 py-2", ASSISTANT_BUBBLE)}>
                   <MessageBlockRenderer
                     blocks={engineStreamingBlocks}
                     onApprovalRespond={respondToApproval}
                   />
-                  <span className="inline-block w-2 h-4 bg-conduit-400 animate-pulse" />
+                  <span className="inline-block h-4 w-2 animate-pulse bg-accent" />
                 </div>
               </div>
             )}
@@ -465,11 +465,11 @@ export default function ChatPanel() {
             {/* Engine loading indicator */}
             {engineLoading && engineStreamingBlocks.length === 0 && (
               <div className="flex gap-3 justify-start">
-                <div className="w-8 h-8 rounded-full bg-conduit-600 flex items-center justify-center flex-shrink-0">
-                  <LoaderIcon size={16} className="animate-spin" />
+                <div className={cx(AVATAR, "bg-accent text-white")}>
+                  <Spinner size={16} />
                 </div>
-                <div className="rounded-lg px-4 py-2 bg-panel">
-                  <p className="text-ink-muted">{getHarness(activeEngineType).name} is thinking...</p>
+                <div className={cx("rounded-lg px-4 py-2", ASSISTANT_BUBBLE)}>
+                  <p className="text-body text-ink-muted">{getHarness(activeEngineType).name} is thinking...</p>
                 </div>
               </div>
             )}
@@ -484,36 +484,41 @@ export default function ChatPanel() {
               user can't bypass the picker by sending a message with the silent
               default engine. */}
           {!showPicker && (
-          <div className="p-4 border-t border-stroke relative">
+          <div className="relative border-t border-divider p-4">
             {/* Editing indicator */}
             {engineEditingIndex !== null && (
-              <div className="flex items-center gap-2 mb-2 text-xs text-amber-400">
+              <div className="mb-2 flex items-center gap-2 text-label text-warning">
                 <PencilIcon size={12} />
                 <span>
                   Editing message{activeEngineType === 'claude-code'
                     ? ' \u2014 session context will reset from here'
                     : ' \u2014 conversation will restart from here'}
                 </span>
-                <button
+                <Button
+                  variant="link"
+                  size="sm"
                   onClick={() => {
                     setEngineEditingIndex(null);
                     setInput('');
                   }}
-                  className="text-ink-muted hover:text-ink underline"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             )}
             {/* Slash command autocomplete popup */}
             {showSlashMenu && filteredSlashCommands.length > 0 && (
-              <div className="absolute bottom-full left-4 right-4 mb-1 bg-panel border border-stroke rounded-lg shadow-lg overflow-hidden z-10">
+              <div className="absolute bottom-full left-4 right-4 z-10 mb-1 overflow-hidden rounded-lg border border-overlay-border bg-overlay p-1 shadow-overlay">
                 {filteredSlashCommands.map((cmd, i) => (
                   <button
                     key={cmd.command}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
-                      i === slashMenuIndex ? 'bg-conduit-600/20 text-ink' : 'text-ink-muted hover:bg-raised'
-                    }`}
+                    type="button"
+                    className={cx(
+                      "flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left text-body",
+                      i === slashMenuIndex
+                        ? "bg-(--c-menu-selection-bg) text-ink outline outline-1 -outline-offset-1 outline-(--c-menu-selection-border)"
+                        : "text-ink-secondary",
+                    )}
                     onMouseEnter={() => setSlashMenuIndex(i)}
                     onMouseDown={(e) => {
                       e.preventDefault(); // Prevent blur
@@ -523,8 +528,8 @@ export default function ChatPanel() {
                       textareaRef.current?.focus();
                     }}
                   >
-                    <span className="font-mono text-conduit-400 font-medium">{cmd.label}</span>
-                    <span className="text-ink-faint text-xs">{cmd.description}</span>
+                    <span className="font-mono font-medium text-link">{cmd.label}</span>
+                    <span className="text-label text-ink-muted">{cmd.description}</span>
                   </button>
                 ))}
               </div>
@@ -581,25 +586,28 @@ export default function ChatPanel() {
                   }
                 }}
                 placeholder={engineEditingIndex !== null ? "Edit your message..." : `Message ${getHarness(activeEngineType).name}... (type / then Enter for commands)`}
-                className="flex-1 px-4 py-2 bg-well border border-stroke rounded-lg focus:outline-none focus:ring-2 focus:ring-conduit-500 text-ink placeholder-ink-faint resize-none overflow-y-auto min-h-[56px]"
+                className="min-h-[56px] flex-1 resize-none overflow-y-auto rounded border border-input-border bg-input px-2 py-1.5 text-body text-(--c-input-fg) placeholder:text-(--c-input-placeholder) disabled:opacity-40"
                 disabled={engineLoading}
               />
               {engineLoading ? (
-                <button
+                <Button
+                  size="lg"
+                  variant="danger"
+                  icon="playerStopFilled"
                   onClick={handleCancel}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center justify-center"
+                  aria-label="Stop generating"
                   title="Stop generating"
-                >
-                  <PlayerStopFilledIcon size={16} />
-                </button>
+                />
               ) : (
-                <button
+                <Button
+                  size="lg"
+                  variant="primary"
+                  icon="send"
                   onClick={handleSend}
                   disabled={!input.trim()}
-                  className="px-4 py-2 bg-conduit-600 hover:bg-conduit-700 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg flex items-center justify-center"
-                >
-                  <SendIcon size={16} />
-                </button>
+                  aria-label="Send message"
+                  title="Send message"
+                />
               )}
             </div>
           </div>

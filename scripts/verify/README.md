@@ -10,9 +10,14 @@ npm run verify:mcp              # node scripts/verify/run.mjs mcp
 npm run verify:data             # backup, copies, lifecycle, password and resilience
 node scripts/verify/run.mjs lifecycle     # one suite
 node scripts/verify/run.mjs smoke --only two-devices --keep
+node scripts/verify/run.mjs restyle       # the opt-in restyle suite (never part of all)
+node scripts/verify/run.mjs restyle --only screens --strict
+node scripts/verify/run.mjs --help        # options and the opt-in suites
 ```
 
 Exit code: 0 when every phase, scenario and cleanup step passed, 1 on any failure, 2 on bad arguments.
+`--strict` makes a check that reports `pending` fail (restyle suite); `--before <dir>` names the restyle
+reference folder.
 
 ## Suites
 
@@ -30,6 +35,10 @@ in all); each suite alone adds about 8 s of setup.
 | `resilience` | 5 | 148 s | `verify-data` | Offline open and reconnect, cached tier, team vaults, export and import |
 | `smoke` | 2 | 4 s | none | Harness health |
 | `sync` | 8 | 61 s | `verify-sync` | Take-over, merge and conflicts, plan changes, leases, owner claims, legacy writer, file safety |
+| `restyle` (opt-in) | 10 | about 6 min | none | Layout reference of the visual restyle: before and after composites, control inventories, geometry rules, the icon pack sheets (see below) |
+
+A suite with `optIn: true` runs only when it is named; `all` (the default) leaves it out. `--help` lists
+the opt-in suites.
 
 `sync`'s `file-safety` watches the whole cloud folder from the sync suite's first scenario on, so in a
 full run it also covers the files the earlier suites left there.
@@ -37,8 +46,10 @@ full run it also covers the files the earlier suites left there.
 ## What a run does
 
 1. **preflight**: macOS or Linux, Node 20+, Docker running, psql found, Electron binary, playwright-core
-   and the MCP SDK resolvable.
+   and the MCP SDK resolvable. Docker and psql are checked only when a selected scenario needs Supabase.
 2. **supabase**: `ensureLocalSupabase()` (see below), then removes `verify-*` users older than 6 hours.
+   Skipped when no selected scenario needs it: scenarios need the stack unless they declare
+   `needsSupabase: false` (every restyle scenario but `sidebar-signed-in` does).
 3. **build**: `tsc -p electron/tsconfig.json --outDir .verify/<runId>/dist-electron` (compiled tests are
    removed) and `cd mcp && npx tsc` (writes `mcp/dist`).
 4. **vite**: a private Vite on a free port (never 1420) with its own cache in `.verify/vite-cache`.
@@ -69,7 +80,8 @@ Roots stay short because macOS caps socket paths at 104 bytes. Electron runs wit
 and a minimal environment (`CONDUIT_ENV=preview`, `CONDUIT_DEV_SERVER_URL=<private Vite>`).
 
 The launcher (`lib/launcher.mjs`) also keeps test instances from touching the real machine: it no-ops the
-`conduit://` protocol registration and the global picker shortcut, and blanks the `ps` scan of the
+`conduit://` protocol registration, keeps the global picker shortcut from registering with the OS (the
+harness can run it through `globalThis.__cvShortcut`), and blanks the `ps` scan of the
 startup stale-MCP reaper so a test app never signals processes outside its sandbox. The launcher has no
 `dev-app-update.yml` and no `freerdp-helper/`, so the updater and the FreeRDP auto-build fail fast and
 harmlessly (RDP cannot be tested this way). Test windows do appear on screen.
@@ -132,13 +144,15 @@ export default {
 };
 ```
 
-A scenario fails by throwing. Keep device names short (`a`, `b`, `m`; 1-12 of `[a-z0-9-]`).
+A scenario fails by throwing. Keep device names short (`a`, `b`, `m`; 1-12 of `[a-z0-9-]`). A scenario
+that runs without the local Supabase stack says `needsSupabase: false`; a suite that must never run in
+`all` says `optIn: true`.
 
 ### ctx
 
 | Member | What it does |
 |---|---|
-| `launchDevice(name, {env, settings, args})` | Launch an isolated device (a name another scenario of the run used is refused). `env` adds variables (for example `CONDUIT_DEV_VAULT_DEVICE_LIMIT: '-1'`, or a Supabase proxy's `proxy.env`), `settings` overrides `settings.json` keys (onboarding, What's New, engine picker and telemetry are pre-dismissed; on a relaunch of the same name the keys the app saved before are kept and `settings` is merged over them), `args` adds Electron switches. Returns `{name, app, page, root, home, dataDir, socketPath, mainLog, rendererLog, pid}`. A relaunch returns a new object; the old one no longer counts as live. |
+| `launchDevice(name, {env, settings, args, colorScheme})` | Launch an isolated device (a name another scenario of the run used is refused). `env` adds variables (for example `CONDUIT_DEV_VAULT_DEVICE_LIMIT: '-1'`, or a Supabase proxy's `proxy.env`), `settings` overrides `settings.json` keys (onboarding, What's New, engine picker and telemetry are pre-dismissed; on a relaunch of the same name the keys the app saved before are kept and `settings` is merged over them), `args` adds Electron switches, `colorScheme` sets the emulated system mode (`'light'` when left out, `'dark'`, `'no-preference'`, or `null` for the machine's own). Returns `{name, app, page, root, home, dataDir, socketPath, mainLog, rendererLog, pid}`. A relaunch returns a new object; the old one no longer counts as live. |
 | `quitDevice(d)` / `killDevice(d)` | Normal quit (quit flush, lease release), SIGKILL after 25 s. `killDevice` simulates a crash. |
 | `createUser('free'\|'pro'\|'team')` | Confirmed user `verify-<runId>-<n>@conduit.local`, random password, plan set in `user_profiles`. Returns `{id, email, password, role}`. Deleted at cleanup. |
 | `setTier(userId, role)` | Change a user's plan mid-scenario. |
@@ -153,6 +167,7 @@ A scenario fails by throwing. Keep device names short (`a`, `b`, `m`; 1-12 of `[
 | `waitFor(fn, {timeoutMs, intervalMs, label})` / `sleep(ms)` | Poll a Node-side async predicate until truthy. |
 | `step(msg)` | Timestamped progress line in the report. |
 | `cloudDir`, `runId`, `run` | The run's shared "cloud" folder (vaults here count as shared), ids and paths. |
+| `options` | The run's suite options: `{strict, before}` from `--strict` and `--before`. |
 | `flows`, `ui` | The helper modules below. |
 
 ### flows (`lib/flows.mjs`)
@@ -162,7 +177,9 @@ A scenario fails by throwing. Keep device names short (`a`, `b`, `m`; 1-12 of `[
 returns `{email, tier}`), `signOut(d)`, `createVault(d, path, pw)` (hub "New Vault" with the save dialog
 stubbed), `openVault(d, path, pw, {expect})` (hub "Open Vault File"; returns `{outcome: 'unlocked'}`,
 `{outcome: 'dialog', dialogs, text}` for sync dialogs such as "Vault open on another device", or
-`{outcome: 'error', text}`; `expect: 'unlocked'` throws otherwise), `waitForUnlockOutcome(d)`,
+`{outcome: 'error', text}`; `expect: 'unlocked'` throws otherwise), `waitForUnlockOutcome(d)` (reports
+`unlocked` only once `sync_get_state` names the vault, since `vault_is_unlocked` turns true while the
+open is still finishing),
 `openDialogs(d)`, `lockVault(d)`, `addEntry(d, fields)`, `updateEntry(d, id, patch)`, `deleteEntry(d, id)`,
 `listEntries(d)` (IPC `entry_*`, then the renderer is told to reload), `refreshEntries(d)`,
 `openConflictReview(d)`.
@@ -448,6 +465,185 @@ device's syncRoot).
 `{folderCount, entryCount}`), `previewExport(d, file, passphrase)` (`import_preview_export`),
 `importExport(d, file, passphrase)` (`import_execute_export` into the active vault, then the renderer
 reloads). The importer only creates folders and entries (new ids); it never writes an existing row.
+
+## UI hooks and the text the harness reads
+
+The visual restyle (`docs/VISUAL_REDESIGN.md` 8.2 to 8.4 and Appendix B) restyled every screen the
+harness drives. The harness reads the restyled markup through stable hooks, never through styling
+classes, so a later restyle does not break the suites.
+
+### Stable `data-cv-*` hooks (`lib/selectors.mjs`)
+
+- `SELECTORS` maps each thing the harness reads to `{hook}`: a `data-cv-*` attribute (or
+  `data-sidebar-panel`), as the Appendix B "Final" column lists them. Wave 1 paired each hook with the
+  class selector of the markup before the restyle and picked one per scope (`pickSelector`); the class
+  halves and that choice are gone, and the helpers kept their names.
+- Page code gets the helpers as its second argument and the hooks as `cv.S`:
+  `evaluateIn(d, (root, cv) => cv.pickAll(document.querySelector(root), cv.S.deviceRow).length, root)`.
+  `pickAll(scope, p)` and `pickOne(scope, p)` return nothing for a missing scope, `usesHook(scope, p)`
+  says whether the scope holds the hook, and `pickClosest(el, scope, p)` is `el.closest(p.hook)`
+  limited to ancestors inside `scope`. The function travels to the renderer as source text
+  (`inPage`), so it may use only its arguments and page globals, never a constant of its module.
+  Node-side helpers: `existsIn(d, p, {scope})`, `textIn(d, p, {scope})` and
+  `clickIn(d, label, p, {scope, exact, index})`, which clicks like `ui.clickText` and queries again on
+  every try. `scope` is a CSS selector; each matching element is
+  its own scope (one per dialog for `[data-dialog-content]`).
+- Markup puts a hook on the element the harness reads or clicks: the button itself for the review
+  button, the side bar toggle and the vault switcher, the text element for the banner text, the plan
+  line and the notice text. Keep the attributes other code relies on (`data-dialog-content`,
+  `data-tabbar`, `data-sidebar-panel`, `data-docked`, `data-content-area`, `data-context-menu`,
+  `data-popover`, `data-toast`, `data-bare`, `data-session-keyboard`), the placeholders the flows type
+  into (B30), the recent vault `title` paths (B26, B44), the `Close` and idle-lock `aria-label`s (B12,
+  B28), and `label > input` for checkboxes and radios (B29, B46).
+- Hover-revealed actions hide with `opacity: 0` only. Clicks skip elements that are
+  `visibility: hidden` or have no layout box (B45).
+- A new hook needs a fixture in `scripts/__tests__/verify-selectors.test.ts`; the test fails for a
+  hook without one. Each fixture holds decoys: elements that keep the old styling classes next to the
+  hooked one, earlier in the document or nearer as an ancestor. The readers must ignore them, and on
+  markup without the hooks they find nothing.
+- The review panel's version lines (B47): `reviewVersion` finds the line of a `Use this` button with
+  `pickClosest(button, panel, cv.S.reviewVersion)`; the line holds the value, the `In use now` badge and
+  the button. `useVersionInReview` and the MCP suite's pick both read the panel as
+  `[role=dialog][aria-label="Review changes"]`.
+
+### Dialog detection (8.3)
+
+`openDialogs`, `dialogDetails` and the scoped sync-dialog clicks read `[role=dialog][aria-label]`
+(`SYNC_DIALOG`). The Dialog primitive names ordinary dialogs with `aria-labelledby` and sets
+`aria-label` only through `harnessLabel`, which only the sync-style shells pass. A dialog that sets
+`aria-label` counts as a sync dialog, and `waitForUnlockOutcome` then reports `{outcome: 'dialog'}`.
+
+### Busy texts (B35)
+
+The flows wait on these texts, so each stays visible text inside its dialog or button while the work
+runs: `Opening...` (take-over), `Please wait...` (unlock), `Checking...` (Syncing paused), `Loading...`
+(Recently deleted, mass change), `Looking for copies...` (Other copies) and `Comparing...` (candidate
+preview). Use `Button loading loadingLabel="..."` or `Spinner text="..."`. A bare spinner, `aria-busy`
+alone or a visually hidden label breaks the waits.
+
+### Text on permanent chrome (8.4)
+
+Permanent chrome is what every main screen shows: the side bar header and footer, the pane tab bars
+(hamburger, tabs, `+`, the AI toggle) and the AI panel header. It comes before any dialog in the DOM,
+so the unscoped lookups would find it first.
+
+1. No button's visible text equals `Review`, `Use here instead`, `Lock Current Vault`, `New Vault`,
+   `Not Now` or `Open Vault File`: the flows click those with `selector: 'button'` and take the first
+   match. (`Lock Current Vault` lives in the vault switcher menu, which is closed while the flows run.)
+2. No visible text on chrome contains `Loading...`, `Please wait...`, `Opening...`, `Checking...`,
+   `Comparing...`, `Looking for copies...`, `Sync now`, `Nothing to review`, `Unlock Vault`,
+   `Set a master password`, `Select a vault to get started` or `Continue without signing in`: the
+   flows look for them in the page text.
+3. The loading screen's whole text is exactly `Loading...` (B27).
+4. No `role="dialog"` or `role="status"` on chrome; `role="status"` belongs to the sync banners, which
+   `banners(d)` reads. The offline banner has no role.
+5. Icon-only chrome buttons that gain a name get an `aria-label` and a native `title`, never visible text.
+
+## The restyle suite (opt-in)
+
+`suites/restyle.mjs` rebuilds the reference screens of `docs/VISUAL_REDESIGN.md` 3.1 in the current app
+and checks that the visual restyle keeps today's layout (8.6). Run it by name:
+`node scripts/verify/run.mjs restyle [--only <scenario>] [--strict] [--before <dir>]`.
+
+| Scenario | Supabase | Reference shots | Inventory screens |
+|---|---|---|---|
+| `screens` | no | 00, 01, 02, 03, 41, 42 | sign-in, hub (empty, one and two recent vaults), unlock dialog, empty vault welcome and its side bar |
+| `sidebar` | no | 04, 06, 07, 08, 09, 21, 38, 39 | side bar docked, vault menu open, search, favorites only |
+| `sidebar-signed-in` | yes | 44 to 49 | signed-in footer, sign-out confirm, cached mode (whole window), team vault with its menu open, trial card, trial strip |
+| `tabs` | no | 05, 06, 07, 10, 10b, 40, 43 | tab bars with the AI panel open, web toolbar, Home dashboard (whole window), document view; the twelve-tab part of G10 |
+| `ai` | no | 18, 19 | AI panel, its engine menu |
+| `menus` | no | 11 to 17 | the `+` popup, the tab and tree menus, their submenus, the application menu |
+| `settings` | no | 20-01 to 20-14 | every Settings tab |
+| `dialogs` | no | 22 to 35, 32b | entry, folder, Quick Connect and delete dialogs, the three sync panels |
+| `toasts` | no | 36, 37 | none |
+| `packs` | no | none | none; the six-pack sheets of owner gate 1 |
+
+Each scenario runs twice, dark then light, each time on a fresh device (`rs<x>-d`, `rs<x>-l`) with the
+reference data: vault "Acme Infrastructure" (Production: db-01, DC-01, web-01 to `127.0.0.1:1`;
+Staging: Build Mac, Intranet Status on a local test page; Domain Admin and Runbook), the empty vault
+"Scratch", and the sessions Terminal, Runbook and web-01 with Intranet Status split right
+(`lib/restyle-data.mjs`, `lib/restyle-flows.mjs`). Output goes to `.verify/<runId>/restyle/`:
+
+- `after/<mode>-<nn>-<name>.png`: the after shot under its reference name. On macOS it is a real window
+  capture (`screencapture -l`, so the native frame and native web views are in it) with popup menus,
+  toasts and the picker laid over the main window at their place; elsewhere, or when macOS refuses the
+  capture (no screen recording permission), a page screenshot with the popup menu and toast pages laid
+  over it the same way. The fallback is listed under WARNINGS in `inventory-diff.txt` and never fails
+  a scenario.
+- `compare/<mode>-<nn>-<name>.png`: before left, after right, same height, labeled. The scenario fails
+  when a reference shot it owns gets no composite.
+- `<scenario>/inventory.json` (the captures) and `<scenario>/inventory-diff.txt` (every inventory
+  difference and every geometry rule result).
+- `packs/<mode>-packs.png` and its cells: the six-pack sheets.
+
+**Reference folder.** `$HOME/.conduit-verify/restyle-before/` (or `--before`, or
+`CONDUIT_RESTYLE_BEFORE`) holds the before shots, `INVENTORY.txt` and `INVENTORY-raw.json`.
+`fixtures/restyle/before-manifest.json` lists every file with its SHA-256; a listed file that is missing
+or changed fails every scenario, so a composite never silently disappears. A shot a scenario declares
+that is in neither mode of the folder is captured anyway (`after/`, "no reference yet") and the scenario
+fails until the shot is added. That is how shots 44 to 49 were recorded: on the base branch with
+`CONDUIT_RESTYLE_REFERENCE_LOOK=1` (scheme Ocean, Tabler icons, `appearance_version` 2 so the migration
+keeps Ocean), then copied into the folder, the manifest rebuilt and their inventories added to the
+fixture.
+
+**Inventories.** `lib/inventory.mjs` records every visible control of a screen's region in document
+order: `h1`-`h3`, buttons, inputs, selects, textareas, labels and anything with a `title` or
+`aria-label`, as `{tag, text, title, aria, pressed, type, placeholder}` (plus `disabled`, `checked`,
+`value` and `options`, which are not compared). A label's text leaves out the controls nested in it.
+Regions (`lib/restyle-screens.mjs`) use what the restyle keeps: `[data-sidebar-panel]`, `[data-tabbar]`,
+`[data-content-area]`, the topmost `[data-dialog-content]`, titles and aria-labels. Popup menus are read
+from the menu window as `{kind, label, children}` (the `role=menu` markup of `electron/ipc/menu.ts`), the
+application menu from `Menu.getApplicationMenu()`. `fixtures/restyle/before-inventory.json` is the
+reference: `INVENTORY-raw.json` normalized, the menus read on the base branch (unchanged since the
+reference commit) and checked item by item against it, and screens 44 to 49. Both sides are normalized:
+vault paths become `<vault-path>`, the vault folder `<vault-dir>`, ports `<port>`, times ago (`4 seconds
+ago`, `21m ago`, `Just now`) `<ago>`, `Up to date` and `N changes not yet synced` `<sync-state>`, test
+user emails `<user-email>`. The comparison allows an `aria-label`, a `title` or a pressed state added
+where the reference has none, compares all-caps reference text without case (CSS `uppercase`), and
+ignores icons and the case of headers in menus. Anything else is a difference.
+
+**Allowed deltas.** `fixtures/restyle/allowed-deltas.json` holds intended differences per screen, each
+with its reason. A change removes a run of reference controls and inserts its replacement, or inserts
+before a reference control; with `insertWhen` the inserted controls are expected exactly when that
+selector matches on the screen. It holds what the final UI needs and nothing else, since a delta the
+screen does not show fails too: `settings-appearance` (the Platform Theme block removed, the Icon pack
+section in its place, Modern before Ocean) and `home-dashboard-full-window` (the Favorites row's type
+label in title case once CSS `uppercase` is gone). A failure is never fixed by editing the reference; a
+new delta goes in through the wave's
+owner of `scripts/verify` (R1-HARNESS, R2-FOUNDATION, R3-FOUNDATION, R4-HARNESS), signed off by the
+wave's integrator and recorded in 8.6 of the spec.
+
+**Geometry rules** (`lib/geometry.mjs`, `lib/clone-selectors.mjs`): G1 content smaller than the window
+(native frame), G2 no clone part, G3 accent lines, G4 side bar position, G5 tab bar height and slots,
+G6 the three top rows, G7 side bar order (the accent line and the `[data-cv-sidebar-resize]` handle are
+not rows), G8 the AI divider and panel, G9 dialogs over a web session
+hold a freeze and detach the web view, G10 tabs inside their bar (and twelve tabs at least 78px wide in
+a scrolling row). A rule whose hooks are not in the markup reports `pending`, which passes unless
+`--strict`. Every hook has landed, so no rule may be pending: run the suite with `--strict`. The clone's selectors are named only in `lib/clone-selectors.mjs`.
+
+**Packs (owner gate 1).** For each pack card in Settings > Appearance (`[data-cv-appearance="icon-pack"]
+[data-cv-choice]`), dark and light: the card is picked (live preview) and the tab captured, Save, then
+the side bar, the tab bars, the tree entry menu, the four test toasts and the credential picker window
+(opened through its global shortcut); `<html data-cv-icon-pack>` must equal the pack in the main,
+overlay and picker windows and the menu's Edit icon must differ between packs. The picker window's
+icon markup is compared across the packs too: since R3-PICKER moved the picker onto the icon registry
+all six differ, which passes. One markup for all six (the picker's own inline SVGs before R3-PICKER)
+reports `deferred`, which spec 8.6 lists but never fails, not even with `--strict`. One sheet per mode
+goes to `restyle/packs/`, then the device restarts and the saved pack must still apply. An Appearance
+tab without the pack cards reports `pending`, which fails with `--strict`.
+
+**Owner gates** (8.5): gate 1 (R1-MENUS) approves the pack sheets; gate 2 (R2-SHELL) the composites of
+shots 04 to 10b, 18, 19, 21 and 44 to 49; gate 3 (R4-CLEANUP) every composite, dark and light.
+
+Restyle devices launch with the emulated system mode set to the scenario's mode (`launchDevice(name,
+{colorScheme})`; left out, Playwright emulates `light`, and `null` turns the emulation off), and the
+suite waits until the page is drawn in that mode. The `screens` scenario uses the theme `system`, a new
+install's default, so its shots prove that the look follows the system mode.
+
+Restyle devices also launch with `CV_KEEP_POPUPS=1`: popup menus and the picker close when they lose focus,
+and a test device is rarely the active app, so the launcher keeps them open until the suite closes them.
+The launcher also records global shortcuts instead of registering them (`globalThis.__cvShortcut`) and
+tracks the native views attached to a window (`globalThis.__cvAttachedWebViews`, rule G9).
 
 ## Gotchas
 

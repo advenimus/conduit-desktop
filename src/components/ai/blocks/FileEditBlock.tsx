@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon, FileCodeIcon } from "../../../lib/icons";
+import { FileCodeIcon } from "../../../lib/icons";
+import { BlockBody, BlockChevron, BlockFrame, BlockHeader, BlockLabel } from "./BlockParts";
+
 interface FileEditBlockProps {
   path: string;
   diff: { before: string; after: string };
@@ -10,31 +12,24 @@ export default function FileEditBlock({ path, diff }: FileEditBlockProps) {
   const filename = path.split("/").pop() ?? path;
 
   return (
-    <div className="my-1.5 rounded-md bg-well border border-stroke text-xs overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 w-full px-3 py-1.5 text-left cursor-pointer hover:bg-panel"
-      >
-        <FileCodeIcon size={14} className="text-amber-400 flex-shrink-0" />
-        <span className="text-ink-muted font-mono truncate" title={path}>
+    <BlockFrame>
+      <BlockHeader onClick={() => setExpanded(!expanded)}>
+        <FileCodeIcon size={16} className="shrink-0 text-warning" />
+        <span className="truncate font-mono text-ink-muted" title={path}>
           {filename}
         </span>
-        <span className="ml-auto text-ink-faint text-[10px] uppercase tracking-wider mr-1">
-          edited
-        </span>
-        {expanded
-          ? <ChevronDownIcon size={12} className="text-ink-faint" />
-          : <ChevronRightIcon size={12} className="text-ink-faint" />}
-      </button>
+        <BlockLabel className="ml-auto mr-1 text-ink-faint">Edited</BlockLabel>
+        <BlockChevron expanded={expanded} />
+      </BlockHeader>
 
       {expanded && (
-        <div className="border-t border-stroke px-3 py-2 overflow-x-auto">
-          <div className="text-[10px] text-ink-faint mb-1 font-mono">{path}</div>
-          <pre className="text-[11px] whitespace-pre-wrap break-all max-h-60 overflow-y-auto">
+        <BlockBody className="overflow-x-auto">
+          <div className="mb-1 font-mono text-badge text-ink-faint">{path}</div>
+          <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap break-all text-meta text-ink">
             {diff.after || diff.before || "(no content)"}
           </pre>
-        </div>
+        </BlockBody>
       )}
-    </div>
+    </BlockFrame>
   );
 }

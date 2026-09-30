@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useVaultStore } from "../../stores/vaultStore";
 import ProVaultLockDialog from "./ProVaultLockDialog";
-import { AlertCircleIcon, LoaderIcon, LockIcon } from "../../lib/icons";
+import { Button, Callout, Dialog, Spinner } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface TeamVaultUnlockProps {
   teamVaultId: string;
@@ -27,7 +28,7 @@ export default function TeamVaultUnlock({
   const [lockInfo, setLockInfo] = useState<{ lockedByEmail: string; lockedAt: string } | null>(null);
 
   const handleOpenError = (err: unknown) => {
-    const errStr = typeof err === "string" ? err : err instanceof Error ? err.message : "";
+    const errStr = errorText(err, "");
     // Check for structured vault lock error
     try {
       const parsed = JSON.parse(errStr);
@@ -86,72 +87,33 @@ export default function TeamVaultUnlock({
     );
   }
 
+  const footer =
+    status === "error" ? (
+      <>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={handleRetry}>
+          Try Again
+        </Button>
+      </>
+    ) : status === "connecting" ? (
+      <Button onClick={onCancel}>Cancel</Button>
+    ) : undefined;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-panel border border-stroke rounded-lg shadow-xl w-[400px] p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-conduit-500/10 flex items-center justify-center">
-            <LockIcon size={20} className="text-conduit-400" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-ink">
-              Team Vault
-            </h2>
-            <p className="text-sm text-ink-secondary">
-              {vaultName}
-            </p>
+    <Dialog open title="Team Vault" icon="lock" width={400} hideClose closeOnEscape={false} onClose={onCancel} footer={footer}>
+      <p className="-mt-2 pl-9 text-body text-ink-secondary">{vaultName}</p>
+
+      {status === "connecting" && (
+        <div className="flex flex-col items-center gap-3 py-6">
+          <Spinner size={24} className="text-ink-muted" />
+          <div className="text-center">
+            <p className="text-body text-ink">Connecting to team vault...</p>
+            <p className="mt-1 text-label text-ink-muted">Decrypting vault key with your identity</p>
           </div>
         </div>
+      )}
 
-        {status === "connecting" && (
-          <div className="flex flex-col items-center gap-3 py-6">
-            <LoaderIcon size={32} className="text-conduit-400 animate-spin" />
-            <div className="text-center">
-              <p className="text-sm text-ink">
-                Connecting to team vault...
-              </p>
-              <p className="text-xs text-ink-muted mt-1">
-                Decrypting vault key with your identity
-              </p>
-            </div>
-          </div>
-        )}
-
-        {status === "error" && (
-          <div className="flex flex-col gap-3 py-4">
-            <div className="flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20">
-              <AlertCircleIcon size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-300">{error}</p>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                onClick={onCancel}
-                className="px-4 py-2 text-sm text-ink-secondary hover:text-ink rounded-md hover:bg-well transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRetry}
-                className="px-4 py-2 text-sm bg-conduit-600 text-white rounded-md hover:bg-conduit-500 transition-colors"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
-        )}
-
-        {status === "connecting" && (
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={onCancel}
-              className="px-4 py-2 text-sm text-ink-secondary hover:text-ink rounded-md hover:bg-well transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+      {status === "error" && <Callout tone="danger">{error}</Callout>}
+    </Dialog>
   );
 }

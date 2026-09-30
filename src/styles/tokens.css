@@ -1,0 +1,319 @@
+/* Design tokens (docs/VISUAL_REDESIGN.md section 2). Precedence comes from specificity, never file order:
+   :root (0,1,0) < :root.dark / :root.light (0,2,0) < :root[data-scheme].dark / .light (0,3,0). */
+
+:root {
+  --c-font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --c-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --c-text-display: 26px;
+  --c-text-display-lh: 32px;
+  --c-text-title: 18px;
+  --c-text-title-lh: 24px;
+  --c-text-heading: 13px;
+  --c-text-heading-lh: 18px;
+  --c-text-body: 13px;
+  --c-text-body-lh: 18px;
+  --c-text-label: 12px;
+  --c-text-label-lh: 16px;
+  --c-text-meta: 11px;
+  --c-text-meta-lh: 16px;
+  --c-text-badge: 10px;
+  --c-text-badge-lh: 14px;
+  --c-weight-regular: 400;
+  --c-weight-strong: 600;
+
+  --c-radius-xs: 2px;
+  --c-radius-sm: 4px;
+  --c-radius-control: 4px;
+  --c-radius-md: 6px;
+  --c-radius-container: 6px;
+  --c-radius-lg: 8px;
+  --c-radius-overlay: 8px;
+  --c-radius-xl: 12px;
+  --c-radius-full: 9999px;
+  --c-tab-cap-radius: 5px;
+
+  --c-control-h-sm: 22px;
+  --c-control-h: 26px;
+  --c-control-h-lg: 32px;
+  --c-row-h: 22px;
+  --c-row-h-2line: 36px;
+  --c-icon-sm: 12px;
+  --c-icon: 16px;
+  --c-icon-lg: 24px;
+  --c-toolbar-btn: 22px;
+
+  --c-tabstrip-h: 33px;
+  --c-tab-h: 24px;
+  --c-tab-gutter-top: 4px;
+  --c-tab-min-w: 78px;
+  --c-list-inset: 4px;
+  --c-banner-h: 26px;
+  --c-part-title-h: 32px;
+  --c-section-h: 28px;
+
+  --c-shadow-sm: none;
+  --c-shadow-md: 0 0 6px rgba(0, 0, 0, 0.08);
+  --c-shadow-overlay: 0 0 12px rgba(0, 0, 0, 0.14);
+  --c-shadow-modal: 0 0 20px rgba(0, 0, 0, 0.15);
+
+  --c-motion-open: 250ms;
+  --c-motion-close: 150ms;
+  --c-motion-fast: 100ms;
+  --c-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --c-sash-delay: 300ms;
+
+  --c-z-sticky: 10;
+  --c-z-sidebar-scrim: 30;
+  --c-z-sidebar: 40;
+  --c-z-dialog: 50;
+  --c-z-dialog-sync: 60;
+  --c-z-dialog-stacked: 70;
+  --c-z-popover: 80;
+
+  --c-btn-primary-fg: #ffffff;
+  --c-btn-danger-bg: #c72e0f;
+  --c-btn-danger-hover: #b42a1a;
+  --c-badge-fg: #ffffff;
+  --c-scrim: rgb(0 0 0 / 0.5);
+  --c-scrim-sidebar: rgb(0 0 0 / 0.2);
+
+  --c-team-bg: color-mix(in srgb, var(--c-accent-500) 8%, transparent);
+  --c-team-border: color-mix(in srgb, var(--c-accent-500) 30%, transparent);
+  --c-team-border-strong: var(--c-accent-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --c-motion-open: 0ms;
+    --c-motion-close: 0ms;
+    --c-motion-fast: 0ms;
+  }
+}
+
+/* System UI font stacks per OS (spec 2.4) */
+:root[data-os="macos"] {
+  --c-font-ui: -apple-system, BlinkMacSystemFont, sans-serif;
+  --c-font-mono: "SF Mono", Monaco, Menlo, Courier, monospace;
+}
+:root[data-os="windows"] {
+  --c-font-ui: "Segoe WPC", "Segoe UI", sans-serif;
+  --c-font-mono: Consolas, "Courier New", monospace;
+}
+:root[data-os="linux"] {
+  --c-font-ui: system-ui, "Ubuntu", "Droid Sans", sans-serif;
+  --c-font-mono: "Ubuntu Mono", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace;
+}
+
+/* Mode base: Modern primitives plus the formulas the six universal schemes derive from. */
+:root.dark {
+  --c-canvas: #121314;
+  --c-panel: #191a1b;
+  --c-raised: #2b2c2d;
+  --c-well: #121314;
+  --c-ink: #ededed;
+  --c-ink-secondary: #bfbfbf;
+  --c-ink-muted: #9d9d9d;
+  --c-ink-faint: #8c8c8c;
+  --c-ink-disabled: #555555;
+  --c-stroke: #2a2b2c;
+  --c-stroke-dim: #333536;
+
+  /* Conduit's sky ramp (D-25); only Modern reads it, every universal scheme sets its own. */
+  --c-accent-50: #f0f9ff;
+  --c-accent-100: #e0f2fe;
+  --c-accent-200: #bae6fd;
+  --c-accent-300: #7dd3fc;
+  --c-accent-400: #38bdf8;
+  --c-accent-500: #0ea5e9;
+  --c-accent-600: #0284c7;
+  --c-accent-700: #0369a1;
+  --c-accent-800: #075985;
+  --c-accent-900: #0c4a6e;
+  --c-accent-950: #082f49;
+
+  --c-shell: var(--c-panel);
+  --c-sidebar: var(--c-shell);
+  --c-editor: var(--c-canvas);
+  --c-tabstrip: color-mix(in srgb, var(--c-panel) 70%, var(--c-raised));
+  --c-overlay: color-mix(in srgb, var(--c-panel) 70%, var(--c-raised));
+  --c-overlay-border: var(--c-stroke);
+  --c-card-border: var(--c-stroke);
+  --c-divider: var(--c-stroke);
+  --c-control-border: var(--c-stroke-dim);
+  --c-editor-group-border: color-mix(in srgb, var(--c-ink) 9%, transparent);
+  --c-hover: color-mix(in srgb, var(--c-ink) 8%, transparent);
+  --c-selected: color-mix(in srgb, var(--c-ink) 13%, transparent);
+  --c-selected-inactive: color-mix(in srgb, var(--c-ink) 8%, var(--c-sidebar));
+  --c-toolbar-hover: color-mix(in srgb, var(--c-ink) 20%, transparent);
+  --c-toolbar-active: color-mix(in srgb, var(--c-ink) 20%, transparent);
+  --c-tab-fg: var(--c-ink-faint);
+  --c-tab-fg-active: var(--c-ink);
+  --c-tab-fg-hover: var(--c-ink-secondary);
+  --c-tab-active-bg: var(--c-editor);
+  --c-tab-hover-bg: color-mix(in srgb, var(--c-ink-secondary) 6%, var(--c-tabstrip));
+  --c-tab-underline: var(--c-accent);
+  --c-input-bg: var(--c-well);
+  --c-input-fg: var(--c-ink);
+  --c-input-border: var(--c-control-border);
+  --c-input-placeholder: var(--c-ink-faint);
+  --c-dropdown-bg: var(--c-input-bg);
+  --c-dropdown-border: var(--c-control-border);
+  --c-checkbox-bg: var(--c-input-bg);
+  --c-checkbox-border: var(--c-ink-muted);
+  --c-checkbox-fg: var(--c-ink);
+  --c-btn-primary-bg: var(--c-accent-700);
+  --c-btn-primary-hover: var(--c-accent-800);
+  --c-btn-secondary-bg: transparent;
+  --c-btn-secondary-fg: var(--c-ink-secondary);
+  --c-btn-secondary-hover: var(--c-hover);
+  --c-btn-secondary-border: var(--c-control-border);
+  --c-accent: var(--c-accent-500);
+  --c-accent-text: var(--c-accent-400);
+  --c-accent-text-hover: var(--c-accent-300);
+  --c-focus: var(--c-accent-500);
+  --c-badge-bg: var(--c-btn-primary-bg);
+  --c-menu-selection-bg: color-mix(in srgb, var(--c-accent) 15%, transparent);
+  --c-menu-selection-border: var(--c-accent);
+  --c-progress: var(--c-accent);
+  --c-scrollbar-thumb: color-mix(in srgb, var(--c-ink-muted) 52%, transparent);
+  --c-scrollbar-thumb-hover: color-mix(in srgb, var(--c-ink-muted) 56%, transparent);
+  --c-scrollbar-thumb-active: color-mix(in srgb, var(--c-ink-muted) 61%, transparent);
+  --c-drop-bg: color-mix(in srgb, var(--c-accent) 18%, transparent);
+  --c-code-bg: color-mix(in srgb, var(--c-ink) 6%, var(--c-editor));
+  --c-menu-danger-hover-bg: color-mix(in srgb, var(--c-danger) 10%, transparent);
+  --c-indent-guide: color-mix(in srgb, var(--c-ink) 30%, var(--c-sidebar));
+
+  --c-danger: #f48771;
+  --c-warning: #e5ba7d;
+  --c-success: #73c991;
+  --c-info: var(--c-accent-text);
+  --c-danger-bg: color-mix(in srgb, var(--c-danger) 10%, var(--c-overlay));
+  --c-danger-border: color-mix(in srgb, var(--c-danger) 45%, transparent);
+  --c-warning-bg: color-mix(in srgb, var(--c-warning) 10%, var(--c-overlay));
+  --c-warning-border: color-mix(in srgb, var(--c-warning) 45%, transparent);
+  --c-success-bg: color-mix(in srgb, var(--c-success) 10%, var(--c-overlay));
+  --c-success-border: color-mix(in srgb, var(--c-success) 45%, transparent);
+  --c-info-bg: color-mix(in srgb, var(--c-info) 10%, var(--c-overlay));
+  --c-info-border: color-mix(in srgb, var(--c-info) 45%, transparent);
+  --c-state-connected: var(--c-success);
+  --c-state-connecting: var(--c-warning);
+  --c-state-error: var(--c-danger);
+  --c-favorite: #facc15;
+
+  --c-entry-ssh: #4ade80;
+  --c-entry-rdp: #60a5fa;
+  --c-entry-vnc: #c084fc;
+  --c-entry-web: #22d3ee;
+  --c-entry-credential: #facc15;
+  --c-entry-sshkey: #fb923c;
+  --c-entry-document: #2dd4bf;
+  --c-entry-command: #fbbf24;
+  --c-entry-folder: var(--c-ink-muted);
+}
+
+:root.light {
+  --c-canvas: #ffffff;
+  --c-panel: #fafafd;
+  --c-raised: #e6e6e9;
+  --c-well: #f2f2f2;
+  --c-ink: #202020;
+  --c-ink-secondary: #202020;
+  --c-ink-muted: #606060;
+  --c-ink-faint: #6b6b6b;
+  --c-ink-disabled: #bbbbbb;
+  --c-stroke: #e4e5e6;
+  --c-stroke-dim: #f0f1f2;
+
+  /* Conduit's sky ramp (D-25) with the text-safe 800 and 700 in steps 300 and 400, as Ocean light. */
+  --c-accent-50: #f0f9ff;
+  --c-accent-100: #e0f2fe;
+  --c-accent-200: #bae6fd;
+  --c-accent-300: #075985;
+  --c-accent-400: #0369a1;
+  --c-accent-500: #0ea5e9;
+  --c-accent-600: #0284c7;
+  --c-accent-700: #0369a1;
+  --c-accent-800: #075985;
+  --c-accent-900: #0c4a6e;
+  --c-accent-950: #082f49;
+
+  --c-shell: var(--c-canvas);
+  --c-sidebar: var(--c-shell);
+  --c-editor: var(--c-panel);
+  --c-tabstrip: color-mix(in srgb, var(--c-canvas) 94%, var(--c-ink));
+  --c-overlay: var(--c-panel);
+  --c-overlay-border: var(--c-stroke);
+  --c-card-border: var(--c-stroke);
+  --c-divider: var(--c-stroke-dim);
+  --c-control-border: var(--c-stroke);
+  --c-editor-group-border: var(--c-stroke);
+  --c-hover: color-mix(in srgb, var(--c-ink) 8%, transparent);
+  --c-selected: color-mix(in srgb, var(--c-ink) 14%, transparent);
+  --c-selected-inactive: color-mix(in srgb, var(--c-ink) 9%, var(--c-sidebar));
+  --c-toolbar-hover: color-mix(in srgb, var(--c-ink) 12%, transparent);
+  --c-toolbar-active: color-mix(in srgb, var(--c-ink) 16%, transparent);
+  --c-tab-fg: var(--c-ink-muted);
+  --c-tab-fg-active: var(--c-ink);
+  --c-tab-fg-hover: var(--c-ink);
+  --c-tab-active-bg: var(--c-editor);
+  --c-tab-hover-bg: color-mix(in srgb, var(--c-ink-secondary) 6%, var(--c-tabstrip));
+  --c-tab-underline: var(--c-ink);
+  --c-input-bg: var(--c-editor);
+  --c-input-fg: var(--c-ink);
+  --c-input-border: var(--c-control-border);
+  --c-input-placeholder: var(--c-ink-faint);
+  --c-dropdown-bg: var(--c-input-bg);
+  --c-dropdown-border: var(--c-control-border);
+  --c-checkbox-bg: var(--c-well);
+  --c-checkbox-border: var(--c-ink-muted);
+  --c-checkbox-fg: var(--c-ink);
+  --c-btn-primary-bg: var(--c-accent-700);
+  --c-btn-primary-hover: var(--c-accent-800);
+  --c-btn-secondary-bg: var(--c-well);
+  --c-btn-secondary-fg: var(--c-ink);
+  --c-btn-secondary-hover: var(--c-hover);
+  --c-btn-secondary-border: var(--c-control-border);
+  --c-accent: var(--c-accent-500);
+  --c-accent-text: var(--c-accent-400);
+  --c-accent-text-hover: var(--c-accent-300);
+  --c-focus: var(--c-accent-600);
+  --c-badge-bg: var(--c-btn-primary-bg);
+  --c-menu-selection-bg: color-mix(in srgb, var(--c-accent) 10%, transparent);
+  --c-menu-selection-border: var(--c-accent);
+  --c-progress: var(--c-accent);
+  --c-scrollbar-thumb: color-mix(in srgb, var(--c-ink-muted) 75%, transparent);
+  --c-scrollbar-thumb-hover: color-mix(in srgb, var(--c-ink-muted) 82%, transparent);
+  --c-scrollbar-thumb-active: color-mix(in srgb, var(--c-ink-muted) 88%, transparent);
+  --c-drop-bg: color-mix(in srgb, var(--c-accent) 18%, transparent);
+  --c-code-bg: color-mix(in srgb, var(--c-ink) 6%, var(--c-editor));
+  --c-menu-danger-hover-bg: color-mix(in srgb, var(--c-danger) 10%, transparent);
+  --c-indent-guide: color-mix(in srgb, var(--c-ink) 37%, var(--c-sidebar));
+
+  --c-danger: #ad0707;
+  --c-warning: #895503;
+  --c-success: #4b6a0a;
+  --c-info: var(--c-accent-text);
+  --c-danger-bg: color-mix(in srgb, var(--c-danger) 10%, var(--c-overlay));
+  --c-danger-border: color-mix(in srgb, var(--c-danger) 45%, transparent);
+  --c-warning-bg: color-mix(in srgb, var(--c-warning) 10%, var(--c-overlay));
+  --c-warning-border: color-mix(in srgb, var(--c-warning) 45%, transparent);
+  --c-success-bg: color-mix(in srgb, var(--c-success) 10%, var(--c-overlay));
+  --c-success-border: color-mix(in srgb, var(--c-success) 45%, transparent);
+  --c-info-bg: color-mix(in srgb, var(--c-info) 10%, var(--c-overlay));
+  --c-info-border: color-mix(in srgb, var(--c-info) 45%, transparent);
+  --c-state-connected: var(--c-success);
+  --c-state-connecting: var(--c-warning);
+  --c-state-error: var(--c-danger);
+  --c-favorite: #a16207;
+
+  --c-entry-ssh: #15803d;
+  --c-entry-rdp: #1d4ed8;
+  --c-entry-vnc: #7e22ce;
+  --c-entry-web: #0e7490;
+  --c-entry-credential: #a16207;
+  --c-entry-sshkey: #c2410c;
+  --c-entry-document: #0f766e;
+  --c-entry-command: #b45309;
+  --c-entry-folder: var(--c-ink-muted);
+}

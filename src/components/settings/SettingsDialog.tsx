@@ -22,14 +22,29 @@ import { HARDCODED_RDP_DEFAULTS, HARDCODED_WEB_DEFAULTS, HARDCODED_TERMINAL_DEFA
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useEntryStore } from "../../stores/entryStore";
-import { CloseIcon } from "../../lib/icons";
+import { DEFAULT_ICON_PACK } from "../../lib/icons";
+import { Button, Callout, Dialog, DialogFooter, DialogHeader } from "../ui";
+import type { ThemeChangeDetail } from "../../lib/appearance/useAppearance";
 import { mergeChangedSettings } from "./settings-merge";
+import { errorText } from "../../lib/errorText";
 
 export type { SettingsTab } from "./SettingsHelpers";
+
+/** Today's max-w-3xl (spec 4.8, D-18). */
+const SETTINGS_WIDTH = 768;
 
 interface SettingsDialogProps {
   onClose: () => void;
   initialTab?: SettingsTab;
+}
+
+function dispatchThemeChange(settings: Settings): void {
+  const detail: ThemeChangeDetail = {
+    theme: settings.theme,
+    colorScheme: settings.color_scheme,
+    iconPack: settings.icon_pack,
+  };
+  document.dispatchEvent(new CustomEvent("conduit:theme-change", { detail }));
 }
 
 async function saveChangedSettings(edited: Settings, original: Settings | null): Promise<void> {
@@ -37,12 +52,18 @@ async function saveChangedSettings(edited: Settings, original: Settings | null):
   await invoke("settings_save", { settings: mergeChangedSettings(fresh, original, edited) });
 }
 
+// Only the RDP defaults: an icon pack, scheme or theme being previewed stays unsaved, so Cancel still reverts it.
+async function saveRdpDefaults(rdp: Settings["session_defaults_rdp"]): Promise<void> {
+  const fresh = await invoke<Settings>("settings_get");
+  await invoke("settings_save", { settings: { ...fresh, session_defaults_rdp: rdp } });
+}
+
 export default function SettingsDialog({ onClose, initialTab }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab ?? "general");
   const [settings, setSettings] = useState<Settings>({
     theme: "system",
     color_scheme: DEFAULT_SCHEME,
-    platform_theme: "default",
+    icon_pack: DEFAULT_ICON_PACK,
     default_shell: "default",
     ai_mode: "api",
     cli_agent: "claude",
@@ -85,12 +106,8 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
       // Refresh the cached session defaults store
       await useSettingsStore.getState().refresh();
 
-      // Apply theme + scheme
-      document.dispatchEvent(
-        new CustomEvent("conduit:theme-change", {
-          detail: { theme: settings.theme, colorScheme: settings.color_scheme, platformTheme: settings.platform_theme },
-        })
-      );
+      // Apply the saved appearance
+      dispatchThemeChange(settings);
 
       // Apply default engine setting to the store — only if it actually changed
       if (settings.default_engine && settings.default_engine !== originalSettingsRef.current?.default_engine) {
@@ -99,7 +116,7 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
 
       onClose();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to save settings");
+      setError(errorText(err, "Failed to save settings"));
     } finally {
       setIsSaving(false);
     }
@@ -108,26 +125,20 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
   const handleCancel = useCallback(() => {
     // Revert live-previewed scheme to what it was on dialog open
     if (originalSettingsRef.current) {
-      document.dispatchEvent(
-        new CustomEvent("conduit:theme-change", {
-          detail: {
-            theme: originalSettingsRef.current.theme,
-            colorScheme: originalSettingsRef.current.color_scheme,
-            platformTheme: originalSettingsRef.current.platform_theme,
-          },
-        })
-      );
+      dispatchThemeChange(originalSettingsRef.current);
       // Revert live-previewed UI scale
       window.electron?.send?.("set-zoom-factor", originalSettingsRef.current.ui_scale ?? 1);
     }
     onClose();
   }, [onClose]);
 
-  /** Immediately save settings and reconnect active RDP sessions (used by display scale slider) */
+  /** Immediately save the RDP display scale and reconnect active RDP sessions (used by display scale slider) */
   const handleApplyDisplayScale = useCallback(async (updatedSettings: Settings) => {
     setSettings(updatedSettings);
+    const rdp = updatedSettings.session_defaults_rdp;
     try {
-      await saveChangedSettings(updatedSettings, originalSettingsRef.current);
+      await saveRdpDefaults(rdp);
+      if (originalSettingsRef.current) originalSettingsRef.current = { ...originalSettingsRef.current, session_defaults_rdp: rdp };
       await useSettingsStore.getState().refresh();
       // Reconnect all active RDP sessions in the background
       const rdpSessions = useSessionStore.getState().sessions.filter(
@@ -140,10 +151,6 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
       console.error("Failed to apply display scale:", err);
     }
   }, []);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") handleCancel();
-  };
 
   const renderTab = () => {
     switch (activeTab) {
@@ -182,55 +189,27 @@ export default function SettingsDialog({ onClose, initialTab }: SettingsDialogPr
   };
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
-      onKeyDown={handleKeyDown}
-    >
-      <div data-dialog-content className="w-full max-w-3xl bg-panel rounded-lg shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-          <h2 className="text-lg font-semibold">Settings</h2>
-          <button
-            onClick={handleCancel}
-            className="p-1 hover:bg-raised rounded"
-          >
-            <CloseIcon size={20} />
-          </button>
-        </div>
-
-        <div className="flex h-[500px]">
-          {/* Sidebar */}
-          <SettingsNav activeTab={activeTab} onTabChange={setActiveTab} />
-
-          {/* Content */}
-          <div className="flex-1 p-4 overflow-y-auto">
-            {renderTab()}
-
-            {error && (
-              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded">
-                <p className="text-sm text-red-400">{error}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-stroke">
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 text-sm hover:bg-raised rounded"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-2 text-sm text-white bg-conduit-600 hover:bg-conduit-700 disabled:opacity-50 rounded"
-          >
-            {isSaving ? "Saving..." : "Save"}
-          </button>
+    <Dialog open onClose={handleCancel} title="Settings" width={SETTINGS_WIDTH} layout="custom" data-cv-settings="">
+      <DialogHeader />
+      <div className="flex h-[500px] min-h-0 border-y border-divider">
+        <SettingsNav activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="min-w-0 flex-1 overflow-y-auto p-4 text-body text-ink-secondary">
+          {renderTab()}
+          {error && (
+            <Callout tone="danger" className="mt-4">
+              {error}
+            </Callout>
+          )}
         </div>
       </div>
-    </div>
+      <DialogFooter>
+        <Button variant="secondary" onClick={handleCancel}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSave} loading={isSaving} loadingLabel="Saving...">
+          Save
+        </Button>
+      </DialogFooter>
+    </Dialog>
   );
 }

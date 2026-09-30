@@ -9,7 +9,7 @@ const LAUNCHER_MAIN = `import fs from 'node:fs';
 import cp from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { app, globalShortcut, ipcMain } from 'electron';
+import { View, app, globalShortcut, ipcMain } from 'electron';
 
 const appData = process.env.CV_APPDATA;
 const mainJs = process.env.CV_MAIN_JS;
@@ -40,7 +40,18 @@ app.commandLine.appendSwitch('use-mock-keychain');
 app.setAsDefaultProtocolClient = () => true;
 app.removeAsDefaultProtocolClient = () => true;
 app.isDefaultProtocolClient = () => true;
-globalShortcut.register = () => false;
+// Global shortcuts are kept here instead of registered with the OS; __cvShortcut(accelerator) runs one.
+const shortcuts = new Map();
+globalShortcut.register = (accelerator, callback) => {
+  shortcuts.set(accelerator, callback);
+  return false;
+};
+globalThis.__cvShortcut = (accelerator) => {
+  const callback = shortcuts.get(accelerator);
+  if (!callback) return false;
+  callback();
+  return true;
+};
 const execSync = cp.execSync;
 cp.execSync = (command, options) =>
   typeof command === 'string' && command.startsWith('ps -axww') ? '' : execSync(command, options);
@@ -58,6 +69,34 @@ ipcMain.on('overlay:push-state', (_event, state) => {
     rec.log.push({ id: t.id, type: t.type, title: t.title, message: t.message ?? null, actions: (t.actions ?? []).map((a) => a.label), at: Date.now() });
   }
 });
+
+// Popup menus and the picker close when they lose focus, and a test device is rarely the active app,
+// so a device launched with CV_KEEP_POPUPS=1 keeps them open until the harness closes them.
+if (process.env.CV_KEEP_POPUPS === '1') {
+  app.on('browser-window-created', (_event, win) => {
+    win.webContents.once('dom-ready', () => {
+      const url = win.webContents.getURL();
+      if (url.startsWith('data:text/html') || url.includes('/picker.html')) win.removeAllListeners('blur');
+    });
+  });
+}
+
+// Native views attached to a window, for the restyle suite's freeze rule (G9): a web session's view is
+// detached while a dialog covers it.
+const attachedViews = new Set();
+const addChildView = View.prototype.addChildView;
+View.prototype.addChildView = function (child, ...rest) {
+  attachedViews.add(child);
+  return addChildView.call(this, child, ...rest);
+};
+const removeChildView = View.prototype.removeChildView;
+View.prototype.removeChildView = function (child, ...rest) {
+  attachedViews.delete(child);
+  return removeChildView.call(this, child, ...rest);
+};
+globalThis.__cvAttachedWebViews = () => [...attachedViews]
+  .filter((v) => v.webContents && !v.webContents.isDestroyed())
+  .map((v) => ({ id: v.webContents.id, url: v.webContents.getURL() }));
 
 await import(pathToFileURL(mainJs).href);
 `;

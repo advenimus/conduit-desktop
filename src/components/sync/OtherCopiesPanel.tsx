@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { FileIcon, LoaderIcon, RefreshIcon } from "../../lib/icons";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { IconSlot, Spinner } from "../ui";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
 import type { CopyAction, CopyClass, CopyInfo } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
 import { LoadFailed } from "./RecentlyDeletedPanel";
-import { smallButton } from "./ConflictFieldRow";
+import SmallButton from "./SmallButton";
 import { copyAction } from "./prompt-actions";
 import { plural } from "./sync-copy";
 
@@ -45,17 +46,17 @@ function CopyRow({ copy, onDone }: { copy: CopyInfo; onDone: () => void }) {
     onDone();
   };
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-stroke-dim last:border-b-0">
-      <FileIcon size={16} className="text-ink-muted mt-0.5 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-ink truncate" title={copy.path}>{copy.name}</p>
-        <p className="text-xs text-ink-muted">{spec.text(copy)}</p>
+    <div data-cv-copy-row="" className="flex items-start gap-3 border-b border-stroke-dim py-2.5 last:border-b-0">
+      <IconSlot icon="file" className="mt-px shrink-0 text-ink-muted" />
+      <div className="min-w-0 flex-1">
+        <p data-cv-row-title="" className="truncate text-body text-ink" title={copy.path}>{copy.name}</p>
+        <p data-cv-row-detail="" className="text-label text-ink-muted">{spec.text(copy)}</p>
       </div>
-      <div className="flex gap-1.5 flex-shrink-0">
+      <div className="flex shrink-0 gap-1.5">
         {spec.actions.map((a) => (
-          <button key={a.action} type="button" disabled={busy} onClick={() => void act(a.action)} className={smallButton(a.primary)}>
+          <SmallButton key={a.action} primary={a.primary} disabled={busy} onClick={() => void act(a.action)}>
             {a.label}
-          </button>
+          </SmallButton>
         ))}
       </div>
     </div>
@@ -86,21 +87,21 @@ export default function OtherCopiesPanel() {
 
   return (
     <SyncDialogFrame
-      icon={FileIcon}
+      icon="file"
       title="Other copies of this vault"
-      width="w-[600px]"
+      width={600}
       onEscape={close}
       footer={
         <>
-          <DialogButton onClick={() => { setCopies(null); void load(true); }}>
-            <span className="flex items-center gap-1.5"><RefreshIcon size={14} /> Scan again</span>
+          <DialogButton icon="refresh" onClick={() => { setCopies(null); void load(true); }}>
+            Scan again
           </DialogButton>
           <DialogButton variant="primary" onClick={close}>Done</DialogButton>
         </>
       }
     >
       {copies === null ? (
-        <div className="flex items-center gap-2"><LoaderIcon size={16} className="animate-spin" /> Looking for copies...</div>
+        <Spinner text="Looking for copies..." />
       ) : loadFailed ? (
         <LoadFailed what="the copies" onRetry={() => void load(true)} />
       ) : copies.length === 0 ? (

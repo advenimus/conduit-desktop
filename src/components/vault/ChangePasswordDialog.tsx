@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { invoke } from "../../lib/electron";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
-import {
-  AlertCircleIcon, EyeIcon, EyeOffIcon, LoaderIcon, LockIcon
-} from "../../lib/icons";
+import { Button, Callout, Checkbox, Dialog, FormField, IconButton, TextInput } from "../ui";
 
 interface ChangePasswordDialogProps {
   onClose: () => void;
@@ -48,165 +47,118 @@ export default function ChangePasswordDialog({ onClose }: ChangePasswordDialogPr
       toast.success("Vault password changed successfully");
       onClose();
     } catch (err) {
-      const msg = typeof err === "string" ? err : "Failed to change password";
-      setError(msg);
+      // invoke() rejects with an Error, so its message is the reason (a wrong current password, say).
+      setError(errorText(err, "Failed to change password"));
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div data-dialog-content className="bg-panel border border-stroke rounded-lg shadow-xl w-[420px] p-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-conduit-500/10 flex items-center justify-center">
-            <LockIcon size={20} className="text-conduit-400" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-ink">Change Password</h2>
-            <p className="text-xs text-ink-muted">
-              Update the master password for this vault
-            </p>
-          </div>
-        </div>
+    <Dialog
+      open
+      title="Change Password"
+      description="Update the master password for this vault"
+      icon="lock"
+      width={420}
+      hideClose
+      closeOnEscape={false}
+      onClose={onClose}
+      onSubmit={(e) => void handleSubmit(e)}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={!isValid} loading={loading}>
+            Change Password
+          </Button>
+        </>
+      }
+    >
+      <FormField label="Current Password">
+        <PasswordField
+          value={currentPassword}
+          onChange={(value) => {
+            setCurrentPassword(value);
+            setError(null);
+          }}
+          placeholder="Enter current password"
+          shown={showCurrent}
+          onToggle={() => setShowCurrent(!showCurrent)}
+          autoFocus
+        />
+      </FormField>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Current Password */}
-          <div>
-            <label className="block text-xs font-medium text-ink-muted mb-1.5">
-              Current Password
-            </label>
-            <div className="relative">
-              <input
-                type={showCurrent ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => {
-                  setCurrentPassword(e.target.value);
-                  setError(null);
-                }}
-                placeholder="Enter current password"
-                className="w-full px-3 py-2 pr-9 rounded-md bg-well border border-stroke text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-conduit-500/50"
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted transition-colors"
-                tabIndex={-1}
-              >
-                {showCurrent ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-              </button>
-            </div>
-          </div>
+      <FormField
+        label="New Password"
+        description={
+          passwordTooShort ? <span className="text-warning">Password must be at least {MIN_PASSWORD_LENGTH} characters</span> : undefined
+        }
+      >
+        <PasswordField
+          value={newPassword}
+          onChange={(value) => {
+            setNewPassword(value);
+            setError(null);
+          }}
+          placeholder="Enter new password"
+          shown={showNew}
+          onToggle={() => setShowNew(!showNew)}
+        />
+      </FormField>
 
-          {/* New Password */}
-          <div>
-            <label className="block text-xs font-medium text-ink-muted mb-1.5">
-              New Password
-            </label>
-            <div className="relative">
-              <input
-                type={showNew ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => {
-                  setNewPassword(e.target.value);
-                  setError(null);
-                }}
-                placeholder="Enter new password"
-                className="w-full px-3 py-2 pr-9 rounded-md bg-well border border-stroke text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-conduit-500/50"
-              />
-              <button
-                type="button"
-                onClick={() => setShowNew(!showNew)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted transition-colors"
-                tabIndex={-1}
-              >
-                {showNew ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-              </button>
-            </div>
-            {passwordTooShort && (
-              <p className="text-xs text-amber-400 mt-1">
-                Password must be at least {MIN_PASSWORD_LENGTH} characters
-              </p>
-            )}
-          </div>
+      <FormField
+        label="Confirm New Password"
+        description={passwordsMismatch ? <span className="text-warning">Passwords do not match</span> : undefined}
+      >
+        <PasswordField
+          value={confirmPassword}
+          onChange={(value) => {
+            setConfirmPassword(value);
+            setError(null);
+          }}
+          placeholder="Confirm new password"
+          shown={showConfirm}
+          onToggle={() => setShowConfirm(!showConfirm)}
+        />
+      </FormField>
 
-          {/* Confirm New Password */}
-          <div>
-            <label className="block text-xs font-medium text-ink-muted mb-1.5">
-              Confirm New Password
-            </label>
-            <div className="relative">
-              <input
-                type={showConfirm ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  setError(null);
-                }}
-                placeholder="Confirm new password"
-                className="w-full px-3 py-2 pr-9 rounded-md bg-well border border-stroke text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-conduit-500/50"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirm(!showConfirm)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted transition-colors"
-                tabIndex={-1}
-              >
-                {showConfirm ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-              </button>
-            </div>
-            {passwordsMismatch && (
-              <p className="text-xs text-amber-400 mt-1">
-                Passwords do not match
-              </p>
-            )}
-          </div>
+      {engineSync && (
+        <Checkbox checked={eraseDeleted} onChange={setEraseDeleted} className="text-label text-ink-muted">
+          Also permanently delete items in Recently deleted, on every device. Recommended if your old
+          password may have leaked.
+        </Checkbox>
+      )}
 
-          {engineSync && (
-            <label className="flex items-start gap-2 text-xs text-ink-muted cursor-pointer">
-              <input
-                type="checkbox"
-                checked={eraseDeleted}
-                onChange={(e) => setEraseDeleted(e.target.checked)}
-                className="accent-conduit-500 mt-0.5"
-              />
-              <span>
-                Also permanently delete items in Recently deleted, on every device. Recommended if your old
-                password may have leaked.
-              </span>
-            </label>
-          )}
+      {error && <Callout tone="danger">{error}</Callout>}
+    </Dialog>
+  );
+}
 
-          {error && (
-            <div className="flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20">
-              <AlertCircleIcon
-                size={16}
-                className="text-red-400 mt-0.5 flex-shrink-0"
-              />
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          )}
+interface PasswordFieldProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  shown: boolean;
+  onToggle: () => void;
+  autoFocus?: boolean;
+}
 
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-ink-muted hover:text-ink rounded-md hover:bg-raised transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!isValid || loading}
-              className="px-4 py-2 text-sm bg-conduit-600 text-white rounded-md hover:bg-conduit-500 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {loading && <LoaderIcon size={14} className="animate-spin" />}
-              Change Password
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+function PasswordField({ value, onChange, placeholder, shown, onToggle, autoFocus }: PasswordFieldProps) {
+  return (
+    <TextInput
+      type={shown ? "text" : "password"}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      trailing={
+        <IconButton
+          size="sm"
+          icon={shown ? "eyeOff" : "eye"}
+          label={shown ? "Hide password" : "Show password"}
+          onClick={onToggle}
+          tabIndex={-1}
+        />
+      }
+    />
   );
 }

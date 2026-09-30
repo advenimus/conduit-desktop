@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { RestoreIcon } from "../../lib/icons";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { rowKeyString } from "../../stores/sync-reducers";
 import { toast } from "../common/Toast";
@@ -15,8 +15,8 @@ function Rows({ title, rows }: { title: string; rows: readonly CandidatePreviewR
   if (rows.length === 0) return null;
   return (
     <div>
-      <p className="text-xs font-medium text-ink mb-1">{title} ({rows.length})</p>
-      <ul className="text-xs text-ink-muted list-disc pl-5 space-y-0.5">
+      <p className="mb-1 text-label font-semibold text-ink">{title} ({rows.length})</p>
+      <ul className="text-label text-ink-muted list-disc pl-5 space-y-0.5">
         {rows.slice(0, MAX_LISTED).map((r) => <li key={rowKeyString(r.row)}>{r.title}</li>)}
         {rows.length > MAX_LISTED && <li>and {rows.length - MAX_LISTED} more</li>}
       </ul>
@@ -60,9 +60,9 @@ export default function RestorePreviewDialog({ preview, apply }: RestorePreviewD
 
   return (
     <SyncDialogFrame
-      icon={RestoreIcon}
+      icon="restore"
       title="Restore from backup"
-      width="w-[540px]"
+      width={540}
       onEscape={close}
       footer={
         <>
@@ -80,10 +80,10 @@ export default function RestorePreviewDialog({ preview, apply }: RestorePreviewD
       <Rows title="Created since the backup (will be deleted)" rows={preview.deletions} />
       <Rows title="Deleted since the backup (will come back)" rows={preview.restorations} />
       {preview.replacements.length > 0 && (
-        <p className="text-xs text-ink">{plural(preview.replacements.length, "newer value")} will be replaced with the backup's.</p>
+        <p className="text-label text-ink">{plural(preview.replacements.length, "newer value")} will be replaced with the backup's.</p>
       )}
       {preview.unreadableSecrets > 0 && (
-        <p className="text-xs text-amber-400">{plural(preview.unreadableSecrets, "secret")} in the backup can't be read and stay as they are.</p>
+        <p className="text-label text-warning">{plural(preview.unreadableSecrets, "secret")} in the backup can't be read and stay as they are.</p>
       )}
     </SyncDialogFrame>
   );

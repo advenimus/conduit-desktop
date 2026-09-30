@@ -1,4 +1,5 @@
 import { parseOpenErrorMessage, type OpenErrorPayload } from "../types/sync";
+import { errorText } from "../lib/errorText";
 
 /** Options the personal unlock channels accept. */
 export interface UnlockOptions {
@@ -26,8 +27,7 @@ const KNOWN_MESSAGES: Readonly<Record<string, string>> = {
 };
 
 function rawMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  return typeof err === "string" ? err : "";
+  return errorText(err, "");
 }
 
 function presentable(message: string): boolean {

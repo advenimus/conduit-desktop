@@ -2,6 +2,7 @@
  * Curated icon registry for custom entry/folder icons.
  * Only icons referenced here are bundled (tree-shaking friendly).
  */
+import { createElement, memo } from "react";
 import {
   // Connections
   IconTerminal2,
@@ -80,6 +81,41 @@ import {
   IconPackage,
 } from "@tabler/icons-react";
 import type { Icon as TablerIcon } from "@tabler/icons-react";
+import {
+  BoltIcon,
+  BugIcon,
+  CloudIcon,
+  CodeIcon,
+  CrownIcon,
+  DatabaseIcon,
+  DesktopIcon,
+  FileTextIcon,
+  FingerprintIcon,
+  FloppyIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  GlobeIcon,
+  GlobeWwwIcon,
+  HomeIcon,
+  KeyIcon,
+  LockIcon,
+  NetworkIcon,
+  PlayerPlayIcon,
+  RocketIcon,
+  ServerAltIcon,
+  ServerIcon,
+  ShieldLockIcon,
+  StarIcon,
+  TagIcon,
+  TerminalAltIcon,
+  TerminalIcon,
+  ToolIcon,
+  UserIcon,
+  UsersIcon,
+  type IconComponent,
+  type IconProps,
+  type SemanticIconName,
+} from "../../lib/icons";
 
 export interface IconCategory {
   label: string;
@@ -204,13 +240,101 @@ export const ICON_CATEGORIES: IconCategory[] = [
   },
 ];
 
-/** Flat lookup map: icon name → component */
+/** Flat lookup map: icon name -> the curated Tabler component (what the name meant when stored). */
 export const ICON_MAP = new Map<string, TablerIcon>(
   ICON_CATEGORIES.flatMap((cat) => cat.icons.map((i) => [i.name, i.component] as [string, TablerIcon]))
 );
 
-/** Resolve an icon name to its component. Returns null if not found. */
-export function resolveIcon(name: string | null | undefined): TablerIcon | null {
+/**
+ * Stored names whose glyph the Tabler pack itself maps from a semantic name (spec 5.11). These draw
+ * through the active icon pack; the other curated names keep their Tabler glyph in every pack. The
+ * stored names never change, so older builds and other devices read the same vault data.
+ */
+export const CUSTOM_ICON_TWINS: Readonly<Record<string, SemanticIconName>> = Object.freeze({
+  IconTerminal2: "terminal",
+  IconTerminal: "terminalAlt",
+  IconDeviceDesktop: "desktop",
+  IconServer: "server",
+  IconServer2: "serverAlt",
+  IconWorld: "globe",
+  IconWorldWww: "globeWww",
+  IconCloud: "cloud",
+  IconDatabase: "database",
+  IconNetwork: "network",
+  IconKey: "key",
+  IconLock: "lock",
+  IconShieldLock: "shieldLock",
+  IconFingerprint: "fingerprint",
+  IconCode: "code",
+  IconBug: "bug",
+  IconTool: "tool",
+  IconDeviceFloppy: "floppy",
+  IconFolder: "folder",
+  IconFolderOpen: "folderOpen",
+  IconFileText: "fileText",
+  IconHome: "home",
+  IconUser: "user",
+  IconUsers: "users",
+  IconStar: "star",
+  IconTag: "tag",
+  IconBolt: "bolt",
+  IconRocket: "rocket",
+  IconCrown: "crown",
+  IconPlayerPlay: "playerPlay",
+});
+
+const THEMED_TWINS: Readonly<Partial<Record<SemanticIconName, IconComponent>>> = {
+  terminal: TerminalIcon,
+  terminalAlt: TerminalAltIcon,
+  desktop: DesktopIcon,
+  server: ServerIcon,
+  serverAlt: ServerAltIcon,
+  globe: GlobeIcon,
+  globeWww: GlobeWwwIcon,
+  cloud: CloudIcon,
+  database: DatabaseIcon,
+  network: NetworkIcon,
+  key: KeyIcon,
+  lock: LockIcon,
+  shieldLock: ShieldLockIcon,
+  fingerprint: FingerprintIcon,
+  code: CodeIcon,
+  bug: BugIcon,
+  tool: ToolIcon,
+  floppy: FloppyIcon,
+  folder: FolderIcon,
+  folderOpen: FolderOpenIcon,
+  fileText: FileTextIcon,
+  home: HomeIcon,
+  user: UserIcon,
+  users: UsersIcon,
+  star: StarIcon,
+  tag: TagIcon,
+  bolt: BoltIcon,
+  rocket: RocketIcon,
+  crown: CrownIcon,
+  playerPlay: PlayerPlayIcon,
+};
+
+/** A Tabler glyph behind the IconProps API; `compact` is a pack option a raw SVG must not receive. */
+function asIconComponent(Tabler: TablerIcon): IconComponent {
+  const Adapted = memo(function CuratedTablerIcon({ size, className, style, stroke, title }: IconProps) {
+    return createElement(Tabler, { size, className, style, stroke, title });
+  });
+  Adapted.displayName = `Curated(${Tabler.displayName ?? "icon"})`;
+  return Adapted;
+}
+
+const RESOLVED = new Map<string, IconComponent>(
+  [...ICON_MAP].map(([name, Tabler]) => {
+    const twin = CUSTOM_ICON_TWINS[name];
+    const themed = twin ? THEMED_TWINS[twin] : undefined;
+    return [name, themed ?? asIconComponent(Tabler)];
+  }),
+);
+
+/** Resolve a stored icon name to the component that draws it. Returns null if not found. */
+export function resolveIcon(name: string | null | undefined): IconComponent | null {
   if (!name) return null;
-  return ICON_MAP.get(name) ?? null;
+  return RESOLVED.get(name) ?? null;
 }

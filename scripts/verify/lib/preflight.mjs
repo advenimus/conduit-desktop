@@ -26,15 +26,22 @@ function resolvable(fromFile, specifier) {
   }
 }
 
-/** Returns a list of "name: detail" lines; throws on the first hard problem. */
-export async function preflight() {
+/**
+ * Returns a list of "name: detail" lines; throws on the first hard problem. Docker and psql are
+ * checked only when a selected scenario needs the local Supabase stack.
+ */
+export async function preflight({ supabase = true } = {}) {
   const notes = [];
   if (process.platform === 'win32') throw new Error('The verify harness runs on macOS and Linux only (Unix sockets under /tmp)');
   const major = Number(process.versions.node.split('.')[0]);
   if (major < MIN_NODE_MAJOR) throw new Error(`Node ${MIN_NODE_MAJOR}+ is required (found ${process.versions.node})`);
   notes.push(`node: ${process.versions.node}`);
-  notes.push(`docker: ${await dockerRunning()}`);
-  notes.push(`psql: ${await findPsql()}`);
+  if (supabase) {
+    notes.push(`docker: ${await dockerRunning()}`);
+    notes.push(`psql: ${await findPsql()}`);
+  } else {
+    notes.push('docker, psql: not needed (no selected scenario uses Supabase)');
+  }
   const electron = electronBinary();
   if (!fs.existsSync(electron)) throw new Error(`Electron binary missing at ${electron}. Run npm install.`);
   notes.push(`electron: ${path.relative(REPO, electron)}`);

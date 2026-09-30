@@ -24,7 +24,7 @@ import VaultImportDialog from "./components/vault/VaultImportDialog";
 import RenameVaultDialog from "./components/vault/RenameVaultDialog";
 import ChangePasswordDialog from "./components/vault/ChangePasswordDialog";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useTheme } from "./hooks/useTheme";
+import { useAppearance } from "./lib/appearance/useAppearance";
 import { useSessionStore, type SessionType } from "./stores/sessionStore";
 import { useLayoutStore, findLeaf } from "./stores/layoutStore";
 import { useEntryStore } from "./stores/entryStore";
@@ -48,8 +48,10 @@ import FeedbackDialog from "./components/feedback/FeedbackDialog";
 import SyncLayer from "./components/sync/SyncLayer";
 import SyncBanners from "./components/sync/SyncBanners";
 import { useBackupStates } from "./hooks/useBackupStates";
+import { useFreeze } from "./lib/native-freeze";
 import type { TeamVaultSummary } from "./stores/teamStore";
-import { RobotIcon, WifiOffIcon } from "./lib/icons";
+import { Banner, IconButton, Spinner } from "./components/ui";
+import { errorText } from "./lib/errorText";
 
 /**
  * Notification controllers — manage toast + update state and push to overlay window.
@@ -93,10 +95,38 @@ function NotificationStack() {
 
 const AI_PANEL_DIVIDER_WIDTH = 4;
 
+/** Cached auth: the centered strip under the accent line (spec 3.8). It has no role="status": the harness reads only sync banners by role. */
+function OfflineBanner() {
+  return (
+    <Banner
+      tone="warn"
+      icon="wifiOff"
+      status={false}
+      align="center"
+      className="shrink-0"
+      actions={[{ label: "Reconnect", onClick: () => void useAuthStore.getState().tryReauthenticate() }]}
+    >
+      Working offline — using cached features
+    </Banner>
+  );
+}
+
+function FullScreenSpinner({ text }: { text: string }) {
+  return (
+    <div className="flex items-center justify-center h-screen bg-editor text-ink">
+      <div className="flex flex-col items-center gap-3">
+        <Spinner size={24} className="text-(--c-progress)" />
+        <span className="text-body text-ink-muted">{text}</span>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [aiPanelWidth, setAiPanelWidth] = useState(400);
   const aiResizing = useRef(false);
+  const [aiDragging, setAiDragging] = useState(false);
   const [showQuickConnect, setShowQuickConnect] = useState(false);
   const [showSettings, setShowSettings] = useState<SettingsTab | false>(false);
   const [showCredentials, setShowCredentials] = useState(false);
@@ -140,7 +170,7 @@ function App() {
 
   // Initialize hooks
   useKeyboardShortcuts();
-  useTheme();
+  useAppearance();
   useBackupStates();
 
   // Remove splash screen once React has mounted
@@ -382,17 +412,13 @@ function App() {
     useSidebarStore.getState().setRightPanelWidth(showAiPanel ? aiPanelWidth + AI_PANEL_DIVIDER_WIDTH : 0);
   }, [showAiPanel, aiPanelWidth]);
 
-  // Notify child webviews when modals/overlays are shown (native webview covers HTML modals).
+  // Native web views paint over HTML, so these overlays freeze them while open.
   const sidebarExpanded = useSidebarStore((s) => s.isExpanded);
   const sidebarDockedOpen = useSidebarStore(selectIsDockedOpen);
   const sidebarMenuOpen = useSidebarStore((s) => s.menuOpen); // can spill past a docked sidebar's edge
   const anyOverlayOpen =
-    showQuickConnect || showSettings || showCredentials || showEntryDialog || showFolderDialog || showUnlockDialog || showCloudRestore || showAbout || showPasswordGenerator || showSshKeyGenerator || showImportDialog || showDeviceSetup || showCreateTeamVault || !!teamVaultToUnlock || !!editingEntryId || !!editingFolderId || !!pendingDeviceAuth || !!showVaultSettings || !!showExportDialog || showVaultImportDialog || showRenameVaultDialog || showChangePasswordDialog || !!feedbackType || showWhatsNew;
-  useEffect(() => {
-    document.dispatchEvent(
-      new CustomEvent("conduit:overlay-change", { detail: anyOverlayOpen })
-    );
-  }, [anyOverlayOpen]);
+    showQuickConnect || !!showSettings || showCredentials || showEntryDialog || showFolderDialog || showUnlockDialog || showCloudRestore || showAbout || showPasswordGenerator || showSshKeyGenerator || showImportDialog || showDeviceSetup || showCreateTeamVault || !!teamVaultToUnlock || !!editingEntryId || !!editingFolderId || !!pendingDeviceAuth || !!showVaultSettings || !!showExportDialog || showVaultImportDialog || showRenameVaultDialog || showChangePasswordDialog || !!feedbackType || showWhatsNew;
+  useFreeze(anyOverlayOpen, "legacy", "App overlay flags");
 
   // Dispatch layout-changed when sidebar mode/expansion changes
   // Immediate dispatch handles the instant part; delayed dispatch handles CSS transition end
@@ -404,15 +430,9 @@ function App() {
     return () => clearTimeout(timer);
   }, [sidebarExpanded, sidebarDockedOpen]);
 
-  // Screenshot-freeze: when sidebar panel opens as overlay,
-  // tell WebView to capture a screenshot and hide the native view so the
-  // sidebar HTML can render above it.
+  // The floating side bar, or a docked one whose vault menu spills past its edge.
   const sidebarOverlayOpen = sidebarExpanded && (!sidebarDockedOpen || sidebarMenuOpen);
-  useEffect(() => {
-    document.dispatchEvent(
-      new CustomEvent("conduit:sidebar-overlay-change", { detail: sidebarOverlayOpen })
-    );
-  }, [sidebarOverlayOpen]);
+  useFreeze(sidebarOverlayOpen, "sidebar", "side bar overlay");
 
   // Check vault status on startup and determine whether to show hub or auto-connect
   useEffect(() => {
@@ -472,7 +492,7 @@ function App() {
             vaultState.setShowVaultHub(false);
             return;
           } catch (err) {
-            const msg = typeof err === "string" ? err : "Failed to auto-connect to team vault";
+            const msg = errorText(err, "Failed to auto-connect to team vault");
             vaultState.setAutoConnectInProgress(false);
             vaultState.setAutoConnectError(msg);
             vaultState.setShowVaultHub(true);
@@ -516,6 +536,7 @@ function App() {
   const handleAiResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     aiResizing.current = true;
+    setAiDragging(true);
     const startX = e.clientX;
     const startWidth = aiPanelWidth;
 
@@ -533,6 +554,7 @@ function App() {
 
     const onMouseUp = () => {
       aiResizing.current = false;
+      setAiDragging(false);
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
       document.body.style.cursor = "";
@@ -960,14 +982,7 @@ function App() {
 
   // Auth loading state
   if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-canvas">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-ink-muted">Loading...</span>
-        </div>
-      </div>
-    );
+    return <FullScreenSpinner text="Loading..." />;
   }
 
   // Auth gate — allow local and cached modes to bypass sign-in
@@ -982,33 +997,14 @@ function App() {
 
   // Full-screen auto-connect spinner (team vault auto-connect in progress)
   if (autoConnectInProgress) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-canvas">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-conduit-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-ink-muted">Connecting to team vault...</span>
-        </div>
-      </div>
-    );
+    return <FullScreenSpinner text="Connecting to team vault..." />;
   }
 
   // Vault Hub — full-screen landing page (stays until explicitly dismissed)
   if (showVaultHub) {
     return (
-      <div className="flex flex-col h-screen bg-canvas text-ink">
-        {/* Offline banner */}
-        {authMode === 'cached' && (
-          <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-amber-600/20 border-b border-amber-600/30 text-amber-300 text-xs flex-shrink-0">
-            <WifiOffIcon size={14} />
-            <span>Working offline — using cached features</span>
-            <button
-              onClick={() => useAuthStore.getState().tryReauthenticate()}
-              className="ml-2 px-2 py-0.5 bg-amber-600/30 hover:bg-amber-600/50 rounded text-amber-200 transition-colors"
-            >
-              Reconnect
-            </button>
-          </div>
-        )}
+      <div className="flex flex-col h-screen bg-editor text-ink">
+        {authMode === 'cached' && <OfflineBanner />}
         <VaultHub />
         {/* Overlay dialogs that can appear on top of hub */}
         {showUnlockDialog && (
@@ -1065,22 +1061,9 @@ function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-canvas text-ink">
-      {/* Theme accent bar */}
-      <div className="h-[2px] bg-conduit-500 flex-shrink-0" />
-      {/* Offline banner for cached mode */}
-      {authMode === 'cached' && (
-        <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-amber-600/20 border-b border-amber-600/30 text-amber-300 text-xs flex-shrink-0">
-          <WifiOffIcon size={14} />
-          <span>Working offline — using cached features</span>
-          <button
-            onClick={() => useAuthStore.getState().tryReauthenticate()}
-            className="ml-2 px-2 py-0.5 bg-amber-600/30 hover:bg-amber-600/50 rounded text-amber-200 transition-colors"
-          >
-            Reconnect
-          </button>
-        </div>
-      )}
+    <div className="flex flex-col h-screen bg-editor text-ink">
+      <div data-cv-accent-line className="h-[2px] shrink-0 bg-accent" />
+      {authMode === 'cached' && <OfflineBanner />}
       <SyncBanners />
       <div className="flex flex-1 min-h-0">
       {/* Sidebar — docked in this row when pinned, otherwise a fixed overlay */}
@@ -1091,28 +1074,28 @@ function App() {
         <div className="flex flex-1 min-h-0">
           <SplitContainer
             rightSlot={
-              <>
-                <button
-                  onClick={() => setShowAiPanel(!showAiPanel)}
-                  className={`flex-shrink-0 p-2 mx-1 rounded hover:bg-raised ${
-                    showAiPanel ? "bg-raised text-conduit-400" : "text-ink-muted hover:text-ink"
-                  }`}
-                  title="Toggle AI Panel"
-                >
-                  <RobotIcon size={18} />
-                </button>
-              </>
+              <IconButton
+                data-cv-ai-toggle=""
+                icon="robot"
+                label="Toggle AI Panel"
+                pressed={showAiPanel}
+                className="mr-1"
+                onClick={() => setShowAiPanel(!showAiPanel)}
+              />
             }
           />
           {/* AI side panel */}
           <>
             <div
+              data-cv-ai-divider=""
+              data-dragging={aiDragging ? "" : undefined}
               onMouseDown={handleAiResizeStart}
-              className="w-1 cursor-col-resize bg-stroke hover:bg-conduit-500 transition-colors flex-shrink-0"
+              className="cv-sash cv-sash-ai"
               style={{ display: showAiPanel ? undefined : 'none' }}
             />
             <div
-              className="flex-shrink-0 overflow-hidden"
+              data-cv-ai-panel=""
+              className="shrink-0 overflow-hidden"
               style={{
                 width: aiPanelWidth,
                 display: showAiPanel ? undefined : 'none',

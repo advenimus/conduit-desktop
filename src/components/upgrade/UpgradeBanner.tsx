@@ -1,4 +1,5 @@
-import { BoltIcon, CloseIcon } from "../../lib/icons";
+import { Button, Callout } from "../ui";
+
 interface UpgradeBannerProps {
   message: string;
   ctaLabel: string;
@@ -8,23 +9,13 @@ interface UpgradeBannerProps {
 
 export default function UpgradeBanner({ message, ctaLabel, onCta, onDismiss }: UpgradeBannerProps) {
   return (
-    <div className="flex items-center gap-2 bg-conduit-500/5 border border-conduit-500/20 rounded-lg px-3 py-2">
-      <BoltIcon size={14} className="text-conduit-400 flex-shrink-0" />
-      <span className="text-xs text-ink-muted flex-1 truncate">{message}</span>
-      <button
-        onClick={onCta}
-        className="text-conduit-400 hover:text-conduit-300 font-medium text-xs whitespace-nowrap"
-      >
-        {ctaLabel} &rarr;
-      </button>
-      {onDismiss && (
-        <button
-          onClick={onDismiss}
-          className="text-ink-faint hover:text-ink-muted p-0.5"
-        >
-          <CloseIcon size={12} />
-        </button>
-      )}
-    </div>
+    <Callout tone="info" icon="bolt" size="sm" onDismiss={onDismiss}>
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-ink-muted">{message}</span>
+        <Button variant="link" onClick={onCta} className="font-medium">
+          {ctaLabel} &rarr;
+        </Button>
+      </div>
+    </Callout>
   );
 }

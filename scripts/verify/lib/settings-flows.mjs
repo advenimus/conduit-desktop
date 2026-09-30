@@ -2,26 +2,21 @@
 // lock, the Sync tab (status, Sync now, review tools, devices, notices), and the master password
 // change (Vault menu > Change Password...).
 
-import { bodyText, clickSelector, clickText, dispatchDocumentEvent, exists, typeInto, waitFor, withTimeout } from './ui.mjs';
+import { bodyText, clickSelector, clickText, dispatchDocumentEvent, typeInto, waitFor, withTimeout } from './ui.mjs';
 import { clickMenuItem, selectOption, setCheckbox } from './ui-forms.mjs';
+import { SELECTORS, clickIn, evaluateIn, existsIn, textIn } from './selectors.mjs';
 
 /** Settings dialog tab ids (src/components/settings/SettingsNav.tsx). */
 export const SETTINGS_TABS = ['general', 'appearance', 'security', 'sessions/terminal', 'sessions/ssh', 'sessions/rdp', 'sessions/vnc', 'sessions/web', 'ai/agent', 'backup', 'sync', 'mobile', 'team', 'account'];
-const SETTINGS_ROOT = '[data-cv-settings]';
+const SETTINGS_ROOT = SELECTORS.settingsRoot.hook;
 const IDLE_LOCK_SELECT = 'select[aria-label="Lock the vault when idle"]';
 const SYNC_TOOL_BUTTONS = ['Review changes', 'Recently deleted', 'Other copies'];
 const CHANGE_PW_TITLE = 'Change Password';
 export const ERASE_DELETED_TEXT = 'Also permanently delete items in Recently deleted';
 
-function markSettingsInPage() {
-  const root = [...document.querySelectorAll('[data-dialog-content]')].find((el) => el.querySelector('h2')?.innerText?.trim() === 'Settings');
-  if (!root) return false;
-  root.setAttribute('data-cv-settings', '');
-  return true;
-}
-
+/** B1: the Settings panel carries data-cv-settings. */
 export async function settingsOpen(device) {
-  return withTimeout(device.page.evaluate(markSettingsInPage), 10_000, `${device.name}: find Settings`);
+  return withTimeout(device.page.evaluate((css) => document.querySelector(css) !== null, SETTINGS_ROOT), 10_000, `${device.name}: find Settings`);
 }
 
 /**
@@ -45,11 +40,11 @@ export async function openSettings(device, tab = 'general') {
 
 /** Clicks a Settings nav item by its label (General, Security, Backup, Sync, ...). */
 export function switchSettingsTab(device, label) {
-  return clickText(device, label, { exact: true, selector: `${SETTINGS_ROOT} .w-52 button` });
+  return clickIn(device, label, SELECTORS.settingsNavButton, { scope: SETTINGS_ROOT, exact: true });
 }
 
 async function closeSettingsWith(device, label) {
-  await clickText(device, label, { exact: true, selector: `${SETTINGS_ROOT} > div:last-child button` });
+  await clickIn(device, label, SELECTORS.settingsFooterButton, { scope: SETTINGS_ROOT, exact: true });
   await waitFor(async () => !(await settingsOpen(device)), { timeoutMs: 15_000, label: `${device.name}: Settings closed` });
 }
 
@@ -66,31 +61,39 @@ export async function setIdleLockMinutes(device, minutes) {
   await saveSettings(device);
 }
 
-function readSyncTabInPage(root) {
+function readSyncTabInPage(root, cv) {
+  const { S } = cv;
   const el = document.querySelector(root);
   if (!el) return null;
+  const read = (node) => node?.innerText?.trim() ?? null;
   const sections = [...el.querySelectorAll('h3')].map((h) => h.innerText.trim());
-  const statusBox = el.querySelector('.bg-well.border');
-  const status = statusBox?.querySelector('p.font-medium')?.innerText?.trim() ?? null;
-  const detail = statusBox?.querySelector('p.text-xs')?.innerText?.trim() ?? null;
-  const plan = [...el.querySelectorAll('p')].map((p) => p.innerText.trim()).find((t) => t.startsWith('Your plan:')) ?? null;
-  const devices = [...el.querySelectorAll('.divide-y > div')].map((row) => ({
-    name: row.querySelector('p.text-sm')?.innerText?.trim() ?? '',
-    line: row.querySelector('p.text-xs')?.innerText?.trim() ?? '',
+  const statusBox = cv.pickOne(el, S.syncStatus);
+  const devices = cv.pickAll(el, S.deviceRow).map((row) => ({
+    name: read(cv.pickOne(row, S.deviceName)) ?? '',
+    line: read(cv.pickOne(row, S.deviceLine)) ?? '',
   }));
-  const notices = [...el.querySelectorAll('.bg-amber-500\\/10')].map((n) => ({
-    text: n.querySelector('p')?.innerText?.trim() ?? '',
+  const notices = cv.pickAll(el, S.syncNotice).map((n) => ({
+    text: read(cv.pickOne(n, S.syncNoticeText)) ?? '',
     actions: [...n.querySelectorAll('button')].map((b) => b.innerText.trim()),
   }));
-  const paused = [...el.querySelectorAll('p.text-amber-400')].map((p) => p.innerText.trim());
-  return { sections, status, detail, plan, devices, notices, paused, text: el.innerText };
+  const paused = cv.pickAll(el, S.syncPaused).map((p) => p.innerText.trim());
+  return {
+    sections,
+    status: read(cv.pickOne(statusBox, S.syncStatusLabel)),
+    detail: read(cv.pickOne(statusBox, S.syncStatusDetail)),
+    plan: read(cv.pickOne(el, S.syncPlan)),
+    devices,
+    notices,
+    paused,
+    text: el.innerText,
+  };
 }
 
 /** Opens Settings > Sync and reads it: {sections, status, detail, plan, devices, notices, paused, text}. */
 export async function readSyncTab(device, { reopen = true } = {}) {
   if (reopen || !(await settingsOpen(device))) await openSettings(device, 'sync');
   return waitFor(async () => {
-    const tab = await withTimeout(device.page.evaluate(readSyncTabInPage, SETTINGS_ROOT), 10_000, `${device.name}: read Sync tab`);
+    const tab = await evaluateIn(device, readSyncTabInPage, SETTINGS_ROOT, { label: 'read Sync tab' });
     return tab?.sections.includes('Multi-device sync') ? tab : null;
   }, { timeoutMs: 15_000, label: `${device.name}: Sync tab` });
 }
@@ -115,13 +118,13 @@ export async function openSyncTool(device, tool) {
 /** Clicks [Review] or [OK] on the Sync tab notice whose text includes `text`. */
 export async function syncTabNoticeAction(device, text, label) {
   await readSyncTab(device);
-  const done = await withTimeout(device.page.evaluate(({ root, text, label }) => {
-    const notice = [...document.querySelectorAll(`${root} .bg-amber-500\\/10`)].find((n) => (n.innerText ?? '').includes(text));
+  const done = await evaluateIn(device, ({ root, text, label }, cv) => {
+    const notice = cv.find(root, cv.S.syncNotice).find((n) => (n.innerText ?? '').includes(text));
     const button = [...(notice?.querySelectorAll('button') ?? [])].find((b) => b.innerText.trim() === label);
     if (!button) return notice ? 'no button' : 'no notice';
     button.click();
     return 'clicked';
-  }, { root: SETTINGS_ROOT, text, label }), 10_000, `${device.name}: notice [${label}]`);
+  }, { root: SETTINGS_ROOT, text, label }, { label: `notice [${label}]` });
   if (done !== 'clicked') throw new Error(`${device.name}: Sync tab notice "${text}" [${label}]: ${done}`);
 }
 
@@ -141,8 +144,9 @@ export async function changeMasterPassword(device, currentPassword, newPassword,
   return waitFor(async () => {
     const text = await bodyText(device);
     if (!text.includes('Update the master password for this vault')) return { ok: true };
-    if (await exists(device, '[data-dialog-content] p.text-red-400')) {
-      const error = await withTimeout(device.page.evaluate(() => document.querySelector('[data-dialog-content] p.text-red-400')?.innerText ?? ''), 10_000, 'read error');
+    const scope = { scope: '[data-dialog-content]' };
+    if (await existsIn(device, SELECTORS.dialogError, scope)) {
+      const error = (await textIn(device, SELECTORS.dialogError, scope)) ?? '';
       return { ok: false, error };
     }
     return null;

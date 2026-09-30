@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { ICON_CATEGORIES } from "./iconRegistry";
+import { ICON_CATEGORIES, resolveIcon } from "./iconRegistry";
 import { usePopoverPosition } from "../../hooks/usePopoverPosition";
-import { CloseIcon, SearchIcon } from "../../lib/icons";
+import { IconButton, SearchInput, cx, useLayer } from "../ui";
+import { PICKER_PANEL, PICKER_TITLE, defaultRowClass } from "./pickerChrome";
 
 interface IconPickerProps {
   value: string | null;
@@ -19,6 +20,8 @@ export default function IconPicker({ value, onSelect, onClose, customColor, anch
   const ref = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const pos = usePopoverPosition(anchorRef, PICKER_SIZE);
+  // Above the dialog that opened it, so Tab reaches the picker; Escape does nothing here, as before.
+  useLayer({ ref });
 
   useEffect(() => {
     searchRef.current?.focus();
@@ -47,75 +50,67 @@ export default function IconPicker({ value, onSelect, onClose, customColor, anch
 
   const iconStyle = customColor ? { color: customColor } : undefined;
 
+  const pick = (icon: string | null) => {
+    onSelect(icon);
+    onClose();
+  };
+
   return createPortal(
     <div
       ref={ref}
       data-popover
-      className="fixed z-[60] bg-panel border border-stroke rounded-lg shadow-xl w-[300px] flex flex-col"
+      className={cx(PICKER_PANEL, "flex w-[300px] flex-col")}
       style={{ top: pos.top, left: pos.left, maxHeight: "360px" }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-1">
-        <span className="text-xs font-medium text-ink-muted">Icon</span>
-        <button onClick={onClose} className="p-0.5 rounded hover:bg-raised">
-          <CloseIcon size={12} />
-        </button>
+      <div className="flex items-center justify-between px-3 pb-1 pt-3">
+        <span className={PICKER_TITLE}>Icon</span>
+        <IconButton size="sm" icon="close" label="Close" onClick={onClose} />
       </div>
 
-      {/* Search */}
       <div className="px-3 pb-2">
-        <div className="relative">
-          <SearchIcon size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-faint" />
-          <input
-            ref={searchRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search icons..."
-            className="w-full pl-7 pr-2 py-1.5 bg-well border border-stroke rounded text-xs focus:outline-none focus:ring-1 focus:ring-conduit-500"
-          />
-        </div>
+        <SearchInput ref={searchRef} value={search} onChange={setSearch} placeholder="Search icons..." />
       </div>
 
-      {/* Use Default button */}
       <div className="px-3 pb-2">
         <button
-          onClick={() => { onSelect(null); onClose(); }}
-          className={`w-full text-left text-xs px-2 py-1.5 rounded transition-colors ${
-            value === null ? "bg-conduit-600/20 text-conduit-400" : "text-ink-secondary hover:bg-raised"
-          }`}
+          type="button"
+          onClick={() => pick(null)}
+          {...(value === null ? { "data-selected": "" } : {})}
+          className={defaultRowClass(value === null)}
         >
           Use Default
         </button>
       </div>
 
-      {/* Icon grid */}
       <div className="flex-1 overflow-y-auto px-3 pb-3">
         {filteredCategories.map((cat) => (
           <div key={cat.label} className="mb-3">
-            <p className="text-[10px] font-semibold text-ink-faint uppercase tracking-wider mb-1.5">
-              {cat.label}
-            </p>
+            <p className="mb-1.5 text-meta font-semibold text-ink-muted">{cat.label}</p>
             <div className="grid grid-cols-6 gap-1">
-              {cat.icons.map(({ name, component: IconComp }) => (
-                <button
-                  key={name}
-                  onClick={() => { onSelect(name); onClose(); }}
-                  className={`w-9 h-9 flex items-center justify-center rounded transition-all ${
-                    value === name
-                      ? "bg-conduit-600/20 ring-1 ring-conduit-500"
-                      : "hover:bg-raised"
-                  }`}
-                  title={name.replace(/^Icon/, "")}
-                >
-                  <IconComp size={18} style={iconStyle} />
-                </button>
-              ))}
+              {cat.icons.map(({ name }) => {
+                const IconComp = resolveIcon(name);
+                const selected = value === name;
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => pick(name)}
+                    {...(selected ? { "data-selected": "" } : {})}
+                    className={cx(
+                      "flex size-9 items-center justify-center rounded",
+                      selected ? "bg-selected outline outline-1 -outline-offset-1 outline-(--c-accent)" : "hover:bg-hover",
+                    )}
+                    title={name.replace(/^Icon/, "")}
+                  >
+                    {IconComp && <IconComp size={20} style={iconStyle} />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}
         {filteredCategories.length === 0 && (
-          <p className="text-xs text-ink-faint text-center py-4">No icons match "{search}"</p>
+          <p className="py-4 text-center text-meta text-ink-muted">No icons match "{search}"</p>
         )}
       </div>
     </div>,

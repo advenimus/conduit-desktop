@@ -23,8 +23,8 @@ export default function SecretSpan({ secret }: SecretSpanProps) {
       <span
         className={
           revealed
-            ? "text-conduit-400 font-mono text-xs allow-select"
-            : "text-conduit-400 font-mono text-xs blur-sm select-none"
+            ? "text-link font-mono text-label allow-select"
+            : "text-link font-mono text-label blur-sm select-none"
         }
       >
         {secret}

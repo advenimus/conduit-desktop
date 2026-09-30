@@ -5,9 +5,9 @@ import { useAuthStore } from "../../stores/authStore";
 import { useTeamStore } from "../../stores/teamStore";
 import { getPasswordHistoryLimit } from "../../lib/tier";
 import type { PasswordHistoryEntry } from "../../types/entry";
-import {
-  ClockIcon, CloseIcon, CopyIcon, EyeIcon, EyeOffIcon, HistoryIcon, LoaderIcon, LockIcon, TrashIcon, UserIcon
-} from "../../lib/icons";
+import { ClockIcon, LockIcon, UserIcon } from "../../lib/icons";
+import { Button, Dialog, EmptyState, IconButton, Spinner } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 interface PasswordHistoryDialogProps {
   entryId: string;
@@ -34,7 +34,7 @@ export default function PasswordHistoryDialog({ entryId, entryName, onClose }: P
       });
       setHistory(entries);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load password history");
+      toast.error(errorText(err, "Failed to load password history"));
     } finally {
       setLoading(false);
     }
@@ -60,7 +60,7 @@ export default function PasswordHistoryDialog({ entryId, entryName, onClose }: P
       setHistory((prev) => prev.filter((h) => h.id !== historyId));
       toast.success("History entry deleted");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete history entry");
+      toast.error(errorText(err, "Failed to delete history entry"));
     }
   };
 
@@ -84,146 +84,96 @@ export default function PasswordHistoryDialog({ entryId, entryName, onClose }: P
   const canDelete = vaultType === "personal" || myVaultRole === "admin";
   const isFreeTier = limit > 0 && limit !== -1;
 
+  const footer = (
+    <>
+      {isFreeTier && (
+        <p className="mr-auto self-center text-meta text-ink-faint">
+          Free plan shows {limit} most recent changes.{" "}
+          <Button variant="link" size="sm" onClick={() => invoke("auth_open_pricing")} className="underline">
+            Upgrade for full history.
+          </Button>
+        </p>
+      )}
+      <Button onClick={onClose}>Close</Button>
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div data-dialog-content className="bg-panel border border-stroke rounded-lg shadow-xl w-[520px] max-h-[600px] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-conduit-500/10 flex items-center justify-center">
-              <HistoryIcon size={18} className="text-conduit-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink">Password History</h2>
-              <p className="text-xs text-ink-muted truncate max-w-[340px]">{entryName}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-raised rounded text-ink-muted hover:text-ink"
-          >
-            <CloseIcon size={20} />
-          </button>
+    <Dialog
+      open
+      title="Password History"
+      icon="history"
+      width={520}
+      style={{ maxHeight: 600 }}
+      closeOnEscape={false}
+      onClose={onClose}
+      footer={footer}
+    >
+      <p className="-mt-2 max-w-[376px] truncate pl-9 text-label text-ink-muted">{entryName}</p>
+
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Spinner size={24} className="text-ink-muted" />
         </div>
+      )}
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-3">
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <LoaderIcon size={24} className="text-conduit-400 animate-spin" />
-            </div>
-          )}
+      {!loading && history.length === 0 && (
+        <div className="py-4">
+          <EmptyState icon="history" title="No password changes recorded yet" />
+        </div>
+      )}
 
-          {!loading && history.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <HistoryIcon size={32} className="text-ink-faint mb-2" />
-              <p className="text-sm text-ink-muted">No password changes recorded yet</p>
-            </div>
-          )}
-
-          {!loading && history.length > 0 && (
-            <div className="space-y-2">
-              {history.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="border border-stroke-dim rounded-md px-3 py-2.5 hover:bg-well/30 transition-colors"
-                >
-                  {/* Timestamp row */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5 text-xs text-ink-muted">
-                      <ClockIcon size={13} className="text-ink-faint" />
-                      {new Date(entry.changed_at).toLocaleString()}
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      {entry.password && (
-                        <>
-                          <button
-                            onClick={() => togglePasswordVisibility(entry.id)}
-                            title={visiblePasswords.has(entry.id) ? "Hide password" : "Show password"}
-                            className="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition-colors"
-                          >
-                            {visiblePasswords.has(entry.id) ? (
-                              <EyeOffIcon size={14} />
-                            ) : (
-                              <EyeIcon size={14} />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => copyToClipboard(entry.password!, "Password")}
-                            title="Copy password"
-                            className="p-1 rounded hover:bg-raised text-ink-muted hover:text-ink transition-colors"
-                          >
-                            <CopyIcon size={14} />
-                          </button>
-                        </>
-                      )}
-                      {canDelete && (
-                        <button
-                          onClick={() => handleDelete(entry.id)}
-                          title="Delete history entry"
-                          className="p-1 rounded hover:bg-raised text-ink-muted hover:text-red-400 transition-colors"
-                        >
-                          <TrashIcon size={14} />
-                        </button>
-                      )}
-                    </div>
+      {!loading && history.length > 0 && (
+        <div className="space-y-2">
+          {history.map((entry) => {
+            const visible = visiblePasswords.has(entry.id);
+            return (
+              <div key={entry.id} className="rounded-md border border-card-border px-3 py-2.5 transition-colors hover:bg-hover">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-label text-ink-muted">
+                    <ClockIcon size={12} compact className="text-ink-faint" />
+                    {new Date(entry.changed_at).toLocaleString()}
                   </div>
-
-                  {/* Username */}
-                  {entry.username && (
-                    <div className="flex items-center gap-1.5 text-xs mb-1">
-                      <UserIcon size={13} className="text-ink-faint" />
-                      <span className="text-ink-muted">Username</span>
-                      <span className="text-ink">{entry.username}</span>
-                    </div>
-                  )}
-
-                  {/* Password */}
-                  {entry.password && (
-                    <div className="flex items-center gap-1.5 text-xs mb-1">
-                      <LockIcon size={13} className="text-ink-faint" />
-                      <span className="text-ink-muted">Password</span>
-                      <span className="text-ink font-mono">
-                        {visiblePasswords.has(entry.id) ? entry.password : "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Changed by */}
-                  {entry.changed_by && (
-                    <div className="text-[11px] text-ink-faint mt-1">
-                      Changed by {entry.changed_by}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-0.5">
+                    {entry.password && (
+                      <>
+                        <IconButton
+                          size="sm"
+                          icon={visible ? "eyeOff" : "eye"}
+                          label={visible ? "Hide password" : "Show password"}
+                          onClick={() => togglePasswordVisibility(entry.id)}
+                        />
+                        <IconButton size="sm" icon="copy" label="Copy password" onClick={() => copyToClipboard(entry.password!, "Password")} />
+                      </>
+                    )}
+                    {canDelete && (
+                      <IconButton size="sm" icon="trash" tone="danger" label="Delete history entry" onClick={() => handleDelete(entry.id)} />
+                    )}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div className="border-t border-stroke px-4 py-3 flex items-center justify-between">
-          {isFreeTier ? (
-            <p className="text-[11px] text-ink-faint">
-              Free plan shows {limit} most recent changes.{" "}
-              <button
-                onClick={() => invoke("auth_open_pricing")}
-                className="text-conduit-400 hover:text-conduit-300 underline"
-              >
-                Upgrade for full history.
-              </button>
-            </p>
-          ) : (
-            <div />
-          )}
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-raised hover:bg-stroke rounded text-ink transition-colors"
-          >
-            Close
-          </button>
+                {entry.username && (
+                  <div className="mb-1 flex items-center gap-1.5 text-label">
+                    <UserIcon size={12} compact className="text-ink-faint" />
+                    <span className="text-ink-muted">Username</span>
+                    <span className="text-ink">{entry.username}</span>
+                  </div>
+                )}
+
+                {entry.password && (
+                  <div className="mb-1 flex items-center gap-1.5 text-label">
+                    <LockIcon size={12} compact className="text-ink-faint" />
+                    <span className="text-ink-muted">Password</span>
+                    <span className="font-mono text-ink">{visible ? entry.password : "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"}</span>
+                  </div>
+                )}
+
+                {entry.changed_by && <div className="mt-1 text-meta text-ink-faint">Changed by {entry.changed_by}</div>}
+              </div>
+            );
+          })}
         </div>
-      </div>
-    </div>
+      )}
+    </Dialog>
   );
 }

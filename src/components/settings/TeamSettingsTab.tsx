@@ -13,6 +13,10 @@ import AuditLogViewer from '../vault/AuditLogViewer';
 import {
   CrownIcon, ExternalLinkIcon, HistoryIcon, LockIcon, PlusIcon, UserIcon, UsersIcon
 } from "../../lib/icons";
+import { Button, Card, EmptyState, SectionHeader } from "../ui";
+import { HINT } from "./settings-styles";
+
+const LIST = "divide-y divide-card-border rounded-md border border-card-border bg-well";
 
 export default function TeamSettingsTab() {
   const { team, members, myRole, teamVaults, loadTeam, loadMembers, loadTeamVaults } = useTeamStore();
@@ -29,37 +33,27 @@ export default function TeamSettingsTab() {
   }, [isAuthenticated, authMode, loadTeam, loadMembers, loadTeamVaults]);
 
   if (authMode === 'local') {
-    return (
-      <div className="text-center py-8">
-        <UsersIcon size={48} className="text-ink-faint mx-auto mb-3" />
-        <p className="text-ink-muted mb-2">Not signed in</p>
-        <p className="text-xs text-ink-faint">
-          Sign in to access team features
-        </p>
-      </div>
-    );
+    return <EmptyState icon={UsersIcon} title="Not signed in" description="Sign in to access team features" />;
   }
 
   if (!team) {
     return (
       <div className="space-y-4">
-        <div className="text-center py-8">
-          <UsersIcon size={48} className="text-ink-faint mx-auto mb-3" />
-          <p className="text-ink-muted mb-2">No team</p>
-          <p className="text-xs text-ink-faint mb-4">
-            You&apos;re not a member of any team yet.
-            {profile?.is_team_member ? '' : ' Create or join a team on the website.'}
-          </p>
-          <button
-            onClick={() => window.electron.invoke('auth_open_account').then(() => {
-              // The website handles team creation
-            })}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-conduit-600 hover:bg-conduit-500 text-white text-xs rounded-md transition-colors"
-          >
-            <ExternalLinkIcon size={12} />
-            Manage on conduitdesktop.com
-          </button>
-        </div>
+        <EmptyState
+          icon={UsersIcon}
+          title="No team"
+          description={
+            <>
+              You&apos;re not a member of any team yet.
+              {profile?.is_team_member ? '' : ' Create or join a team on the website.'}
+            </>
+          }
+          action={
+            <Button variant="primary" icon={ExternalLinkIcon} className="mt-2" onClick={() => void window.electron.invoke('auth_open_account')}>
+              Manage on conduitdesktop.com
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -68,48 +62,48 @@ export default function TeamSettingsTab() {
     <div className="space-y-4">
       {/* Team info */}
       <div>
-        <h3 className="text-sm font-medium text-ink mb-2">Team</h3>
-        <div className="bg-well rounded-lg p-3 border border-stroke">
+        <SectionHeader title="Team" />
+        <Card>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-conduit-600/20 flex items-center justify-center">
-              <UsersIcon size={20} className="text-conduit-400" />
+            <div className="flex size-10 items-center justify-center rounded-md bg-selected">
+              <UsersIcon size={20} className="text-(--c-accent)" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-ink truncate">{team.name}</p>
-              <p className="text-xs text-ink-muted">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-body font-semibold text-ink">{team.name}</p>
+              <p className={HINT}>
                 {members.length} / {team.max_seats} seats
-                {myRole && <span className="ml-2 text-conduit-400">({myRole})</span>}
+                {myRole && <span className="ml-2 text-ink-secondary">({myRole})</span>}
               </p>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Members */}
       <div>
-        <h3 className="text-sm font-medium text-ink mb-2">Members</h3>
-        <div className="bg-well rounded-lg border border-stroke divide-y divide-stroke">
+        <SectionHeader title="Members" />
+        <div className={LIST}>
           {members.map((member) => (
             <div key={member.id} className="flex items-center gap-3 px-3 py-2">
-              <div className="w-7 h-7 rounded-full bg-ink-faint/20 flex items-center justify-center">
+              <div className="flex size-7 items-center justify-center rounded-full bg-selected">
                 {member.role === 'admin' ? (
-                  <CrownIcon size={14} className="text-amber-400" />
+                  <CrownIcon size={16} className="text-warning" />
                 ) : (
-                  <UserIcon size={14} className="text-ink-muted" />
+                  <UserIcon size={16} className="text-ink-muted" />
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-ink truncate">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-label font-semibold text-ink">
                   {member.user_display_name ?? member.user_email ?? 'Unknown'}
                 </p>
-                <p className="text-[10px] text-ink-faint">
+                <p className="text-meta text-ink-faint">
                   {member.role} &middot; joined {new Date(member.joined_at).toLocaleDateString()}
                 </p>
               </div>
             </div>
           ))}
           {members.length === 0 && (
-            <div className="px-3 py-4 text-center text-xs text-ink-faint">
+            <div className="px-3 py-4 text-center text-meta text-ink-faint">
               No members loaded
             </div>
           )}
@@ -118,35 +112,38 @@ export default function TeamSettingsTab() {
 
       {/* Team Vaults */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-ink">Team Vaults</h3>
-          {myRole === 'admin' && (
-            <button
-              onClick={() => document.dispatchEvent(new CustomEvent('conduit:create-team-vault'))}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-conduit-400 hover:text-conduit-300 hover:bg-conduit-500/10 rounded transition-colors"
-            >
-              <PlusIcon size={12} />
-              Create
-            </button>
-          )}
-        </div>
+        <SectionHeader
+          title="Team Vaults"
+          actions={
+            myRole === 'admin' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={PlusIcon}
+                onClick={() => document.dispatchEvent(new CustomEvent('conduit:create-team-vault'))}
+              >
+                Create
+              </Button>
+            )
+          }
+        />
         {teamVaults.length > 0 ? (
-          <div className="bg-well rounded-lg border border-stroke divide-y divide-stroke">
+          <div className={LIST}>
             {teamVaults.map((vault) => {
               const isActive = vaultType === 'team' && teamVaultId === vault.id;
               return (
                 <div key={vault.id} className="flex items-center gap-3 px-3 py-2">
-                  <div className="w-7 h-7 rounded-full bg-conduit-600/20 flex items-center justify-center flex-shrink-0">
-                    <LockIcon size={14} className="text-conduit-400" />
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-selected">
+                    <LockIcon size={16} className="text-(--c-accent)" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-ink truncate">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-label font-semibold text-ink">
                       {vault.name}
                       {isActive && (
-                        <span className="ml-1.5 text-[10px] text-conduit-400">(active)</span>
+                        <span className="ml-1.5 text-meta font-normal text-ink-secondary">(active)</span>
                       )}
                     </p>
-                    <p className="text-[10px] text-ink-faint">
+                    <p className="text-meta text-ink-faint">
                       {vault.member_count} {vault.member_count === 1 ? 'member' : 'members'}
                       {vault.description && <span> &middot; {vault.description}</span>}
                     </p>
@@ -156,7 +153,7 @@ export default function TeamSettingsTab() {
             })}
           </div>
         ) : (
-          <div className="bg-well rounded-lg border border-stroke px-3 py-4 text-center text-xs text-ink-faint">
+          <div className="rounded-md border border-card-border bg-well px-3 py-4 text-center text-meta text-ink-faint">
             <p>No team vaults yet.</p>
             {myRole !== 'admin' && (() => {
               const admins = members.filter(m => m.role === 'admin');
@@ -170,23 +167,15 @@ export default function TeamSettingsTab() {
       </div>
 
       {/* Actions */}
-      <div className="pt-2 flex items-center gap-2">
+      <div className="flex items-center gap-2 pt-2">
         {myRole === 'admin' && (
-          <button
-            onClick={() => setShowAuditLog(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-well hover:bg-raised text-ink text-xs rounded-md border border-stroke transition-colors"
-          >
-            <HistoryIcon size={12} />
+          <Button icon={HistoryIcon} onClick={() => setShowAuditLog(true)}>
             View Audit Log
-          </button>
+          </Button>
         )}
-        <button
-          onClick={() => window.electron.invoke('auth_open_account')}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-well hover:bg-raised text-ink text-xs rounded-md border border-stroke transition-colors"
-        >
-          <ExternalLinkIcon size={12} />
+        <Button icon={ExternalLinkIcon} onClick={() => void window.electron.invoke('auth_open_account')}>
           Manage team on conduitdesktop.com
-        </button>
+        </Button>
       </div>
 
       {/* Audit log modal */}

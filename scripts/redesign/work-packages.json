@@ -1,0 +1,840 @@
+{
+  "packages": [
+    {
+      "id": "R1-FOUNDATION",
+      "title": "Restyle foundation: icon packs, tokens, appearance runtime and primitives",
+      "wave": 1,
+      "depends_on": [],
+      "owns": [
+        "src/lib/icons/**",
+        "scripts/icons/**",
+        "scripts/__tests__/icon-packs.test.ts",
+        "public/licenses/**",
+        "package.json",
+        "package-lock.json",
+        "src/index.css",
+        "src/styles/**",
+        "src/lib/appearance/**",
+        "src/lib/schemes.ts",
+        "src/lib/terminalTheme.ts",
+        "src/components/ui/**",
+        "gallery.html",
+        "src/gallery.tsx",
+        "src/components/overlay/OverlayApp.tsx",
+        "src/components/settings/SettingsDialog.tsx",
+        "src/components/settings/SettingsHelpers.tsx",
+        "src/components/settings/tabs/AppearanceTab.tsx",
+        "electron/main.ts",
+        "electron/ipc/settings.ts",
+        "electron/services/appearance-migration.ts",
+        "electron/services/appearance-palette.ts",
+        "electron/services/__tests__/appearance-migration.test.ts",
+        "scripts/__tests__/appearance-migration-parity.test.ts",
+        "scripts/__tests__/appearance-palette-parity.test.ts"
+      ],
+      "deliverables": [
+        "Icons (5.1, 5.2, 5.6, Appendix A): Codicons removed (pack, generated data, codegen columns, vendored license, `@iconify-json/codicon`); Lucide static and `DEFAULT_ICON_PACK`; `packs/hugeicons-wrap.ts` and `packs/hugeicons.ts` with `@hugeicons/core-free-icons` `4.3.5` (exact devDependency, one subpath import per glyph); the seven retired names and their named exports removed (116 names; 117 once the wave-1 review adds `textCursor`, 5.7); `ICON_PACKS` in picker order with the 5.8 descriptions; the deprecated theme shims deleted; the icon store mirrors the applied pack to `<html data-cv-icon-pack>` in every window",
+        "Salvage (9.2): cherry-pick `588e2ad` (shared state dot) and then `47a782a` (Material trim), with their tests compared against the disc geometry and Lucide instead of Codicons and Hugeicons given the dot; cherry-pick `ee3bc39` (`Callout onDismiss`); apply the `src/components/ui/Banner.tsx` and `display.test.tsx` hunks of `ca9659c`",
+        "Codegen and licenses (5.3, 5.9): `mapping.mjs` for Material only (115 rows; 116 with `textCursor`); the generator reads `LICENSE`, `LICENSE.md` or `LICENSE.txt`; `public/licenses/third-party-icons.txt` regenerated for the six packs (it ships as `dist/licenses/third-party-icons.txt`); `licenses.ts` with the 5.9 notices; no About view",
+        "Tokens (2.1 to 2.10, 9.1): the clone tokens removed; Modern on Conduit's sky accent ramp (2.2.2, D-25) with the accent-derived Modern values of 2.2.3 and 2.2.4; `--c-tabstrip-h`, `--c-tab-h`, `--c-tab-gutter-top`, `--c-tab-min-w`, `--c-list-inset` on `:root`; `--c-favorite` and its gate; `density.css`, `components/cards.css`, `metrics.ts` and `metrics.test.ts` deleted; `index.css` and the `@theme` block updated; `components/tabs.css` rewritten to 3.4 (tabs shrink to fit down to the 78px floor; close buttons always visible) and `components/sash.css` to 3.5 to 3.7; the token tests updated",
+        "Appearance runtime and migration (6.1 to 6.3): no density and no `--c-zoom` in `boot-inline.js`, `dom.ts`, `migrate.ts`, `useAppearance.ts`; the 6.3 rules and table in both processes (retired schemes mapped in version-2 files too, `theme` validated in both branches, `appearance_version` kept at `max(2, stored)`), retired keys deleted, `lucide` as the default; `shell-colors.json` `fg` from `--c-ink-faint`; `electron/ipc/settings.ts`, `SettingsHelpers.tsx`, `SettingsDialog.tsx` and `OverlayApp.tsx` without `ui_density` and `title_bar_style`",
+        "Window background (7.2): `electron/services/appearance-palette.ts`, `createWindow()` using `windowBackground()`, updates after `settings_save` and on `nativeTheme` `updated`, the palette parity test",
+        "Primitives (4.1, 4.3, 4.8, 4.9, 4.13, 4.14): `IconButton` without `pressedLook` and with `tone=\"inherit\"`; `Dialog` `width`, `closeOnEscape` and the optional `onClose` of a dialog that cannot be closed; `Banner` `status`, `align` and `Button size=\"sm\"` actions with `primary`; `ListRow` `meta` (always visible) and self-sized `leading` elements; `Popover freeze=\"auto\"` probing `[data-cv-session-area]`; the gallery without the density switch and the workbench preview, with all six packs in its switch and its focus strip on the new `tabs.css`",
+        "Settings > Appearance (5.8, 6.4): the Icon pack section in the Platform Theme slot, labeled by a `<label>` like its siblings, six `ChoiceCard`s with previews from `<Icon pack>` after `preloadAllIconPacks()`, live preview through `conduit:theme-change`, Save and Cancel",
+        "Clone and VS Code wording (9.1): comments, gallery demo texts and test names in the owned files describe today's layout, with no title bar, activity bar, status bar, command center, workbench, editor card or VS Code name; `src/lib/terminalTheme.ts` included"
+      ],
+      "acceptance": [
+        "`npx vitest run src/lib/icons src/styles src/lib/appearance src/components/ui scripts/__tests__/icon-packs.test.ts scripts/__tests__/appearance-migration-parity.test.ts scripts/__tests__/appearance-palette-parity.test.ts electron/services/__tests__/appearance-migration.test.ts` passes (8.1, row R1-FOUNDATION)",
+        "`node scripts/icons/generate-icon-packs.mjs --check` exits 0",
+        "`git grep -il codicon -- . ':(exclude)docs/**' ':(exclude)**/*.md' ':(exclude)scripts/redesign/work-packages.json' ':(exclude)**/__tests__/**'` prints nothing (tests may still name `codicons`, to prove a stored value becomes `lucide`)",
+        "`npm ls --omit=dev --parseable | grep -E \"lucide|tabler|phosphor|fluentui|iconify|hugeicons\"` prints nothing, and `npm ls @hugeicons/core-free-icons` shows `4.3.5`",
+        "`git grep -nE \"data-density|--c-zoom|pressedLook|data-cv-editor-card|density\\.css|cards\\.css|styles/metrics\" -- src electron scripts ':(exclude)**/__tests__/**' ':(exclude)scripts/verify/**' ':(exclude)scripts/redesign/work-packages.json'` prints nothing (tests and the harness's forbidden-selector list may name these strings), and `git grep -lE \"ui_density|title_bar_style|conduit-density\" -- src electron ':(exclude)**/__tests__/**'` lists only `electron/services/appearance-migration.ts`, `src/lib/appearance/migration-table.json`, `src/lib/appearance/migrate.ts` and `src/lib/appearance/boot-inline.js` (the retired-key handling of 6.3)",
+        "`git grep -nE \"[Tt]itle ?bar|[Aa]ctivity ?bar|[Ss]tatusbar|[Cc]ommand center|command-center|[Ee]ditor card|editor-card|[Ww]orkbench|BannerStack|monaco-|VS ?Code|vscode\" -- src ':(exclude)**/__tests__/**'` prints nothing",
+        "`git grep -niE \"3994bc|3a94bc|0069cc|0d6fcf|297aa0|2b7da3|48a0c7|53a5ca|005bb5|0063c1|307e9f|1e3a47|e6f2fa|ebf4f8|d7eaf2|b0d4e4|1c4a5e|143442|0b1e26|ebf3fb|d6e7f7|a8ccee|004485|003466|00203d\" -- src ':(exclude)**/__tests__/**'` prints nothing: Modern's old VS Code accent values are gone from `tokens.css`, `schemes.css` and the scheme preview in `src/lib/schemes.ts` (D-25)",
+        "After `npm run build`, `dist/licenses/third-party-icons.txt` names the six packs and no Codicons. `npx vite build --manifest --emptyOutDir --outDir \"$TMPDIR/conduit-manifest\"` writes `.vite/manifest.json`, in which `src/lib/icons/packs/phosphor.ts`, `hugeicons.ts`, `fluent.ts`, `tabler.ts` and `material.tsx` each have `isDynamicEntry: true` and `src/lib/icons/packs/lucide.ts` has no entry; `git grep -n 'import(\"./packs/lucide\")' -- src` finds nothing (Lucide is a static import of the main, overlay and picker entries)",
+        "Manual, `npm run dev:electron` on a fresh profile: Modern dark with Lucide icons and the sky accent line; Settings > Appearance shows the Icon pack section first with six cards and previews; picking Hugeicons switches the side bar, the tabs, the dialogs and a test toast live, and the credential picker window's `<html data-cv-icon-pack>` (its glyphs follow once R3-PICKER replaces its inline SVGs); Save survives a restart; Cancel reverts. A profile whose `settings.json` holds `{\"platform_theme\":\"macos\",\"color_scheme\":\"macos-blue\"}` starts in Modern with Phosphor; one holding `{\"appearance_version\":2,\"icon_pack\":\"codicons\",\"ui_density\":\"compact\",\"title_bar_style\":\"native\"}` starts with Lucide and loses both retired keys",
+        "`npm run dev`, then `/gallery.html?pack=<id>` for each of the six packs: every icon and the state dot render, no console errors",
+        "`npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R1-FOUNDATION --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R1-HARNESS",
+      "title": "Layout reference, the restyle suite and runner options",
+      "wave": 1,
+      "depends_on": [],
+      "owns": [
+        "scripts/verify/**",
+        "scripts/__tests__/verify-harness.test.ts",
+        "scripts/__tests__/verify-selectors.test.ts",
+        "scripts/__tests__/restyle-inventory.test.ts",
+        "scripts/__tests__/check-owns.test.ts"
+      ],
+      "deliverables": [
+        "First, the reference set made lasting (8.6.1): `<scratchpad>/restyle/before/` copied to `$HOME/.conduit-verify/restyle-before/`; `scripts/verify/fixtures/restyle/before-manifest.json` listing every file of that folder with its SHA-256; `--before` defaults to `CONDUIT_RESTYLE_BEFORE`, else that folder; a listed file that is missing or changed fails the suite",
+        "Shots and inventories 44 to 49 (3.1: the signed-in footer, its sign-out confirm, cached mode, a team vault, the trial card, the trial strip) recorded on the base branch with scheme Ocean and the Tabler pack, added to the folder, the manifest and the inventory fixture",
+        "`scripts/verify/fixtures/restyle/before-inventory.json`: `INVENTORY-raw.json` plus the screens of shots 44 to 49, normalized (8.6 step 3); `scripts/verify/fixtures/restyle/allowed-deltas.json` with the `settings-appearance` entry written out as data (8.6 step 3)",
+        "`scripts/verify/lib/inventory.mjs`: `captureInventory(device, screen)`, `captureMenu(device)`, `captureAppMenu(device)`, `normalizeInventory()`, `compareInventory(before, after, deltas)`, with the extraction, normalization and comparison rules of 8.6 step 3; the extraction reproduces `INVENTORY-raw.json` on the unchanged layout",
+        "`scripts/verify/suites/restyle.mjs` (`optIn: true`, `needsSupabase` per scenario): the ten scenarios of 8.6 with screenshots, `sharp` composites, inventories, `inventory-diff.txt`, the geometry rules G1 to G10 with their hook lists, `pending` results and `--strict`, and the `packs` sheets; the reference data of 3.1 created through the harness, with `web-01` pointed at `127.0.0.1:1` and a local test page for the web entry; the forbidden clone selectors kept only in `scripts/verify/lib/clone-selectors.mjs`",
+        "`scripts/verify/run.mjs`: `all` skips `optIn` suites; the Supabase phase starts only when a selected scenario needs it; `--strict` reaches the suites; `--help` lists the opt-in suites and `--strict`",
+        "The review-version hook, harness half (B47): `reviewVersion: pair('[data-cv-review-version]', '.items-start.gap-3')` in `selectors.mjs`; `clickVersionInPage` (`lib/sync-flows.mjs`) and `pickVersionNotInUseInPage` (`suites/mcp.mjs`) find the version line with `cv.pickClosest(button, panel, cv.S.reviewVersion)` instead of `button.parentElement`; the MCP suite looks for its panel as `[role=dialog][aria-label=\"Review changes\"]`; `verify-selectors.test.ts` covers both halves",
+        "`scripts/verify/README.md`: the restyle suite, the lasting reference folder and its manifest, allowed deltas, pending rules and `--strict`, the owner gates; its \"Text on permanent chrome\" section rewritten for today's layout (the side bar header and footer, the pane tab bars) without the title bar, activity bar, status bar, command center and `chromeText` test; the `SHELL_CLOSED` and `SHELL_OPEN` fixtures of `verify-selectors.test.ts` rewritten from the clone's layout to today's layout with hooks",
+        "`scripts/__tests__/check-owns.test.ts` also compares each package's `wave`, title and `depends_on` with the JSON, reading them from the `| Id | Title | Depends on |` table under each `### 10.N Wave N` heading (rows of other tables that start with a package id, such as the test table of 8.1, are not read)"
+      ],
+      "acceptance": [
+        "`npx vitest run scripts/__tests__` passes (8.1, row R1-HARNESS), including the tests that a missing or changed reference file fails the suite",
+        "`node scripts/verify/run.mjs restyle` passes on the layout as it stands (the local Supabase stack running, for `sidebar-signed-in`): every inventory matches, G1, G2, G4 and G9 pass and the other rules report `pending`; a composite is written for every reference shot of 8.6",
+        "`node scripts/verify/run.mjs restyle --only screens` passes with the local Supabase stack stopped",
+        "`node scripts/verify/run.mjs sync mcp` passes (the review flows on `reviewVersion`)",
+        "`node scripts/verify/run.mjs --help` lists `restyle` as opt-in and `--strict`, and `node scripts/verify/run.mjs smoke` still runs only `smoke`",
+        "`git grep -nE \"[Tt]itle ?bar|[Aa]ctivity ?bar|[Ss]tatusbar|[Cc]ommand center|command-center|[Ee]ditor card|editor-card|[Ww]orkbench|BannerStack|monaco-|VS ?Code|vscode\" -- scripts ':(exclude)scripts/verify/lib/clone-selectors.mjs' ':(exclude)scripts/redesign/work-packages.json'` prints nothing",
+        "`npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R1-HARNESS --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R1-MENUS",
+      "title": "Popup menu restyle and hardening (W2-MENUS salvage), the wave-1 integration and owner gate 1",
+      "wave": 1,
+      "depends_on": [
+        "R1-FOUNDATION",
+        "R1-HARNESS"
+      ],
+      "owns": [
+        "electron/ipc/menu.ts",
+        "electron/ipc/menu-svg.ts",
+        "electron/ipc/__tests__/menu.test.ts",
+        "electron/ipc/__tests__/menu-svg.test.ts",
+        "src/utils/contextMenu.ts",
+        "src/utils/__tests__/contextMenu.test.ts",
+        "scripts/__tests__/menu-svg-packs.test.ts"
+      ],
+      "deliverables": [
+        "Cherry-pick `8ca0d23`, `98abd31` and the `electron/` hunks of `70fd889` (7.1, 9.2); comments that name `W4-CLEANUP` name `R4-CLEANUP`; the fallback `MODERN_MENU_COLORS` moved from VS Code's blue to Modern's sky accent (7.1, D-25)",
+        "`scripts/__tests__/menu-svg-packs.test.ts`, re-created from `7f179be`: the six packs and all semantic names (117) through `iconToSvg` and `sanitizeSvg`, reset with `setIconPack(DEFAULT_ICON_PACK)`",
+        "Call sites unchanged: today's menu keys keep working through `LEGACY_MENU_ICON_KEYS` (5.7)",
+        "Wave-1 integration and owner gate 1: after this package merges, the checks below run on the wave-1 tip and failures go back to the owning wave-1 package; the package closes when the owner has approved the pack sheets (8.5)"
+      ],
+      "acceptance": [
+        "`npx vitest run electron/ipc/__tests__/menu.test.ts electron/ipc/__tests__/menu-svg.test.ts src/utils/__tests__/contextMenu.test.ts scripts/__tests__/menu-svg-packs.test.ts` passes (8.1, row R1-MENUS)",
+        "`git grep -niE \"3994bc|0069cc|243239|e1ecf8\" -- electron ':(exclude)**/__tests__/**'` prints nothing (the menu fallbacks use the sky accent, 7.1)",
+        "`node scripts/verify/run.mjs restyle --only menus` passes: items, order, submenus and the application menu equal the reference, and the composites of shots 11 to 17 show the menus where they were",
+        "Manual (macOS): the tab, tree entry and tree folder menus, the Open With and Auto-type submenus and the `+` popup draw with Lucide icons, 24px rows and an 8px-radius panel with a shadow; Up, Down, Enter and Escape work; a click in the shadow margin closes the menu; switching the pack to Hugeicons changes the menu icons on the next open",
+        "Wave-1 integration on the wave-1 tip: `npm run verify` passes all 41 scenarios, and `node scripts/verify/run.mjs restyle` passes (rules without their hooks report `pending`)",
+        "Owner gate 1: `node scripts/verify/run.mjs restyle --only packs` writes the six-pack sheets (dark and light) under `.verify/<runId>/restyle/packs/`; the owner approves them and answers the two gate questions of 8.5 (Modern's accent, hover-only tab close); the answers are recorded in this package's pull request",
+        "`npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R1-MENUS --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R2-FOUNDATION",
+      "title": "Shared foundations during wave 2 (standing package)",
+      "wave": 2,
+      "depends_on": [
+        "R1-MENUS"
+      ],
+      "owns": [
+        "src/components/ui/**",
+        "gallery.html",
+        "src/gallery.tsx",
+        "src/index.css",
+        "src/styles/tokens.css",
+        "src/styles/schemes.css",
+        "src/styles/base.css",
+        "src/styles/__tests__/**",
+        "src/lib/**",
+        "src/stores/**",
+        "src/hooks/**",
+        "src/utils/**",
+        "src/types/**",
+        "src/main.tsx",
+        "src/overlay.tsx",
+        "src/picker.tsx",
+        "index.html",
+        "overlay.html",
+        "picker.html",
+        "vite.config.ts",
+        "vitest.config.ts",
+        "electron/**",
+        "scripts/**",
+        "public/**",
+        "package.json",
+        "package-lock.json",
+        "electron-builder.yml"
+      ],
+      "deliverables": [
+        "Opens when wave 2 starts and closes when R2-SHELL's wave-2 integration checks and owner gate 2 have passed. It is the only wave-2 package that edits the shared foundations: primitives, the gallery, tokens and base styles, icons, the appearance runtime, the freeze registry, stores, hooks, utilities (the popup menu helper), the main process, the harness, the scripts and the manifests",
+        "Takes change requests from the other wave-2 packages one at a time and lands each as its own small commit with tests, against the contracts in this spec. A request that changes a contract is first written into the spec by a standalone spec commit (10, rule 4); a change to `allowed-deltas.json` lands here, signed off by the integrator (rule 5)",
+        "Keeps the gallery, the token gates, the inventory comparator and the harness selector tests green after every change"
+      ],
+      "acceptance": [
+        "`npx vitest run src/components/ui src/styles src/lib scripts/__tests__` passes after each change",
+        "`node scripts/verify/run.mjs restyle` passes after each change to `scripts/verify`",
+        "`npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R2-FOUNDATION --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R2-TABS",
+      "title": "Pane tab bars, splits, drop zones and the surfaces under the strip",
+      "wave": 2,
+      "depends_on": [
+        "R1-MENUS"
+      ],
+      "owns": [
+        "src/components/layout/PaneTabBar.tsx",
+        "src/components/layout/Pane.tsx",
+        "src/components/layout/PaneContent.tsx",
+        "src/components/layout/LayoutRenderer.tsx",
+        "src/components/layout/DropZoneOverlay.tsx",
+        "src/components/layout/__tests__/PaneTabBar.test.tsx",
+        "src/components/layout/__tests__/panes.test.tsx",
+        "src/styles/components/tabs.css",
+        "src/styles/components/sash.css",
+        "src/components/sessions/web/WebBrowserToolbar.tsx",
+        "src/components/sessions/web/WebSubTabBar.tsx",
+        "src/components/sessions/web/WebAutofillBar.tsx",
+        "src/components/sessions/DocumentView.tsx",
+        "src/components/sessions/CommandView.tsx"
+      ],
+      "deliverables": [
+        "`PaneTabBar` per 3.4: the strip; the hamburger slot (the `menu` glyph, `data-cv-sidebar-toggle`, `aria-expanded`, today's titles and rule); connected tabs with `data-cv-tab` and `data-active` that shrink to fit as today, the label giving way first, down to the 78px floor; 16px icons; state dots from the shared dot; the `IconButton sm tone=\"inherit\"` close, visible on every tab (D-3); the rename input; the drop marker without layout shift; `+` as `IconButton md` with `data-cv-new-tab`, followed by the right slot, in the strip's last `.cv-tabstrip-slot`; the wheel mapping and scroll-into-view for a strip whose tabs are all at the floor; the tab menu's semantic icons",
+        "Splits, drop zones and panes per 3.5: `cv-split-sash` separators, the drop zone look at `z-40`, `data-cv-session-area` on every pane, the empty pane and the empty-vault welcome on primitives, spinners on `Spinner`",
+        "Surfaces under the strip per 3.10: the web browser toolbar, the sub-tab bar, the autofill bar, the document headers and the command header on `--c-editor` with primitives",
+        "`tabs.css` and `sash.css` tuned only where the implementation needs it; every change is written back into 3.4 or 3.5 by a standalone spec commit (10, rule 4)"
+      ],
+      "acceptance": [
+        "`npx vitest run src/components/layout/__tests__/PaneTabBar.test.tsx src/components/layout/__tests__/panes.test.tsx` passes (8.1, row R2-TABS)",
+        "`node scripts/redesign/legacy-classes.mjs src/components/layout/PaneTabBar.tsx src/components/layout/Pane.tsx src/components/layout/PaneContent.tsx src/components/layout/LayoutRenderer.tsx src/components/layout/DropZoneOverlay.tsx src/components/sessions/web src/components/sessions/DocumentView.tsx src/components/sessions/CommandView.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --only tabs --only ai` passes: the inventories of both scenarios; G1, G2, G4, G5 (its AI toggle part `pending` until R2-SHELL), G6 (a) for the tab bars, G9 and G10; the composites of shots 05, 06, 07, 10, 10b, 18, 40 and 43 show every tab bar control where it was",
+        "Manual (macOS, dark and light): drag a tab to reorder and to the other pane, drop zones, rename, the tab menu, hover and close an inactive tab, twelve tabs in a narrow pane (they shrink to the floor, then the wheel scrolls and the active tab stays in view), a web session whose toolbar continues the active tab, split separator hover and drag",
+        "`npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R2-TABS --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R2-SIDEBAR",
+      "title": "Side bar restyled in place",
+      "wave": 2,
+      "depends_on": [
+        "R1-MENUS"
+      ],
+      "owns": [
+        "src/components/layout/Sidebar.tsx",
+        "src/components/layout/SidebarPanel.tsx",
+        "src/components/layout/SidebarWindowControls.tsx",
+        "src/components/layout/VaultContextBar.tsx",
+        "src/components/layout/TeamInvitationBanner.tsx",
+        "src/components/layout/__tests__/SidebarPanel.test.tsx",
+        "src/components/layout/__tests__/Sidebar.test.tsx",
+        "src/components/entries/EntryTree.tsx",
+        "src/components/entries/__tests__/EntryTree.test.tsx",
+        "src/components/vault/VaultSwitcherMenu.tsx",
+        "src/components/sync/PersonalSyncIndicator.tsx",
+        "src/components/sync/ConflictDot.tsx",
+        "src/components/vault/CloudSyncIndicator.tsx",
+        "src/components/vault/TeamSyncIndicator.tsx"
+      ],
+      "deliverables": [
+        "The panel, resize handle, header row, vault switcher (a 13px `text-ink` name), vault switcher menu, team context bar, onboarding card, invitation banner, search, tree rows with indent guides, trial cards and footer per 3.6, every control in place with today's titles and labels; the floating side bar's accent line with `data-cv-accent-line` (3.3)",
+        "Hooks `data-cv-sidebar-header`, `data-cv-sidebar-search`, `data-cv-sidebar-footer`, `data-cv-vault-switcher` (B17) and `data-cv-review-button` (B13); `data-sidebar-panel` and `data-docked` kept",
+        "The long-name overlap of INVENTORY section 11 fixed by the flex rules of 3.6",
+        "Unit tests for the states of shots 44 to 49: the signed-in footer row 2 (the email with `title=\"Account Settings\"`, Sign Out, then Confirm and Cancel), the `offline` badge, a team vault's tinted header with `VaultContextBar`, the trial card and the trial strip, each asserting today's order, texts and titles"
+      ],
+      "acceptance": [
+        "`npx vitest run src/components/layout/__tests__/SidebarPanel.test.tsx src/components/layout/__tests__/Sidebar.test.tsx src/components/entries/__tests__/EntryTree.test.tsx` passes (8.1, row R2-SIDEBAR)",
+        "`node scripts/redesign/legacy-classes.mjs src/components/layout/Sidebar.tsx src/components/layout/SidebarPanel.tsx src/components/layout/SidebarWindowControls.tsx src/components/layout/VaultContextBar.tsx src/components/layout/TeamInvitationBanner.tsx src/components/entries/EntryTree.tsx src/components/vault/VaultSwitcherMenu.tsx src/components/sync/PersonalSyncIndicator.tsx src/components/sync/ConflictDot.tsx src/components/vault/CloudSyncIndicator.tsx src/components/vault/TeamSyncIndicator.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --only sidebar --only sidebar-signed-in` passes (the local Supabase stack running): the inventories of both scenarios; G1, G2, G3 for the floating side bar's line, G4, G6 (a) for the header and G7; the composites of shots 04, 06, 07, 08, 09, 21, 38, 39 and 44 to 49 show every control where it was",
+        "Manual: hide, float, pin and unpin; docking by window width; resizing (the 4px accent line after 300ms); at 250px, `Acme Infrastructure` shows at least 12 characters before the ellipsis (macOS) and every header button stays clickable; the favorites filter; clearing the search; tree selection, drag into a folder and rename; the footer sync button opening Settings > Sync",
+        "`npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R2-SIDEBAR --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R2-AI",
+      "title": "AI panel header",
+      "wave": 2,
+      "depends_on": [
+        "R1-MENUS"
+      ],
+      "owns": [
+        "src/components/ai/ChatPanel.tsx",
+        "src/components/ai/__tests__/ChatPanel.header.test.tsx"
+      ],
+      "deliverables": [
+        "The `ChatPanel` root on `bg-sidebar` and the header per 3.7 with `data-cv-ai-header`: the 33px row, the engine picker, the engine dropdown with the active engine's `●` kept, the model chip and the new conversation button, in today's order with today's titles and behavior",
+        "The body below the header stays as it is until R3-AI"
+      ],
+      "acceptance": [
+        "`npx vitest run src/components/ai/__tests__/ChatPanel.header.test.tsx` passes (8.1, row R2-AI)",
+        "No legacy finding above the body: `m=$(grep -n \"{/\\* Messages \\*/}\" src/components/ai/ChatPanel.tsx | cut -d: -f1); node scripts/redesign/legacy-classes.mjs --json src/components/ai/ChatPanel.tsx | node -e \"const r=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log(r.findings.filter((f)=>f.line<$m).length)\"` prints 0 (the root and the header; the body's findings belong to R3-AI)",
+        "`node scripts/verify/run.mjs restyle --only ai` passes: the inventories `ai-panel` and `ai-panel-engine-menu-open` (the `●` included); G6 (a): `[data-cv-ai-header]` is 33px tall; G6 (b) and G8 report `pending` until R2-SHELL; the composites of shots 18 and 19 show the header controls where they were",
+        "`npx vitest run` passes, except the 3 known `src/App.test.tsx` failures until R2-SHELL fixes them",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R2-AI --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R2-SHELL",
+      "title": "Accent line, AI divider and toggle, banners, StartupStatus, the wave-2 integration and owner gate 2",
+      "wave": 2,
+      "depends_on": [
+        "R2-TABS",
+        "R2-SIDEBAR",
+        "R2-AI"
+      ],
+      "owns": [
+        "src/App.tsx",
+        "src/App.test.tsx",
+        "src/components/sync/SyncBanner.tsx",
+        "src/components/sync/SyncBanners.tsx",
+        "src/components/sync/__tests__/SyncBanners.test.tsx",
+        "src/components/common/StartupStatus.tsx",
+        "src/components/common/__tests__/StartupStatus.test.tsx"
+      ],
+      "deliverables": [
+        "`App.tsx`: roots on `bg-editor`, the accent line with `data-cv-accent-line` (3.3), both offline banners on `Banner status={false} align=\"center\"` with their `Reconnect` button (3.8), the loading and auto-connect screens on `Spinner` (3.11), the AI toggle as `IconButton` with `pressed` and `data-cv-ai-toggle` (3.4), the AI divider and panel classes and hooks (3.7)",
+        "`SyncBanner` on the `Banner` primitive (3.8): its actions stay buttons (`Button size=\"sm\"`, `primary` where the action is primary); `SyncBanners`, `PromptBanner` and `SideFilesPausedBanner` inherit it unchanged",
+        "`StartupStatus` per 3.9",
+        "`src/App.test.tsx` fixed without touching `src/test/setup.ts`: `window.electron` stubbed inside the test with `vi.stubGlobal` (undone in `afterEach`), and the three assertions rewritten to what `App` renders under that stub (the loading screen whose whole text is `Loading...`, then the screen the stubbed startup calls lead to, by its exact texts)",
+        "Wave-2 integration and owner gate 2: after this package merges, the checks below run on the wave-2 tip and failures go back to the owning wave-2 package or R2-FOUNDATION; the package closes when the owner has approved the composites (8.5)"
+      ],
+      "acceptance": [
+        "`node scripts/redesign/legacy-classes.mjs src/App.tsx src/components/sync/SyncBanner.tsx src/components/sync/SyncBanners.tsx src/components/common/StartupStatus.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "Manual: the offline banner (cached auth) centered with its `Reconnect` button, a sync banner (for example the review banner that the `sync` suite raises) with `Review` as a primary button, `StartupStatus` during a FreeRDP build (or its component test), the AI divider hover and drag, the accent line in all seven schemes",
+        "Wave-2 integration on the wave-2 tip: `node scripts/verify/run.mjs restyle --strict` passes every scenario (no rule pending), and `npm run verify` passes all 41 scenarios",
+        "Owner gate 2: the owner approves the dark and light composites of shots 04 to 10b, 18, 19, 21 and 44 to 49 under `.verify/<runId>/restyle/compare/`; the approval is recorded in this package's pull request",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R2-SHELL --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-FOUNDATION",
+      "title": "Shared foundations during wave 3 and the wave-3 integration (standing package)",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/App.tsx",
+        "src/App.test.tsx",
+        "src/main.tsx",
+        "src/overlay.tsx",
+        "src/picker.tsx",
+        "src/gallery.tsx",
+        "src/index.css",
+        "src/styles/**",
+        "src/lib/**",
+        "src/stores/**",
+        "src/hooks/**",
+        "src/utils/**",
+        "src/types/**",
+        "src/test/**",
+        "src/components/ui/**",
+        "src/components/layout/**",
+        "index.html",
+        "overlay.html",
+        "picker.html",
+        "gallery.html",
+        "vite.config.ts",
+        "vitest.config.ts",
+        "electron/**",
+        "scripts/**",
+        "public/**",
+        "package.json",
+        "package-lock.json",
+        "electron-builder.yml"
+      ],
+      "deliverables": [
+        "Opens when wave 3 starts and closes when its closing step passes. It owns every file that no wave-3 directory package owns: primitives, styles, icons, the appearance runtime, the freeze registry, stores, hooks, shared libraries, the layout components, `App.tsx`, the main process, the harness, the scripts and the manifests",
+        "Takes change requests from the wave-3 packages one at a time and lands each as its own small commit with tests, against the contracts in this spec; a change to `allowed-deltas.json` lands here, signed off by the integrator (10, rule 5)",
+        "Closing step (wave-3 integration), after every other wave-3 package has merged: runs the checks below on the wave-3 tip, sends each failure to the owning package, and closes only when all pass"
+      ],
+      "acceptance": [
+        "`node scripts/verify/run.mjs restyle --strict` passes after each change to `scripts/verify`, `src/components/layout` or `src/components/ui`",
+        "Closing, on the wave-3 tip: `npm run verify` passes all 41 scenarios, and `node scripts/verify/run.mjs restyle --strict` passes every scenario",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-FOUNDATION --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-SETTINGS",
+      "title": "Settings dialog, its tabs and the final Appearance tab",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/settings/**"
+      ],
+      "deliverables": [
+        "`SettingsDialog` on `Dialog` with today's width and close behavior (3.12.1: Escape and the close button cancel); the nav as `NavList`, keeping `w-52` and adding `data-cv-settings-nav`; footer Cancel then Save; hooks B1 to B4, B7, B22 to B24, B36, B37 and B39 to B41 (3.12, Appendix B)",
+        "Every tab on `SettingsRow`, `FormField`, `Select`, `Checkbox`, `Switch`, `SegmentedControl` and `Slider`; section labels keep their element (`<label>` or `<h3>`) and take the section label look; the 4.16 map applied; every label, option, placeholder and busy text unchanged, the AI tab's engine `●` included",
+        "The Appearance tab's final form (6.4): its four section labels stay `<label>` elements, the scheme cards on `ChoiceCard`, Brightness on `SegmentedControl`, UI Scale on `Slider`; the Icon pack section from R1-FOUNDATION kept"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/settings` passes, including the close-behavior test of 3.12.1",
+        "`node scripts/redesign/legacy-classes.mjs src/components/settings` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only settings` passes (the 14 `settings-*` inventories, with only the `settings-appearance` delta); the composites of every `20-*` shot show the controls where they were",
+        "`node scripts/verify/run.mjs backup lifecycle password` passes (targeted live suites, 8.5; the Settings flows of `lib/settings-flows.mjs`)",
+        "Manual: every tab in dark and light; Appearance previews live, and Cancel reverts scheme, mode, pack and zoom",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-SETTINGS --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-ENTRIES",
+      "title": "Entry and folder dialogs, entry tabs, pickers and custom icons",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/entries/**"
+      ],
+      "deliverables": [
+        "`EntryDialog` and `EntryDialogSidebar` on `Dialog` (with `onSubmit` where there is a form, today's width per step, and the close behavior of 3.12.1: no Escape, the close button kept) and `NavList`; group labels without uppercase; the type chips on neutral tiles in their entry colors; every entry tab on `FormField`, `Select` and `Checkbox`; `FolderDialog` on `Dialog` (3.12)",
+        "`ColorPicker` and `IconPicker` restyled in place (3.16): position logic, size, header, search, Default button and grids kept, the overlay look taken; `Field`, `DefaultableSelect` and `DefaultableCheckbox` rebuilt on primitives",
+        "Custom entry icons (5.11): the 30 curated names with a semantic twin render through the active pack in the tree, the tabs, the dashboards and the `IconPicker` grid; stored names unchanged; the other 35 stay Tabler; `EntryTree.tsx` gets only 4.16 leftovers"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/entries` passes, including the twin table test (5.11) and the close-behavior tests of 3.12.1",
+        "`node scripts/redesign/legacy-classes.mjs src/components/entries` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only dialogs` passes for `new-entry-dialog`, `new-entry-ssh-form`, the six `edit-entry-rdp-*` screens and `new-folder-dialog`; the composites of shots 22 to 30 show the controls where they were",
+        "Manual: with Hugeicons active, an entry whose custom icon is `IconServer` shows the Hugeicons server glyph and one whose icon is `IconBrandDocker` shows the Tabler glyph",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-ENTRIES --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-VAULT",
+      "title": "Vault hub and vault lifecycle dialogs",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/vault/VaultHub.tsx",
+        "src/components/vault/UnlockDialog.tsx",
+        "src/components/vault/ChangePasswordDialog.tsx",
+        "src/components/vault/RenameVaultDialog.tsx",
+        "src/components/vault/CloudRestoreDialog.tsx",
+        "src/components/vault/BackupManagerDialog.tsx",
+        "src/components/vault/BackupHistoryPanel.tsx",
+        "src/components/vault/BiometricSetupPrompt.tsx",
+        "src/components/vault/RecoveryPassphraseDialog.tsx",
+        "src/components/vault/ProVaultLockDialog.tsx",
+        "src/components/vault/ExportDialog.tsx",
+        "src/components/vault/VaultImportDialog.tsx",
+        "src/components/vault/TransferStates.tsx",
+        "src/components/vault/VaultSwitcherMenu.tsx",
+        "src/components/vault/CloudSyncIndicator.tsx",
+        "src/components/vault/__tests__/ChangePasswordDialog.test.tsx",
+        "src/components/vault/__tests__/VaultDialogs.close.test.tsx",
+        "src/components/vault/__tests__/UnlockDialog.strict.test.tsx",
+        "src/components/vault/__tests__/VaultHub.test.tsx"
+      ],
+      "deliverables": [
+        "The vault hub per 3.11: recent rows as clickable `ListRow`s with the 28px icon tile as `leading`, `PendingBadge` and the fingerprint in `meta` (always visible) and only the chevron in `trailing`; rows stay `button[title=\"{path}\"]` (B26, B44)",
+        "Every vault lifecycle dialog on `Dialog` with the close behavior of 3.12.1, and `onSubmit` for forms: `UnlockDialog` keeps its placeholders, `Please wait...` and `data-cv-error` (B8, B30, B35); `BackupManagerDialog` gets `data-cv-backup-manager` and keeps `Master password`, Restore, Confirm and Close (B25, B42); `RecoveryPassphraseDialog` cannot be dismissed (no close button, no Escape)",
+        "`VaultSwitcherMenu` and `CloudSyncIndicator`: only 4.16 leftovers (R2-SIDEBAR restyled them); the dead files of 10.5 are skipped"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/vault` passes, including the hub rows' `meta` visible without hover and the close-behavior tests of 3.12.1",
+        "`node scripts/redesign/legacy-classes.mjs src/components/vault/VaultHub.tsx src/components/vault/UnlockDialog.tsx src/components/vault/ChangePasswordDialog.tsx src/components/vault/RenameVaultDialog.tsx src/components/vault/CloudRestoreDialog.tsx src/components/vault/BackupManagerDialog.tsx src/components/vault/BackupHistoryPanel.tsx src/components/vault/BiometricSetupPrompt.tsx src/components/vault/RecoveryPassphraseDialog.tsx src/components/vault/ProVaultLockDialog.tsx src/components/vault/ExportDialog.tsx src/components/vault/VaultImportDialog.tsx src/components/vault/VaultSwitcherMenu.tsx src/components/vault/CloudSyncIndicator.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only screens` passes for `vault-hub-empty`, `vault-hub-with-recent` and `unlock-dialog`; the composites of shots 01, 02, 41 and 42 show the controls where they were",
+        "`node scripts/verify/run.mjs backup lifecycle password` passes (targeted live suites, 8.5; unlock, password and backup dialogs)",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-VAULT --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-TEAM",
+      "title": "Team vault, device and credential dialogs",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/vault/VaultSettingsDialog.tsx",
+        "src/components/vault/CreateTeamVaultDialog.tsx",
+        "src/components/vault/TeamVaultUnlock.tsx",
+        "src/components/vault/DeviceSetupDialog.tsx",
+        "src/components/vault/DeviceAuthApprovalDialog.tsx",
+        "src/components/vault/AuditLogViewer.tsx",
+        "src/components/vault/CredentialManager.tsx",
+        "src/components/vault/CredentialForm.tsx",
+        "src/components/vault/CredentialPicker.tsx",
+        "src/components/vault/PasswordHistoryDialog.tsx",
+        "src/components/vault/TeamSyncIndicator.tsx",
+        "src/components/vault/__tests__/TeamDialogs.test.tsx"
+      ],
+      "deliverables": [
+        "`VaultSettingsDialog` (on `Dialog` with a `NavList`), `CreateTeamVaultDialog`, `TeamVaultUnlock`, `DeviceSetupDialog`, `DeviceAuthApprovalDialog`, `AuditLogViewer`, `CredentialManager`, `CredentialForm`, `CredentialPicker` and `PasswordHistoryDialog` on primitives with the close behavior of 3.12.1, keeping every text, field and order; `TeamSyncIndicator` gets only 4.16 leftovers",
+        "`src/components/vault/__tests__/TeamDialogs.test.tsx` renders each owned dialog with minimal props and asserts its title, fields, footer order and close behavior (3.12.1)"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/vault` passes",
+        "`node scripts/redesign/legacy-classes.mjs src/components/vault/VaultSettingsDialog.tsx src/components/vault/CreateTeamVaultDialog.tsx src/components/vault/TeamVaultUnlock.tsx src/components/vault/DeviceSetupDialog.tsx src/components/vault/DeviceAuthApprovalDialog.tsx src/components/vault/AuditLogViewer.tsx src/components/vault/CredentialManager.tsx src/components/vault/CredentialForm.tsx src/components/vault/CredentialPicker.tsx src/components/vault/PasswordHistoryDialog.tsx src/components/vault/TeamSyncIndicator.tsx` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-TEAM --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-SYNC",
+      "title": "Sync dialogs and panels",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL",
+        "R3-MISC"
+      ],
+      "owns": [
+        "src/components/sync/**"
+      ],
+      "deliverables": [
+        "`SyncDialogFrame` rebuilt on `Dialog` (`harnessLabel` = title, layer `sync`, `hideClose`, Escape runs `onEscape` only where a dialog passes one, 3.12.1); `DialogButton` and `smallButton` on `Button` with `loadingLabel` where a busy text shows (`Opening...`, `Checking...`, B35); `InlineError` on `Callout`; `PasswordInput` on the primitive",
+        "`ConflictReviewPanel` (`harnessLabel` `Review changes`, its close button labeled `Close`, B12) with the B11 hooks and `data-cv-review-version` on each version line, which holds the value, the `In use now` badge and `Use this` (B47); `RecentlyDeletedPanel` passes `layer=\"stacked\"` and `closeOnEscape` to `ConfirmDialog` and drops its `z-[70]` wrapper (B18, B19); `OtherCopiesPanel` B20; `MassChangeNotice` B21; `SyncDevicesList` B5; `SyncNoticeList` B6 and B38; `IdleLockSetting` keeps its `aria-label` (B28); `Loading...`, `Looking for copies...` and `Comparing...` stay visible text (B35)",
+        "Files restyled in wave 2 (`SyncBanner`, `SyncBanners`, `PersonalSyncIndicator`, `ConflictDot`) get only 4.16 leftovers; `useEscapeLayer.ts` stays a re-export"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/sync` passes, including the close-behavior tests of 3.12.1",
+        "`node scripts/redesign/legacy-classes.mjs src/components/sync` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only dialogs` passes for the three `sync-panel-*` screens; the composites of shots 33 to 35 show the controls where they were",
+        "`node scripts/verify/run.mjs sync mcp copies lifecycle` passes (targeted live suites, 8.5; review, other copies and Recently deleted)",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-SYNC --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-DASHBOARD",
+      "title": "Home, entry and folder dashboards",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/dashboard/**"
+      ],
+      "deliverables": [
+        "`DashboardOverview`, `EntryDashboard` and `FolderDashboard` on `bg-editor` with `Card`, `ListRow`, `Button`, `IconButton`, `Kbd` and `SectionHeader`; entry rows as clickable `ListRow`s with the time or the type label in `meta` (always visible; the type label without CSS uppercase, 8.4); the local icon button of `EntryDashboard` replaced; texts and order unchanged"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/dashboard` passes",
+        "`node scripts/redesign/legacy-classes.mjs src/components/dashboard` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only tabs` passes for `home-dashboard-full-window`; the composite of shot 40 shows the dashboard blocks where they were",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-DASHBOARD --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-AI",
+      "title": "AI panel body and AI dialogs",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/ai/**"
+      ],
+      "deliverables": [
+        "The `ChatPanel` body, `EnginePicker`, `McpSetupDialog` (3.12.1: Escape, an outside click and its close button close it; `layer=\"sync\"`) and the message blocks on primitives; `ModelPicker` restyled in place as an in-flow card (3.16); the header of R2-AI kept; `EngineLogo` unchanged"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/ai` passes",
+        "`node scripts/redesign/legacy-classes.mjs src/components/ai` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only ai` passes; the composites of shots 18 and 19 show the panel as before",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-AI --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-AUTH-ONBOARDING",
+      "title": "Sign-in and onboarding screens",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/auth/**",
+        "src/components/onboarding/**"
+      ],
+      "deliverables": [
+        "`AuthScreen` and `OnboardingWizard` on primitives (3.11): `Button size=\"lg\"` for the main actions, `text-display` titles, `Callout` for the trial note; texts, including `Continue without signing in`, and layout unchanged"
+      ],
+      "acceptance": [
+        "`node scripts/redesign/legacy-classes.mjs src/components/auth src/components/onboarding` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only screens` passes for `auth-screen`; the composite of shot 00 shows the controls where they were",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-AUTH-ONBOARDING --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-MISC",
+      "title": "Confirm, about, what's new, tools, import, upgrade, feedback and connections",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/tools/**",
+        "src/components/import/**",
+        "src/components/about/**",
+        "src/components/whats-new/**",
+        "src/components/upgrade/**",
+        "src/components/feedback/**",
+        "src/components/connections/**",
+        "src/components/common/**"
+      ],
+      "deliverables": [
+        "`ConfirmDialog` on `Dialog` with a compatible API plus `cancelLabel`, `layer` and `closeOnEscape` (off by default, as today; no close button); without a `layer` it renders in place (`portal={false}`) until R3-SYNC passes `layer=\"stacked\"` (4.8)",
+        "`AboutDialog` (no licenses view, 5.9), `WhatsNewDialog`, `QuickConnect` (`SegmentedControl` for the types), `PasswordGeneratorDialog`, `SshKeyGeneratorDialog`, `ImportDialog` and `FeedbackDialog` on `Dialog` with today's widths and close behavior (3.12.1); `UpgradeBanner` on `Callout`",
+        "`StartupStatus` (restyled in wave 2) gets only 4.16 leftovers; the dead files of 10.5 are skipped"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/common src/components/connections src/components/tools src/components/import src/components/about src/components/whats-new src/components/upgrade src/components/feedback` passes, including the close-behavior tests of 3.12.1",
+        "`node scripts/redesign/legacy-classes.mjs src/components/tools src/components/import src/components/about src/components/whats-new src/components/upgrade src/components/feedback src/components/connections src/components/common` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only dialogs` passes for `quick-connect-dialog` and `confirm-delete-dialog`, including G9 with a web session focused; the composites of shots 31 and 32 show the controls where they were",
+        "`node scripts/verify/run.mjs lifecycle` passes (targeted live suites, 8.5; the stacked confirm of Recently deleted)",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-MISC --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-SESSIONS",
+      "title": "Session views and markdown",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/sessions/**",
+        "src/components/markdown/**"
+      ],
+      "deliverables": [
+        "RDP, VNC, terminal and web view containers, `ConnectionError` and every error, loading and empty state on `bg-editor` with primitives; `MarkdownEditor` on `Tabs variant=\"panel\"`; code blocks on `bg-code`; the bars restyled in wave 2 get only 4.16 leftovers; terminal fonts and the ANSI palette unchanged"
+      ],
+      "acceptance": [
+        "`npx vitest run --passWithNoTests src/components/sessions src/components/markdown` passes",
+        "`node scripts/redesign/legacy-classes.mjs src/components/sessions src/components/markdown` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only tabs` passes for `web-session-toolbar` and `document-view-runbook`; the composites of shots 07 and 43 show the views as before",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-SESSIONS --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-PICKER",
+      "title": "Credential picker window",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/picker/**"
+      ],
+      "deliverables": [
+        "`CredentialPickerApp` and its lists on primitives (3.15); inline SVGs replaced by semantic icons; the drag header, window size and flows unchanged"
+      ],
+      "acceptance": [
+        "`node scripts/redesign/legacy-classes.mjs src/components/picker` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --only packs` passes its picker-window checks in dark and light: the window's `<html data-cv-icon-pack>` in each of the six packs, and the `picker icons` check reads `pass`, not `deferred`",
+        "Manual: Cmd/Ctrl+Shift+Space opens the picker in dark and light with the active icon pack, at today's size, with a working drag header",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-PICKER --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R3-OVERLAY",
+      "title": "Toasts and the update notification",
+      "wave": 3,
+      "depends_on": [
+        "R2-SHELL"
+      ],
+      "owns": [
+        "src/components/overlay/**"
+      ],
+      "deliverables": [
+        "`OverlayToast` and `OverlayUpdateNotification` on `ToastCard` (3.14); `OverlayApp`'s container geometry unchanged; `data-toast` kept"
+      ],
+      "acceptance": [
+        "`node scripts/redesign/legacy-classes.mjs src/components/overlay` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`node scripts/verify/run.mjs restyle --strict --only toasts` passes; the composites of shots 36 and 37 show four toasts at today's position and stacking",
+        "`node scripts/verify/run.mjs restyle --only packs` passes its toast checks (the toast window follows each of the six packs, dark and light)",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R3-OVERLAY --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R4-HARNESS",
+      "title": "Final harness selectors and restyle suite",
+      "wave": 4,
+      "depends_on": [
+        "R3-FOUNDATION",
+        "R3-SETTINGS",
+        "R3-ENTRIES",
+        "R3-VAULT",
+        "R3-TEAM",
+        "R3-SYNC",
+        "R3-DASHBOARD",
+        "R3-AI",
+        "R3-AUTH-ONBOARDING",
+        "R3-MISC",
+        "R3-SESSIONS",
+        "R3-PICKER",
+        "R3-OVERLAY"
+      ],
+      "owns": [
+        "scripts/verify/**",
+        "scripts/__tests__/verify-harness.test.ts",
+        "scripts/__tests__/verify-selectors.test.ts",
+        "scripts/__tests__/restyle-inventory.test.ts"
+      ],
+      "deliverables": [
+        "The legacy halves of every selector pair removed (Appendix B, \"Final\" column); `pickSelector` kept only where a hook is probed through a sibling",
+        "The restyle suite's `allowed-deltas.json` reduced to what the final UI needs; the README updated"
+      ],
+      "acceptance": [
+        "`npx vitest run scripts/__tests__` passes (8.1, row R4-HARNESS)",
+        "`node scripts/verify/run.mjs restyle --strict` passes every scenario",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R4-HARNESS --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R4-DOCS",
+      "title": "FEATURES.md, What's New and spec status",
+      "wave": 4,
+      "depends_on": [
+        "R3-FOUNDATION",
+        "R3-SETTINGS",
+        "R3-ENTRIES",
+        "R3-VAULT",
+        "R3-TEAM",
+        "R3-SYNC",
+        "R3-DASHBOARD",
+        "R3-AI",
+        "R3-AUTH-ONBOARDING",
+        "R3-MISC",
+        "R3-SESSIONS",
+        "R3-PICKER",
+        "R3-OVERLAY"
+      ],
+      "owns": [
+        "docs/FEATURES.md",
+        "release-notes/manifest.json",
+        "docs/VISUAL_REDESIGN.md",
+        ".claude/commands/notification.md"
+      ],
+      "deliverables": [
+        "`docs/FEATURES.md`: the Appearance section (Modern default with the sky accent, the six icon packs with Lucide as default and Hugeicons new, custom entry icons following the pack where a twin exists (5.11), platform themes retired), and the look lines of the Sidebar, Tab Bar, Dialogs, Context Menus and Notifications sections; no layout feature is described as changed",
+        "`release-notes/manifest.json`: the Appendix C highlights in the pending release entry (created with the release version and date if missing)",
+        "This spec: status line set to shipped, and any contract change the integrators recorded folded into its sections"
+      ],
+      "acceptance": [
+        "`node -e \"JSON.parse(require('fs').readFileSync('release-notes/manifest.json','utf8'))\"` exits 0",
+        "`grep -n \"Codicons\" docs/FEATURES.md release-notes/manifest.json` prints nothing, and `grep -n \"Platform themes\" docs/FEATURES.md` mentions them only as retired",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R4-DOCS --base advenimus/visual-restyle` exits 0"
+      ]
+    },
+    {
+      "id": "R4-CLEANUP",
+      "title": "Dead files, shims, the final integration and owner gate 3",
+      "wave": 4,
+      "depends_on": [
+        "R4-HARNESS",
+        "R4-DOCS"
+      ],
+      "owns": [
+        "src/**",
+        "scripts/redesign/**",
+        "scripts/__tests__/legacy-classes.test.ts"
+      ],
+      "deliverables": [
+        "The nine dead files of 10.5 deleted; `DEAD_FILES` in `scripts/redesign/legacy-classes.mjs` emptied (or removed with its skip), and `scripts/__tests__/legacy-classes.test.ts` checks the dead-file skip on temporary fixture files instead of repo files, without the length assertion",
+        "Shims removed: the `src/hooks/useTheme.ts` re-export (`App.tsx` imports `useAppearance`), `src/components/sync/useEscapeLayer.ts`, `LEGACY_MENU_ICON_KEYS` after every call site passes semantic names; `ConfirmDialog` portals by default",
+        "`src/components/__tests__/overlay-freeze.test.tsx`: each of the 24 overlays that `App.tsx` lists renders alone and holds a freeze by itself. `App.tsx`'s `legacy` freeze and the legacy event bridge stay in this release (4.9, D-28)",
+        "`src/components/__tests__/icon-sizes.test.ts` (5.5); the legacy-class allowlist trimmed to entries still needed",
+        "Final integration and owner gate 3: the checks below on the release tip"
+      ],
+      "acceptance": [
+        "`node scripts/redesign/legacy-classes.mjs src` reports 0 findings outside the Appendix B allowlist (dead files of 10.5 excluded)",
+        "`npx vitest run src/components/__tests__/icon-sizes.test.ts src/components/__tests__/overlay-freeze.test.tsx scripts/__tests__/legacy-classes.test.ts` passes",
+        "Final integration: `npm run verify` passes all scenarios; `node scripts/verify/run.mjs restyle --strict` passes every scenario; the 8.7 checks are listed in the PR test plan",
+        "Owner gate 3: the owner approves the dark and light composites of every reference shot; the approval is recorded in this package's pull request",
+        "`npx vitest run` passes with no failures",
+        "`npx tsc --noEmit` and `npx tsc -p electron/tsconfig.json --noEmit` report no errors",
+        "`node scripts/redesign/lint-count.mjs` prints no more ESLint errors than at the fork point (0 at `41d9657`)",
+        "`npm run build` passes",
+        "`node scripts/redesign/check-owns.mjs R4-CLEANUP --base advenimus/visual-restyle` exits 0"
+      ]
+    }
+  ]
+}

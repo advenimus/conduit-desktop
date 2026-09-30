@@ -262,6 +262,3 @@ export function ToastController() {
   // State-only controller — renders nothing
   return null;
 }
-
-// Keep ToastContainer as an alias for backward compatibility during transition
-export const ToastContainer = ToastController;

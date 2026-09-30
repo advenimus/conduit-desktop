@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
-import { EyeIcon, EyeOffIcon } from "../../lib/icons";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { Badge, IconButton, Textarea, TextInput } from "../ui";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useEntryStore } from "../../stores/entryStore";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
@@ -17,9 +18,9 @@ import {
   type NameLookup,
 } from "./conflict-logic";
 
+import SmallButton from "./SmallButton";
+
 const SINGLE_VERSION_KEY_REGS = new Set(["private_key", "totp_secret"]);
-const DRAFT_INPUT_CLASS =
-  "flex-1 px-2 py-1 text-xs bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500";
 
 /** Folder and item names for Location and Linked credential versions. */
 export function useNameLookup(): NameLookup {
@@ -29,12 +30,6 @@ export function useNameLookup(): NameLookup {
     (kind, id) => (kind === "folder" ? folders.find((f) => f.id === id)?.name : entries.find((e) => e.id === id)?.name),
     [entries, folders],
   );
-}
-
-export function smallButton(primary = false): string {
-  return `px-2.5 py-1 text-xs rounded transition-colors disabled:opacity-50 ${
-    primary ? "text-white bg-conduit-600 hover:bg-conduit-500" : "text-ink-secondary bg-raised hover:bg-well"
-  }`;
 }
 
 async function resolveField(field: FieldConflict, choice: FieldChoiceDto, success: string): Promise<boolean> {
@@ -59,12 +54,16 @@ interface VersionLineProps {
 function VersionValue({ field, text }: { field: FieldConflict; text: string }) {
   if (isLongTextField(field)) {
     return (
-      <pre className="font-mono text-xs text-ink whitespace-pre-wrap break-words max-h-48 overflow-auto allow-select bg-well/60 rounded px-2 py-1">
+      <pre data-cv-review-value="" className="allow-select max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-code px-2 py-1 font-mono text-label text-ink">
         {text}
       </pre>
     );
   }
-  return <span className="font-mono text-xs text-ink break-all allow-select">{text}</span>;
+  return (
+    <span data-cv-review-value="" className="allow-select break-all font-mono text-label text-ink">
+      {text}
+    </span>
+  );
 }
 
 function VersionLine({ field, version, busy, names, onUse }: VersionLineProps) {
@@ -82,27 +81,25 @@ function VersionLine({ field, version, busy, names, onUse }: VersionLineProps) {
     }
   };
   return (
-    <div className="flex items-start gap-3 py-2 border-b border-stroke-dim last:border-b-0">
-      <div className="flex-1 min-w-0">
+    <div data-cv-review-version="" className="flex items-start gap-3 border-b border-stroke-dim py-2 last:border-b-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <VersionValue field={field} text={versionText(field, version, revealed, names)} />
           </div>
           {version.masked && canUseVersion(version) && (
-            <button type="button" onClick={() => void toggleReveal()} className="p-0.5 text-ink-muted hover:text-ink" title={revealed === null ? "Show" : "Hide"}>
-              {revealed === null ? <EyeIcon size={12} /> : <EyeOffIcon size={12} />}
-            </button>
+            <IconButton size="sm" icon={revealed === null ? "eye" : "eyeOff"} label={revealed === null ? "Show" : "Hide"} onClick={() => void toggleReveal()} />
           )}
           {version.provisional && (
-            <span className="px-1.5 py-0.5 text-[10px] font-medium text-conduit-400 bg-conduit-500/10 rounded">In use now</span>
+            <Badge tone="accent" className="shrink-0">In use now</Badge>
           )}
         </div>
-        <p className="text-[11px] text-ink-muted mt-0.5">{versionCaption(version)}</p>
+        <p className="mt-0.5 text-meta text-ink-muted">{versionCaption(version)}</p>
       </div>
       {canUseVersion(version) && (
-        <button type="button" disabled={busy} onClick={() => onUse(version)} className={smallButton()}>
+        <SmallButton disabled={busy} onClick={() => onUse(version)}>
           Use this
-        </button>
+        </SmallButton>
       )}
     </div>
   );
@@ -153,15 +150,15 @@ export default function ConflictFieldRow({ field, itemTitle, compact = false }: 
   };
 
   return (
-    <div className="rounded-md border border-stroke bg-well/40 p-3 space-y-2">
+    <div data-cv-review-field="" className="space-y-2 rounded-md border border-card-border bg-well p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-ink">{field.label}</span>
-        <span className="text-[11px] text-amber-400">{field.versions.length} versions</span>
+        <span data-cv-review-field-label="" className="text-body font-semibold text-ink">{field.label}</span>
+        <span className="text-meta text-warning">{field.versions.length} versions</span>
       </div>
-      {field.staleRevert && <p className="text-xs text-ink-muted">An older Conduit app changed this back to an earlier value.</p>}
-      {field.invariantGuard && <p className="text-xs text-ink-muted">Two versions were kept after a repair.</p>}
+      {field.staleRevert && <p className="text-label text-ink-muted">An older Conduit app changed this back to an earlier value.</p>}
+      {field.invariantGuard && <p className="text-label text-ink-muted">Two versions were kept after a repair.</p>}
       {field.secret && SINGLE_VERSION_KEY_REGS.has(field.key.reg) && (
-        <p className="text-xs text-amber-400">
+        <p className="text-label text-warning">
           The versions you don't pick are removed from this item. Reveal and copy any key you still need before you choose.
         </p>
       )}
@@ -179,36 +176,33 @@ export default function ConflictFieldRow({ field, itemTitle, compact = false }: 
       </div>
       {editing && (
         <div className="flex items-start gap-2">
-          {isLongTextField(field) ? (
-            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus rows={6} className={`${DRAFT_INPUT_CLASS} font-mono`} />
-          ) : (
-            <input type={field.secret ? "password" : "text"} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus className={DRAFT_INPUT_CLASS} />
-          )}
-          <button type="button" disabled={busy} onClick={saveDraft} className={smallButton(true)}>Save</button>
-          <button type="button" onClick={() => setEditing(false)} className={smallButton()}>Cancel</button>
+          <div className="min-w-0 flex-1">
+            {isLongTextField(field) ? (
+              <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus rows={6} className="font-mono" />
+            ) : (
+              <TextInput type={field.secret ? "password" : "text"} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
+            )}
+          </div>
+          <SmallButton primary disabled={busy} onClick={saveDraft}>Save</SmallButton>
+          <SmallButton onClick={() => setEditing(false)}>Cancel</SmallButton>
         </div>
       )}
-      {draftError && <p className="text-xs text-red-400">{draftError}</p>}
+      {draftError && <p data-cv-error="" className="text-label text-danger">{draftError}</p>}
       <div className="flex flex-wrap gap-2 pt-1">
         {!editing && offersEnteredValue(field) && (
-          <button type="button" disabled={busy} onClick={() => setEditing(true)} className={smallButton()}>
+          <SmallButton disabled={busy} onClick={() => setEditing(true)}>
             Enter a different value...
-          </button>
+          </SmallButton>
         )}
         {field.keepBothOffered && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void run({ kind: "keep-both", copyNames: keepBothCopyNames(itemTitle, field) }, "Kept both versions.")}
-            className={smallButton()}
-          >
+          <SmallButton disabled={busy} onClick={() => void run({ kind: "keep-both", copyNames: keepBothCopyNames(itemTitle, field) }, "Kept both versions.")}>
             Keep both
-          </button>
+          </SmallButton>
         )}
         {!compact && (
-          <button type="button" disabled={busy} onClick={() => void decideLater()} className={smallButton()}>
+          <SmallButton disabled={busy} onClick={() => void decideLater()}>
             Decide later
-          </button>
+          </SmallButton>
         )}
       </div>
     </div>

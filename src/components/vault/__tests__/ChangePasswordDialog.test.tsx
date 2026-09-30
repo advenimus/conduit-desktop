@@ -81,3 +81,23 @@ describe("ChangePasswordDialog: erase Recently deleted (spec 4.7)", () => {
     expect(invoke).toHaveBeenCalledWith("vault_change_password", expect.objectContaining({ eraseRecentlyDeleted: false }));
   });
 });
+
+describe("ChangePasswordDialog: errors (B8, B31)", () => {
+  const panel = () => document.querySelector("[data-dialog-content]") as HTMLElement;
+
+  it("shows the reason the main process gives in a data-cv-error line inside the form dialog", async () => {
+    invoke.mockRejectedValue(new Error("Current password is incorrect"));
+    render(<ChangePasswordDialog onClose={vi.fn()} />);
+    fill("old-password-1", "new-password-1");
+    await submit();
+    expect(panel().querySelector("form [data-cv-error]")).toHaveTextContent("Current password is incorrect");
+  });
+
+  it("falls back to a generic message when the error has no text", async () => {
+    invoke.mockRejectedValue(new Error(""));
+    render(<ChangePasswordDialog onClose={vi.fn()} />);
+    fill("old-password-1", "new-password-1");
+    await submit();
+    expect(panel().querySelector("form [data-cv-error]")).toHaveTextContent("Failed to change password");
+  });
+});

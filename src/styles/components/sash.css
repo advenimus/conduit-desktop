@@ -1,0 +1,84 @@
+/* Resize handles (spec 3.5 to 3.7). The pane splits and the AI divider stay 4px in the layout flow, because a
+   native web view paints over anything that overlaps it. Each lights up in the accent after --c-sash-delay of
+   hover, or at once while dragging, fading over --c-motion-fast. */
+@layer components {
+  .cv-sash,
+  .cv-split-sash {
+    position: relative;
+    flex: none;
+    touch-action: none;
+    cursor: ew-resize;
+  }
+  .cv-sash {
+    width: 4px;
+    align-self: stretch;
+  }
+  /* data-orientation names the handle's own direction: "horizontal" is a bar between stacked panes. */
+  .cv-split-sash[data-orientation="horizontal"] {
+    cursor: ns-resize;
+  }
+  [data-os="macos"] .cv-sash,
+  [data-os="macos"] .cv-split-sash {
+    cursor: col-resize;
+  }
+  [data-os="macos"] .cv-split-sash[data-orientation="horizontal"] {
+    cursor: row-resize;
+  }
+
+  /* Pane splits: a centered 1px line on the session background. */
+  .cv-split-sash {
+    background: linear-gradient(var(--c-editor-group-border), var(--c-editor-group-border)) center / 1px 100% no-repeat,
+      var(--c-editor);
+  }
+  .cv-split-sash[data-orientation="horizontal"] {
+    background: linear-gradient(var(--c-editor-group-border), var(--c-editor-group-border)) center / 100% 1px no-repeat,
+      var(--c-editor);
+  }
+
+  /* The AI divider: the panes' surface, a 1px divider, then the panel's surface. */
+  .cv-sash-ai {
+    background: linear-gradient(to right, var(--c-editor) 0 1.5px, var(--c-divider) 1.5px 2.5px, var(--c-sidebar) 2.5px);
+  }
+
+  /* The accent is an overlay, so the line underneath never disappears before the delay runs out. */
+  .cv-sash::after,
+  .cv-split-sash::after,
+  .cv-sash-line {
+    content: "";
+    position: absolute;
+    background: var(--c-accent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--c-motion-fast) var(--c-ease-out);
+  }
+  .cv-sash::after,
+  .cv-split-sash::after {
+    inset: 0;
+  }
+  .cv-sash:hover::after,
+  .cv-split-sash:hover::after {
+    opacity: 1;
+    transition-delay: var(--c-sash-delay);
+  }
+  .cv-sash[data-dragging]::after,
+  .cv-split-sash[data-dragging]::after,
+  .cv-split-sash[data-separator="active"]::after {
+    opacity: 1;
+    transition-delay: 0s;
+  }
+
+  /* The side bar's resize handle keeps its own hit area; its visible line is 4px of accent at the side bar's edge. */
+  .cv-sash-line {
+    top: 0;
+    bottom: 0;
+    width: 4px;
+  }
+  .cv-sash-handle:hover > .cv-sash-line {
+    opacity: 1;
+    transition-delay: var(--c-sash-delay);
+  }
+  .cv-sash-handle[data-dragging] > .cv-sash-line {
+    opacity: 1;
+    transition-delay: 0s;
+  }
+}

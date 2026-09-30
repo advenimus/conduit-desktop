@@ -11,6 +11,9 @@ const flows = (await import('../verify/lib/sync-flows.mjs' as string)) as {
   waitForDisplaced(device: unknown, opts?: { timeoutMs?: number }): Promise<Dialog>;
   displacedShown(device: unknown): Promise<boolean>;
 };
+const baseFlows = (await import('../verify/lib/flows.mjs' as string)) as {
+  waitForUnlockOutcome(device: unknown, opts?: { timeoutMs?: number }): Promise<{ outcome: string }>;
+};
 
 const OVERLAY: Dialog = { title: 'Opened on Mac Mini', text: 'Opened on Mac Mini\n\nSaving your last changes...\n\nYour open connections keep running.' };
 const MODAL: Dialog = {
@@ -43,6 +46,38 @@ describe('waitForDisplaced', () => {
     const planLimit = { title: 'Vault locked', text: 'Vault locked\n\nYour plan now allows this vault on one device at a time.' };
     const device = fakeDevice([[planLimit]]);
     expect(await flows.waitForDisplaced(device, { timeoutMs: 600 })).toEqual(planLimit);
+  });
+});
+
+/**
+ * A main screen whose vault is unlocked (vault_is_unlocked) from the first read, while
+ * sync_get_state names no vault for the first `pendingReads` reads: the open is still finishing.
+ */
+function openingDevice(pendingReads: number) {
+  const reads = { syncState: 0 };
+  const ipc: Record<string, () => unknown> = {
+    vault_is_unlocked: () => true,
+    sync_get_state: () => ({ vault: reads.syncState++ < pendingReads ? null : { lineageId: 'L1', path: '/v/Vault.conduit' } }),
+  };
+  const evaluate = async (fn: unknown, arg?: unknown) => {
+    if (arg !== null && typeof arg === 'object' && 'channel' in arg) return { ok: true, value: ipc[(arg as { channel: string }).channel]() };
+    if (typeof fn === 'string') return false;
+    if (typeof arg === 'string') return [];
+    return 'Welcome back\n2 entries';
+  };
+  return { reads, device: { name: 'a', page: { evaluate } } };
+}
+
+describe('waitForUnlockOutcome', () => {
+  it('reports unlocked only once sync_get_state names the opened vault', async () => {
+    const { reads, device } = openingDevice(2);
+    expect(await baseFlows.waitForUnlockOutcome(device, { timeoutMs: 5_000 })).toEqual({ outcome: 'unlocked' });
+    expect(reads.syncState).toBe(3);
+  });
+
+  it('keeps waiting while the working copy is open but the open has not finished', async () => {
+    const { device } = openingDevice(Number.POSITIVE_INFINITY);
+    await expect(baseFlows.waitForUnlockOutcome(device, { timeoutMs: 600 })).rejects.toThrow(/unlock outcome/);
   });
 });
 

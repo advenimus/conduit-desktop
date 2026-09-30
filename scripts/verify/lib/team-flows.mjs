@@ -8,7 +8,8 @@ import path from 'node:path';
 import { waitForScreen } from './flows.mjs';
 import { sqlJson } from './supabase.mjs';
 import { syncRootOf } from './vault-files.mjs';
-import { clickSelector, clickText, dispatchDocumentEvent, exists, invoke, waitFor } from './ui.mjs';
+import { clickText, dispatchDocumentEvent, invoke, waitFor } from './ui.mjs';
+import { SELECTORS, clickIn, existsIn } from './selectors.mjs';
 
 const OPEN_TIMEOUT_MS = 60_000;
 
@@ -34,16 +35,16 @@ export async function openTeamVaultInUi(device, vault, { timeoutMs = OPEN_TIMEOU
   await waitForScreen(device, 'main', { timeoutMs });
 }
 
-/** Opens the sidebar with the tab bar's toggle when it is collapsed (test windows start that way). */
+/** Opens the sidebar with its toggle when it is collapsed (test windows start that way). */
 export async function openSidebar(device) {
-  if (await exists(device, 'button[title="Open sidebar (Ctrl+B)"]')) await clickSelector(device, 'button[title="Open sidebar (Ctrl+B)"]');
-  await waitFor(() => exists(device, 'button[title="Close sidebar (Ctrl+B)"]'), { timeoutMs: 10_000, label: `${device.name}: sidebar open` });
+  if (await existsIn(device, SELECTORS.sidebarOpener)) await clickIn(device, null, SELECTORS.sidebarOpener);
+  await waitFor(() => existsIn(device, SELECTORS.sidebarOpen), { timeoutMs: 10_000, label: `${device.name}: sidebar open` });
 }
 
 /** The sidebar's vault menu (its button shows the vault name) > "Lock Current Vault", then the hub. */
 export async function lockFromVaultMenu(device, vaultName) {
   await openSidebar(device);
-  await clickText(device, vaultName, { selector: 'button[title]' });
+  await clickIn(device, vaultName, SELECTORS.vaultSwitcher);
   await clickText(device, 'Lock Current Vault', { exact: true, selector: 'button' });
   await waitForScreen(device, 'hub');
 }

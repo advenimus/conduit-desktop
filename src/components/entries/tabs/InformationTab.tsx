@@ -1,5 +1,6 @@
 import Field from "../Field";
 import MarkdownEditor from "../../markdown/MarkdownEditor";
+import { TextInput } from "../../ui";
 
 interface InformationTabProps {
   tags: string;
@@ -12,16 +13,10 @@ export default function InformationTab({ tags, setTags, notes, setNotes }: Infor
   return (
     <div className="space-y-3">
       <Field label="Tags">
-        <input
-          type="text"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          placeholder="production, linux (comma-separated)"
-          className="w-full px-3 py-2 bg-well border border-stroke rounded text-sm focus:outline-none focus:ring-2 focus:ring-conduit-500"
-        />
+        <TextInput value={tags} onChange={(e) => setTags(e.target.value)} placeholder="production, linux (comma-separated)" />
       </Field>
 
-      <Field label="Notes">
+      <Field label="Notes" group>
         <MarkdownEditor
           value={notes}
           onChange={setNotes}

@@ -6,13 +6,16 @@
 import { clickText, invoke, typeInto, waitFor, withTimeout } from './ui.mjs';
 import { retryUntil, stubDialogs } from './ui-forms.mjs';
 import { openSettings, settingsOpen } from './settings-flows.mjs';
+import { SELECTORS, clickIn, evaluateIn } from './selectors.mjs';
 
-const SETTINGS_ROOT = '[data-cv-settings]';
-const MANAGER_ROOT = '[data-cv-backup-manager]';
+const SETTINGS_ROOT = SELECTORS.settingsRoot.hook;
+const MANAGER_ROOT = SELECTORS.backupManager.hook;
 
-function clickToggleInPage({ root, label }) {
-  const el = [...document.querySelectorAll(`${root} label`)].find((l) => l.innerText.trim() === label);
-  const button = el?.closest('.justify-between')?.querySelector(':scope > button');
+/** B22 and B39: the toggle of the row whose title label reads `label`. */
+export function clickToggleInPage({ root, label }, cv) {
+  const scope = document.querySelector(root);
+  const el = [...(scope?.querySelectorAll('label') ?? [])].find((l) => l.innerText.trim() === label);
+  const button = el ? cv.pickOne(cv.pickClosest(el, scope, cv.S.toggleRow), cv.S.toggle) : null;
   if (!button) return el ? 'no toggle' : 'no label';
   if (button.disabled) return 'disabled';
   button.click();
@@ -20,13 +23,13 @@ function clickToggleInPage({ root, label }) {
 }
 
 function clickToggle(device, label) {
-  const attempt = () => withTimeout(device.page.evaluate(clickToggleInPage, { root: SETTINGS_ROOT, label }), 10_000, `${device.name}: toggle ${label}`);
+  const attempt = () => evaluateIn(device, clickToggleInPage, { root: SETTINGS_ROOT, label }, { label: `toggle ${label}` });
   return retryUntil(attempt, 'clicked', { timeoutMs: 15_000, label: `${device.name}: "${label}" toggle` });
 }
 
 async function backupTab(device) {
   if (!(await settingsOpen(device))) await openSettings(device, 'backup');
-  else await clickText(device, 'Backup', { exact: true, selector: `${SETTINGS_ROOT} .w-52 button` });
+  else await clickIn(device, 'Backup', SELECTORS.settingsNavButton, { scope: SETTINGS_ROOT, exact: true });
 }
 
 /** local_backup_get_state: {enabled, backupPath, retentionDays, status, lastBackedUpAt, error}. */
@@ -69,14 +72,17 @@ export async function localBackupNow(device, { timeoutMs = 60_000 } = {}) {
   return listLocalBackups(device);
 }
 
+function readBackupRowsInPage(root, cv) {
+  const { S } = cv;
+  const list = cv.pickOne(document.querySelector(root), S.backupFiles);
+  const read = (row, p) => cv.pickOne(row, p)?.innerText?.trim() ?? '';
+  return cv.pickAll(list, S.backupRow).map((r) => ({ name: read(r, S.backupName), meta: read(r, S.backupMeta) }));
+}
+
 /** The "Backup Files (N)" list as the Backup tab shows it: [{name, meta}]. */
 export async function localBackupRows(device) {
   await backupTab(device);
-  return withTimeout(device.page.evaluate((root) => {
-    const label = [...document.querySelectorAll(`${root} label`)].find((l) => /^Backup Files \(\d+\)$/.test(l.innerText.trim()));
-    const rows = label?.parentElement?.querySelectorAll('.border-b') ?? [];
-    return [...rows].map((r) => ({ name: r.querySelector('span.block')?.innerText?.trim() ?? '', meta: r.querySelector('span.text-\\[10px\\]')?.innerText?.trim() ?? '' }));
-  }, SETTINGS_ROOT), 10_000, `${device.name}: read backup rows`);
+  return evaluateIn(device, readBackupRowsInPage, SETTINGS_ROOT, { label: 'read backup rows' });
 }
 
 /**
@@ -106,13 +112,15 @@ export async function openLocalRestorePreview(device, backupFilePath, masterPass
   return res.result.preview;
 }
 
-function readCloudSectionInPage(root) {
-  const label = [...document.querySelectorAll(`${root} label`)].find((l) => l.innerText.trim() === 'Cloud Backup');
-  const section = label?.closest('.space-y-3');
+function readCloudSectionInPage(root, cv) {
+  const { S } = cv;
+  const scope = document.querySelector(root);
+  const label = [...(scope?.querySelectorAll('label') ?? [])].find((l) => l.innerText.trim() === 'Cloud Backup');
+  const section = label ? cv.pickClosest(label, scope, S.cloudBackupSection) : null;
   if (!section) return null;
-  const toggle = label.closest('.justify-between')?.querySelector(':scope > button');
+  const toggle = cv.pickOne(cv.pickClosest(label, scope, S.toggleRow), S.toggle);
   return {
-    badge: label.parentElement?.querySelector('span')?.innerText?.trim() ?? null,
+    badge: cv.pickOne(section, S.cloudBackupBadge)?.innerText?.trim() ?? null,
     toggleDisabled: toggle?.disabled ?? null,
     text: section.innerText,
   };
@@ -121,7 +129,7 @@ function readCloudSectionInPage(root) {
 /** Settings > Backup > Cloud Backup as shown: {badge, toggleDisabled, text} (null when the section is hidden). */
 export async function cloudBackupSection(device) {
   await backupTab(device);
-  return waitFor(() => withTimeout(device.page.evaluate(readCloudSectionInPage, SETTINGS_ROOT), 10_000, `${device.name}: read Cloud Backup`), {
+  return waitFor(() => evaluateIn(device, readCloudSectionInPage, SETTINGS_ROOT, { label: 'read Cloud Backup' }), {
     timeoutMs: 15_000,
     label: `${device.name}: Cloud Backup section`,
   });
@@ -130,7 +138,7 @@ export async function cloudBackupSection(device) {
 /** Clicks the Cloud Backup toggle once, whatever its state; returns 'clicked', 'disabled', 'no label' or 'no toggle'. */
 export async function pressCloudBackupToggle(device) {
   await backupTab(device);
-  return withTimeout(device.page.evaluate(clickToggleInPage, { root: SETTINGS_ROOT, label: 'Cloud Backup' }), 10_000, `${device.name}: press Cloud Backup`);
+  return evaluateIn(device, clickToggleInPage, { root: SETTINGS_ROOT, label: 'Cloud Backup' }, { label: 'press Cloud Backup' });
 }
 
 /** Settings > Backup > Cloud Backup toggle off (when on); waits until cloud backup is off. */
@@ -177,18 +185,12 @@ export async function cloudBackupNow(device, { timeoutMs = 90_000 } = {}) {
 /** cloud_backup_list_all: [{path, vaultId, vaultName, created_at, size}]. */
 export const listCloudBackups = (device) => invoke(device, 'cloud_backup_list_all');
 
-function markManagerInPage() {
-  const root = [...document.querySelectorAll('[data-dialog-content]')].find((el) => el.querySelector('h2')?.innerText?.trim() === 'Backup Manager');
-  if (!root) return false;
-  root.setAttribute('data-cv-backup-manager', '');
-  return true;
-}
-
 /** Settings > Backup > [Manage Backups...] (shown once a cloud backup exists). */
 export async function openBackupManager(device) {
   await backupTab(device);
   await clickText(device, 'Manage Backups...', { exact: true, selector: `${SETTINGS_ROOT} button` });
-  await waitFor(() => withTimeout(device.page.evaluate(markManagerInPage), 10_000, 'find Backup Manager'), { timeoutMs: 15_000, label: `${device.name}: Backup Manager` });
+  // B25: the Backup Manager panel carries data-cv-backup-manager.
+  await waitFor(() => withTimeout(device.page.evaluate((css) => document.querySelector(css) !== null, MANAGER_ROOT), 10_000, 'find Backup Manager'), { timeoutMs: 15_000, label: `${device.name}: Backup Manager` });
 }
 
 /**

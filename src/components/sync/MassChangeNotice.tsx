@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { HistoryIcon, LoaderIcon } from "../../lib/icons";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { Checkbox, Spinner } from "../ui";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { rowKeyString } from "../../stores/sync-reducers";
 import { toast } from "../common/Toast";
@@ -92,10 +93,10 @@ export default function MassChangeNotice({ noticeId }: { noticeId: string }) {
   const title = loaded ? massChangeTitle(loaded.snapshot) : "Large change from a sync";
   return (
     <SyncDialogFrame
-      icon={HistoryIcon}
+      icon="history"
       tone="warn"
       title={title}
-      width="w-[520px]"
+      width={520}
       onEscape={close}
       footer={
         <>
@@ -105,30 +106,40 @@ export default function MassChangeNotice({ noticeId }: { noticeId: string }) {
         </>
       }
     >
-      {loaded === undefined && <div className="flex items-center gap-2"><LoaderIcon size={16} className="animate-spin" /> Loading...</div>}
+      {loaded === undefined && <Spinner text="Loading..." />}
       {loaded === null && loadFailed && <LoadFailed what="this change" onRetry={() => setAttempt((n) => n + 1)} />}
       {loaded === null && !loadFailed && <p>The saved copy for this change is no longer available, so it can't be undone here.</p>}
       {loaded && (
         <>
           <p>Undo only changes what you select. Nothing else changes.</p>
-          {loaded.preview.rows.length > 0 && <p className="text-xs font-medium text-ink">Deleted items</p>}
+          {loaded.preview.rows.length > 0 && <p className="text-label font-semibold text-ink">Deleted items</p>}
           <div className="max-h-48 overflow-y-auto">
             {loaded.preview.rows.map((r) => (
-              <label key={rowKeyString(r.row)} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
-                <input type="checkbox" disabled={!r.stillDeleted} checked={rows.has(rowKeyString(r.row))} onChange={() => setRows(flip(rows, rowKeyString(r.row)))} className="accent-conduit-500" />
-                <span className="text-ink">{r.title}</span>
-                {!r.stillDeleted && <span className="text-ink-muted">(already back)</span>}
-              </label>
+              <Checkbox
+                key={rowKeyString(r.row)}
+                disabled={!r.stillDeleted}
+                checked={rows.has(rowKeyString(r.row))}
+                onChange={() => setRows(flip(rows, rowKeyString(r.row)))}
+                className="w-full py-1"
+              >
+                <span data-cv-row-title="" className="text-ink">{r.title}</span>
+                {!r.stillDeleted && <span className="text-ink-muted"> (already back)</span>}
+              </Checkbox>
             ))}
           </div>
-          {loaded.preview.fields.length > 0 && <p className="text-xs font-medium text-ink">Changed fields (optional)</p>}
+          {loaded.preview.fields.length > 0 && <p className="text-label font-semibold text-ink">Changed fields (optional)</p>}
           <div className="max-h-40 overflow-y-auto">
             {loaded.preview.fields.map((f) => (
-              <label key={regKeyString(f.key)} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
-                <input type="checkbox" disabled={!f.stillMerged} checked={fields.has(regKeyString(f.key))} onChange={() => setFields(flip(fields, regKeyString(f.key)))} className="accent-conduit-500" />
-                <span className="text-ink">{f.label}</span>
-                {!f.stillMerged && <span className="text-ink-muted">(changed again since)</span>}
-              </label>
+              <Checkbox
+                key={regKeyString(f.key)}
+                disabled={!f.stillMerged}
+                checked={fields.has(regKeyString(f.key))}
+                onChange={() => setFields(flip(fields, regKeyString(f.key)))}
+                className="w-full py-1"
+              >
+                <span data-cv-row-title="" className="text-ink">{f.label}</span>
+                {!f.stillMerged && <span className="text-ink-muted"> (changed again since)</span>}
+              </Checkbox>
             ))}
           </div>
         </>

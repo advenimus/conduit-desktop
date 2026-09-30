@@ -7,9 +7,16 @@ import { CREDENTIAL_TYPES, resolveCredentialType, type CredentialType } from "..
 import { toast } from "../common/Toast";
 import { invoke } from "../../lib/electron";
 import { generateTotpCode } from "../../lib/totp";
-import {
-  CloseIcon, CopyIcon, EyeIcon, EyeOffIcon, KeyboardIcon, PlusIcon, QrcodeIcon, ShieldLockIcon, TagIcon, TrashIcon
-} from "../../lib/icons";
+import { CloseIcon, ShieldLockIcon, TagIcon, TrashIcon } from "../../lib/icons";
+import { Button, Callout, Card, Dialog, FormField, IconButton, SegmentedControl, TextInput, Textarea, cx } from "../ui";
+import { errorText } from "../../lib/errorText";
+
+const DEFAULT_AUTH = "default";
+const SSH_AUTH_OPTIONS = [
+  { value: DEFAULT_AUTH, label: "Default" },
+  { value: "key", label: "SSH Key" },
+  { value: "password", label: "Password" },
+];
 
 interface CredentialFormProps {
   editId?: string;
@@ -107,15 +114,14 @@ export default function CredentialForm({
         })
         .catch((err: unknown) => {
           setError(
-            typeof err === "string" ? err : "Failed to load credential"
+            errorText(err, "Failed to load credential")
           );
         })
         .finally(() => setIsFetching(false));
     }
   }, [editId, getCredential]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!name.trim()) return;
 
     setIsLoading(true);
@@ -164,7 +170,7 @@ export default function CredentialForm({
       onSaved();
     } catch (err) {
       setError(
-        typeof err === "string" ? err : "Failed to save credential"
+        errorText(err, "Failed to save credential")
       );
     } finally {
       setIsLoading(false);
@@ -190,10 +196,6 @@ export default function CredentialForm({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  };
-
   const handleImportQr = async () => {
     try {
       const filePath = await invoke<string | null>("totp_pick_qr_image");
@@ -215,7 +217,7 @@ export default function CredentialForm({
       setShowTotpManual(false);
       toast.success("QR code imported successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to decode QR code");
+      toast.error(errorText(err, "Failed to decode QR code"));
     }
   };
 
@@ -238,413 +240,269 @@ export default function CredentialForm({
 
   const credentialTypeEntries = Object.entries(CREDENTIAL_TYPES) as [CredentialType, { label: string; description: string }][];
 
+  const title = isEditing
+    ? "Edit Credential"
+    : presetType && presetType !== "generic"
+      ? `New ${CREDENTIAL_TYPES[presetType].label} Credential`
+      : "New Credential";
+
+  const footer = isFetching ? undefined : (
+    <>
+      <Button onClick={onClose}>Cancel</Button>
+      <Button type="submit" variant="primary" disabled={!name.trim() || isLoading}>
+        {isLoading ? "Saving..." : isEditing ? "Save Changes" : "Create"}
+      </Button>
+    </>
+  );
+
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
-      onKeyDown={handleKeyDown}
+    <Dialog
+      open
+      title={title}
+      width={448}
+      style={{ maxHeight: "90vh" }}
+      onClose={onClose}
+      onSubmit={() => void handleSubmit()}
+      footer={footer}
     >
-      <div className="w-full max-w-md bg-panel rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-stroke sticky top-0 bg-panel rounded-t-lg">
-            <h2 className="text-lg font-semibold">
-              {isEditing
-                ? "Edit Credential"
-                : presetType && presetType !== "generic"
-                  ? `New ${CREDENTIAL_TYPES[presetType].label} Credential`
-                  : "New Credential"}
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 hover:bg-raised rounded"
-            >
-              <CloseIcon size={20} />
-            </button>
+      {isFetching ? (
+        <div className="p-4 text-center text-ink-muted">Loading...</div>
+      ) : (
+        <>
+          <FormField
+            label={
+              <>
+                Name <span className="text-danger">*</span>
+              </>
+            }
+          >
+            <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="" autoFocus />
+          </FormField>
+
+          <div>
+            <span className="mb-1 block text-label font-semibold text-ink-secondary">Type</span>
+            <SegmentedControl
+              aria-label="Type"
+              options={credentialTypeEntries.map(([key, meta]) => ({
+                value: key,
+                label: <span title={meta.description}>{meta.label}</span>,
+              }))}
+              value={credentialType}
+              onChange={setCredentialType}
+            />
           </div>
 
-          {isFetching ? (
-            <div className="p-8 text-center text-ink-muted">Loading...</div>
-          ) : (
-            <>
-              {/* Content */}
-              <div className="p-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Name <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder=""
-                    autoFocus
-                    className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                  />
+          <FormField label="Username">
+            <TextInput value={username} onChange={(e) => setUsername(e.target.value)} placeholder="" />
+          </FormField>
+
+          <FormField label="Password">
+            <div className="relative">
+              <TextInput
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder=""
+                style={{ paddingRight: 56 }}
+              />
+              <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                <PasswordGenerateButton onPasswordGenerated={setPassword} />
+                <IconButton
+                  size="sm"
+                  icon={showPassword ? "eyeOff" : "eye"}
+                  label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword(!showPassword)}
+                />
+              </div>
+            </div>
+          </FormField>
+
+          <FormField label="Domain">
+            <TextInput value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="" />
+          </FormField>
+
+          {credentialType !== "ssh_key" && (
+            <Card className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ShieldLockIcon size={16} className="text-ink-muted" />
+                  <p className="text-meta font-semibold text-ink-muted">One-Time Password (TOTP)</p>
                 </div>
-
-                {/* Type selector */}
-                <div>
-                  <label className="block text-sm font-medium mb-1">Type</label>
-                  <div className="flex gap-1 p-1 bg-well rounded-lg">
-                    {credentialTypeEntries.map(([key, meta]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setCredentialType(key)}
-                        className={`flex-1 py-1.5 px-3 text-sm rounded-md transition-colors ${
-                          credentialType === key
-                            ? "bg-conduit-600 text-white"
-                            : "hover:bg-raised text-ink-muted"
-                        }`}
-                        title={meta.description}
-                      >
-                        {meta.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder=""
-                    className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder=""
-                      className="w-full px-3 py-2 pr-16 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                    />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                      <PasswordGenerateButton onPasswordGenerated={setPassword} />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="p-1 text-ink-muted hover:text-ink"
-                      >
-                        {showPassword ? (
-                          <EyeOffIcon size={16} />
-                        ) : (
-                          <EyeIcon size={16} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Domain
-                  </label>
-                  <input
-                    type="text"
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                    placeholder=""
-                    className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                  />
-                </div>
-
-                {/* TOTP section — shown for generic credentials only */}
-                {credentialType !== "ssh_key" && (
-                  <div className="space-y-3 p-3 bg-well/50 border border-stroke/50 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <ShieldLockIcon size={14} className="text-ink-muted" />
-                        <p className="text-xs font-medium text-ink-muted uppercase tracking-wider">One-Time Password (TOTP)</p>
-                      </div>
-                      {totpSecret && (
-                        <button
-                          type="button"
-                          onClick={handleRemoveTotp}
-                          className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-300 transition-colors"
-                        >
-                          <TrashIcon size={12} />
-                          Remove
-                        </button>
-                      )}
-                    </div>
-
-                    {!totpSecret ? (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={handleImportQr}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-well border border-stroke rounded hover:bg-raised transition-colors text-sm"
-                        >
-                          <QrcodeIcon size={16} />
-                          Import QR Code
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowTotpManual(!showTotpManual)}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-well border border-stroke rounded hover:bg-raised transition-colors text-sm"
-                        >
-                          <KeyboardIcon size={16} />
-                          Enter Secret Key
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        {totpIssuer && (
-                          <div className="text-xs text-ink-secondary">
-                            <span className="text-ink-faint">Issuer:</span> {totpIssuer}
-                            {totpLabel && <> &middot; <span className="text-ink-faint">Account:</span> {totpLabel}</>}
-                          </div>
-                        )}
-                        <div className="text-xs text-ink-faint">
-                          {totpAlgorithm} &middot; {totpDigits} digits &middot; {totpPeriod}s period
-                        </div>
-                        {totpPreview && (
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-lg text-conduit-400 tracking-widest">
-                              {totpPreview.slice(0, Math.ceil(totpPreview.length / 2))}{" "}
-                              {totpPreview.slice(Math.ceil(totpPreview.length / 2))}
-                            </span>
-                            <span className="text-xs text-green-400">Preview</span>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {showTotpManual && !totpSecret && (
-                      <div className="space-y-2">
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-ink-secondary">Secret Key (Base32)</label>
-                          <input
-                            type="text"
-                            value={totpSecret}
-                            onChange={(e) => setTotpSecret(e.target.value.toUpperCase().replace(/\s/g, ""))}
-                            placeholder=""
-                            className="w-full px-3 py-1.5 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500 font-mono text-sm"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <label className="block text-xs font-medium mb-1 text-ink-secondary">Issuer</label>
-                            <input
-                              type="text"
-                              value={totpIssuer}
-                              onChange={(e) => setTotpIssuer(e.target.value)}
-                              placeholder=""
-                              className="w-full px-3 py-1.5 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500 text-sm"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-xs font-medium mb-1 text-ink-secondary">Account</label>
-                            <input
-                              type="text"
-                              value={totpLabel}
-                              onChange={(e) => setTotpLabel(e.target.value)}
-                              placeholder=""
-                              className="w-full px-3 py-1.5 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500 text-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                {totpSecret && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveTotp}
+                    className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-label text-danger transition-colors hover:bg-hover"
+                  >
+                    <TrashIcon size={12} compact />
+                    Remove
+                  </button>
                 )}
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Private Key
-                  </label>
-                  <div className="relative">
-                    <textarea
-                      value={privateKey}
-                      onChange={(e) => setPrivateKey(e.target.value)}
-                      placeholder=""
-                      rows={3}
-                      className={`w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500 font-mono text-xs resize-none ${
-                        !showPrivateKey && privateKey ? "blur-sm select-none focus:blur-none focus:select-auto" : ""
-                      }`}
-                    />
-                    <div className="absolute right-2 top-2 flex items-center gap-0.5">
-                      <SshKeyGenerateButton
-                        onKeyGenerated={setPrivateKey}
-                        onFullKeyGenerated={(result) => {
-                          setPrivateKey(result.privateKey);
-                          setPublicKey(result.publicKey);
-                          setFingerprint(result.fingerprint);
-                          setCredentialType("ssh_key");
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPrivateKey(!showPrivateKey)}
-                        className="p-1 text-ink-muted hover:text-ink"
-                      >
-                        {showPrivateKey ? (
-                          <EyeOffIcon size={16} />
-                        ) : (
-                          <EyeIcon size={16} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
+              {!totpSecret ? (
+                <div className="flex gap-2">
+                  <Button icon="qrcode" onClick={handleImportQr} className="flex-1">
+                    Import QR Code
+                  </Button>
+                  <Button icon="keyboard" onClick={() => setShowTotpManual(!showTotpManual)} className="flex-1">
+                    Enter Secret Key
+                  </Button>
                 </div>
-
-                {/* SSH Auth Method selector — shown when both private key and password are present */}
-                {privateKey.trim() && password.trim() && (
-                  <div className="space-y-3 p-3 bg-well/50 border border-stroke/50 rounded-lg">
-                    <p className="text-xs font-medium text-ink-muted uppercase tracking-wider">SSH Authentication</p>
-                    <div className="flex gap-1 p-1 bg-well rounded-lg">
-                      {[
-                        { value: null, label: "Default" },
-                        { value: "key", label: "SSH Key" },
-                        { value: "password", label: "Password" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.value ?? "default"}
-                          type="button"
-                          onClick={() => setSshAuthMethod(opt.value)}
-                          className={`flex-1 py-1.5 px-3 text-sm rounded-md transition-colors ${
-                            sshAuthMethod === opt.value
-                              ? "bg-conduit-600 text-white"
-                              : "hover:bg-raised text-ink-muted"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-ink-muted">
-                      Choose which method to use when connecting. &ldquo;Default&rdquo; uses the global setting from Settings.
-                    </p>
-                  </div>
-                )}
-
-                {/* SSH Key Metadata section (shown when type is ssh_key) */}
-                {credentialType === "ssh_key" && (
-                  <div className="space-y-3 p-3 bg-well/50 border border-stroke/50 rounded-lg">
-                    <p className="text-xs font-medium text-ink-muted uppercase tracking-wider">SSH Key Metadata</p>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-sm font-medium">Public Key</label>
-                        {publicKey && (
-                          <button
-                            type="button"
-                            onClick={handleCopyPublicKey}
-                            className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-ink-faint hover:text-conduit-400 transition-colors"
-                          >
-                            <CopyIcon size={12} />
-                            Copy
-                          </button>
-                        )}
-                      </div>
-                      <textarea
-                        value={publicKey}
-                        onChange={(e) => setPublicKey(e.target.value)}
-                        placeholder=""
-                        rows={2}
-                        className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500 font-mono text-xs resize-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Fingerprint</label>
-                      <input
-                        type="text"
-                        value={fingerprint}
-                        readOnly
-                        placeholder=""
-                        className="w-full px-3 py-2 bg-well border border-stroke rounded font-mono text-xs text-ink-secondary cursor-default focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Tags</label>
-                  <div className="flex gap-2">
-                    <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-well border border-stroke rounded">
-                      <TagIcon size={16} className="text-ink-muted flex-shrink-0" />
-                      <input
-                        type="text"
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={handleTagKeyDown}
-                        placeholder=""
-                        className="flex-1 bg-transparent text-sm outline-none"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addTag}
-                      disabled={!tagInput.trim()}
-                      className="px-3 py-2 bg-raised hover:bg-raised disabled:opacity-50 rounded"
-                    >
-                      <PlusIcon size={16} />
-                    </button>
-                  </div>
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-conduit-600/20 text-conduit-300 text-xs rounded"
-                        >
-                          {tag}
-                          <button
-                            type="button"
-                            onClick={() => removeTag(tag)}
-                            className="hover:text-red-400"
-                          >
-                            <CloseIcon size={12} />
-                          </button>
-                        </span>
-                      ))}
+              ) : (
+                <>
+                  {totpIssuer && (
+                    <div className="text-label text-ink-secondary">
+                      <span className="text-ink-faint">Issuer:</span> {totpIssuer}
+                      {totpLabel && <> &middot; <span className="text-ink-faint">Account:</span> {totpLabel}</>}
                     </div>
                   )}
-                </div>
-
-                {error && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded">
-                    <p className="text-sm text-red-400">{error}</p>
+                  <div className="text-label text-ink-faint">
+                    {totpAlgorithm} &middot; {totpDigits} digits &middot; {totpPeriod}s period
                   </div>
-                )}
-              </div>
+                  {totpPreview && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-title text-link">
+                        {totpPreview.slice(0, Math.ceil(totpPreview.length / 2))}{" "}
+                        {totpPreview.slice(Math.ceil(totpPreview.length / 2))}
+                      </span>
+                      <span className="text-label text-success">Preview</span>
+                    </div>
+                  )}
+                </>
+              )}
 
-              {/* Footer */}
-              <div className="flex justify-end gap-2 px-4 py-3 border-t border-stroke">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm hover:bg-raised rounded"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!name.trim() || isLoading}
-                  className="px-4 py-2 text-sm text-white bg-conduit-600 hover:bg-conduit-700 disabled:opacity-50 disabled:cursor-not-allowed rounded"
-                >
-                  {isLoading
-                    ? "Saving..."
-                    : isEditing
-                    ? "Save Changes"
-                    : "Create"}
-                </button>
-              </div>
-            </>
+              {showTotpManual && !totpSecret && (
+                <div className="space-y-2">
+                  <FormField label="Secret Key (Base32)">
+                    <TextInput
+                      value={totpSecret}
+                      onChange={(e) => setTotpSecret(e.target.value.toUpperCase().replace(/\s/g, ""))}
+                      placeholder=""
+                      className="font-mono"
+                    />
+                  </FormField>
+                  <div className="flex gap-2">
+                    <FormField label="Issuer" className="flex-1">
+                      <TextInput value={totpIssuer} onChange={(e) => setTotpIssuer(e.target.value)} placeholder="" />
+                    </FormField>
+                    <FormField label="Account" className="flex-1">
+                      <TextInput value={totpLabel} onChange={(e) => setTotpLabel(e.target.value)} placeholder="" />
+                    </FormField>
+                  </div>
+                </div>
+              )}
+            </Card>
           )}
-        </form>
-      </div>
-    </div>
+
+          <FormField label="Private Key">
+            <div className="relative">
+              <Textarea
+                value={privateKey}
+                onChange={(e) => setPrivateKey(e.target.value)}
+                placeholder=""
+                rows={3}
+                style={{ paddingRight: 56 }}
+                className={cx("font-mono", !showPrivateKey && privateKey && "blur-sm select-none focus:blur-none focus:select-auto")}
+              />
+              <div className="absolute right-1 top-1 flex items-center gap-0.5">
+                <SshKeyGenerateButton
+                  onKeyGenerated={setPrivateKey}
+                  onFullKeyGenerated={(result) => {
+                    setPrivateKey(result.privateKey);
+                    setPublicKey(result.publicKey);
+                    setFingerprint(result.fingerprint);
+                    setCredentialType("ssh_key");
+                  }}
+                />
+                <IconButton
+                  size="sm"
+                  icon={showPrivateKey ? "eyeOff" : "eye"}
+                  label={showPrivateKey ? "Hide private key" : "Show private key"}
+                  onClick={() => setShowPrivateKey(!showPrivateKey)}
+                />
+              </div>
+            </div>
+          </FormField>
+
+          {privateKey.trim() && password.trim() && (
+            <Card className="space-y-3">
+              <p className="text-meta font-semibold text-ink-muted">SSH Authentication</p>
+              <SegmentedControl
+                aria-label="SSH Authentication"
+                options={SSH_AUTH_OPTIONS}
+                value={sshAuthMethod ?? DEFAULT_AUTH}
+                onChange={(value) => setSshAuthMethod(value === DEFAULT_AUTH ? null : value)}
+              />
+              <p className="text-label text-ink-muted">
+                Choose which method to use when connecting. &ldquo;Default&rdquo; uses the global setting from Settings.
+              </p>
+            </Card>
+          )}
+
+          {credentialType === "ssh_key" && (
+            <Card className="space-y-3">
+              <p className="text-meta font-semibold text-ink-muted">SSH Key Metadata</p>
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-label font-semibold text-ink-secondary">Public Key</span>
+                  {publicKey && (
+                    <Button size="sm" variant="ghost" icon="copy" onClick={handleCopyPublicKey}>
+                      Copy
+                    </Button>
+                  )}
+                </div>
+                <Textarea
+                  aria-label="Public Key"
+                  value={publicKey}
+                  onChange={(e) => setPublicKey(e.target.value)}
+                  placeholder=""
+                  rows={2}
+                  className="font-mono"
+                />
+              </div>
+              <FormField label="Fingerprint">
+                <TextInput value={fingerprint} readOnly placeholder="" className="cursor-default font-mono" />
+              </FormField>
+            </Card>
+          )}
+
+          <div>
+            <span className="mb-1 block text-label font-semibold text-ink-secondary">Tags</span>
+            <div className="flex gap-2">
+              <TextInput
+                aria-label="Tags"
+                leading={<TagIcon size={16} />}
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder=""
+              />
+              <Button icon="plus" aria-label="Add tag" title="Add tag" onClick={addTag} disabled={!tagInput.trim()} />
+            </div>
+            {tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {tags.map((tag) => (
+                  <span key={tag} className="inline-flex items-center gap-1 rounded bg-selected px-2 py-0.5 text-label text-ink">
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      aria-label={`Remove ${tag}`}
+                      title={`Remove ${tag}`}
+                      className="text-ink-muted hover:text-danger"
+                    >
+                      <CloseIcon size={12} compact />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {error && <Callout tone="danger">{error}</Callout>}
+        </>
+      )}
+    </Dialog>
   );
 }

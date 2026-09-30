@@ -1,4 +1,3 @@
-import { AlertTriangleIcon } from "../../lib/icons";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
 
 interface DamagedWorkingCopyDialogProps {
@@ -13,7 +12,7 @@ interface DamagedWorkingCopyDialogProps {
 export default function DamagedWorkingCopyDialog({ fileName, recoverable, busy, onRecover, onCancel }: DamagedWorkingCopyDialogProps) {
   return (
     <SyncDialogFrame
-      icon={AlertTriangleIcon}
+      icon="alertTriangle"
       tone="danger"
       title="This computer's copy is damaged"
       onEscape={onCancel}
@@ -21,8 +20,8 @@ export default function DamagedWorkingCopyDialog({ fileName, recoverable, busy, 
         recoverable ? (
           <>
             <DialogButton onClick={onCancel} disabled={busy}>Cancel</DialogButton>
-            <DialogButton variant="primary" onClick={onRecover} disabled={busy} autoFocus>
-              {busy ? "Rebuilding..." : "Rebuild from shared file"}
+            <DialogButton variant="primary" onClick={onRecover} loading={busy} loadingLabel="Rebuilding..." autoFocus>
+              Rebuild from shared file
             </DialogButton>
           </>
         ) : (

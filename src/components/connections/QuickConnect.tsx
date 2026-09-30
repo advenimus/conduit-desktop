@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { invoke } from "../../lib/electron";
-import { CloseIcon, TerminalIcon, DesktopIcon, ServerAltIcon, GlobeIcon, KeyIcon, EyeIcon, EyeOffIcon } from "../../lib/icons";
-import type { IconComponent } from "../../lib/icons";
+import { KeyIcon } from "../../lib/icons";
 import { useSessionStore, SessionType } from "../../stores/sessionStore";
 import PasswordGenerateButton from "../tools/PasswordGenerateButton";
 import { useVaultStore } from "../../stores/vaultStore";
+import { Button, Callout, Dialog, FormField, IconButton, SegmentedControl, Select, TextInput, type SegmentOption } from "../ui";
+import { FULL_WIDTH_SEGMENTS } from "../tools/segments";
+import { errorText } from "../../lib/errorText";
 
 interface QuickConnectProps {
   onClose: () => void;
@@ -19,15 +21,11 @@ const defaultPorts: Record<ConnectionType, number> = {
   web: 443,
 };
 
-const typeButtons: {
-  type: ConnectionType;
-  icon: IconComponent;
-  label: string;
-}[] = [
-  { type: "ssh", icon: TerminalIcon, label: "SSH" },
-  { type: "rdp", icon: DesktopIcon, label: "RDP" },
-  { type: "vnc", icon: ServerAltIcon, label: "VNC" },
-  { type: "web", icon: GlobeIcon, label: "Web" },
+const typeOptions: ReadonlyArray<SegmentOption<ConnectionType>> = [
+  { value: "ssh", icon: "terminal", label: "SSH" },
+  { value: "rdp", icon: "desktop", label: "RDP" },
+  { value: "vnc", icon: "serverAlt", label: "VNC" },
+  { value: "web", icon: "globe", label: "Web" },
 ];
 
 export default function QuickConnect({ onClose }: QuickConnectProps) {
@@ -114,7 +112,7 @@ export default function QuickConnect({ onClose }: QuickConnectProps) {
               },
             });
           }).catch((err) => {
-            const msg = typeof err === "string" ? err : err instanceof Error ? err.message : "Connection failed";
+            const msg = errorText(err, "Connection failed");
             useSessionStore.getState().updateSessionStatus(sessionId, "disconnected", msg);
           });
           return;
@@ -141,198 +139,112 @@ export default function QuickConnect({ onClose }: QuickConnectProps) {
       onClose();
     } catch (err) {
       setError(
-        typeof err === "string" ? err : err instanceof Error ? err.message : "Connection failed"
+        errorText(err, "Connection failed")
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Close on Escape key
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-  };
+  const credentialLabel = (
+    <span className="flex items-center gap-1.5">
+      <KeyIcon size={16} />
+      Stored Credential
+    </span>
+  );
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
-      onKeyDown={handleKeyDown}
-    >
-      <div data-dialog-content className="w-full max-w-md max-h-[80vh] flex flex-col bg-panel rounded-lg shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-          <h2 className="text-lg font-semibold">Quick Connect</h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-raised rounded"
+    <Dialog
+      open
+      title="Quick Connect"
+      onClose={onClose}
+      width={448}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={handleConnect}
+            disabled={(!host && type !== "web") || (type === "web" && !url)}
+            loading={isLoading}
+            loadingLabel="Connecting..."
           >
-            <CloseIcon size={20} />
-          </button>
-        </div>
+            Connect
+          </Button>
+        </>
+      }
+    >
+      <SegmentedControl options={typeOptions} value={type} onChange={setType} className={FULL_WIDTH_SEGMENTS} />
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-          {/* Type selector */}
-          <div className="flex gap-2">
-            {typeButtons.map(({ type: t, icon: Icon, label }) => (
-              <button
-                key={t}
-                onClick={() => setType(t)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded ${
-                  type === t
-                    ? "bg-conduit-600 text-white"
-                    : "bg-raised hover:bg-raised"
-                }`}
-              >
-                <Icon size={16} />
-                <span className="text-sm">{label}</span>
-              </button>
-            ))}
+      {type === "web" ? (
+        <FormField label="URL">
+          <TextInput type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com" autoFocus />
+        </FormField>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            <FormField label="Host" className="col-span-2">
+              <TextInput value={host} onChange={(e) => setHost(e.target.value)} placeholder="hostname or IP" autoFocus />
+            </FormField>
+            <FormField label="Port">
+              <TextInput type="number" value={port} onChange={(e) => setPort(e.target.value)} placeholder={String(defaultPorts[type])} />
+            </FormField>
           </div>
 
-          {/* Form fields */}
-          {type === "web" ? (
-            <div>
-              <label className="block text-sm font-medium mb-1">URL</label>
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com"
-                autoFocus
-                className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-              />
-            </div>
-          ) : (
+          {isUnlocked && credentials.length > 0 && (
+            <FormField label={credentialLabel}>
+              <Select
+                value={selectedCredentialId}
+                onChange={(e) => {
+                  setSelectedCredentialId(e.target.value);
+                  if (e.target.value) {
+                    const cred = credentials.find((c) => c.id === e.target.value);
+                    if (cred?.username) setUsername(cred.username);
+                  }
+                }}
+              >
+                <option value="">None (enter manually)</option>
+                {credentials.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.username ? ` (${c.username})` : ""}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          )}
+
+          {!selectedCredentialId && (
             <>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1">Host</label>
-                  <input
-                    type="text"
-                    value={host}
-                    onChange={(e) => setHost(e.target.value)}
-                    placeholder="hostname or IP"
-                    autoFocus
-                    className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Port</label>
-                  <input
-                    type="number"
-                    value={port}
-                    onChange={(e) => setPort(e.target.value)}
-                    placeholder={String(defaultPorts[type])}
-                    className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                  />
-                </div>
-              </div>
+              <FormField label="Username">
+                <TextInput value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" />
+              </FormField>
 
-              {/* Credential selector */}
-              {isUnlocked && credentials.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    <span className="flex items-center gap-1.5">
-                      <KeyIcon size={14} />
-                      Stored Credential
-                    </span>
-                  </label>
-                  <select
-                    value={selectedCredentialId}
-                    onChange={(e) => {
-                      setSelectedCredentialId(e.target.value);
-                      if (e.target.value) {
-                        const cred = credentials.find((c) => c.id === e.target.value);
-                        if (cred?.username) setUsername(cred.username);
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                  >
-                    <option value="">None (enter manually)</option>
-                    {credentials.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}{c.username ? ` (${c.username})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {!selectedCredentialId && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Username
-                    </label>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="username"
-                      className="w-full px-3 py-2 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
+              <FormField label="Password">
+                <span className="relative block">
+                  <TextInput
+                    type={showPasswordField ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="password"
+                    className="pr-12"
+                  />
+                  <span className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+                    <PasswordGenerateButton onPasswordGenerated={setPassword} />
+                    <IconButton
+                      size="sm"
+                      icon={showPasswordField ? "eyeOff" : "eye"}
+                      label={showPasswordField ? "Hide password" : "Show password"}
+                      onClick={() => setShowPasswordField(!showPasswordField)}
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPasswordField ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="password"
-                        className="w-full px-3 py-2 pr-16 bg-well border border-stroke rounded focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                      />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
-                        <PasswordGenerateButton onPasswordGenerated={setPassword} />
-                        <button
-                          type="button"
-                          onClick={() => setShowPasswordField(!showPasswordField)}
-                          className="p-1 text-ink-faint hover:text-conduit-400"
-                        >
-                          {showPasswordField ? (
-                            <EyeOffIcon size={16} />
-                          ) : (
-                            <EyeIcon size={16} />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
+                  </span>
+                </span>
+              </FormField>
             </>
           )}
+        </>
+      )}
 
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-stroke">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm hover:bg-raised rounded"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConnect}
-            disabled={
-              isLoading || (!host && type !== "web") || (type === "web" && !url)
-            }
-            className="px-4 py-2 text-sm text-white bg-conduit-600 hover:bg-conduit-700 disabled:opacity-50 disabled:cursor-not-allowed rounded"
-          >
-            {isLoading ? "Connecting..." : "Connect"}
-          </button>
-        </div>
-      </div>
-    </div>
+      {error && <Callout tone="danger">{error}</Callout>}
+    </Dialog>
   );
 }

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { invoke } from "../../lib/electron";
+import { acquireFreeze } from "../../lib/native-freeze";
 
 interface DragContextValue {
   draggedSessionId: string | null;
@@ -19,11 +20,19 @@ export function DragProvider({ children }: { children: ReactNode }) {
   const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
   const [dragSourcePaneId, setDragSourcePaneId] = useState<string | null>(null);
   const draggingRef = useRef(false);
+  const releaseFreezeRef = useRef<(() => void) | null>(null);
+
+  const releaseFreeze = useCallback(() => {
+    releaseFreezeRef.current?.();
+    releaseFreezeRef.current = null;
+  }, []);
 
   const startDrag = useCallback((sessionId: string, paneId: string) => {
     setDraggedSessionId(sessionId);
     setDragSourcePaneId(paneId);
     draggingRef.current = true;
+    releaseFreeze();
+    releaseFreezeRef.current = acquireFreeze("drag", sessionId);
     // Hide ALL native web session views so HTML drop zones are reachable.
     // Deferred to next tick: removing native HWNDs (WebContentsView) during
     // dragstart can trigger WM_CAPTURECHANGED on Windows, which releases
@@ -31,22 +40,21 @@ export function DragProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       invoke("web_session_hide_all").catch(() => {});
     }, 0);
-    // Notify WebView components to track drag state for restore
     document.dispatchEvent(
       new CustomEvent("conduit:drag-change", { detail: true }),
     );
-  }, []);
+  }, [releaseFreeze]);
 
   const endDrag = useCallback(() => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
     setDraggedSessionId(null);
     setDragSourcePaneId(null);
-    // Notify WebView components to restore native views
+    releaseFreeze();
     document.dispatchEvent(
       new CustomEvent("conduit:drag-change", { detail: false }),
     );
-  }, []);
+  }, [releaseFreeze]);
 
   // Safety net: document-level dragend always fires even if source element is destroyed.
   // This ensures drag state is cleared if the source pane collapsed during the drop.
@@ -59,6 +67,14 @@ export function DragProvider({ children }: { children: ReactNode }) {
     document.addEventListener("dragend", handleDragEnd);
     return () => document.removeEventListener("dragend", handleDragEnd);
   }, [endDrag]);
+
+  // Unmounting mid-drag must not leave web views frozen.
+  useEffect(() => () => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    releaseFreeze();
+    document.dispatchEvent(new CustomEvent("conduit:drag-change", { detail: false }));
+  }, [releaseFreeze]);
 
   return (
     <DragContext.Provider value={{ draggedSessionId, dragSourcePaneId, startDrag, endDrag }}>

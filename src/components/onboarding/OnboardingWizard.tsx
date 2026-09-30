@@ -8,6 +8,7 @@ import {
   type OnboardingStep,
 } from "./onboarding-steps";
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "../../lib/icons";
+import { Button, cx } from "../ui";
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -78,10 +79,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const transition = "transform 200ms ease-out, opacity 200ms ease-out";
 
   return (
-    <div className="flex items-center justify-center h-screen bg-canvas">
+    <div className="flex items-center justify-center h-screen bg-editor">
       <div className="w-full max-w-4xl mx-6">
         {/* Main card — fixed height so it never resizes between steps */}
-        <div className="rounded-xl border border-stroke-dim bg-panel/50 shadow-lg overflow-hidden">
+        <div className="rounded-lg border border-card-border bg-sidebar overflow-hidden">
           <div className="flex h-[520px]">
             {/* ── Left Panel: Video + Title ── */}
             <div className="w-[55%] flex-shrink-0 flex flex-col p-8">
@@ -91,7 +92,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 style={{ ...slideStyle, transition }}
               >
                 {/* Video / placeholder */}
-                <div className="w-full aspect-video rounded-lg border border-stroke overflow-hidden mb-5 bg-well/30 flex-shrink-0">
+                <div className="w-full aspect-video rounded-lg border border-card-border overflow-hidden mb-5 bg-well flex-shrink-0">
                   {step.video ? (
                     <video
                       key={step.id}
@@ -103,23 +104,23 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-stroke rounded-lg">
+                    <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-card-border rounded-lg">
                       <Icon size={48} stroke={1.2} className="text-ink-faint mb-3" />
-                      <span className="text-xs text-ink-faint">Animation coming soon</span>
+                      <span className="text-label text-ink-faint">Animation coming soon</span>
                     </div>
                   )}
                 </div>
 
                 {/* Title + short description */}
                 <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-conduit-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Icon size={20} className="text-conduit-500" />
+                  <div className="w-9 h-9 rounded-md bg-selected flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Icon size={20} className="text-link" />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-ink leading-tight">
+                    <h2 className="text-display font-semibold text-ink">
                       {step.title}
                     </h2>
-                    <p className="text-sm text-ink-muted mt-1 leading-relaxed">
+                    <p className="text-body text-ink-muted mt-1 leading-relaxed">
                       {step.description}
                     </p>
                   </div>
@@ -128,7 +129,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             </div>
 
             {/* Vertical divider */}
-            <div className="w-px bg-stroke-dim my-8" />
+            <div className="w-px bg-divider my-8" />
 
             {/* ── Right Panel: Details + Fixed Footer ── */}
             <div className="flex-1 flex flex-col p-8">
@@ -140,7 +141,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 {/* Tier badge */}
                 <div className="flex items-center gap-2 mb-5">
                   <img src={appIcon} alt="Conduit" className="w-7 h-7 rounded-md" />
-                  <span className="text-[11px] font-semibold text-ink-faint uppercase tracking-wider">
+                  <span className="text-meta font-semibold text-ink-muted">
                     {step.minTier === "free"
                       ? "Included"
                       : step.minTier === "pro"
@@ -153,10 +154,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 <ul className="space-y-3">
                   {step.details.map((detail, i) => (
                     <li key={i} className="flex items-start gap-2.5">
-                      <div className="w-5 h-5 rounded-full bg-conduit-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <CheckIcon size={12} className="text-conduit-500" />
+                      <div className="w-5 h-5 rounded-full bg-selected flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <CheckIcon size={12} className="text-link" />
                       </div>
-                      <span className="text-sm text-ink-secondary leading-relaxed">
+                      <span className="text-body text-ink-secondary leading-relaxed">
                         {detail}
                       </span>
                     </li>
@@ -167,7 +168,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               {/* ── Fixed footer — never moves ── */}
               <div className="flex-shrink-0 pt-5">
                 {/* Step counter */}
-                <div className="text-xs text-ink-faint mb-3">
+                <div className="text-label text-ink-faint mb-3">
                   {currentStep + 1} of {steps.length}
                 </div>
 
@@ -176,55 +177,52 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                   {steps.map((_, i) => (
                     <button
                       key={i}
+                      type="button"
                       onClick={() => goTo(i)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        i === currentStep
-                          ? "w-6 bg-conduit-500"
-                          : i < currentStep
-                            ? "w-1.5 bg-conduit-500/40"
-                            : "w-1.5 bg-ink-faint/30"
-                      }`}
+                      aria-label={`Go to step ${i + 1}`}
+                      title={`Go to step ${i + 1}`}
+                      aria-current={i === currentStep ? "step" : undefined}
+                      className={cx(
+                        "h-1.5 rounded-full transition-all duration-300",
+                        i === currentStep ? "w-6 bg-accent" : i < currentStep ? "w-1.5 bg-accent/40" : "w-1.5 bg-ink-faint/30",
+                      )}
                     />
                   ))}
                 </div>
 
                 {/* Navigation buttons */}
                 <div className="flex items-center justify-between">
-                  <button
-                    onClick={finish}
-                    className="text-sm text-ink-muted hover:text-ink hover:underline transition-colors"
-                  >
+                  <Button variant="ghost" size="lg" onClick={finish} className="-ml-3">
                     Skip
-                  </button>
+                  </Button>
 
                   <div className="flex items-center gap-2">
                     {!isFirst && (
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="lg"
+                        icon={ChevronLeftIcon}
                         onClick={() => goTo(currentStep - 1)}
                         disabled={isAnimating}
-                        className="flex items-center justify-center gap-1 px-3 py-1.5 text-sm rounded border border-stroke hover:bg-raised transition-colors text-ink-secondary disabled:opacity-50"
                       >
-                        <ChevronLeftIcon size={16} />
                         Back
-                      </button>
+                      </Button>
                     )}
 
                     {isLast ? (
-                      <button
-                        onClick={finish}
-                        className="flex items-center justify-center px-5 py-1.5 text-sm font-medium rounded bg-conduit-500 hover:bg-conduit-600 text-white transition-colors"
-                      >
+                      <Button variant="primary" size="lg" onClick={finish}>
                         Get Started
-                      </button>
+                      </Button>
                     ) : (
-                      <button
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        iconEnd={ChevronRightIcon}
                         onClick={() => goTo(currentStep + 1)}
                         disabled={isAnimating}
-                        className="flex items-center justify-center gap-1.5 pl-3.5 pr-3 py-1.5 text-sm font-medium rounded bg-conduit-500 hover:bg-conduit-600 text-white transition-colors disabled:opacity-50"
                       >
                         Next
-                        <ChevronRightIcon size={16} />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>

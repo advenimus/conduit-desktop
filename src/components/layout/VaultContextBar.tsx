@@ -1,6 +1,7 @@
 import { useVaultStore } from "../../stores/vaultStore";
 import { useTeamStore, type TeamVaultSummary } from "../../stores/teamStore";
-import { SettingsIcon } from "../../lib/icons";
+import { CircleFilledIcon } from "../../lib/icons";
+import { IconButton } from "../ui";
 
 function syncTooltip(status: string): string {
   switch (status) {
@@ -20,15 +21,15 @@ function syncTooltip(status: string): string {
 function syncDotClass(status: string): string {
   switch (status) {
     case "synced":
-      return "bg-green-400";
+      return "text-(--c-state-connected)";
     case "syncing":
-      return "bg-green-400 animate-pulse";
+      return "text-(--c-state-connected) animate-pulse";
     case "offline":
-      return "bg-amber-400";
+      return "text-(--c-state-connecting)";
     case "error":
-      return "bg-red-400";
+      return "text-(--c-state-error)";
     default:
-      return "bg-ink-faint";
+      return "text-ink-faint";
   }
 }
 
@@ -46,15 +47,17 @@ export default function VaultContextBar() {
   const syncStatus = teamSyncState?.status ?? "idle";
 
   return (
-    <div className="flex items-center justify-between px-3 py-1 border-b border-team-border border-l-2 border-l-team-border-strong bg-team">
+    <div className="flex h-section shrink-0 items-center justify-between px-2 border-b border-team-border border-l-2 border-l-team-border-strong bg-team">
       <div className="flex items-center gap-1.5">
-        <span
-          className={`w-2 h-2 rounded-full flex-shrink-0 ${syncDotClass(syncStatus)}`}
-          title={syncTooltip(syncStatus)}
-        />
-        <span className="text-[10px] text-ink-faint select-none">Team</span>
+        <span className="flex shrink-0" title={syncTooltip(syncStatus)}>
+          <CircleFilledIcon size={12} className={syncDotClass(syncStatus)} />
+        </span>
+        <span className="text-meta text-ink-muted select-none">Team</span>
       </div>
-      <button
+      <IconButton
+        size="sm"
+        icon="settings"
+        label="Vault settings"
         onClick={() =>
           document.dispatchEvent(
             new CustomEvent("conduit:vault-settings", {
@@ -62,11 +65,7 @@ export default function VaultContextBar() {
             })
           )
         }
-        className="p-0.5 rounded hover:bg-conduit-500/10 text-ink-muted hover:text-conduit-400 transition-colors"
-        title="Vault settings"
-      >
-        <SettingsIcon size={13} />
-      </button>
+      />
     </div>
   );
 }

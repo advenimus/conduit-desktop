@@ -13,6 +13,7 @@ import { writeAgentInstructions } from './services/agent-instructions.js';
 import { ensureLocalNetworkAccess, localNetworkAppName } from './services/local-network.js';
 import { readAll, writeAll } from './ipc/ui-state.js';
 import { readSettings } from './ipc/settings.js';
+import { windowBackground } from './services/appearance-palette.js';
 import { lockVaultFromMain } from './ipc/vault.js';
 import { startVaultIdleLock } from './ipc/vault-idle.js';
 import { appQuitFlush } from './services/vault/app-quit-flush.js';
@@ -221,6 +222,7 @@ app.on('open-file', (event, filePath) => {
 import { isQuitting, setIsQuitting } from './services/app-lifecycle.js';
 let tray: Tray | null = null;
 let pickerWindow: BrowserWindow | null = null;
+let pickerOverlay: OverlayManager | null = null;
 let overlayManager: OverlayManager | null = null;
 let mainWindowRef: BrowserWindow | null = null;
 let stopIdleLock: (() => void) | null = null;
@@ -319,6 +321,9 @@ function createPickerWindow() {
     pickerWindow?.show();
   });
 
+  // The picker's toasts draw in an overlay of their own, over the picker.
+  pickerOverlay = new OverlayManager(pickerWindow, { placement: 'cover' });
+
   pickerWindow.on('blur', () => {
     // Close on click outside
     if (pickerWindow && !pickerWindow.isDestroyed()) {
@@ -328,6 +333,8 @@ function createPickerWindow() {
 
   pickerWindow.on('closed', () => {
     pickerWindow = null;
+    pickerOverlay?.destroy();
+    pickerOverlay = null;
   });
 }
 
@@ -706,7 +713,7 @@ function createWindow(): BrowserWindow {
     minWidth: 1024,
     minHeight: 700,
     show: false,
-    backgroundColor: '#0f172a',
+    backgroundColor: windowBackground(readSettings(), nativeTheme.shouldUseDarkColors),
     title: 'Conduit',
     ...(!isMac && {
       icon: path.join(
@@ -847,6 +854,12 @@ app.whenReady().then(async () => {
     if (theme === 'dark' || theme === 'light' || theme === 'system') {
       nativeTheme.themeSource = theme;
     }
+  });
+
+  // The window background follows the scheme when the OS or the chosen theme flips the mode (spec 7.2).
+  nativeTheme.on('updated', () => {
+    if (!mainWindowRef || mainWindowRef.isDestroyed()) return;
+    mainWindowRef.setBackgroundColor(windowBackground(readSettings(), nativeTheme.shouldUseDarkColors));
   });
 
   // Live UI scale adjustment from settings

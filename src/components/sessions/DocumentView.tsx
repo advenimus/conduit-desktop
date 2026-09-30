@@ -4,6 +4,7 @@ import MarkdownRenderer from "../markdown/MarkdownRenderer";
 import { toolbarActions, type ToolbarAction } from "../markdown/markdownToolbar";
 import ConfirmDialog from "../common/ConfirmDialog";
 import { CloseIcon, FileTextIcon, FloppyIcon, PencilIcon } from "../../lib/icons";
+import { Button, IconButton } from "../ui";
 
 interface DocumentViewProps {
   entryId: string;
@@ -77,7 +78,7 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
 
   if (!entry) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-canvas">
+      <div className="flex-1 flex items-center justify-center bg-editor">
         <p className="text-ink-faint">Document not found</p>
       </div>
     );
@@ -90,19 +91,15 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
   // View mode
   if (!isEditing) {
     return (
-      <div className="flex-1 flex flex-col bg-canvas h-full">
+      <div className="flex-1 flex flex-col bg-editor h-full">
         {/* Header bar */}
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-stroke bg-panel">
-          <FileTextIcon size={18} className="text-teal-400" />
-          <span className="text-sm font-medium text-ink truncate flex-1">{entry.name}</span>
-          <span className="text-xs text-ink-faint">{wordCount} words</span>
-          <button
-            onClick={handleEdit}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-conduit-600 hover:bg-conduit-700 text-white rounded transition-colors"
-          >
-            <PencilIcon size={14} />
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-divider bg-editor">
+          <FileTextIcon size={16} className="text-entry-document" />
+          <span className="text-body font-semibold text-ink truncate flex-1">{entry.name}</span>
+          <span className="text-meta text-ink-faint">{wordCount} words</span>
+          <Button size="sm" variant="primary" icon={PencilIcon} onClick={handleEdit}>
             Edit
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -114,13 +111,10 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-ink-faint">
               <FileTextIcon size={48} stroke={1} className="mb-3 opacity-30" />
-              <p className="text-sm">This document is empty</p>
-              <button
-                onClick={handleEdit}
-                className="mt-3 text-sm text-conduit-400 hover:text-conduit-300 transition-colors"
-              >
+              <p className="text-body">This document is empty</p>
+              <Button variant="link" className="mt-3" onClick={handleEdit}>
                 Start writing
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -131,51 +125,41 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
   // Edit mode — split pane
   return (
     <>
-      <div className="flex-1 flex flex-col bg-canvas h-full">
+      <div className="flex-1 flex flex-col bg-editor h-full">
         {/* Header bar */}
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-stroke bg-panel">
-          <FileTextIcon size={18} className="text-teal-400" />
-          <span className="text-sm font-medium text-ink truncate">{entry.name}</span>
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-divider bg-editor">
+          <FileTextIcon size={16} className="text-entry-document" />
+          <span className="text-body font-semibold text-ink truncate">{entry.name}</span>
           {isDirty && (
-            <span className="text-xs text-amber-400 font-medium">Unsaved changes</span>
+            <span className="text-meta text-warning font-semibold">Unsaved changes</span>
           )}
           <div className="flex-1" />
-          <span className="text-xs text-ink-faint">{wordCount} words</span>
-          <button
-            onClick={handleCancel}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm hover:bg-raised rounded transition-colors"
-          >
-            <CloseIcon size={14} />
+          <span className="text-meta text-ink-faint">{wordCount} words</span>
+          <Button size="sm" variant="ghost" icon={CloseIcon} onClick={handleCancel}>
             Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-conduit-600 hover:bg-conduit-700 text-white rounded transition-colors"
-          >
-            <FloppyIcon size={14} />
+          </Button>
+          <Button size="sm" variant="primary" icon={FloppyIcon} onClick={handleSave}>
             Save
-          </button>
+          </Button>
         </div>
 
         {/* Split pane */}
         <div className="flex-1 flex min-h-0">
           {/* Editor pane */}
-          <div className="flex-1 flex flex-col border-r border-stroke min-w-0">
+          <div className="flex-1 flex flex-col border-r border-divider min-w-0">
             {/* Toolbar */}
-            <div className="flex items-center gap-0.5 px-2 py-1 border-b border-stroke bg-raised/30 flex-wrap">
+            <div className="flex items-center gap-0.5 px-2 py-1 border-b border-divider bg-editor flex-wrap">
               {toolbarActions.map((action, i) =>
                 "separator" in action ? (
-                  <div key={i} className="w-px h-4 bg-stroke mx-1" />
+                  <div key={i} className="w-px h-4 bg-divider mx-1" />
                 ) : (
-                  <button
+                  <IconButton
                     key={i}
-                    type="button"
-                    title={action.title}
+                    size="sm"
+                    icon={action.icon}
+                    label={action.title}
                     onClick={() => handleToolbar(action)}
-                    className="p-1 rounded hover:bg-well text-ink-muted hover:text-ink transition-colors"
-                  >
-                    <action.icon size={14} />
-                  </button>
+                  />
                 )
               )}
             </div>
@@ -187,17 +171,17 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
               onChange={(e) => setDraftContent(e.target.value)}
               placeholder="Write markdown..."
               autoFocus
-              className="flex-1 w-full px-4 py-3 bg-transparent text-sm text-ink focus:outline-none resize-none font-mono"
+              className="flex-1 w-full px-4 py-3 bg-transparent text-body text-ink resize-none font-mono"
             />
           </div>
 
           {/* Preview pane */}
           <div className="flex-1 overflow-y-auto p-4 min-w-0 allow-select">
-            <div className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold mb-2">Preview</div>
+            <div className="text-meta font-semibold text-ink-muted mb-2">Preview</div>
             {draftContent.trim() ? (
               <MarkdownRenderer content={draftContent} />
             ) : (
-              <p className="text-sm text-ink-faint italic">Nothing to preview</p>
+              <p className="text-body text-ink-faint italic">Nothing to preview</p>
             )}
           </div>
         </div>

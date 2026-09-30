@@ -3,10 +3,10 @@ import { SOUND_OPTIONS } from "../../../lib/sessionOptions";
 import { invoke } from "../../../lib/electron";
 import DefaultableSelect from "../DefaultableSelect";
 import DefaultableCheckbox from "../DefaultableCheckbox";
-import Field from "../Field";
-import {
-  FolderIcon, LockIcon, LockOpenIcon, PlusIcon, TrashIcon
-} from "../../../lib/icons";
+import Field, { FIELD_LABEL_TEXT } from "../Field";
+import { toast } from "../../common/Toast";
+import { FolderIcon } from "../../../lib/icons";
+import { Button, IconButton, TextInput } from "../../ui";
 
 interface ResourcesTabProps {
   config: Partial<RdpEntryConfig>;
@@ -28,8 +28,9 @@ export default function ResourcesTab({ config, onChange, globalDefaults }: Resou
       const name = result.split(/[\\/]/).filter(Boolean).pop() || "share";
       const folders = [...sharedFolders, { name, path: result, readOnly: false }];
       update({ sharedFolders: folders });
-    } catch {
-      // User cancelled or error
+    } catch (err) {
+      console.error("Failed to pick a shared folder:", err);
+      toast.error("Could not open the folder picker");
     }
   };
 
@@ -64,56 +65,41 @@ export default function ResourcesTab({ config, onChange, globalDefaults }: Resou
         onChange={(v) => update({ clipboard: v })}
       />
 
-      {/* Shared Folders — per-entry only, no "Default" option */}
-      <div className="border-t border-stroke pt-3 mt-3">
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium text-ink-secondary">Shared Folders</label>
-          <button
-            type="button"
-            onClick={addSharedFolder}
-            className="flex items-center gap-1 text-xs text-conduit-400 hover:text-conduit-300 px-2 py-1 rounded hover:bg-raised"
-          >
-            <PlusIcon size={14} />
+      {/* Shared Folders: per-entry only, no "Default" option */}
+      <div className="mt-3 border-t border-divider pt-3">
+        <div className="mb-2 flex items-center justify-between">
+          <label className={FIELD_LABEL_TEXT}>Shared Folders</label>
+          <Button variant="link" size="sm" icon="plus" onClick={addSharedFolder}>
             Add Folder
-          </button>
+          </Button>
         </div>
 
         {sharedFolders.length === 0 ? (
-          <p className="text-xs text-ink-faint">No shared folders. Add a local folder to make it accessible in the remote session.</p>
+          <p className="text-meta text-ink-muted">No shared folders. Add a local folder to make it accessible in the remote session.</p>
         ) : (
           <div className="space-y-2">
             {sharedFolders.map((folder, i) => (
               <div key={i} className="flex items-center gap-2">
-                <FolderIcon size={14} className="text-ink-muted flex-shrink-0" />
-                <input
-                  type="text"
-                  value={folder.name}
-                  onChange={(e) => updateSharedFolder(i, { name: e.target.value })}
-                  placeholder="Share name"
-                  className="w-28 px-2 py-1 bg-well border border-stroke rounded text-xs focus:outline-none focus:ring-2 focus:ring-conduit-500"
-                />
-                <span className="text-xs text-ink-faint truncate flex-1" title={folder.path}>
+                <FolderIcon size={16} className="shrink-0 text-ink-muted" />
+                <div className="w-28 shrink-0">
+                  <TextInput
+                    value={folder.name}
+                    onChange={(e) => updateSharedFolder(i, { name: e.target.value })}
+                    placeholder="Share name"
+                  />
+                </div>
+                <span className="flex-1 truncate text-meta text-ink-muted" title={folder.path}>
                   {folder.path}
                 </span>
-                <button
-                  type="button"
+                <IconButton
+                  size="sm"
+                  tone="inherit"
+                  icon={folder.readOnly ? "lock" : "lockOpen"}
+                  label={folder.readOnly ? "Read-only (click to allow writes)" : "Read/Write (click to make read-only)"}
                   onClick={() => updateSharedFolder(i, { readOnly: !folder.readOnly })}
-                  className={`p-1 rounded hover:bg-raised flex-shrink-0 ${
-                    folder.readOnly ? "text-yellow-500" : "text-green-500"
-                  }`}
-                  title={folder.readOnly ? "Read-only (click to allow writes)" : "Read/Write (click to make read-only)"}
-                >
-                  {folder.readOnly
-                    ? <LockIcon size={14} />
-                    : <LockOpenIcon size={14} />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeSharedFolder(i)}
-                  className="p-1 text-ink-faint hover:text-red-400 rounded hover:bg-raised flex-shrink-0"
-                >
-                  <TrashIcon size={14} />
-                </button>
+                  className={folder.readOnly ? "text-warning" : "text-success"}
+                />
+                <IconButton size="sm" tone="danger" icon="trash" label="Remove shared folder" onClick={() => removeSharedFolder(i)} />
               </div>
             ))}
           </div>

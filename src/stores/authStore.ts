@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '../lib/electron';
 import type { AuthUser, UserProfile, AuthState, AuthMode, MfaStatus } from '../types/auth';
+import { errorText } from '../lib/errorText';
 
 interface AuthStoreState {
   user: AuthUser | null;
@@ -139,7 +140,7 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
       await invoke('auth_resend_confirmation', { email });
     } catch (err) {
       set({
-        error: typeof err === 'string' ? err : 'Failed to resend confirmation',
+        error: errorText(err, 'Failed to resend confirmation'),
       });
       throw err;
     }

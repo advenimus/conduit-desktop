@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { KeyIcon } from "../../lib/icons";
-import { syncApi, errorText } from "../../lib/sync-api";
+import { syncApi } from "../../lib/sync-api";
+import { errorText } from "../../lib/errorText";
 import { useSyncStore } from "../../stores/syncStore";
 import { toast } from "../common/Toast";
 import type { PasswordFlowResult, SyncPrompt } from "../../types/sync";
 import SyncDialogFrame, { DialogButton } from "./SyncDialogFrame";
-import { InlineError, PasswordInput } from "./PasswordFields";
+import { InlineError, PasswordField } from "./PasswordFields";
+import { Radio, RadioGroup } from "../ui";
 import { passwordChangedText } from "./PasswordChangedElsewhereDialog";
 
 export type EpochPrompt = Extract<SyncPrompt, { kind: "epoch-newer" | "epoch-legacy" | "epoch-concurrent" }>;
@@ -71,43 +72,35 @@ export default function EpochPromptDialog({ prompt }: { prompt: EpochPrompt }) {
   const canSubmit = password.length > 0 && (!askPrevious || previous.length > 0) && !busy;
   return (
     <SyncDialogFrame
-      icon={KeyIcon}
+      icon="key"
       tone="warn"
       title="Syncing paused"
+      onSubmit={() => {
+        if (canSubmit) void submit();
+      }}
       footer={
         <>
           <DialogButton onClick={() => useSyncStore.getState().deferPrompt(prompt.id)} disabled={busy}>Later</DialogButton>
-          <DialogButton variant="primary" onClick={() => void submit()} disabled={!canSubmit}>
-            {busy ? "Checking..." : "Continue"}
+          <DialogButton type="submit" variant="primary" disabled={!canSubmit} loading={busy} loadingLabel="Checking...">
+            Continue
           </DialogButton>
         </>
       }
     >
-      <form
-        className="space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (canSubmit) void submit();
-        }}
-      >
-        <p className="text-ink">{introFor(prompt)}</p>
-        <p>Your changes are saved on this device. {concurrent ? "Enter the password set on the other device." : "Enter the new password to keep syncing."}</p>
-        <PasswordInput label={concurrent ? "Other device's password" : "New master password"} value={password} onChange={setPassword} autoFocus />
-        {askPrevious && <PasswordInput label="Previous master password" value={previous} onChange={setPrevious} />}
-        {concurrent && (
-          <fieldset className="space-y-1.5">
-            <legend className="text-sm font-medium text-ink mb-1">Which password do you want to keep?</legend>
-            {(["this-device", "other"] as const).map((k) => (
-              <label key={k} className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="keep" checked={keep === k} onChange={() => setKeep(k)} className="accent-conduit-500" />
-                <span>{k === "this-device" ? "The one I use on this device" : "The other device's password"}</span>
-              </label>
-            ))}
-          </fieldset>
-        )}
-        <InlineError message={error} />
-        <button type="submit" hidden aria-hidden />
-      </form>
+      <p className="text-ink">{introFor(prompt)}</p>
+      <p>Your changes are saved on this device. {concurrent ? "Enter the password set on the other device." : "Enter the new password to keep syncing."}</p>
+      <PasswordField label={concurrent ? "Other device's password" : "New master password"} value={password} onChange={setPassword} autoFocus />
+      {askPrevious && <PasswordField label="Previous master password" value={previous} onChange={setPrevious} />}
+      {concurrent && (
+        <fieldset>
+          <legend className="mb-1.5 text-body font-semibold text-ink">Which password do you want to keep?</legend>
+          <RadioGroup value={keep} onChange={setKeep} name="keep" className="gap-1.5">
+            <Radio value="this-device">The one I use on this device</Radio>
+            <Radio value="other">The other device's password</Radio>
+          </RadioGroup>
+        </fieldset>
+      )}
+      <InlineError message={error} />
     </SyncDialogFrame>
   );
 }

@@ -1,51 +1,38 @@
-/**
- * Lazy loader for icon packs.
- * Only the default (Tabler) pack is statically bundled.
- * Other packs are loaded on demand when the platform theme changes.
- */
+import { LAZY_ICON_PACKS, getPackMapping, loadPack } from "./pack-cache";
+import { setIconPack } from "./store";
+import { DEFAULT_ICON_PACK, ICON_PACK_STORAGE_KEY, isIconPackId, type IconMapping, type IconPackId } from "./types";
 
-import type { IconTheme, IconMapping } from "./types";
-import { mapping as defaultMapping } from "./packs/default";
-import { useIconThemeStore } from "./theme-store";
+export { getPackMapping };
 
-const cache = new Map<IconTheme, IconMapping>();
-cache.set("default", defaultMapping);
+/** Loads and caches a pack without making it active. */
+export function loadIconPack(id: IconPackId): Promise<IconMapping> {
+  return loadPack(id);
+}
 
-/**
- * Load the icon pack for the given platform theme.
- * Returns immediately if already cached; otherwise loads asynchronously
- * and updates the Zustand store when ready.
- */
-export async function loadIconPack(theme: IconTheme): Promise<IconMapping> {
-  const cached = cache.get(theme);
-  if (cached) {
-    useIconThemeStore.getState().setMapping(cached);
-    return cached;
+/** Loads the five lazy packs, for previews that show every pack at once. Failures are logged. */
+export async function preloadAllIconPacks(): Promise<void> {
+  const results = await Promise.allSettled(LAZY_ICON_PACKS.map((id) => loadPack(id)));
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(`[icons] Could not preload the ${LAZY_ICON_PACKS[index]} icon pack`, result.reason);
+    }
+  });
+}
+
+function readStoredPack(): IconPackId {
+  try {
+    const stored = window.localStorage.getItem(ICON_PACK_STORAGE_KEY);
+    return isIconPackId(stored) ? stored : DEFAULT_ICON_PACK;
+  } catch (error) {
+    console.warn("[icons] Could not read the saved icon pack", error);
+    return DEFAULT_ICON_PACK;
   }
+}
 
-  let pack: IconMapping;
-
-  switch (theme) {
-    case "macos": {
-      const mod = await import("./packs/macos");
-      pack = mod.mapping;
-      break;
-    }
-    case "windows": {
-      const mod = await import("./packs/windows");
-      pack = mod.mapping;
-      break;
-    }
-    case "ubuntu": {
-      const mod = await import("./packs/ubuntu");
-      pack = mod.mapping;
-      break;
-    }
-    default:
-      pack = defaultMapping;
-  }
-
-  cache.set(theme, pack);
-  useIconThemeStore.getState().setMapping(pack);
-  return pack;
+/**
+ * Call before the first render. Lucide is bundled and applies at once; any
+ * other saved pack loads lazily while Lucide shows.
+ */
+export function bootIconPack(): Promise<void> {
+  return setIconPack(readStoredPack());
 }

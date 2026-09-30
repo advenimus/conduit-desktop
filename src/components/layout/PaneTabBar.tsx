@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  CloseIcon,
-  PlusIcon,
+  CircleFilledIcon,
   TerminalIcon,
   DesktopIcon,
   GlobeIcon,
@@ -9,8 +8,9 @@ import {
   PlayerPlayIcon,
   InfoCircleIcon,
   HomeIcon,
+  MenuIcon,
 } from "../../lib/icons";
-import { useSessionStore, type SessionType } from "../../stores/sessionStore";
+import { useSessionStore, type Session, type SessionType } from "../../stores/sessionStore";
 import { useLayoutStore, findLeaf } from "../../stores/layoutStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { useSidebarStore, selectIsDockedOpen } from "../../stores/sidebarStore";
@@ -22,22 +22,105 @@ import { useDragContext } from "./DragContext";
 import { toast } from "../common/Toast";
 import { openDashboardForEntry } from "../../lib/openDashboard";
 import { AI_HARNESSES } from "../../lib/ai-harnesses";
+import { IconButton, cx } from "../ui";
+import type { EntryMeta } from "../../types/entry";
 
 const typeIcons: Record<SessionType, React.ReactNode> = {
-  local_shell: <TerminalIcon size={14} />,
-  ssh: <TerminalIcon size={14} />,
-  rdp: <DesktopIcon size={14} />,
-  vnc: <DesktopIcon size={14} />,
-  web: <GlobeIcon size={14} />,
-  document: <FileTextIcon size={14} />,
-  command: <PlayerPlayIcon size={14} />,
-  dashboard: <InfoCircleIcon size={14} />,
+  local_shell: <TerminalIcon size={16} />,
+  ssh: <TerminalIcon size={16} />,
+  rdp: <DesktopIcon size={16} />,
+  vnc: <DesktopIcon size={16} />,
+  web: <GlobeIcon size={16} />,
+  document: <FileTextIcon size={16} />,
+  command: <PlayerPlayIcon size={16} />,
+  dashboard: <InfoCircleIcon size={16} />,
 };
+
+// Chromium reports line-based wheel deltas for some mice; a line is about one row of text.
+const WHEEL_LINE_PX = 16;
 
 interface PaneTabBarProps {
   paneId: string;
   isFocused: boolean;
   rightSlot?: React.ReactNode;
+}
+
+function newTabMenuItems(cliAgentsEnabled: boolean): PopupMenuItem[] {
+  return [
+    { id: "quick_connect", label: "Quick Connect", icon: "link" },
+    { id: "sep0", label: "", type: "separator" },
+    { id: "shell_header", label: "Local Shell", type: "header" },
+    { id: "home", label: "Home Directory", icon: "home" },
+    ...(cliAgentsEnabled
+      ? [
+          { id: "sep1", label: "", type: "separator" as const },
+          { id: "agent_header", label: "Agent Directory", type: "header" as const },
+          ...AI_HARNESSES.map((h) => ({ id: `agent_${h.id}`, label: h.name, icon: "terminal" as const })),
+        ]
+      : []),
+    { id: "sep2", label: "", type: "separator" },
+    { id: "browse", label: "Browse...", icon: "folder" },
+  ];
+}
+
+function tabMenuItems(session: Session | undefined, entry: EntryMeta | undefined): PopupMenuItem[] {
+  const entryId = session?.entryId;
+  const items: PopupMenuItem[] = [{ id: "rename", label: "Rename", icon: "textCursor" }];
+  if (entryId && session?.type !== "dashboard" && session?.type !== "document") {
+    const isReconnecting = session?.metadata?.reconnecting === true;
+    items.push({ id: "reconnect", label: isReconnecting ? "Reconnecting..." : "Reconnect", icon: "refresh" });
+  }
+  if (entryId && session?.type !== "dashboard") {
+    items.push({ id: "view_info", label: "View Info", icon: "infoCircle" });
+  }
+  if (session?.type === "rdp" && session?.status === "connected") {
+    items.push({ id: "send_cad", label: "Send Ctrl+Alt+Delete", icon: "keyboard" });
+  }
+  if (entry?.username || entry?.credential_id || entryId) {
+    items.push({ id: "sep1", label: "", type: "separator" });
+  }
+  if (entry?.username || entry?.credential_id) {
+    items.push({ id: "copy_username", label: "Copy Username", icon: "user" });
+  }
+  if (entryId) {
+    items.push({ id: "copy_password", label: "Copy Password", icon: "key" });
+  }
+  items.push(
+    { id: "sep2", label: "", type: "separator" },
+    { id: "split_right", label: "Split Right", icon: "splitHorizontal" },
+    { id: "split_down", label: "Split Down", icon: "splitVertical" },
+    { id: "sep3", label: "", type: "separator" },
+    { id: "close", label: "Close Session", variant: "danger", icon: "close" },
+  );
+  return items;
+}
+
+async function copyCredentialField(entryId: string, field: "username" | "password"): Promise<void> {
+  const cred = await useEntryStore.getState().resolveCredential(entryId);
+  const value = cred?.[field];
+  if (!value) {
+    toast.error(field === "username" ? "No username available" : "No password available");
+    return;
+  }
+  await navigator.clipboard.writeText(value);
+  toast.success(field === "username" ? "Username copied" : "Password copied");
+}
+
+async function openLocalShell(choice: string): Promise<void> {
+  if (choice === "home") {
+    await useSessionStore.getState().createLocalShell();
+    return;
+  }
+  if (choice === "browse") {
+    const folder = await invoke<string | null>("dialog_select_folder", { title: "Select Working Directory" });
+    if (folder) await useSessionStore.getState().createLocalShell(undefined, folder);
+    return;
+  }
+  const harness = AI_HARNESSES.find((h) => `agent_${h.id}` === choice);
+  if (harness) {
+    const dir = await invoke<string>("get_agent_working_dir", { engineType: harness.id });
+    await useSessionStore.getState().createLocalShell(undefined, dir);
+  }
 }
 
 export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }: PaneTabBarProps) {
@@ -60,6 +143,7 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
 
@@ -70,36 +154,26 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
     }
   }, [renamingId]);
 
+  // Only a row whose tabs have all shrunk to their floor scrolls; keep the newly active tab in view.
+  useEffect(() => {
+    if (!paneActiveSessionId) return;
+    const tab = tabsRef.current?.querySelector<HTMLElement>(`[data-cv-tab="${CSS.escape(paneActiveSessionId)}"]`);
+    tab?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [paneActiveSessionId]);
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaX !== 0 || e.deltaY === 0) return;
+    const row = e.currentTarget;
+    row.scrollLeft += e.deltaMode === 1 ? e.deltaY * WHEEL_LINE_PX : e.deltaY;
+  };
+
   const handleNewShell = async (e: React.MouseEvent) => {
     // Focus this pane first so new session goes here
     useLayoutStore.getState().setFocusedPane(paneId);
 
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = rect.right;
-    const y = rect.bottom;
-
-    const cliAgentsEnabled = useTierStore.getState().cliAgentsEnabled;
-    const items: PopupMenuItem[] = [
-      { id: "quick_connect", label: "Quick Connect", icon: "connect" },
-      { id: "sep0", label: "", type: "separator" as const },
-      { id: "shell_header", label: "Local Shell", type: "header" as const },
-      { id: "home", label: "Home Directory", icon: "home" },
-      ...(cliAgentsEnabled
-        ? [
-            { id: "sep1", label: "", type: "separator" as const },
-            { id: "agent_header", label: "Agent Directory", type: "header" as const },
-            ...AI_HARNESSES.map((h) => ({
-              id: `agent_${h.id}`,
-              label: h.name,
-              icon: "terminal" as const,
-            })),
-          ]
-        : []),
-      { id: "sep2", label: "", type: "separator" },
-      { id: "browse", label: "Browse...", icon: "folder" },
-    ];
-
-    const selected = await showContextMenu(x, y, items, { anchorRight: true });
+    const items = newTabMenuItems(useTierStore.getState().cliAgentsEnabled);
+    const selected = await showContextMenu(rect.right, rect.bottom, items, { anchorRight: true });
     if (!selected) return;
 
     if (selected === "quick_connect") {
@@ -108,28 +182,7 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
     }
 
     try {
-      switch (selected) {
-        case "home":
-          await useSessionStore.getState().createLocalShell();
-          break;
-        case "browse": {
-          const folder = await invoke<string | null>("dialog_select_folder", {
-            title: "Select Working Directory",
-          });
-          if (folder) {
-            await useSessionStore.getState().createLocalShell(undefined, folder);
-          }
-          break;
-        }
-        default: {
-          const harness = AI_HARNESSES.find((h) => `agent_${h.id}` === selected);
-          if (harness) {
-            const dir = await invoke<string>("get_agent_working_dir", { engineType: harness.id });
-            await useSessionStore.getState().createLocalShell(undefined, dir);
-          }
-          break;
-        }
-      }
+      await openLocalShell(selected);
     } catch (error) {
       console.error("Failed to create local shell:", error);
     }
@@ -145,105 +198,56 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
     useLayoutStore.getState().setActiveSessionInPane(paneId, sessionId);
   };
 
-  const handleContextMenu = async (e: React.MouseEvent, sessionId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const session = sessions.find((s) => s.id === sessionId);
-    const entryId = session?.entryId;
-    const entry = entryId
-      ? useEntryStore.getState().entries.find((en) => en.id === entryId)
-      : undefined;
-
-    const items: PopupMenuItem[] = [];
-    items.push({ id: "rename", label: "Rename", icon: "rename" });
-    if (entryId && session?.type !== "dashboard" && session?.type !== "document") {
-      const isReconnecting = session?.metadata?.reconnecting === true;
-      items.push({
-        id: "reconnect",
-        label: isReconnecting ? "Reconnecting..." : "Reconnect",
-        icon: "reconnect",
-      });
-    }
-    if (entryId && session?.type !== "dashboard") {
-      items.push({ id: "view_info", label: "View Info", icon: "home" });
-    }
-    if (session?.type === "rdp" && session?.status === "connected") {
-      items.push({ id: "send_cad", label: "Send Ctrl+Alt+Delete", icon: "key" });
-    }
-    if (entry?.username || entry?.credential_id || entryId) {
-      items.push({ id: "sep1", label: "", type: "separator" });
-    }
-    if (entry?.username || entry?.credential_id) {
-      items.push({ id: "copy_username", label: "Copy Username", icon: "user" });
-    }
-    if (entryId) {
-      items.push({ id: "copy_password", label: "Copy Password", icon: "key" });
-    }
-    items.push({ id: "sep2", label: "", type: "separator" });
-    items.push({ id: "split_right", label: "Split Right", icon: "split" });
-    items.push({ id: "split_down", label: "Split Down", icon: "split" });
-    items.push({ id: "sep3", label: "", type: "separator" });
-    items.push({ id: "close", label: "Close Session", variant: "danger", icon: "close" });
-
-    const selected = await showContextMenu(e.clientX, e.clientY, items);
-    if (!selected) return;
-
+  const runTabMenuAction = async (selected: string, session: Session) => {
+    const entryId = session.entryId;
     switch (selected) {
-      case "rename": {
-        const s = sessions.find((ss) => ss.id === sessionId);
-        if (s) {
-          setRenamingId(sessionId);
-          setRenameValue(s.title);
-        }
+      case "rename":
+        setRenamingId(session.id);
+        setRenameValue(session.title);
         break;
-      }
-      case "reconnect": {
-        const s = sessions.find((ss) => ss.id === sessionId);
-        if (!s?.metadata?.reconnecting) {
-          useEntryStore.getState().reconnectSession(sessionId);
-        }
+      case "reconnect":
+        if (!session.metadata?.reconnecting) useEntryStore.getState().reconnectSession(session.id);
         break;
-      }
-      case "copy_username": {
-        if (entryId) {
-          const cred = await useEntryStore.getState().resolveCredential(entryId);
-          if (cred?.username) {
-            await navigator.clipboard.writeText(cred.username);
-            toast.success("Username copied");
-          } else {
-            toast.error("No username available");
-          }
-        }
+      case "copy_username":
+        if (entryId) await copyCredentialField(entryId, "username");
         break;
-      }
-      case "copy_password": {
-        if (entryId) {
-          const cred = await useEntryStore.getState().resolveCredential(entryId);
-          if (cred?.password) {
-            await navigator.clipboard.writeText(cred.password);
-            toast.success("Password copied");
-          } else {
-            toast.error("No password available");
-          }
-        }
+      case "copy_password":
+        if (entryId) await copyCredentialField(entryId, "password");
         break;
-      }
       case "send_cad":
-        await invoke("rdp_send_key", { sessionId, key: "Delete", modifiers: ["ctrl", "alt"] });
+        await invoke("rdp_send_key", { sessionId: session.id, key: "Delete", modifiers: ["ctrl", "alt"] });
         break;
       case "view_info":
         if (entryId) openDashboardForEntry(entryId);
         break;
       case "split_right":
-        useLayoutStore.getState().splitPane(paneId, "horizontal", sessionId);
+        useLayoutStore.getState().splitPane(paneId, "horizontal", session.id);
         break;
       case "split_down":
-        useLayoutStore.getState().splitPane(paneId, "vertical", sessionId);
+        useLayoutStore.getState().splitPane(paneId, "vertical", session.id);
         break;
       case "close":
-        useSessionStore.getState().closeSession(sessionId);
+        useSessionStore.getState().closeSession(session.id);
         break;
+    }
+  };
+
+  const handleContextMenu = async (e: React.MouseEvent, sessionId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const session = sessions.find((s) => s.id === sessionId);
+    const entry = session?.entryId
+      ? useEntryStore.getState().entries.find((en) => en.id === session.entryId)
+      : undefined;
+
+    const selected = await showContextMenu(e.clientX, e.clientY, tabMenuItems(session, entry));
+    if (!selected || !session) return;
+    try {
+      await runTabMenuAction(selected, session);
+    } catch (error) {
+      console.error(`[PaneTabBar] Tab menu action "${selected}" failed:`, error);
+      toast.error("That action failed");
     }
   };
 
@@ -276,7 +280,6 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
     const sessionId = e.dataTransfer.getData("application/conduit-session");
 
     if (sessionId) {
-      // Check if it's from a different pane
       const layoutState = useLayoutStore.getState();
       const sourcePaneSessionIds = findLeaf(layoutState.root, paneId)?.sessionIds ?? [];
       if (!sourcePaneSessionIds.includes(sessionId)) {
@@ -285,7 +288,6 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
         // Clear drag state immediately — source element may be destroyed by pane collapse
         endDrag();
       } else if (dragIndex !== null && dragIndex !== index) {
-        // Same-pane reorder
         layoutState.reorderSessionInPane(paneId, dragIndex, index);
       }
     }
@@ -325,41 +327,14 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
     setDropIndex(null);
   };
 
-  const sidebarActive = useSidebarStore((s) => s.isExpanded);
-  const sidebarDockedOpen = useSidebarStore(selectIsDockedOpen);
-  const expandSidebar = useSidebarStore((s) => s.expand);
-
   return (
-    <div data-tabbar className="flex items-center h-9 bg-panel border-b border-stroke min-w-0 relative overflow-hidden">
+    <div data-tabbar className="cv-tabstrip">
+      <SidebarToggle />
 
-      {/* Sidebar toggle — hamburger (invisible spacer under a floating sidebar, removed while docked) */}
-      {!sidebarDockedOpen && (
-        <button
-          onClick={() => {
-            if (sidebarActive) {
-              document.dispatchEvent(new CustomEvent("conduit:animated-collapse"));
-            } else {
-              expandSidebar();
-            }
-          }}
-          className={`flex items-center justify-center w-11 h-full flex-shrink-0 border-r border-stroke transition-colors duration-200 ${
-            sidebarActive
-              ? "text-transparent cursor-default"
-              : "text-ink-muted hover:text-ink hover:bg-raised"
-          }`}
-          title={sidebarActive ? "Close sidebar (Ctrl+B)" : "Open sidebar (Ctrl+B)"}
-        >
-          <div className={`flex flex-col items-center justify-center gap-[4px] transition-opacity duration-200 ${sidebarActive ? "opacity-0" : "opacity-100"}`}>
-            <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
-            <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
-            <span className="block h-[1.5px] w-[14px] bg-current rounded-full" />
-          </div>
-        </button>
-      )}
-
-      {/* Tabs */}
       <div
-        className="flex items-center flex-1 overflow-x-auto min-w-0"
+        ref={tabsRef}
+        className="cv-tabs"
+        onWheel={handleWheel}
         onDragOver={handleTabBarDragOver}
         onDrop={handleTabBarDrop}
         onDragLeave={() => setDropIndex(null)}
@@ -367,6 +342,11 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
         {paneSessions.map((session, index) => (
           <div
             key={session.id}
+            data-cv-tab={session.id}
+            data-active={paneActiveSessionId === session.id ? "" : undefined}
+            data-drop-target={dragIndex !== null && dropIndex === index && dragIndex !== index ? "" : undefined}
+            data-dragging={dragIndex === index ? "" : undefined}
+            className="cv-tab"
             draggable={renamingId !== session.id}
             onDragStart={(e) => handleDragStart(e, session.id, index)}
             onDragOver={(e) => handleDragOver(e, index)}
@@ -375,22 +355,14 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
             onDragEnd={handleDragEnd}
             onClick={() => handleTabClick(session.id)}
             onContextMenu={(e) => handleContextMenu(e, session.id)}
-            className={`flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer border-r border-stroke min-w-0 transition-colors ${
-              paneActiveSessionId === session.id
-                ? "bg-[color-mix(in_srgb,var(--c-accent-500)_10%,var(--c-panel))] text-ink font-medium"
-                : "text-ink-muted hover:bg-raised hover:text-ink-secondary"
-            }${
-              dragIndex !== null && dropIndex === index && dragIndex !== index
-                ? " border-l-2 border-l-conduit-500"
-                : ""
-            }${dragIndex === index ? " opacity-50" : ""}`}
           >
+            <span className="cv-tab-fill" />
             <TabIcon sessionType={session.type} entryId={session.entryId} />
 
             {renamingId === session.id ? (
               <input
                 ref={renameInputRef}
-                className="text-sm bg-raised text-ink border border-conduit-500 rounded px-1 outline-none min-w-0 max-w-[120px]"
+                className="cv-tab-rename h-5 rounded-xs border border-focus bg-input px-1 text-body text-ink"
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -401,47 +373,93 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <span className="truncate max-w-[120px]">{session.title}</span>
+              <span className="cv-tab-label">{session.title}</span>
             )}
 
-            <span
-              className={`flex-shrink-0 w-2 h-2 rounded-full ${
-                session.status === "connected"
-                  ? "bg-green-500"
-                  : session.status === "connecting"
-                    ? "bg-yellow-500 animate-pulse"
-                    : "bg-red-500"
-              }`}
-              title={
-                session.status === "disconnected" && session.error
-                  ? session.error
-                  : session.metadata?.reconnecting
-                    ? "Reconnecting..."
-                    : session.status
-              }
-            />
+            <StatusDot session={session} />
 
-            <button
+            <IconButton
+              size="sm"
+              tone="inherit"
+              icon="close"
+              label={`Close ${session.title}`}
+              className="cv-tab-close"
               onClick={(e) => handleCloseTab(e, session.id)}
-              className="flex-shrink-0 p-0.5 rounded hover:bg-raised"
-            >
-              <CloseIcon size={12} />
-            </button>
+            />
           </div>
         ))}
       </div>
 
-      {/* New Tab Button */}
-      <button
-        onClick={(e) => handleNewShell(e)}
-        className="flex-shrink-0 p-2 mx-1 rounded text-ink-muted hover:text-ink hover:bg-raised"
-        title="New Local Shell"
-      >
-        <PlusIcon size={18} />
-      </button>
-
-      {rightSlot}
+      <div className="cv-tabstrip-slot">
+        <IconButton
+          icon="plus"
+          label="New Local Shell"
+          data-cv-new-tab=""
+          className="mx-1"
+          onClick={(e) => handleNewShell(e)}
+        />
+        {rightSlot}
+      </div>
     </div>
+  );
+}
+
+/** The hamburger: gone while the side bar is docked open, a transparent spacer while it floats open. */
+function SidebarToggle() {
+  const sidebarActive = useSidebarStore((s) => s.isExpanded);
+  const sidebarDockedOpen = useSidebarStore(selectIsDockedOpen);
+  const expandSidebar = useSidebarStore((s) => s.expand);
+
+  if (sidebarDockedOpen) return null;
+
+  return (
+    <div className="cv-tabstrip-slot">
+      <button
+        type="button"
+        data-cv-sidebar-toggle=""
+        aria-expanded={sidebarActive}
+        onClick={() => {
+          if (sidebarActive) {
+            document.dispatchEvent(new CustomEvent("conduit:animated-collapse"));
+          } else {
+            expandSidebar();
+          }
+        }}
+        className={cx("group flex w-11 self-stretch items-center justify-center", sidebarActive && "cursor-default")}
+        title={sidebarActive ? "Close sidebar (Ctrl+B)" : "Open sidebar (Ctrl+B)"}
+      >
+        <span
+          className={cx(
+            "flex size-toolbar items-center justify-center rounded transition-[color,background-color,opacity] duration-100",
+            sidebarActive
+              ? "opacity-0"
+              : "text-ink-muted group-hover:bg-toolbar-hover group-hover:text-ink",
+          )}
+        >
+          <MenuIcon size={16} />
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function statusTitle(session: Session): string {
+  if (session.status === "disconnected" && session.error) return session.error;
+  if (session.metadata?.reconnecting) return "Reconnecting...";
+  return session.status;
+}
+
+function StatusDot({ session }: { session: Session }) {
+  const tone =
+    session.status === "connected"
+      ? "text-(--c-state-connected)"
+      : session.status === "connecting"
+        ? "text-(--c-state-connecting) animate-pulse motion-reduce:animate-none"
+        : "text-(--c-state-error)";
+  return (
+    <span className={cx("flex", tone)} title={statusTitle(session)}>
+      <CircleFilledIcon size={12} />
+    </span>
   );
 }
 
@@ -454,15 +472,15 @@ function TabIcon({ sessionType, entryId }: { sessionType: SessionType; entryId?:
     const Icon = getEntryIcon(entry.entry_type, false, entry.icon);
     const colorResult = getEntryColor(entry.entry_type, entry.color);
     return (
-      <span className="flex-shrink-0">
-        <Icon size={13} className={colorResult.className} style={colorResult.style} />
+      <span className="flex">
+        <Icon size={16} className={colorResult.className} style={colorResult.style} />
       </span>
     );
   }
 
   if (sessionType === "dashboard" && !entryId) {
-    return <span className="flex-shrink-0"><HomeIcon size={13} className="text-conduit-400" /></span>;
+    return <span className="flex"><HomeIcon size={16} className="text-link" /></span>;
   }
 
-  return <span className="flex-shrink-0">{typeIcons[sessionType]}</span>;
+  return <span className="flex">{typeIcons[sessionType]}</span>;
 }

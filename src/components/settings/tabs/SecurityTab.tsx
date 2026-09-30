@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useVaultStore } from "../../../stores/vaultStore";
-import { FingerprintIcon, AlertCircleIcon } from "../../../lib/icons";
+import { FingerprintIcon } from "../../../lib/icons";
+import { Callout, Card, SectionHeader, Switch } from "../../ui";
+import { HINT } from "../settings-styles";
 import IdleLockSetting from "../../sync/IdleLockSetting";
 import type { TabProps } from "../SettingsHelpers";
+import { errorText } from "../../../lib/errorText";
 
 export default function SecurityTab({ settings, setSettings }: TabProps) {
   const {
@@ -32,7 +35,7 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
         await enableBiometric();
       }
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to update biometric setting");
+      setError(errorText(err, "Failed to update biometric setting"));
     } finally {
       setToggling(false);
     }
@@ -43,80 +46,54 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Quick Unlock — macOS only */}
+      {/* Quick Unlock: macOS only */}
       {isMac && (
         <div>
-          <h3 className="text-sm font-semibold text-ink mb-3">Quick Unlock</h3>
-
+          <SectionHeader title="Quick Unlock" />
           {isTeamVault ? (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-well border border-stroke-dim">
-              <FingerprintIcon size={20} className="text-ink-faint mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-ink-muted">
+            <NoticeCard>
+              <p className="text-body text-ink-muted">
                 Quick Unlock is only available for personal vaults. Team vaults
                 use key-based encryption and don't require a master password.
               </p>
-            </div>
+            </NoticeCard>
           ) : !biometricAvailable ? (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-well border border-stroke-dim">
-              <FingerprintIcon size={20} className="text-ink-faint mt-0.5 flex-shrink-0" />
+            <NoticeCard>
               <div>
-                <p className="text-sm text-ink-muted">
+                <p className="text-body text-ink-muted">
                   Touch ID is not available on this Mac.
                 </p>
-                <p className="text-xs text-ink-faint mt-1">
+                <p className={`mt-1 ${HINT}`}>
                   Requires a Mac with Touch ID or an Apple Watch paired for unlock.
                 </p>
               </div>
-            </div>
+            </NoticeCard>
           ) : !isUnlocked ? (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-well border border-stroke-dim">
-              <FingerprintIcon size={20} className="text-ink-faint mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-ink-muted">
+            <NoticeCard>
+              <p className="text-body text-ink-muted">
                 Unlock a personal vault first to manage Quick Unlock settings.
               </p>
-            </div>
+            </NoticeCard>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-well border border-stroke-dim">
+              <Card className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <FingerprintIcon
-                    size={20}
-                    className={biometricEnabled ? "text-conduit-400" : "text-ink-faint"}
-                  />
+                  <FingerprintIcon size={20} className={biometricEnabled ? "text-(--c-accent)" : "text-ink-faint"} />
                   <div>
-                    <p className="text-sm font-medium text-ink">
-                      Quick Unlock
-                    </p>
-                    <p className="text-xs text-ink-muted mt-0.5">
+                    <p className="text-body font-semibold text-ink">Quick Unlock</p>
+                    <p className={`mt-0.5 ${HINT}`}>
                       {biometricEnabled
                         ? "Unlock this vault with Touch ID or Apple Watch"
                         : "Use Touch ID or Apple Watch to unlock this vault"}
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={handleToggle}
-                  disabled={toggling}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    biometricEnabled ? "bg-conduit-500" : "bg-ink-faint/30"
-                  } ${toggling ? "opacity-50" : ""}`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                      biometricEnabled ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </div>
+                <Switch checked={biometricEnabled} onChange={() => void handleToggle()} disabled={toggling} label="Quick Unlock" />
+              </Card>
 
-              {error && (
-                <div className="flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20">
-                  <AlertCircleIcon size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-red-400">{error}</p>
-                </div>
-              )}
+              {error && <Callout tone="danger">{error}</Callout>}
 
-              <p className="text-xs text-ink-faint px-1">
+              <p className={`px-1 ${HINT}`}>
                 Your master password is stored encrypted in the system keychain.
                 Touch ID or Apple Watch authentication is required to access it.
                 You can always use your master password as a fallback.
@@ -127,12 +104,21 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
       )}
 
       <div>
-        <h3 className="text-sm font-semibold text-ink mb-3">Auto-lock</h3>
+        <SectionHeader title="Auto-lock" />
         <IdleLockSetting
           minutes={settings.vault_idle_lock_minutes}
           onChange={(minutes) => setSettings((prev) => ({ ...prev, vault_idle_lock_minutes: minutes }))}
         />
       </div>
     </div>
+  );
+}
+
+function NoticeCard({ children }: { children: ReactNode }) {
+  return (
+    <Card className="flex items-start gap-3">
+      <FingerprintIcon size={20} className="mt-0.5 shrink-0 text-ink-faint" />
+      {children}
+    </Card>
   );
 }

@@ -6,6 +6,9 @@ import {
   needsShift,
   Keysyms,
 } from "../../lib/vnc-keysyms";
+import { Button } from "../ui";
+import { SessionConnecting, SessionError } from "./SessionStates";
+import { errorText } from "../../lib/errorText";
 
 // noVNC's RFB class — CJS module with default export
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,7 +177,7 @@ export default function VncView({
       } catch (err) {
         if (!destroyed) {
           const msg =
-            err instanceof Error ? err.message : "Failed to connect";
+            errorText(err, "Failed to connect");
           setError(msg);
         }
       }
@@ -380,18 +383,11 @@ export default function VncView({
 
   if (error) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-canvas text-ink-muted">
-        <div className="text-red-400 mb-2">Connection Error</div>
-        <div className="text-sm max-w-md text-center">{error}</div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-raised hover:bg-raised rounded text-sm"
-          >
-            Close
-          </button>
-        )}
-      </div>
+      <SessionError
+        className="h-full w-full"
+        message={error}
+        actions={onClose && <Button onClick={onClose}>Close</Button>}
+      />
     );
   }
 
@@ -399,15 +395,10 @@ export default function VncView({
     <div
       ref={containerRef}
       data-session-keyboard
-      className="h-full w-full bg-canvas overflow-hidden outline-none"
+      className="h-full w-full bg-editor overflow-hidden outline-none"
       tabIndex={0}
     >
-      {!isConnected && (
-        <div className="h-full w-full flex flex-col items-center justify-center text-ink-muted">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ink-muted mb-4" />
-          <div>Connecting to VNC session...</div>
-        </div>
-      )}
+      {!isConnected && <SessionConnecting text="Connecting to VNC session..." />}
     </div>
   );
 }

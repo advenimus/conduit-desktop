@@ -1,0 +1,4371 @@
+{
+  "version": 1,
+  "source": "INVENTORY-raw.json of the reference folder (the original app at 270ae43), normalized; popup and application menus read with captureMenu and captureAppMenu on the base branch (menus unchanged since 270ae43) and checked item by item against INVENTORY-raw.json, which lists them without separators and submenus; shots 44 to 49 recorded on the base branch with scheme Ocean and the Tabler pack.",
+  "screens": {
+    "settings-general": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-appearance": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "label",
+          "text": "Platform Theme"
+        },
+        {
+          "tag": "button",
+          "text": "Default Conduit Classic"
+        },
+        {
+          "tag": "button",
+          "text": "macOS Tahoe Liquid Glass"
+        },
+        {
+          "tag": "button",
+          "text": "— ☐ ✕ Windows 11 Fluent Design"
+        },
+        {
+          "tag": "button",
+          "text": "Ubuntu GNOME / Libadwaita"
+        },
+        {
+          "tag": "label",
+          "text": "Color Scheme"
+        },
+        {
+          "tag": "button",
+          "text": "Ocean"
+        },
+        {
+          "tag": "button",
+          "text": "Ember"
+        },
+        {
+          "tag": "button",
+          "text": "Forest"
+        },
+        {
+          "tag": "button",
+          "text": "Amethyst"
+        },
+        {
+          "tag": "button",
+          "text": "Rose"
+        },
+        {
+          "tag": "button",
+          "text": "Midnight"
+        },
+        {
+          "tag": "label",
+          "text": "Brightness"
+        },
+        {
+          "tag": "button",
+          "text": "Dark"
+        },
+        {
+          "tag": "button",
+          "text": "Light"
+        },
+        {
+          "tag": "button",
+          "text": "System"
+        },
+        {
+          "tag": "label",
+          "text": "UI Scale"
+        },
+        {
+          "tag": "input",
+          "type": "range"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-security": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "h3",
+          "text": "Quick Unlock"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "h3",
+          "text": "Auto-lock"
+        },
+        {
+          "tag": "select",
+          "text": "Off After 5 minutes After 15 minutes After 30 minutes After 1 hour",
+          "aria": "Lock the vault when idle"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-sessions-terminal": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "label",
+          "text": "Default Shell"
+        },
+        {
+          "tag": "select",
+          "text": "System Default Bash Zsh PowerShell"
+        },
+        {
+          "tag": "label",
+          "text": "Font Size (14px)"
+        },
+        {
+          "tag": "input",
+          "type": "range"
+        },
+        {
+          "tag": "label",
+          "text": "Scrollback Buffer"
+        },
+        {
+          "tag": "input",
+          "type": "number"
+        },
+        {
+          "tag": "label",
+          "text": "Cursor Blink"
+        },
+        {
+          "tag": "input",
+          "type": "checkbox"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-sessions-ssh": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "label",
+          "text": "Auth Method When Key Present"
+        },
+        {
+          "tag": "button",
+          "text": "SSH Key"
+        },
+        {
+          "tag": "button",
+          "text": "Password"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-sessions-rdp": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "label",
+          "text": "Resolution"
+        },
+        {
+          "tag": "select",
+          "text": "Match Window 1920 x 1080 1280 x 720 1440 x 900"
+        },
+        {
+          "tag": "label",
+          "text": "Display Scale"
+        },
+        {
+          "tag": "input",
+          "type": "range"
+        },
+        {
+          "tag": "label",
+          "text": "Color Depth"
+        },
+        {
+          "tag": "select",
+          "text": "32-bit (True Color) 24-bit 16-bit (High Color) 15-bit"
+        },
+        {
+          "tag": "label",
+          "text": "Quality"
+        },
+        {
+          "tag": "select",
+          "text": "Best Good Low"
+        },
+        {
+          "tag": "label",
+          "text": "Sound"
+        },
+        {
+          "tag": "select",
+          "text": "Play locally Play on remote Disabled"
+        },
+        {
+          "tag": "label",
+          "text": "High DPI (Retina)"
+        },
+        {
+          "tag": "input",
+          "type": "checkbox"
+        },
+        {
+          "tag": "label",
+          "text": "Clipboard Sharing"
+        },
+        {
+          "tag": "input",
+          "type": "checkbox"
+        },
+        {
+          "tag": "label",
+          "text": "NLA (Network Level Auth)"
+        },
+        {
+          "tag": "input",
+          "type": "checkbox"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-sessions-vnc": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-sessions-web": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "label",
+          "text": "Enable Autofill"
+        },
+        {
+          "tag": "input",
+          "type": "checkbox"
+        },
+        {
+          "tag": "label",
+          "text": "Ignore Certificate Errors"
+        },
+        {
+          "tag": "input",
+          "type": "checkbox"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-ai": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "label",
+          "text": "Default Engine"
+        },
+        {
+          "tag": "button",
+          "text": "Claude Code Installed ●"
+        },
+        {
+          "tag": "svg",
+          "aria": "Claude"
+        },
+        {
+          "tag": "button",
+          "text": "Codex Installed"
+        },
+        {
+          "tag": "svg",
+          "aria": "OpenAI Codex"
+        },
+        {
+          "tag": "button",
+          "text": "Grok Build Installed"
+        },
+        {
+          "tag": "svg",
+          "aria": "Grok"
+        },
+        {
+          "tag": "button",
+          "text": "Cursor Agent Installed"
+        },
+        {
+          "tag": "svg",
+          "aria": "Cursor"
+        },
+        {
+          "tag": "button",
+          "text": "OpenClaw Not installed"
+        },
+        {
+          "tag": "svg",
+          "aria": "OpenClaw"
+        },
+        {
+          "tag": "button",
+          "text": "Gemini CLI Installed"
+        },
+        {
+          "tag": "svg",
+          "aria": "Gemini"
+        },
+        {
+          "tag": "button",
+          "text": "GitHub Copilot Not installed"
+        },
+        {
+          "tag": "svg",
+          "aria": "GitHub Copilot"
+        },
+        {
+          "tag": "button",
+          "text": "OpenCode Not installed"
+        },
+        {
+          "tag": "svg",
+          "aria": "OpenCode"
+        },
+        {
+          "tag": "label",
+          "text": "Default Working Directory"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Leave empty for home directory"
+        },
+        {
+          "tag": "button",
+          "title": "Browse"
+        },
+        {
+          "tag": "label",
+          "text": "MCP Server Setup"
+        },
+        {
+          "tag": "button",
+          "text": "Show setup commands"
+        },
+        {
+          "tag": "label",
+          "text": "Terminal Font Size"
+        },
+        {
+          "tag": "input",
+          "type": "range"
+        },
+        {
+          "tag": "label",
+          "text": "Engine Status"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-backup": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "label",
+          "text": "Local Backup"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-sync": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "h3",
+          "text": "Multi-device sync"
+        },
+        {
+          "tag": "h3",
+          "text": "This vault"
+        },
+        {
+          "tag": "button",
+          "text": "Sync now"
+        },
+        {
+          "tag": "button",
+          "text": "Review changes"
+        },
+        {
+          "tag": "button",
+          "text": "Recently deleted"
+        },
+        {
+          "tag": "button",
+          "text": "Other copies"
+        },
+        {
+          "tag": "h3",
+          "text": "Devices"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-mobile": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "h3",
+          "text": "Conduit Mobile"
+        },
+        {
+          "tag": "svg",
+          "aria": "QR code to download Conduit on the App Store"
+        },
+        {
+          "tag": "svg",
+          "aria": "Apple"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-team": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "settings-account": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Settings"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "button",
+          "text": "Sessions"
+        },
+        {
+          "tag": "button",
+          "text": "Terminal"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "AI"
+        },
+        {
+          "tag": "button",
+          "text": "Backup"
+        },
+        {
+          "tag": "button",
+          "text": "Sync"
+        },
+        {
+          "tag": "button",
+          "text": "Mobile"
+        },
+        {
+          "tag": "button",
+          "text": "Team"
+        },
+        {
+          "tag": "button",
+          "text": "Account"
+        },
+        {
+          "tag": "button",
+          "text": "Sign In"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "main-sidebar-local-mode": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "Sign in to start a free Pro trial"
+        }
+      ]
+    },
+    "main-tabbars-split-ai-open": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "span",
+          "title": "connected"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "span",
+          "title": "connected"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "span",
+          "title": "connect ECONNREFUSED 127.0.0.1:<port>"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "New Local Shell"
+        },
+        {
+          "tag": "span",
+          "title": "connected"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "New Local Shell"
+        },
+        {
+          "tag": "button",
+          "title": "Toggle AI Panel"
+        }
+      ]
+    },
+    "web-session-toolbar": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Back"
+        },
+        {
+          "tag": "button",
+          "title": "Forward"
+        },
+        {
+          "tag": "button",
+          "title": "Refresh"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "New Tab"
+        },
+        {
+          "tag": "button",
+          "text": "Pick",
+          "title": "Pick CSS selectors"
+        },
+        {
+          "tag": "button",
+          "title": "Autofill"
+        }
+      ]
+    },
+    "ai-panel": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "text": "Claude Code",
+          "title": "Switch engine for this session"
+        },
+        {
+          "tag": "svg",
+          "aria": "Claude"
+        },
+        {
+          "tag": "button",
+          "title": "New conversation"
+        },
+        {
+          "tag": "textarea",
+          "aria": "Terminal input"
+        }
+      ]
+    },
+    "ai-panel-engine-menu-open": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "text": "Claude Code",
+          "title": "Switch engine for this session"
+        },
+        {
+          "tag": "svg",
+          "aria": "Claude"
+        },
+        {
+          "tag": "button",
+          "text": "Claude Code ●"
+        },
+        {
+          "tag": "svg",
+          "aria": "Claude"
+        },
+        {
+          "tag": "button",
+          "text": "Codex"
+        },
+        {
+          "tag": "svg",
+          "aria": "OpenAI Codex"
+        },
+        {
+          "tag": "button",
+          "text": "Grok Build"
+        },
+        {
+          "tag": "svg",
+          "aria": "Grok"
+        },
+        {
+          "tag": "button",
+          "text": "Cursor Agent"
+        },
+        {
+          "tag": "svg",
+          "aria": "Cursor"
+        },
+        {
+          "tag": "button",
+          "text": "OpenClaw"
+        },
+        {
+          "tag": "svg",
+          "aria": "OpenClaw"
+        },
+        {
+          "tag": "button",
+          "text": "Gemini CLI"
+        },
+        {
+          "tag": "svg",
+          "aria": "Gemini"
+        },
+        {
+          "tag": "button",
+          "text": "GitHub Copilot"
+        },
+        {
+          "tag": "svg",
+          "aria": "GitHub Copilot"
+        },
+        {
+          "tag": "button",
+          "text": "OpenCode"
+        },
+        {
+          "tag": "svg",
+          "aria": "OpenCode"
+        },
+        {
+          "tag": "button",
+          "title": "New conversation"
+        },
+        {
+          "tag": "textarea",
+          "aria": "Terminal input"
+        }
+      ]
+    },
+    "vault-switcher-menu-open": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure"
+        },
+        {
+          "tag": "button",
+          "text": "New Vault..."
+        },
+        {
+          "tag": "button",
+          "text": "Open Vault File..."
+        },
+        {
+          "tag": "button",
+          "text": "Lock Current Vault"
+        },
+        {
+          "tag": "button",
+          "text": "Switch Vault..."
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "Sign in to start a free Pro trial"
+        }
+      ]
+    },
+    "new-entry-dialog": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "New Entry"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "button",
+          "text": "Document"
+        },
+        {
+          "tag": "button",
+          "text": "Command"
+        },
+        {
+          "tag": "button",
+          "text": "Password"
+        },
+        {
+          "tag": "button",
+          "text": "SSH Key"
+        }
+      ]
+    },
+    "new-entry-ssh-form": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "New SSH Entry"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Credentials"
+        },
+        {
+          "tag": "button",
+          "text": "Information"
+        },
+        {
+          "tag": "label",
+          "text": "Name*"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Production Server"
+        },
+        {
+          "tag": "label",
+          "text": "Host"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "192.168.1.1"
+        },
+        {
+          "tag": "label",
+          "text": "Port"
+        },
+        {
+          "tag": "input",
+          "type": "number"
+        },
+        {
+          "tag": "label",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Default Icon"
+        },
+        {
+          "tag": "button",
+          "text": "Default Color"
+        },
+        {
+          "tag": "button",
+          "text": "Back"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Create"
+        }
+      ]
+    },
+    "edit-entry-rdp-general": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Edit RDP Entry"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Credentials"
+        },
+        {
+          "tag": "button",
+          "text": "Information"
+        },
+        {
+          "tag": "button",
+          "text": "Display"
+        },
+        {
+          "tag": "button",
+          "text": "Resources"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "label",
+          "text": "Name*"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Production Server"
+        },
+        {
+          "tag": "label",
+          "text": "Host"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "192.168.1.1"
+        },
+        {
+          "tag": "label",
+          "text": "Port"
+        },
+        {
+          "tag": "input",
+          "type": "number"
+        },
+        {
+          "tag": "label",
+          "text": "Domain"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "DOMAIN"
+        },
+        {
+          "tag": "label",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Default Icon"
+        },
+        {
+          "tag": "button",
+          "text": "Default Color"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "edit-entry-rdp-credentials": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Edit RDP Entry"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Credentials"
+        },
+        {
+          "tag": "button",
+          "text": "Information"
+        },
+        {
+          "tag": "button",
+          "text": "Display"
+        },
+        {
+          "tag": "button",
+          "text": "Resources"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "label",
+          "text": "Username"
+        },
+        {
+          "tag": "input",
+          "type": "text"
+        },
+        {
+          "tag": "label",
+          "text": "Password"
+        },
+        {
+          "tag": "input",
+          "type": "password"
+        },
+        {
+          "tag": "button",
+          "title": "Password Generator"
+        },
+        {
+          "tag": "button",
+          "title": "Password history"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "Import QR Code"
+        },
+        {
+          "tag": "button",
+          "text": "Enter Secret Key"
+        },
+        {
+          "tag": "label",
+          "text": "Linked Credential"
+        },
+        {
+          "tag": "button",
+          "text": "Domain Admin"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "edit-entry-rdp-information": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Edit RDP Entry"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Credentials"
+        },
+        {
+          "tag": "button",
+          "text": "Information"
+        },
+        {
+          "tag": "button",
+          "text": "Display"
+        },
+        {
+          "tag": "button",
+          "text": "Resources"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "label",
+          "text": "Tags"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "production, linux (comma-separated)"
+        },
+        {
+          "tag": "label",
+          "text": "Notes"
+        },
+        {
+          "tag": "button",
+          "text": "Write"
+        },
+        {
+          "tag": "button",
+          "text": "Preview"
+        },
+        {
+          "tag": "button",
+          "title": "Bold"
+        },
+        {
+          "tag": "button",
+          "title": "Italic"
+        },
+        {
+          "tag": "button",
+          "title": "Strikethrough"
+        },
+        {
+          "tag": "button",
+          "title": "Heading 1"
+        },
+        {
+          "tag": "button",
+          "title": "Heading 2"
+        },
+        {
+          "tag": "button",
+          "title": "Link"
+        },
+        {
+          "tag": "button",
+          "title": "Image"
+        },
+        {
+          "tag": "button",
+          "title": "Code"
+        },
+        {
+          "tag": "button",
+          "title": "Bullet List"
+        },
+        {
+          "tag": "button",
+          "title": "Numbered List"
+        },
+        {
+          "tag": "button",
+          "title": "Table"
+        },
+        {
+          "tag": "button",
+          "title": "Secret (!!secret!!)"
+        },
+        {
+          "tag": "button",
+          "title": "Blockquote"
+        },
+        {
+          "tag": "textarea",
+          "placeholder": "Optional notes... (supports Markdown, use !!secret!! to mask sensitive text)"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "edit-entry-rdp-display": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Edit RDP Entry"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Credentials"
+        },
+        {
+          "tag": "button",
+          "text": "Information"
+        },
+        {
+          "tag": "button",
+          "text": "Display"
+        },
+        {
+          "tag": "button",
+          "text": "Resources"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "label",
+          "text": "Resolution"
+        },
+        {
+          "tag": "select",
+          "text": "Default (Match Window) Match Window 1920 x 1080 1280 x 720 1440 x 900 Custom"
+        },
+        {
+          "tag": "label",
+          "text": "Color Depth"
+        },
+        {
+          "tag": "select",
+          "text": "Default (32-bit (True Color)) 32-bit (True Color) 24-bit 16-bit (High Color) 15-bit"
+        },
+        {
+          "tag": "label",
+          "text": "Quality"
+        },
+        {
+          "tag": "select",
+          "text": "Default (Good) Best Good Low"
+        },
+        {
+          "tag": "select",
+          "text": "Default (Off) On Off"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "edit-entry-rdp-resources": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Edit RDP Entry"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Credentials"
+        },
+        {
+          "tag": "button",
+          "text": "Information"
+        },
+        {
+          "tag": "button",
+          "text": "Display"
+        },
+        {
+          "tag": "button",
+          "text": "Resources"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "label",
+          "text": "Sound"
+        },
+        {
+          "tag": "select",
+          "text": "Default (Play locally) Play locally Play on remote Disabled"
+        },
+        {
+          "tag": "select",
+          "text": "Default (On) On Off"
+        },
+        {
+          "tag": "label",
+          "text": "Shared Folders"
+        },
+        {
+          "tag": "button",
+          "text": "Add Folder"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "edit-entry-rdp-security": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Edit RDP Entry"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "General"
+        },
+        {
+          "tag": "button",
+          "text": "Credentials"
+        },
+        {
+          "tag": "button",
+          "text": "Information"
+        },
+        {
+          "tag": "button",
+          "text": "Display"
+        },
+        {
+          "tag": "button",
+          "text": "Resources"
+        },
+        {
+          "tag": "button",
+          "text": "Security"
+        },
+        {
+          "tag": "select",
+          "text": "Default (On) On Off"
+        },
+        {
+          "tag": "label",
+          "text": "Hostname (optional)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "e.g., windows-server.local"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Save"
+        }
+      ]
+    },
+    "new-folder-dialog": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "New Folder"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "label",
+          "text": "Folder Name"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "My Servers"
+        },
+        {
+          "tag": "label",
+          "text": "Appearance"
+        },
+        {
+          "tag": "button",
+          "text": "Default"
+        },
+        {
+          "tag": "button",
+          "text": "Default"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Create"
+        }
+      ]
+    },
+    "quick-connect-dialog": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Quick Connect"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "SSH"
+        },
+        {
+          "tag": "button",
+          "text": "RDP"
+        },
+        {
+          "tag": "button",
+          "text": "VNC"
+        },
+        {
+          "tag": "button",
+          "text": "Web"
+        },
+        {
+          "tag": "label",
+          "text": "Host"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "hostname or IP"
+        },
+        {
+          "tag": "label",
+          "text": "Port"
+        },
+        {
+          "tag": "input",
+          "type": "number",
+          "placeholder": "22"
+        },
+        {
+          "tag": "label",
+          "text": "Stored Credential"
+        },
+        {
+          "tag": "select",
+          "text": "None (enter manually) Domain Admin (admin)"
+        },
+        {
+          "tag": "label",
+          "text": "Username"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "username"
+        },
+        {
+          "tag": "label",
+          "text": "Password"
+        },
+        {
+          "tag": "input",
+          "type": "password",
+          "placeholder": "password"
+        },
+        {
+          "tag": "button",
+          "title": "Password Generator"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Connect"
+        }
+      ]
+    },
+    "confirm-delete-dialog": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Delete Entry"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Delete"
+        }
+      ]
+    },
+    "sync-panel-recently-deleted": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Recently deleted"
+        },
+        {
+          "tag": "label",
+          "text": "Show items deleted more than <ago>"
+        },
+        {
+          "tag": "input",
+          "type": "checkbox"
+        },
+        {
+          "tag": "button",
+          "text": "Delete permanently"
+        },
+        {
+          "tag": "button",
+          "text": "Delete all permanently"
+        },
+        {
+          "tag": "button",
+          "text": "Restore"
+        },
+        {
+          "tag": "button",
+          "text": "Done"
+        }
+      ]
+    },
+    "sync-panel-other-copies": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Other copies of this vault"
+        },
+        {
+          "tag": "button",
+          "text": "Scan again"
+        },
+        {
+          "tag": "button",
+          "text": "Done"
+        }
+      ]
+    },
+    "sync-panel-review-changes": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Review changes"
+        },
+        {
+          "tag": "button",
+          "text": "Keep newest for all"
+        },
+        {
+          "tag": "button",
+          "text": "Keep newest for older-app changes"
+        },
+        {
+          "tag": "button",
+          "aria": "Close"
+        }
+      ]
+    },
+    "sidebar-search-active": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button",
+          "title": "Clear search",
+          "aria": "Clear search"
+        },
+        {
+          "tag": "div",
+          "text": "PRODUCTION",
+          "title": "Production"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "Sign in to start a free Pro trial"
+        }
+      ]
+    },
+    "sidebar-favorites-only": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show all entries"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "div",
+          "text": "PRODUCTION",
+          "title": "Production"
+        },
+        {
+          "tag": "div",
+          "text": "STAGING",
+          "title": "Staging"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "Sign in to start a free Pro trial"
+        }
+      ]
+    },
+    "vault-hub-with-recent": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h1",
+          "text": "Conduit"
+        },
+        {
+          "tag": "button",
+          "text": "New Vault"
+        },
+        {
+          "tag": "button",
+          "text": "Open Vault File"
+        },
+        {
+          "tag": "h2",
+          "text": "RECENT VAULTS"
+        },
+        {
+          "tag": "button",
+          "text": "Clear All"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure <vault-dir>",
+          "title": "<vault-path>"
+        }
+      ]
+    },
+    "unlock-dialog": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h2",
+          "text": "Unlock Vault"
+        },
+        {
+          "tag": "p",
+          "text": "Acme Infrastructure.conduit",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "label",
+          "text": "Master Password"
+        },
+        {
+          "tag": "input",
+          "type": "password",
+          "placeholder": "Enter master password"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        },
+        {
+          "tag": "button",
+          "text": "Unlock"
+        }
+      ]
+    },
+    "main-empty-vault-welcome": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Scratch",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "Sign in to start a free Pro trial"
+        },
+        {
+          "tag": "button",
+          "title": "New Local Shell"
+        },
+        {
+          "tag": "button",
+          "title": "Toggle AI Panel"
+        },
+        {
+          "tag": "h2",
+          "text": "Welcome to Conduit"
+        },
+        {
+          "tag": "button",
+          "text": "New Entry"
+        },
+        {
+          "tag": "button",
+          "text": "Quick Connect"
+        }
+      ]
+    },
+    "sidebar-empty-vault-just-created": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Scratch",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "Sign in to start a free Pro trial"
+        }
+      ]
+    },
+    "auth-screen": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h1",
+          "text": "Conduit"
+        },
+        {
+          "tag": "button",
+          "text": "Sign In"
+        },
+        {
+          "tag": "button",
+          "text": "Create Account"
+        },
+        {
+          "tag": "button",
+          "text": "Continue without signing in"
+        }
+      ]
+    },
+    "vault-hub-with-recent-2": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h1",
+          "text": "Conduit"
+        },
+        {
+          "tag": "button",
+          "text": "New Vault"
+        },
+        {
+          "tag": "button",
+          "text": "Open Vault File"
+        },
+        {
+          "tag": "h2",
+          "text": "RECENT VAULTS"
+        },
+        {
+          "tag": "button",
+          "text": "Clear All"
+        },
+        {
+          "tag": "button",
+          "text": "Scratch <vault-dir>",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure <vault-dir>",
+          "title": "<vault-path>"
+        }
+      ]
+    },
+    "vault-hub-empty": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "h1",
+          "text": "Conduit"
+        },
+        {
+          "tag": "button",
+          "text": "New Vault"
+        },
+        {
+          "tag": "button",
+          "text": "Open Vault File"
+        }
+      ]
+    },
+    "home-dashboard-full-window": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "Sign in to start a free Pro trial"
+        },
+        {
+          "tag": "button",
+          "title": "New Local Shell"
+        },
+        {
+          "tag": "button",
+          "title": "Toggle AI Panel"
+        },
+        {
+          "tag": "h1",
+          "text": "Welcome back"
+        },
+        {
+          "tag": "button",
+          "text": "Quick Connect ⌘N"
+        },
+        {
+          "tag": "button",
+          "text": "Search entries..."
+        },
+        {
+          "tag": "h3",
+          "text": "Favorites"
+        },
+        {
+          "tag": "button",
+          "text": "Intranet Status WEB"
+        },
+        {
+          "tag": "button",
+          "text": "web-01 SSH"
+        },
+        {
+          "tag": "h3",
+          "text": "Recently Modified"
+        },
+        {
+          "tag": "button",
+          "text": "Intranet Status <ago>"
+        },
+        {
+          "tag": "button",
+          "text": "web-01 <ago>"
+        },
+        {
+          "tag": "button",
+          "text": "Runbook <ago>"
+        },
+        {
+          "tag": "button",
+          "text": "Build Mac <ago>"
+        },
+        {
+          "tag": "button",
+          "text": "DC-01 <ago>"
+        },
+        {
+          "tag": "button",
+          "text": "db-01 <ago>"
+        },
+        {
+          "tag": "h3",
+          "text": "Vault Status"
+        },
+        {
+          "tag": "h3",
+          "text": "Overview"
+        }
+      ]
+    },
+    "document-view-runbook": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "text": "Edit"
+        },
+        {
+          "tag": "h1",
+          "text": "Runbook"
+        }
+      ]
+    },
+    "plus-popup": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "item",
+          "label": "Quick Connect"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "header",
+          "label": "Local Shell"
+        },
+        {
+          "kind": "item",
+          "label": "Home Directory"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "header",
+          "label": "Agent Directory"
+        },
+        {
+          "kind": "item",
+          "label": "Claude Code"
+        },
+        {
+          "kind": "item",
+          "label": "Codex"
+        },
+        {
+          "kind": "item",
+          "label": "Grok Build"
+        },
+        {
+          "kind": "item",
+          "label": "Cursor Agent"
+        },
+        {
+          "kind": "item",
+          "label": "OpenClaw"
+        },
+        {
+          "kind": "item",
+          "label": "Gemini CLI"
+        },
+        {
+          "kind": "item",
+          "label": "GitHub Copilot"
+        },
+        {
+          "kind": "item",
+          "label": "OpenCode"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Browse..."
+        }
+      ]
+    },
+    "ctx-tab": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "item",
+          "label": "Rename"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Split Right"
+        },
+        {
+          "kind": "item",
+          "label": "Split Down"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Close Session"
+        }
+      ]
+    },
+    "ctx-tab-ssh-entry": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "item",
+          "label": "Rename"
+        },
+        {
+          "kind": "item",
+          "label": "Reconnect"
+        },
+        {
+          "kind": "item",
+          "label": "View Info"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Username"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Password"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Split Right"
+        },
+        {
+          "kind": "item",
+          "label": "Split Down"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Close Session"
+        }
+      ]
+    },
+    "ctx-tree-entry-ssh": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "item",
+          "label": "Open Session"
+        },
+        {
+          "kind": "submenu",
+          "label": "Open With",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Open External"
+            },
+            {
+              "kind": "item",
+              "label": "Open with Credential…"
+            }
+          ]
+        },
+        {
+          "kind": "item",
+          "label": "View Info"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Edit"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Host"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Username"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Password"
+        },
+        {
+          "kind": "submenu",
+          "label": "Auto-type",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Type Username"
+            },
+            {
+              "kind": "item",
+              "label": "Type Password"
+            },
+            {
+              "kind": "item",
+              "label": "Type Both (Tab Between)"
+            }
+          ]
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Unfavorite"
+        },
+        {
+          "kind": "item",
+          "label": "Rename"
+        },
+        {
+          "kind": "item",
+          "label": "Duplicate"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Delete"
+        }
+      ]
+    },
+    "ctx-tree-entry-web": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "item",
+          "label": "Open Session"
+        },
+        {
+          "kind": "submenu",
+          "label": "Open With",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Open External"
+            }
+          ]
+        },
+        {
+          "kind": "item",
+          "label": "View Info"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Edit"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Host"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Password"
+        },
+        {
+          "kind": "submenu",
+          "label": "Auto-type",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Type Username"
+            },
+            {
+              "kind": "item",
+              "label": "Type Password"
+            },
+            {
+              "kind": "item",
+              "label": "Type Both (Tab Between)"
+            }
+          ]
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Unfavorite"
+        },
+        {
+          "kind": "item",
+          "label": "Rename"
+        },
+        {
+          "kind": "item",
+          "label": "Duplicate"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Delete"
+        }
+      ]
+    },
+    "ctx-tree-entry-credential": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "item",
+          "label": "View Info"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Edit"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Username"
+        },
+        {
+          "kind": "item",
+          "label": "Copy Password"
+        },
+        {
+          "kind": "submenu",
+          "label": "Auto-type",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Type Username"
+            },
+            {
+              "kind": "item",
+              "label": "Type Password"
+            },
+            {
+              "kind": "item",
+              "label": "Type Both (Tab Between)"
+            }
+          ]
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Favorite"
+        },
+        {
+          "kind": "item",
+          "label": "Rename"
+        },
+        {
+          "kind": "item",
+          "label": "Duplicate"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Delete"
+        }
+      ]
+    },
+    "ctx-tree-folder": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "item",
+          "label": "New Entry"
+        },
+        {
+          "kind": "item",
+          "label": "New Folder"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Edit Folder"
+        },
+        {
+          "kind": "item",
+          "label": "Rename"
+        },
+        {
+          "kind": "separator"
+        },
+        {
+          "kind": "item",
+          "label": "Delete"
+        }
+      ]
+    },
+    "ctx-submenus": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "submenu",
+          "label": "Open With",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Open External"
+            },
+            {
+              "kind": "item",
+              "label": "Open with Credential…"
+            }
+          ]
+        },
+        {
+          "kind": "submenu",
+          "label": "Auto-type",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Type Username"
+            },
+            {
+              "kind": "item",
+              "label": "Type Password"
+            },
+            {
+              "kind": "item",
+              "label": "Type Both (Tab Between)"
+            }
+          ]
+        }
+      ]
+    },
+    "native-app-menu": {
+      "kind": "menu",
+      "items": [
+        {
+          "kind": "submenu",
+          "label": "Conduit Dev",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Settings",
+              "accelerator": "CmdOrCtrl+,"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Hide Conduit Dev",
+              "accelerator": "Command+H"
+            },
+            {
+              "kind": "item",
+              "label": "Hide Others",
+              "accelerator": "Command+Alt+H"
+            },
+            {
+              "kind": "item",
+              "label": "Show All"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Quit Conduit Dev",
+              "accelerator": "CommandOrControl+Q"
+            }
+          ]
+        },
+        {
+          "kind": "submenu",
+          "label": "File",
+          "children": [
+            {
+              "kind": "item",
+              "label": "New Vault"
+            },
+            {
+              "kind": "item",
+              "label": "Open Vault...",
+              "accelerator": "CmdOrCtrl+O"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "New Entry",
+              "accelerator": "CmdOrCtrl+E"
+            },
+            {
+              "kind": "item",
+              "label": "New Folder",
+              "accelerator": "CmdOrCtrl+Shift+N"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Export"
+            },
+            {
+              "kind": "submenu",
+              "label": "Import",
+              "children": [
+                {
+                  "kind": "item",
+                  "label": "From Conduit Export..."
+                },
+                {
+                  "kind": "separator"
+                },
+                {
+                  "kind": "item",
+                  "label": "From Remote Desktop Manager..."
+                }
+              ]
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "submenu",
+              "label": "Vault Management",
+              "children": [
+                {
+                  "kind": "item",
+                  "label": "Save Vault",
+                  "accelerator": "CmdOrCtrl+S"
+                },
+                {
+                  "kind": "separator"
+                },
+                {
+                  "kind": "item",
+                  "label": "Switch Vault..."
+                },
+                {
+                  "kind": "item",
+                  "label": "Lock Vault",
+                  "accelerator": "CmdOrCtrl+Shift+L"
+                },
+                {
+                  "kind": "item",
+                  "label": "Rename Vault..."
+                },
+                {
+                  "kind": "separator"
+                },
+                {
+                  "kind": "item",
+                  "label": "Change Password..."
+                }
+              ]
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Sign Out"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Settings",
+              "accelerator": "CmdOrCtrl+,"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Close Window",
+              "accelerator": "CommandOrControl+W"
+            }
+          ]
+        },
+        {
+          "kind": "submenu",
+          "label": "Edit",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Undo",
+              "accelerator": "CommandOrControl+Z"
+            },
+            {
+              "kind": "item",
+              "label": "Redo",
+              "accelerator": "Shift+CommandOrControl+Z"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Cut",
+              "accelerator": "CommandOrControl+X"
+            },
+            {
+              "kind": "item",
+              "label": "Copy",
+              "accelerator": "CommandOrControl+C"
+            },
+            {
+              "kind": "item",
+              "label": "Paste",
+              "accelerator": "CommandOrControl+V"
+            },
+            {
+              "kind": "item",
+              "label": "Select All",
+              "accelerator": "CommandOrControl+A"
+            }
+          ]
+        },
+        {
+          "kind": "submenu",
+          "label": "View",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Reload",
+              "accelerator": "CmdOrCtrl+R"
+            },
+            {
+              "kind": "item",
+              "label": "Force Reload",
+              "accelerator": "Shift+CmdOrCtrl+R"
+            },
+            {
+              "kind": "item",
+              "label": "Toggle Developer Tools",
+              "accelerator": "Alt+Command+I"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Actual Size",
+              "accelerator": "CmdOrCtrl+0"
+            },
+            {
+              "kind": "item",
+              "label": "Zoom In",
+              "accelerator": "CmdOrCtrl+Plus"
+            },
+            {
+              "kind": "item",
+              "label": "Zoom Out",
+              "accelerator": "CmdOrCtrl+-"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Toggle Full Screen",
+              "accelerator": "Control+Command+F"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Trigger Test Toast"
+            }
+          ]
+        },
+        {
+          "kind": "submenu",
+          "label": "Tools",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Password Generator",
+              "accelerator": "CmdOrCtrl+G"
+            },
+            {
+              "kind": "item",
+              "label": "SSH Key Generator"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Close All Sessions"
+            }
+          ]
+        },
+        {
+          "kind": "submenu",
+          "label": "Window",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Minimize",
+              "accelerator": "CommandOrControl+M"
+            },
+            {
+              "kind": "item",
+              "label": "Zoom"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Bring All to Front"
+            }
+          ]
+        },
+        {
+          "kind": "submenu",
+          "label": "Help",
+          "children": [
+            {
+              "kind": "item",
+              "label": "Conduit Help",
+              "accelerator": "F1"
+            },
+            {
+              "kind": "item",
+              "label": "Getting Started"
+            },
+            {
+              "kind": "item",
+              "label": "What's New"
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Submit a Bug..."
+            },
+            {
+              "kind": "item",
+              "label": "Submit Feedback..."
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "Check for Updates..."
+            },
+            {
+              "kind": "separator"
+            },
+            {
+              "kind": "item",
+              "label": "About Conduit"
+            }
+          ]
+        }
+      ]
+    },
+    "sidebar-trial-card": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "text": "Start Free Trial →"
+        },
+        {
+          "tag": "button",
+          "title": "Dismiss"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "<user-email>",
+          "title": "Account Settings"
+        },
+        {
+          "tag": "button",
+          "title": "Sign Out"
+        }
+      ]
+    },
+    "sidebar-signed-in": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "<user-email>",
+          "title": "Account Settings"
+        },
+        {
+          "tag": "button",
+          "title": "Sign Out"
+        }
+      ]
+    },
+    "sidebar-sign-out-confirm": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "<user-email>",
+          "title": "Account Settings"
+        },
+        {
+          "tag": "button",
+          "text": "Confirm"
+        },
+        {
+          "tag": "button",
+          "text": "Cancel"
+        }
+      ]
+    },
+    "sidebar-trial-strip": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Last synced <ago>",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "<user-email>",
+          "title": "Account Settings"
+        },
+        {
+          "tag": "button",
+          "title": "Sign Out"
+        }
+      ]
+    },
+    "sidebar-team-vault": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Team Vault",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure"
+        },
+        {
+          "tag": "button",
+          "text": "New Vault..."
+        },
+        {
+          "tag": "button",
+          "text": "Open Vault File..."
+        },
+        {
+          "tag": "button",
+          "text": "Acme Team Vault 1",
+          "title": "Acme Team Vault"
+        },
+        {
+          "tag": "button",
+          "text": "Create Team Vault..."
+        },
+        {
+          "tag": "button",
+          "text": "Lock Current Vault"
+        },
+        {
+          "tag": "button",
+          "text": "Switch Vault..."
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "span",
+          "title": "Synced"
+        },
+        {
+          "tag": "button",
+          "title": "Vault settings"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "div",
+          "title": "Team vault synced: <ago>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "<user-email>",
+          "title": "Account Settings"
+        },
+        {
+          "tag": "button",
+          "title": "Sign Out"
+        }
+      ]
+    },
+    "sidebar-cached-offline": {
+      "kind": "controls",
+      "items": [
+        {
+          "tag": "button",
+          "text": "Reconnect"
+        },
+        {
+          "tag": "button",
+          "title": "Hide sidebar (Ctrl+B)",
+          "aria": "Hide sidebar"
+        },
+        {
+          "tag": "button",
+          "title": "Unpin sidebar so it auto-hides (Ctrl+Shift+B)",
+          "aria": "Unpin sidebar",
+          "pressed": "true"
+        },
+        {
+          "tag": "button",
+          "text": "Acme Infrastructure",
+          "title": "<vault-path>"
+        },
+        {
+          "tag": "button",
+          "title": "Show favorites only"
+        },
+        {
+          "tag": "button",
+          "title": "New Entry (Ctrl+E)"
+        },
+        {
+          "tag": "button",
+          "title": "New Folder (Ctrl+Shift+N)"
+        },
+        {
+          "tag": "input",
+          "type": "text",
+          "placeholder": "Search entries..."
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button"
+        },
+        {
+          "tag": "button",
+          "title": "<sync-state>. Offline: device check paused",
+          "aria": "Sync: <sync-state>"
+        },
+        {
+          "tag": "button",
+          "title": "Home"
+        },
+        {
+          "tag": "button",
+          "title": "Settings (Ctrl+,)"
+        },
+        {
+          "tag": "button",
+          "text": "<user-email>",
+          "title": "Account Settings"
+        },
+        {
+          "tag": "button",
+          "title": "Sign Out"
+        },
+        {
+          "tag": "button",
+          "title": "New Local Shell"
+        },
+        {
+          "tag": "button",
+          "title": "Toggle AI Panel"
+        },
+        {
+          "tag": "h2",
+          "text": "web-01"
+        },
+        {
+          "tag": "button",
+          "title": "Remove from favorites"
+        },
+        {
+          "tag": "button",
+          "title": "Edit entry"
+        },
+        {
+          "tag": "button",
+          "title": "Open in external app"
+        },
+        {
+          "tag": "button",
+          "text": "Open Session"
+        },
+        {
+          "tag": "button",
+          "title": "Copy host"
+        },
+        {
+          "tag": "button",
+          "title": "Copy username"
+        }
+      ]
+    }
+  }
+}

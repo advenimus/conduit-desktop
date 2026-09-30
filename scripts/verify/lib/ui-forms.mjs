@@ -3,6 +3,7 @@
 // and toasts (they render in a separate overlay window; the launcher records them in main).
 
 import { clickText, mainEval, waitFor, withTimeout } from './ui.mjs';
+import { evaluateIn } from './selectors.mjs';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -15,7 +16,7 @@ export function retryUntil(attempt, done, { timeoutMs = DEFAULT_TIMEOUT_MS, labe
   }, { timeoutMs, label });
 }
 
-function evaluateIn(page, device, fn, arg, label) {
+function evaluateOn(page, device, fn, arg, label) {
   return withTimeout(page.evaluate(fn, arg), 10_000, `${device.name}: ${label}`);
 }
 
@@ -41,7 +42,7 @@ function fillLabeledInPage({ label, value, scope, index }) {
 
 /** Fills the input inside the <label> whose first span (or text) is exactly `label` (PasswordInput style). */
 export async function typeIntoLabeled(device, label, value, { scope, index = 0, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
-  await retryUntil(() => evaluateIn(device.page, device, fillLabeledInPage, { label, value, scope, index }, `fill "${label}"`), 'filled', { timeoutMs, label: `${device.name}: labeled input "${label}"` });
+  await retryUntil(() => evaluateOn(device.page, device, fillLabeledInPage, { label, value, scope, index }, `fill "${label}"`), 'filled', { timeoutMs, label: `${device.name}: labeled input "${label}"` });
 }
 
 function selectInPage({ selector, value }) {
@@ -55,7 +56,7 @@ function selectInPage({ selector, value }) {
 
 /** Picks option `value` of the visible <select> matching `selector` so React sees it. */
 export async function selectOption(device, selector, value, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
-  await retryUntil(() => evaluateIn(device.page, device, selectInPage, { selector, value }, `select ${selector}`), 'selected', { timeoutMs, label: `${device.name}: select ${selector} = ${value}` });
+  await retryUntil(() => evaluateOn(device.page, device, selectInPage, { selector, value }, `select ${selector}`), 'selected', { timeoutMs, label: `${device.name}: select ${selector} = ${value}` });
 }
 
 function checkboxInPage({ text, scope, checked }) {
@@ -70,7 +71,7 @@ function checkboxInPage({ text, scope, checked }) {
 
 /** Sets the checkbox inside the visible <label> containing `text` to `checked`. */
 export async function setCheckbox(device, text, checked, { scope, timeoutMs = 15_000 } = {}) {
-  await retryUntil(() => evaluateIn(device.page, device, checkboxInPage, { text, scope, checked }, `checkbox "${text}"`), 'ok', { timeoutMs, label: `${device.name}: checkbox "${text}" -> ${checked}` });
+  await retryUntil(() => evaluateOn(device.page, device, checkboxInPage, { text, scope, checked }, `checkbox "${text}"`), 'ok', { timeoutMs, label: `${device.name}: checkbox "${text}" -> ${checked}` });
 }
 
 /** Clicks button `label` (exact text) inside the visible dialog titled `title`. */
@@ -78,12 +79,15 @@ export function clickInDialog(device, title, label, opts = {}) {
   return clickText(device, label, { exact: true, selector: `${dialogSelector(title)} button`, ...opts });
 }
 
+function readBannersInPage(_, cv) {
+  return [...document.querySelectorAll('[role=status]')]
+    .filter((el) => el.getClientRects().length > 0)
+    .map((el) => ({ text: (cv.pickOne(el, cv.S.bannerText)?.innerText ?? el.innerText ?? '').trim(), actions: [...el.querySelectorAll('button')].map((b) => b.innerText.trim()) }));
+}
+
 /** Text of each visible sync banner (role=status strip) with its button labels. */
 export function banners(device) {
-  const read = () => [...document.querySelectorAll('[role=status]')]
-    .filter((el) => el.getClientRects().length > 0)
-    .map((el) => ({ text: (el.querySelector('span.flex-1')?.innerText ?? el.innerText ?? '').trim(), actions: [...el.querySelectorAll('button')].map((b) => b.innerText.trim()) }));
-  return evaluateIn(device.page, device, read, undefined, 'read banners');
+  return evaluateIn(device, readBannersInPage, null, { label: 'read banners' });
 }
 
 /** Waits for a banner whose text matches (string: includes; or RegExp); returns {text, actions}. */
@@ -108,7 +112,7 @@ function clickBannerInPage({ text, label, isRegex }) {
 /** Clicks button `label` on the banner whose text matches `text`. */
 export async function clickBannerAction(device, text, label, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const arg = { text: text instanceof RegExp ? text.source : text, label, isRegex: text instanceof RegExp };
-  await retryUntil(() => evaluateIn(device.page, device, clickBannerInPage, arg, `banner [${label}]`), 'clicked', { timeoutMs, label: `${device.name}: banner ${text} [${label}]` });
+  await retryUntil(() => evaluateOn(device.page, device, clickBannerInPage, arg, `banner [${label}]`), 'clicked', { timeoutMs, label: `${device.name}: banner ${text} [${label}]` });
 }
 
 /**

@@ -21,8 +21,9 @@ const SUPABASE_PORT = 54321;
 /**
  * Devices and MCP clients opened through ctx are closed when the scenario ends (devices quit
  * normally, so leases are released), pass or fail. onClose hooks run after that, newest first.
+ * `options` are the run's command-line options for suites ({strict, before}).
  */
-export function scenarioContext({ run, env, step, scenario = null }) {
+export function scenarioContext({ run, env, step, scenario = null, options = {} }) {
   const devices = [];
   const mcpClients = [];
   const closers = [];
@@ -33,6 +34,7 @@ export function scenarioContext({ run, env, step, scenario = null }) {
 
   const ctx = {
     run,
+    options: Object.freeze({ strict: options.strict === true, before: options.before ?? null }),
     runId: run.runId,
     cloudDir: run.cloudDir,
     step,

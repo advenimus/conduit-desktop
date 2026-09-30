@@ -3,6 +3,7 @@ import { RESOLUTION_OPTIONS, COLOR_DEPTH_OPTIONS, QUALITY_OPTIONS } from "../../
 import DefaultableSelect from "../DefaultableSelect";
 import DefaultableCheckbox from "../DefaultableCheckbox";
 import Field from "../Field";
+import { TextInput } from "../../ui";
 
 interface DisplayTabProps {
   config: Partial<RdpEntryConfig>;
@@ -33,23 +34,21 @@ export default function DisplayTab({ config, onChange, globalDefaults }: Display
       {config.resolution === "custom" && (
         <div className="flex gap-2">
           <Field label="Width" className="flex-1">
-            <input
+            <TextInput
               type="number"
               value={config.customWidth ?? 1920}
               onChange={(e) => update({ customWidth: parseInt(e.target.value) || 1920 })}
               min={800}
               max={7680}
-              className="w-full px-3 py-2 bg-well border border-stroke rounded text-sm focus:outline-none focus:ring-2 focus:ring-conduit-500"
             />
           </Field>
           <Field label="Height" className="flex-1">
-            <input
+            <TextInput
               type="number"
               value={config.customHeight ?? 1080}
               onChange={(e) => update({ customHeight: parseInt(e.target.value) || 1080 })}
               min={600}
               max={4320}
-              className="w-full px-3 py-2 bg-well border border-stroke rounded text-sm focus:outline-none focus:ring-2 focus:ring-conduit-500"
             />
           </Field>
         </div>
@@ -57,7 +56,7 @@ export default function DisplayTab({ config, onChange, globalDefaults }: Display
 
       {/* Show custom dimension fields if the effective resolution is custom (from default or explicit) */}
       {effectiveResolution === "custom" && config.resolution !== "custom" && (
-        <p className="text-xs text-ink-faint">
+        <p className="text-meta text-ink-muted">
           Custom dimensions are configured per-entry. Set Resolution to "Custom" to specify.
         </p>
       )}

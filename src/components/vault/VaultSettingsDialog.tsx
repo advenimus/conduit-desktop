@@ -6,10 +6,9 @@ import { useAuthStore } from "../../stores/authStore";
 import { useEntryStore } from "../../stores/entryStore";
 import type { FolderData } from "../../types/entry";
 import AuditLogViewer from "./AuditLogViewer";
-import {
-  AlertCircleIcon, ChevronDownIcon, ChevronRightIcon, CloseIcon, CrownIcon, FolderIcon, HistoryIcon, LoaderIcon, PlusIcon, RefreshIcon, ShieldLockIcon, TrashIcon, UserIcon, UsersIcon
-} from "../../lib/icons";
-import type { IconComponent } from "../../lib/icons";
+import { ChevronDownIcon, ChevronRightIcon, CrownIcon, FolderIcon, UserIcon } from "../../lib/icons";
+import { Badge, Button, Callout, Dialog, DialogFooter, DialogHeader, EmptyState, IconButton, NavList, Select, Spinner, type NavItem } from "../ui";
+import { errorText } from "../../lib/errorText";
 
 // ---------- Types ----------
 
@@ -30,11 +29,13 @@ interface FolderTreeNode {
   depth: number;
 }
 
-const NAV_ITEMS: { id: VaultSettingsTab; icon: IconComponent; label: string }[] = [
-  { id: "members", icon: UsersIcon, label: "Members" },
-  { id: "permissions", icon: ShieldLockIcon, label: "Permissions" },
-  { id: "activity", icon: HistoryIcon, label: "Activity" },
+const NAV_ITEMS: ReadonlyArray<NavItem & { id: VaultSettingsTab }> = [
+  { id: "members", icon: "users", label: "Members" },
+  { id: "permissions", icon: "shieldLock", label: "Permissions" },
+  { id: "activity", icon: "history", label: "Activity" },
 ];
+
+const ROLE_OPTIONS: ReadonlyArray<VaultRole> = ["admin", "editor", "viewer"];
 
 // ---------- Helpers ----------
 
@@ -122,7 +123,7 @@ function MembersTab({
       setSelectedRole("editor");
       await loadVaultMembers();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to add member");
+      setError(errorText(err, "Failed to add member"));
     } finally {
       setActionLoading(null);
     }
@@ -137,7 +138,7 @@ function MembersTab({
       setRemovingId(null);
       await loadVaultMembers();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to remove member");
+      setError(errorText(err, "Failed to remove member"));
     } finally {
       setActionLoading(null);
     }
@@ -151,7 +152,7 @@ function MembersTab({
       await invoke("team_vault_update_member_role", { teamVaultId, userId, role });
       await loadVaultMembers();
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to update role");
+      setError(errorText(err, "Failed to update role"));
     } finally {
       setActionLoading(null);
     }
@@ -165,7 +166,7 @@ function MembersTab({
       await invoke("team_vault_rotate_key", { teamVaultId });
       setShowRotateConfirm(false);
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to rotate vault key");
+      setError(errorText(err, "Failed to rotate vault key"));
     } finally {
       setActionLoading(null);
     }
@@ -177,105 +178,75 @@ function MembersTab({
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      {/* Error */}
+    <div className="flex min-h-0 flex-1 flex-col">
       {error && (
-        <div className="mx-4 mt-3 flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20">
-          <AlertCircleIcon size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-red-400">{error}</p>
-        </div>
+        <Callout tone="danger" className="mx-4 mt-3">
+          {error}
+        </Callout>
       )}
 
-      {/* Member list */}
       <div className="flex-1 overflow-y-auto">
         {vaultMembers.length === 0 ? (
-          <div className="text-center py-8 text-ink-faint text-sm">
-            No members in this vault
-          </div>
+          <div className="py-8 text-center text-body text-ink-faint">No members in this vault</div>
         ) : (
-          <div className="divide-y divide-stroke/50">
+          <div className="divide-y divide-divider">
             {vaultMembers.map((member) => {
               const isSelf = member.user_id === user?.id;
               const isRemoving = removingId === member.user_id;
               const isActionLoading = actionLoading === member.user_id;
 
               return (
-                <div
-                  key={member.user_id}
-                  className="flex items-center gap-3 px-4 py-2.5"
-                >
-                  <div className="w-7 h-7 rounded-full bg-ink-faint/20 flex items-center justify-center flex-shrink-0">
+                <div key={member.user_id} className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-selected">
                     {member.role === "admin" ? (
-                      <CrownIcon size={14} className="text-amber-400" />
+                      <CrownIcon size={16} className="text-warning" />
                     ) : (
-                      <UserIcon size={14} className="text-ink-muted" />
+                      <UserIcon size={16} className="text-ink-muted" />
                     )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-ink truncate">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-body text-ink">
                       {member.user_display_name ?? member.user_email ?? "Unknown"}
-                      {isSelf && (
-                        <span className="text-xs text-ink-faint ml-1">(you)</span>
-                      )}
+                      {isSelf && <span className="ml-1 text-label text-ink-faint">(you)</span>}
                     </p>
                     {member.user_email && member.user_display_name && (
-                      <p className="text-[10px] text-ink-faint truncate">
-                        {member.user_email}
-                      </p>
+                      <p className="truncate text-badge text-ink-faint">{member.user_email}</p>
                     )}
                   </div>
 
                   {isRemoving ? (
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-xs text-red-400">Remove?</span>
-                      <button
-                        onClick={() => handleRemoveMember(member.user_id)}
-                        disabled={isActionLoading}
-                        className="px-2 py-0.5 text-xs text-white bg-red-600 hover:bg-red-700 rounded disabled:opacity-50"
-                      >
-                        {isActionLoading ? (
-                          <LoaderIcon size={12} className="animate-spin" />
-                        ) : (
-                          "Yes"
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setRemovingId(null)}
-                        className="px-2 py-0.5 text-xs hover:bg-raised rounded text-ink-muted"
-                      >
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <span className="text-label text-danger">Remove?</span>
+                      <Button size="sm" variant="danger" onClick={() => handleRemoveMember(member.user_id)} loading={isActionLoading}>
+                        Yes
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setRemovingId(null)}>
                         No
-                      </button>
+                      </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex shrink-0 items-center gap-1.5">
                       {isTeamAdmin && !isSelf ? (
-                        <select
-                          value={member.role}
-                          onChange={(e) =>
-                            handleUpdateRole(member.user_id, e.target.value)
-                          }
-                          disabled={isActionLoading}
-                          className="text-xs bg-well border border-stroke rounded px-1.5 py-0.5 text-ink disabled:opacity-50"
-                        >
-                          <option value="admin">admin</option>
-                          <option value="editor">editor</option>
-                          <option value="viewer">viewer</option>
-                        </select>
+                        <div className="w-24 shrink-0">
+                          <Select
+                            value={member.role}
+                            onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
+                            disabled={isActionLoading}
+                          >
+                            {ROLE_OPTIONS.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
                       ) : (
-                        <span className="text-xs text-ink-muted">
-                          {member.role}
-                        </span>
+                        <span className="text-label text-ink-muted">{member.role}</span>
                       )}
 
                       {isTeamAdmin && !isSelf && (
-                        <button
-                          onClick={() => setRemovingId(member.user_id)}
-                          className="p-1 rounded hover:bg-raised text-ink-muted hover:text-red-400"
-                          title="Remove member"
-                        >
-                          <TrashIcon size={14} />
-                        </button>
+                        <IconButton size="sm" icon="trash" tone="danger" label="Remove member" onClick={() => setRemovingId(member.user_id)} />
                       )}
                     </div>
                   )}
@@ -286,101 +257,64 @@ function MembersTab({
         )}
       </div>
 
-      {/* Add member */}
       {isTeamAdmin && (
-        <div className="px-4 py-3 border-t border-stroke">
+        <div className="border-t border-divider px-4 py-3">
           {addingMember ? (
             <div className="flex items-center gap-2">
-              <select
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                className="flex-1 text-sm bg-well border border-stroke rounded px-2 py-1.5 text-ink"
-              >
+              <Select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} wrapperClassName="flex-1">
                 <option value="">Select team member...</option>
                 {availableMembers.map((m) => (
                   <option key={m.user_id} value={m.user_id}>
                     {m.user_display_name ?? m.user_email ?? m.user_id}
                   </option>
                 ))}
-              </select>
-              <select
-                value={selectedRole}
-                onChange={(e) =>
-                  setSelectedRole(e.target.value as VaultRole)
-                }
-                className="text-sm bg-well border border-stroke rounded px-2 py-1.5 text-ink"
-              >
-                <option value="admin">admin</option>
-                <option value="editor">editor</option>
-                <option value="viewer">viewer</option>
-              </select>
-              <button
-                onClick={handleAddMember}
-                disabled={!selectedUserId || actionLoading === "add"}
-                className="px-3 py-1.5 text-sm bg-conduit-600 text-white rounded hover:bg-conduit-500 disabled:opacity-50 flex items-center gap-1"
-              >
-                {actionLoading === "add" ? (
-                  <LoaderIcon size={14} className="animate-spin" />
-                ) : (
-                  "Add"
-                )}
-              </button>
-              <button
+              </Select>
+              <div className="w-24 shrink-0">
+                <Select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value as VaultRole)}>
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <Button variant="primary" onClick={handleAddMember} disabled={!selectedUserId} loading={actionLoading === "add"}>
+                Add
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setAddingMember(false);
                   setSelectedUserId("");
                 }}
-                className="px-2 py-1.5 text-sm text-ink-muted hover:text-ink rounded hover:bg-raised"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           ) : (
-            <button
-              onClick={() => setAddingMember(true)}
-              className="flex items-center gap-1.5 text-sm text-conduit-400 hover:text-conduit-300"
-            >
-              <PlusIcon size={16} />
+            <Button variant="link" icon="plus" onClick={() => setAddingMember(true)}>
               Add Team Member
-            </button>
+            </Button>
           )}
         </div>
       )}
 
-      {/* Key rotation */}
       {isTeamAdmin && (
-        <div className="px-4 py-3 border-t border-stroke">
+        <div className="border-t border-divider px-4 py-3">
           {showRotateConfirm ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-amber-400">
-                Re-encrypt vault key for all members?
-              </span>
-              <button
-                onClick={handleRotateKey}
-                disabled={actionLoading === "rotate"}
-                className="px-2 py-0.5 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded disabled:opacity-50 flex items-center gap-1"
-              >
-                {actionLoading === "rotate" ? (
-                  <LoaderIcon size={12} className="animate-spin" />
-                ) : (
-                  "Confirm"
-                )}
-              </button>
-              <button
-                onClick={() => setShowRotateConfirm(false)}
-                className="px-2 py-0.5 text-xs hover:bg-raised rounded text-ink-muted"
-              >
+              <span className="text-label text-warning">Re-encrypt vault key for all members?</span>
+              <Button size="sm" variant="primary" onClick={handleRotateKey} loading={actionLoading === "rotate"}>
+                Confirm
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowRotateConfirm(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           ) : (
-            <button
-              onClick={() => setShowRotateConfirm(true)}
-              className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink"
-            >
-              <RefreshIcon size={14} />
+            <Button size="sm" variant="ghost" icon="refresh" onClick={() => setShowRotateConfirm(true)}>
               Rotate Key
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -465,7 +399,7 @@ function FolderPermissionsTab({
         return next;
       });
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to load folder permissions");
+      setError(errorText(err, "Failed to load folder permissions"));
     } finally {
       setLoadingFolder(null);
     }
@@ -498,7 +432,7 @@ function FolderPermissionsTab({
       setSelectedRole("viewer");
       await loadFolderPerms(folderId);
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to add permission override");
+      setError(errorText(err, "Failed to add permission override"));
     } finally {
       setActionLoading(null);
     }
@@ -515,7 +449,7 @@ function FolderPermissionsTab({
       });
       await loadFolderPerms(folderId);
     } catch (err) {
-      setError(typeof err === "string" ? err : "Failed to remove permission override");
+      setError(errorText(err, "Failed to remove permission override"));
     } finally {
       setActionLoading(null);
     }
@@ -530,37 +464,37 @@ function FolderPermissionsTab({
 
   if (folders.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center py-12">
-        <div className="text-center">
-          <FolderIcon size={32} className="text-ink-faint mx-auto mb-2" />
-          <p className="text-sm text-ink-faint">No folders in this vault yet.</p>
-          <p className="text-xs text-ink-faint mt-1">
-            Create folders to configure per-folder access restrictions.
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        icon="folder"
+        title="No folders in this vault yet."
+        description="Create folders to configure per-folder access restrictions."
+        className="my-4 flex-1 justify-center"
+      />
     );
   }
 
+  const roleSelectOptions = allowedRoles.map((r) => (
+    <option key={r} value={r}>
+      {r}
+    </option>
+  ));
+
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      {/* Error */}
+    <div className="flex min-h-0 flex-1 flex-col">
       {error && (
-        <div className="mx-4 mt-3 flex items-start gap-2 p-3 rounded-md bg-red-500/10 border border-red-500/20">
-          <AlertCircleIcon size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-red-400">{error}</p>
-        </div>
+        <Callout tone="danger" className="mx-4 mt-3">
+          {error}
+        </Callout>
       )}
 
-      {/* Folder tree */}
       <div className="flex-1 overflow-y-auto">
         {flatNodes.length === 0 ? (
-          <div className="text-center py-8 text-ink-faint text-sm">
+          <div className="py-8 text-center text-body text-ink-faint">
             No folder-level restrictions configured. All members access folders
             based on their vault role.
           </div>
         ) : (
-          <div className="divide-y divide-stroke/50">
+          <div className="divide-y divide-divider">
             {flatNodes.map((node) => {
               const folderId = node.folder.id;
               const isExpanded = expandedFolderId === folderId;
@@ -569,151 +503,123 @@ function FolderPermissionsTab({
               const isLoading = loadingFolder === folderId;
               const isAddingHere = addingOverride === folderId;
               const availableForOverride = getAvailableMembersForFolder(folderId);
+              const Chevron = isExpanded ? ChevronDownIcon : ChevronRightIcon;
 
               return (
                 <div key={folderId}>
-                  {/* Folder row */}
                   <button
+                    type="button"
                     onClick={() => toggleFolder(folderId)}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-raised/50 transition-colors text-left"
+                   
+                    className="flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-hover"
                     style={{ paddingLeft: `${16 + node.depth * 20}px` }}
                   >
-                    {isExpanded ? (
-                      <ChevronDownIcon size={14} className="text-ink-muted flex-shrink-0" />
-                    ) : (
-                      <ChevronRightIcon size={14} className="text-ink-muted flex-shrink-0" />
-                    )}
-                    <FolderIcon size={16} className="text-ink-muted flex-shrink-0" />
-                    <span className="text-sm text-ink flex-1 truncate">
-                      {node.folder.name}
-                    </span>
+                    <Chevron size={16} className="shrink-0 text-ink-muted" />
+                    <FolderIcon size={16} className="shrink-0 text-ink-muted" />
+                    <span className="flex-1 truncate text-body text-ink">{node.folder.name}</span>
                     {count > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-conduit-600/20 text-conduit-400 flex-shrink-0">
+                      <Badge className="shrink-0">
                         {count} {count === 1 ? "override" : "overrides"}
-                      </span>
+                      </Badge>
                     )}
                   </button>
 
-                  {/* Expanded content */}
                   {isExpanded && (
-                    <div className="bg-well/30 border-t border-stroke/30">
+                    <div className="border-t border-divider bg-well">
                       {isLoading ? (
                         <div className="flex items-center justify-center py-4">
-                          <LoaderIcon size={18} className="text-conduit-400 animate-spin" />
+                          <Spinner size={16} className="text-ink-muted" />
                         </div>
                       ) : perms.length === 0 && !isAddingHere ? (
-                        <div className="px-6 py-3 text-xs text-ink-faint">
+                        <div className="px-6 py-3 text-label text-ink-faint">
                           No overrides. Members use their vault-level role for this folder.
                         </div>
                       ) : (
-                        <div className="divide-y divide-stroke/30">
+                        <div className="divide-y divide-divider">
                           {perms.map((perm) => {
-                            const isRemoveLoading =
-                              actionLoading === `remove-${folderId}-${perm.user_id}`;
+                            const isRemoveLoading = actionLoading === `remove-${folderId}-${perm.user_id}`;
                             return (
-                              <div
-                                key={perm.id}
-                                className="flex items-center gap-3 px-6 py-2"
-                              >
-                                <div className="w-5 h-5 rounded-full bg-ink-faint/20 flex items-center justify-center flex-shrink-0">
-                                  <UserIcon size={12} className="text-ink-muted" />
+                              <div key={perm.id} className="flex items-center gap-3 px-6 py-2">
+                                <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-selected">
+                                  <UserIcon size={12} compact className="text-ink-muted" />
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs text-ink truncate">
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-label text-ink">
                                     {perm.user_display_name ?? perm.user_email ?? "Unknown"}
                                   </p>
                                 </div>
-                                <span className="text-[10px] text-ink-muted px-1.5 py-0.5 bg-well border border-stroke rounded">
-                                  {perm.role}
-                                </span>
-                                {myVaultRole === "admin" && (
-                                  <button
-                                    onClick={() =>
-                                      handleRemoveOverride(folderId, perm.user_id)
-                                    }
-                                    disabled={isRemoveLoading}
-                                    className="p-0.5 rounded hover:bg-raised text-ink-muted hover:text-red-400 disabled:opacity-50"
-                                    title="Remove override"
-                                  >
-                                    {isRemoveLoading ? (
-                                      <LoaderIcon size={12} className="animate-spin" />
-                                    ) : (
-                                      <TrashIcon size={12} />
-                                    )}
-                                  </button>
-                                )}
+                                <Badge>{perm.role}</Badge>
+                                {myVaultRole === "admin" &&
+                                  (isRemoveLoading ? (
+                                    <span className="flex size-5 items-center justify-center">
+                                      <Spinner size={12} className="text-ink-muted" />
+                                    </span>
+                                  ) : (
+                                    <IconButton
+                                      size="sm"
+                                      icon="trash"
+                                      tone="danger"
+                                      label="Remove override"
+                                      onClick={() => handleRemoveOverride(folderId, perm.user_id)}
+                                    />
+                                  ))}
                               </div>
                             );
                           })}
                         </div>
                       )}
 
-                      {/* Add override */}
                       {myVaultRole === "admin" && (
-                        <div className="px-6 py-2.5 border-t border-stroke/30">
+                        <div className="border-t border-divider px-6 py-2.5">
                           {isAddingHere ? (
                             <div className="flex items-center gap-2">
-                              <select
-                                value={selectedUserId}
-                                onChange={(e) => setSelectedUserId(e.target.value)}
-                                className="flex-1 text-xs bg-well border border-stroke rounded px-2 py-1 text-ink"
-                              >
+                              <Select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)} wrapperClassName="flex-1">
                                 <option value="">Select member...</option>
                                 {availableForOverride.map((m) => (
                                   <option key={m.user_id} value={m.user_id}>
                                     {m.user_display_name ?? m.user_email ?? m.user_id}
                                   </option>
                                 ))}
-                              </select>
-                              <select
-                                value={selectedRole}
-                                onChange={(e) =>
-                                  setSelectedRole(e.target.value as VaultRole)
-                                }
-                                className="text-xs bg-well border border-stroke rounded px-2 py-1 text-ink"
-                              >
-                                {allowedRoles.map((r) => (
-                                  <option key={r} value={r}>
-                                    {r}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
+                              </Select>
+                              <div className="w-24 shrink-0">
+                                <Select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value as VaultRole)}>
+                                  {roleSelectOptions}
+                                </Select>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="primary"
                                 onClick={() => handleAddOverride(folderId)}
-                                disabled={!selectedUserId || actionLoading === "add"}
-                                className="px-2 py-1 text-xs bg-conduit-600 text-white rounded hover:bg-conduit-500 disabled:opacity-50 flex items-center gap-1"
+                                disabled={!selectedUserId}
+                                loading={actionLoading === "add"}
                               >
-                                {actionLoading === "add" ? (
-                                  <LoaderIcon size={12} className="animate-spin" />
-                                ) : (
-                                  "Add"
-                                )}
-                              </button>
-                              <button
+                                Add
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 onClick={() => {
                                   setAddingOverride(null);
                                   setSelectedUserId("");
                                 }}
-                                className="px-2 py-1 text-xs text-ink-muted hover:text-ink rounded hover:bg-raised"
                               >
                                 Cancel
-                              </button>
+                              </Button>
                             </div>
                           ) : (
-                            <button
+                            <Button
+                              variant="link"
+                              size="sm"
+                              icon="plus"
                               onClick={() => {
                                 setAddingOverride(folderId);
                                 setSelectedUserId("");
-                                setSelectedRole(
-                                  allowedRoles.includes("viewer") ? "viewer" : allowedRoles[0]
-                                );
+                                setSelectedRole(allowedRoles.includes("viewer") ? "viewer" : allowedRoles[0]);
                               }}
                               disabled={availableForOverride.length === 0}
-                              className="flex items-center gap-1.5 text-xs text-conduit-400 hover:text-conduit-300 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                              <PlusIcon size={14} />
                               Add Override
-                            </button>
+                            </Button>
                           )}
                         </div>
                       )}
@@ -726,10 +632,9 @@ function FolderPermissionsTab({
         )}
       </div>
 
-      {/* Empty state hint */}
       {flatNodes.length > 0 && Array.from(overrideCounts.values()).every((c) => c === 0) && (
-        <div className="px-4 py-3 border-t border-stroke">
-          <p className="text-xs text-ink-faint text-center">
+        <div className="border-t border-divider px-4 py-3">
+          <p className="text-center text-label text-ink-faint">
             No folder-level restrictions configured. All members access folders based on their vault role.
           </p>
         </div>
@@ -780,85 +685,48 @@ export default function VaultSettingsDialog({
     loadVaultMembers();
   }, [loadVaultMembers]);
 
+  const navItems = NAV_ITEMS.filter((item) => item.id !== "activity" || myTeamRole === "admin");
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div data-dialog-content className="bg-panel border border-stroke rounded-lg shadow-xl w-[900px] max-h-[85vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stroke">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-ink">
-              Vault Settings
-            </h2>
-            {activeVault && (
-              <span className="text-xs text-ink-faint">
-                {activeVault.name}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-raised rounded text-ink-muted hover:text-ink"
-          >
-            <CloseIcon size={20} />
-          </button>
-        </div>
+    <Dialog open title="Vault Settings" width={900} closeOnEscape={false} onClose={onClose} layout="custom">
+      <DialogHeader subtitle={activeVault?.name} />
 
-        {/* Body: sidebar + content */}
-        <div className="flex flex-1 min-h-0">
-          {/* Left nav */}
-          <div className="w-44 flex-shrink-0 border-r border-stroke p-2">
-            {NAV_ITEMS.filter((item) => item.id !== "activity" || myTeamRole === "admin").map(({ id, icon: Icon, label }) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm ${
-                  activeTab === id
-                    ? "bg-conduit-600/20 text-conduit-400"
-                    : "text-ink-secondary hover:bg-raised hover:text-ink"
-                }`}
-              >
-                <Icon size={16} />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
+      <div className="flex min-h-0 flex-1 border-y border-divider">
+        <NavList
+          items={navItems}
+          value={activeTab}
+          onChange={(id) => setActiveTab(id as VaultSettingsTab)}
+          className="w-44 shrink-0 border-r border-divider p-2"
+        />
 
-          {/* Right content */}
-          <div className="flex-1 flex flex-col min-w-0 min-h-[400px] max-h-[calc(85vh-110px)]">
-            {loading && activeTab !== "activity" ? (
-              <div className="flex items-center justify-center py-12 flex-1">
-                <LoaderIcon size={24} className="text-conduit-400 animate-spin" />
-              </div>
-            ) : activeTab === "members" ? (
-              <MembersTab
-                teamVaultId={teamVaultId!}
-                vaultMembers={vaultMembers}
-                isTeamAdmin={myTeamRole === "admin"}
-                loadVaultMembers={loadVaultMembers}
-              />
-            ) : activeTab === "permissions" ? (
-              <FolderPermissionsTab
-                teamVaultId={teamVaultId!}
-                vaultMembers={vaultMembers}
-                myVaultRole={myVaultRole}
-                initialFolderId={initialFolderId}
-              />
-            ) : (
-              <AuditLogViewer embedded teamVaultId={teamVaultId!} />
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end px-4 py-3 border-t border-stroke">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 text-sm bg-raised hover:bg-stroke rounded text-ink transition-colors"
-          >
-            Done
-          </button>
+        <div className="flex min-h-[400px] min-w-0 max-h-[calc(85vh-110px)] flex-1 flex-col">
+          {loading && activeTab !== "activity" ? (
+            <div className="flex flex-1 items-center justify-center py-12">
+              <Spinner size={24} className="text-ink-muted" />
+            </div>
+          ) : activeTab === "members" ? (
+            <MembersTab
+              teamVaultId={teamVaultId!}
+              vaultMembers={vaultMembers}
+              isTeamAdmin={myTeamRole === "admin"}
+              loadVaultMembers={loadVaultMembers}
+            />
+          ) : activeTab === "permissions" ? (
+            <FolderPermissionsTab
+              teamVaultId={teamVaultId!}
+              vaultMembers={vaultMembers}
+              myVaultRole={myVaultRole}
+              initialFolderId={initialFolderId}
+            />
+          ) : (
+            <AuditLogViewer embedded teamVaultId={teamVaultId!} />
+          )}
         </div>
       </div>
-    </div>
+
+      <DialogFooter className="mt-2">
+        <Button onClick={onClose}>Done</Button>
+      </DialogFooter>
+    </Dialog>
   );
 }

@@ -5,7 +5,9 @@ import FileEditBlock from "./FileEditBlock";
 import FileCreateBlock from "./FileCreateBlock";
 import CommandBlock from "./CommandBlock";
 import ApprovalCard from "./ApprovalCard";
-import { AlertTriangleIcon, FileXIcon } from "../../../lib/icons";
+import { FileXIcon } from "../../../lib/icons";
+import { Callout } from "../../ui";
+import { BlockLabel } from "./BlockParts";
 interface MessageBlockRendererProps {
   blocks: MessageBlock[];
   onApprovalRespond?: (approvalId: string, approved: boolean) => void;
@@ -38,10 +40,10 @@ export default function MessageBlockRenderer({ blocks, onApprovalRespond }: Mess
 
           case "file_delete":
             return (
-              <div key={i} className="flex items-center gap-2 my-1.5 px-3 py-1.5 rounded-md bg-well border border-red-700/40 text-xs">
-                <FileXIcon size={14} className="text-red-400 flex-shrink-0" />
-                <span className="text-ink-muted font-mono truncate">{block.path}</span>
-                <span className="ml-auto text-red-400/70 text-[10px] uppercase tracking-wider">deleted</span>
+              <div key={i} className="my-1.5 flex items-center gap-2 rounded-md border border-danger-border bg-well px-3 py-1.5 text-label">
+                <FileXIcon size={16} className="shrink-0 text-danger" />
+                <span className="truncate font-mono text-ink-muted">{block.path}</span>
+                <BlockLabel className="ml-auto text-danger">Deleted</BlockLabel>
               </div>
             );
 
@@ -70,10 +72,9 @@ export default function MessageBlockRenderer({ blocks, onApprovalRespond }: Mess
 
           case "error":
             return (
-              <div key={i} className="flex items-start gap-2 my-1.5 px-3 py-2 rounded-md bg-red-900/30 border border-red-700/50 text-xs">
-                <AlertTriangleIcon size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
-                <span className="text-red-300">{block.message}</span>
-              </div>
+              <Callout key={i} tone="danger" size="sm" icon="alertTriangle" className="my-1.5">
+                {block.message}
+              </Callout>
             );
 
           case "system":
