@@ -16,6 +16,7 @@ import { getDataDir, getEnvConfig } from '../services/env-config.js';
 import { getSocketPath } from '../ipc-server/server.js';
 import { getMcpServerPath } from '../services/agent-instructions.js';
 import {
+  approveAgentMcpServer,
   isKnownEngineType,
   resolveLaunchCommand,
   writeProjectMcpFiles,
@@ -94,6 +95,7 @@ export function registerTerminalHandlers(): void {
           getSocketPath(),
           getEnvConfig().environment,
         );
+        await approveAgentMcpServer(cwd, engineType);
       }
 
       const sessionId = state.terminalManager.createAgentTerminal({

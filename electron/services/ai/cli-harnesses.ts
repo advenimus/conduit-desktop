@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { EngineType } from './engines/engine.js';
-import { ensureConduitServerApproved } from './agent-mcp-approval.js';
+import { approveCursorConduitServer, ensureConduitServerApproved } from './agent-mcp-approval.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -245,16 +245,24 @@ function stdioMcpServer(mcpPath: string, socketPath: string, conduitEnv: string)
   };
 }
 
+function jsonFile(value: unknown): string {
+  return JSON.stringify(value, null, 2) + '\n';
+}
+
 // JSON string escapes are a subset of TOML basic-string escapes.
 function tomlString(value: string): string {
   return JSON.stringify(value);
 }
 
-function codexProjectConfig(server: ReturnType<typeof stdioMcpServer>): string {
+function tomlProjectConfig(
+  server: ReturnType<typeof stdioMcpServer>,
+  extraLines: string[] = [],
+): string {
   return [
     '[mcp_servers.conduit]',
     `command = ${tomlString(server.command)}`,
     `args = [${server.args.map(tomlString).join(', ')}]`,
+    ...extraLines,
     '',
     '[mcp_servers.conduit.env]',
     ...Object.entries(server.env).map(([key, value]) => `${key} = ${tomlString(value)}`),
@@ -299,7 +307,41 @@ export function projectMcpConfigFiles(
   // Codex never reads .mcp.json. A trusted project's .codex/config.toml overrides
   // the user's global `conduit` entry, which may point at another Conduit build.
   if (id === 'codex') {
-    files.push({ relativePath: '.codex/config.toml', contents: codexProjectConfig(server) });
+    files.push({ relativePath: '.codex/config.toml', contents: tomlProjectConfig(server) });
+  }
+
+  // Grok skips .mcp.json once it has imported Claude settings; its project
+  // .grok/config.toml overrides the user's global `conduit` entry.
+  if (id === 'grok') {
+    files.push({
+      relativePath: '.grok/config.toml',
+      contents: tomlProjectConfig(server, ['enabled = true']),
+    });
+  }
+
+  if (id === 'gemini') {
+    files.push({
+      relativePath: '.gemini/settings.json',
+      contents: jsonFile({
+        mcpServers: { conduit: { command: server.command, args: server.args, env: server.env } },
+      }),
+    });
+  }
+
+  if (id === 'opencode') {
+    files.push({
+      relativePath: 'opencode.json',
+      contents: jsonFile({
+        mcp: {
+          conduit: {
+            type: 'local',
+            command: [server.command, ...server.args],
+            environment: server.env,
+            enabled: true,
+          },
+        },
+      }),
+    });
   }
 
   return files;
@@ -372,5 +414,16 @@ export function writeProjectMcpFiles(
     } catch (err) {
       console.warn('[cli-harnesses] Could not approve the conduit MCP server for', agentDir, err);
     }
+  }
+}
+
+/** Approvals that need the agent's own CLI. Never throws; failures are logged. */
+export async function approveAgentMcpServer(agentDir: string, id: EngineType): Promise<void> {
+  if (id !== 'cursor') return;
+  try {
+    const cursorBinary = await resolveCursorBinary();
+    await approveCursorConduitServer(agentDir, cursorBinary, execFileAsync);
+  } catch (err) {
+    console.warn('[cli-harnesses] Could not approve the conduit MCP server for Cursor in', agentDir, err);
   }
 }

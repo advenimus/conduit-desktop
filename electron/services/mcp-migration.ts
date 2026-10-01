@@ -22,7 +22,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { getSocketPath } from '../ipc-server/server.js';
 import { getDataDir, getEnvConfig } from './env-config.js';
-import { ENGINE_TYPES, writeProjectMcpFiles } from './ai/cli-harnesses.js';
+import { ENGINE_TYPES, approveAgentMcpServer, writeProjectMcpFiles } from './ai/cli-harnesses.js';
 
 interface StdioMcpServer {
   type?: string;
@@ -161,6 +161,7 @@ export function refreshAgentMcpConfigs(currentMcpPath: string): void {
     if (!fs.existsSync(agentDir)) continue; // No session ever opened — leave alone.
     try {
       writeProjectMcpFiles(agentDir, engineType, currentMcpPath, socket, env);
+      void approveAgentMcpServer(agentDir, engineType);
       console.log(`[mcp-migration] Refreshed ${engineType} agent MCP config → ${currentMcpPath}`);
     } catch (err) {
       console.warn(`[mcp-migration] Could not refresh ${engineType} agent MCP config:`, err);

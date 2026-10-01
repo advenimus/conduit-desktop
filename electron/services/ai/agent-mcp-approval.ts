@@ -1,6 +1,6 @@
 /**
- * Keeps Claude Code's approval of the `conduit` server in `.mcp.json` turned on
- * inside Conduit-managed agent folders.
+ * Keeps each CLI's approval of the project `conduit` server turned on inside
+ * Conduit-managed agent folders.
  *
  * Claude Code records "don't use this project server" in
  * `.claude/settings.local.json`. Once `conduit` lands in that list, the session
@@ -29,6 +29,27 @@ export function approveConduitServer(settings: ClaudeLocalSettings): ClaudeLocal
     ...(disabled.length > 0 ? { disabledMcpjsonServers: disabled } : {}),
     enabledMcpjsonServers: enabled.includes(SERVER_NAME) ? enabled : [...enabled, SERVER_NAME],
   };
+}
+
+export type RunCommand = (
+  command: string,
+  args: string[],
+  options: { cwd: string; timeout: number },
+) => Promise<unknown>;
+
+const CURSOR_APPROVE_TIMEOUT_MS = 15_000;
+
+// Cursor keys its approval to a hash of the server config, so it must be renewed
+// whenever the MCP path changes; its own CLI is the only stable way to do that.
+export async function approveCursorConduitServer(
+  agentDir: string,
+  cursorBinary: string,
+  run: RunCommand,
+): Promise<void> {
+  await run(cursorBinary, ['mcp', 'enable', SERVER_NAME], {
+    cwd: agentDir,
+    timeout: CURSOR_APPROVE_TIMEOUT_MS,
+  });
 }
 
 /** Throws when the existing settings file can't be read or parsed; it is left untouched. */

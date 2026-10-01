@@ -2,7 +2,32 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { approveConduitServer, ensureConduitServerApproved } from '../agent-mcp-approval.js';
+import {
+  approveConduitServer,
+  approveCursorConduitServer,
+  ensureConduitServerApproved,
+} from '../agent-mcp-approval.js';
+
+describe('approveCursorConduitServer', () => {
+  it("runs Cursor's own approve command inside the agent folder", async () => {
+    const calls: unknown[][] = [];
+    await approveCursorConduitServer('/agents/cursor', 'cursor-agent', async (...args) => {
+      calls.push(args);
+    });
+    expect(calls).toEqual([
+      ['cursor-agent', ['mcp', 'enable', 'conduit'], { cwd: '/agents/cursor', timeout: 15_000 }],
+    ]);
+  });
+
+  it('passes a failed approval back to the caller', async () => {
+    const run = async () => {
+      throw new Error('cursor-agent not found');
+    };
+    await expect(approveCursorConduitServer('/agents/cursor', 'cursor-agent', run)).rejects.toThrow(
+      'cursor-agent not found',
+    );
+  });
+});
 
 describe('approveConduitServer', () => {
   it('moves conduit from the disabled list to the enabled list', () => {
