@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { evaluateIn } from '../lib/selectors.mjs';
+import { setSidebar } from '../lib/restyle-data.mjs';
 
 const PASSWORD = 'verify-mcp-password-1';
 const REQUIRED_TOOLS = ['entry_list', 'entry_info', 'entry_search', 'entry_update_notes', 'document_create', 'document_update', 'credential_list'];
@@ -175,6 +176,8 @@ async function writesSync(ctx) {
   ctx.checkEqual(onA.notes, notes, 'm3a entry store (IPC entry_get) has the MCP notes');
   const docOnA = await ui.invoke(a, 'entry_get', { id: doc.id });
   ctx.checkEqual([docOnA.name, docOnA.entry_type, docOnA.config?.content], [docName, 'document', docV2], 'm3a entry store has the MCP document');
+  // Home no longer lists recent entries and test windows start with the side bar hidden, so the entry tree is the place to look.
+  await setSidebar(a, 'docked');
   await ui.waitForText(a, docName, { timeoutMs: 15_000 });
   ctx.step('m3a renderer reloaded its entry list and shows the new document');
 
@@ -184,6 +187,7 @@ async function writesSync(ctx) {
   }, { timeoutMs: SYNC_DEADLINE_MS, intervalMs: 500, label: 'm3b receives the MCP notes and document' });
   ctx.step(`m3b received all three MCP writes ${((Date.now() - wroteAt) / 1000).toFixed(1)} s after the last one`);
   await flows.refreshEntries(b);
+  await setSidebar(b, 'docked');
   await ui.waitForText(b, docName, { timeoutMs: 15_000 });
   await ctx.shot(b, 'mcp-writes-synced');
 }
