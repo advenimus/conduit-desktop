@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, listen, type UnlistenFn } from "../../lib/electron";
 import { getTerminalTheme } from "../../lib/terminalTheme";
+import { AGENT_NEWLINE_SEQUENCE, isAgentNewlineKey } from "../../lib/agentTerminalKeys";
 import { useSettingsStore } from "../../stores/settingsStore";
 import "@xterm/xterm/css/xterm.css";
 
@@ -174,13 +175,23 @@ export default function TerminalView({
     return () => document.removeEventListener("conduit:terminal-font-size-change", handler);
   }, [terminal, isAgentTerminal]);
 
-  // Handle Windows/Linux clipboard shortcuts (Ctrl+C/V, Ctrl+Shift+C/V).
+  // Agent terminals: Shift+Enter inserts a new line instead of submitting.
+  // Windows/Linux: clipboard shortcuts (Ctrl+C/V, Ctrl+Shift+C/V).
   // On macOS, Cmd+C/V work natively through Electron — no interception needed.
   useEffect(() => {
-    if (!terminal || IS_MAC) return;
+    if (!terminal) return;
 
     terminal.attachCustomKeyEventHandler((ev: KeyboardEvent) => {
-      if (ev.type !== "keydown") return true;
+      if (isAgentTerminal && isAgentNewlineKey(ev)) {
+        // Swallow keypress too, or xterm sends its own CR for the same key.
+        if (ev.type === "keydown") {
+          ev.preventDefault();
+          terminal.input(AGENT_NEWLINE_SEQUENCE);
+        }
+        return false;
+      }
+
+      if (IS_MAC || ev.type !== "keydown") return true;
 
       const isCtrl = ev.ctrlKey && !ev.altKey && !ev.metaKey;
 
@@ -211,7 +222,7 @@ export default function TerminalView({
 
       return true;
     });
-  }, [terminal]);
+  }, [terminal, isAgentTerminal]);
 
   // Re-fit and focus when tab becomes active
   useEffect(() => {

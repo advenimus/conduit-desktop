@@ -402,6 +402,7 @@ bring their own agent subscription.
 - Launch commands: `claude`, `codex`, `grok`, `cursor-agent` (Cursor; falls back to a verified `agent` binary), `openclaw tui --local`, `gemini`, `copilot`, `opencode`
 - Working directory: explicit cwd, then Settings default, then `{userData}/conduit[-dev]/agent/{engine}/`
 - Configurable terminal font size
+- Shift+Enter adds a new line to the agent's prompt and Enter sends it, with no `/terminal-setup` needed (the agent terminal sends ESC + Return, the Option+Enter keys Claude Code, Codex, Gemini CLI, Grok Build and Cursor Agent read as a new line)
 - MCP tool access: the agent connects to Conduit via the MCP server. Settings > AI includes an "MCP Server Setup" button that shows the setup command or config snippet for each supported CLI
 - Managed agent directories get a project MCP config pointing at the running build's socket: `.mcp.json` for every CLI, plus `.cursor/mcp.json` for Cursor and `.codex/config.toml` for Codex (Codex loads it once the folder is trusted, and it overrides any global `conduit` entry)
 
