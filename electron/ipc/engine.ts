@@ -14,6 +14,7 @@ import { readSettings, writeSettings } from './settings.js';
 import { getSocketPath } from '../ipc-server/server.js';
 import { getDataDir, getEnvConfig } from '../services/env-config.js';
 import {
+  approveAgentMcpServer,
   checkAllHarnessesAvailable,
   getHarness,
   isKnownEngineType,
@@ -196,6 +197,7 @@ export function registerEngineHandlers(state: AppState): void {
     });
     if (usedManagedAgentDir) {
       writeAgentMcpConfig(workingDirectory, engineType, mcpPath);
+      await approveAgentMcpServer(workingDirectory, engineType);
     }
 
     const session = await em.createSession(engineType, { model, workingDirectory });
