@@ -142,6 +142,36 @@ describe("ChatPanel agent panes", () => {
     expect(created).toHaveLength(3);
   });
 
+  it("runs a different engine in each pane, switched from the pane headers, restarting only that pane", async () => {
+    await renderPanel();
+    await waitFor(() => expect(created).toHaveLength(1));
+    await addPane();
+    await addPane();
+    await waitFor(() => expect(shown()).toHaveLength(3));
+    const paneIds = created.map((c) => c.paneId);
+
+    const switchPane = async (index: number, engine: RegExp) => {
+      const pane = document.querySelector<HTMLElement>(`[data-agent-pane="${paneIds[index]}"]`)!;
+      fireEvent.mouseDown(pane);
+      fireEvent.click(within(pane).getByTitle(/^Switch this agent's engine/));
+      fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: engine }));
+    };
+
+    await switchPane(1, /Codex/);
+    await waitFor(() => expect(created).toHaveLength(4));
+    await switchPane(2, /Grok/);
+    await waitFor(() => expect(created).toHaveLength(5));
+
+    expect(created.slice(3)).toEqual([
+      expect.objectContaining({ engineType: "codex", paneId: paneIds[1] }),
+      expect.objectContaining({ engineType: "grok", paneId: paneIds[2] }),
+    ]);
+    await waitFor(() => expect(closed()).toEqual(["term-2", "term-3"]));
+    expect(shown()).toEqual(["term-1", "term-4", "term-5"]);
+    expect(useAgentPaneStore.getState().panes.map((p) => p.engineType)).toEqual(["claude-code", "codex", "grok"]);
+    expect(screen.getByTitle("Switch engine for this session")).toHaveTextContent("Grok");
+  });
+
   it("restarts every agent when the agent session epoch changes", async () => {
     await renderPanel();
     await waitFor(() => expect(created).toHaveLength(1));

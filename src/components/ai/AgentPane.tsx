@@ -2,9 +2,9 @@ import { useEffect, type CSSProperties } from "react";
 import { AlertTriangleIcon } from "../../lib/icons";
 import { getHarness } from "../../lib/ai-harnesses";
 import { useAgentPaneStore, type AgentPane as AgentPaneModel } from "../../stores/agentPaneStore";
-import { Button, IconButton, Spinner, cx } from "../ui";
+import { Button, IconButton, Spinner } from "../ui";
 import TerminalView from "../sessions/TerminalView";
-import EngineLogo from "./EngineLogo";
+import PaneEngineSwitcher from "./PaneEngineSwitcher";
 import { useAgentTerminal } from "./useAgentTerminal";
 
 function focusPaneTerminal(paneId: string): void {
@@ -24,6 +24,7 @@ export default function AgentPane({ pane, epoch, focused, showHeader, style }: P
   const { sessionId, error, loading, retry } = useAgentTerminal(pane.id, pane.engineType, epoch);
   const focusPane = useAgentPaneStore((s) => s.focusPane);
   const closePane = useAgentPaneStore((s) => s.closePane);
+  const setPaneEngine = useAgentPaneStore((s) => s.setPaneEngine);
   const name = getHarness(pane.engineType).name;
 
   // TerminalView skips focusing while another textarea (the other panes' xterm input) holds focus,
@@ -49,9 +50,8 @@ export default function AgentPane({ pane, epoch, focused, showHeader, style }: P
       onMouseDown={() => focusPane(pane.id)}
     >
       {showHeader && (
-        <div className="flex h-6 shrink-0 items-center gap-1.5 pl-3 pr-2.5">
-          <EngineLogo type={pane.engineType} size={12} className={focused ? "text-ink" : "text-ink-muted"} />
-          <span className={cx("min-w-0 flex-1 truncate text-label", focused ? "text-ink" : "text-ink-muted")}>{name}</span>
+        <div className="flex h-6 shrink-0 items-center justify-between gap-1 pl-2 pr-2.5">
+          <PaneEngineSwitcher engineType={pane.engineType} focused={focused} onSelect={(type) => setPaneEngine(pane.id, type)} />
           <IconButton size="sm" icon="close" label={`Close ${name} agent`} onClick={close} />
         </div>
       )}

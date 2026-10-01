@@ -1,23 +1,15 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from "react";
 import { ChevronDownIcon } from "../../lib/icons";
 import { useAiStore, initEngineStreamListener, initEngineModelRefreshListener } from "../../stores/aiStore";
-import type { EngineType } from "../../stores/aiStore";
 import { MAX_AGENT_PANES, bindPanesToActiveEngine, useAgentPaneStore } from "../../stores/agentPaneStore";
 import { invoke } from "../../lib/electron";
-import type { IconComponent, IconProps } from "../../lib/icons";
-import { Button, IconButton, Menu, MenuItem } from "../ui";
+import { Button, IconButton, Menu } from "../ui";
 import EngineLogo from "./EngineLogo";
-import { ENGINE_TYPES, getHarness, isEngineType } from "../../lib/ai-harnesses";
+import { getHarness, isEngineType } from "../../lib/ai-harnesses";
 import EnginePicker from "./EnginePicker";
 import EngineChatView from "./EngineChatView";
 import AgentPaneStack from "./AgentPaneStack";
-
-// Stable per-engine components: MenuItem takes an icon component, and a new one per render would remount the logo.
-const ENGINE_ICONS: Readonly<Record<EngineType, IconComponent>> = Object.freeze(
-  Object.fromEntries(
-    ENGINE_TYPES.map((type) => [type, ({ size, className }: IconProps) => <EngineLogo type={type} size={size} className={className} />]),
-  ) as Record<EngineType, IconComponent>,
-);
+import EngineMenuItems from "./EngineMenuItems";
 
 export default function ChatPanel() {
   const activeEngineType = useAiStore((s) => s.activeEngineType);
@@ -117,18 +109,7 @@ export default function ChatPanel() {
             {engineSwitcherOpen && (
               <div className="absolute top-full left-0 mt-1 z-20 min-w-[200px] max-h-72 overflow-y-auto rounded-lg border border-overlay-border bg-overlay shadow-overlay">
                 <Menu onClose={closeEngineSwitcher} onKeyDown={onEngineMenuKeyDown}>
-                  {ENGINE_TYPES.map((type) => (
-                    <MenuItem
-                      key={type}
-                      // In-memory only: never write to settings here, so the
-                      // next launch still uses the saved default.
-                      onSelect={() => useAiStore.getState().setActiveEngine(type)}
-                      icon={ENGINE_ICONS[type]}
-                      end={activeEngineType === type ? <span className="shrink-0 text-meta text-link">●</span> : undefined}
-                    >
-                      {getHarness(type).name}
-                    </MenuItem>
-                  ))}
+                  <EngineMenuItems current={activeEngineType} onSelect={(type) => useAiStore.getState().setActiveEngine(type)} />
                 </Menu>
               </div>
             )}

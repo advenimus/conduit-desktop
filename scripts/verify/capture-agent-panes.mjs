@@ -30,7 +30,7 @@ function readPanes(d) {
     const panes = [...document.querySelectorAll('[data-agent-pane]')].map((el) => ({
       id: el.getAttribute('data-agent-pane'),
       session: el.querySelector('[data-agent-session]')?.getAttribute('data-agent-session') ?? null,
-      header: el.querySelector('.h-6')?.textContent ?? null,
+      header: el.querySelector('.h-6 button[aria-haspopup]')?.textContent ?? null,
       close: !!el.querySelector('button[aria-label^="Close"]'),
       height: Math.round(el.getBoundingClientRect().height),
       text: el.innerText.slice(0, 80),
@@ -56,6 +56,21 @@ function clickIn(d, selector) {
   }, selector);
 }
 
+function openPaneMenu(d, paneId) {
+  return clickIn(d, `[data-agent-pane="${paneId}"] button[aria-haspopup="menu"]`);
+}
+
+async function pickMenuItem(d, name) {
+  await waitFor(() => d.page.evaluate((n) => [...document.querySelectorAll('[role=menu] [role=menuitem]')].some((el) => el.textContent.startsWith(n)), name), { timeoutMs: 5_000, label: `menu item ${name}` });
+  await d.page.evaluate((n) => [...document.querySelectorAll('[role=menu] [role=menuitem]')].find((el) => el.textContent.startsWith(n)).click(), name);
+}
+
+async function switchPaneEngine(d, paneId, name) {
+  await openPaneMenu(d, paneId);
+  await sleep(300);
+  await pickMenuItem(d, name);
+}
+
 async function alive(d, sessions) {
   const out = {};
   for (const id of sessions) out[id] = await invoke(d, 'terminal_is_connected', { sessionId: id });
@@ -63,7 +78,7 @@ async function alive(d, sessions) {
 }
 
 function childProcesses(pid) {
-  const rows = execFileSync('ps', ['-A', '-o', 'pid=,ppid=,comm='], { encoding: 'utf8' }).split('\n');
+  const rows = execFileSync('ps', ['-A', '-o', 'pid=,ppid=,command='], { encoding: 'utf8' }).split('\n');
   return rows.map((r) => r.trim().split(/\s+/)).filter((c) => c[1] === String(pid)).map((c) => c.slice(2).join(' '));
 }
 
@@ -111,10 +126,27 @@ async function captureMode(ctx, { mode, outDir, siteUrl }) {
     await sleep(800);
     const threeFocus = await readPanes(d);
     check('keyboard focus moved to the third pane', threeFocus.focusedPane === three.panes[2].id, threeFocus);
-    const sessions = three.panes.map((p) => p.session);
-    check('all three terminals alive in the main process', Object.values(await alive(d, sessions)).every(Boolean), await alive(d, sessions));
-    const kidsAtThree = childProcesses(mainPid);
+    const firstSessions = three.panes.map((p) => p.session);
+    check('all three terminals alive in the main process', Object.values(await alive(d, firstSessions)).every(Boolean), await alive(d, firstSessions));
     await shot('three-agents');
+
+    await switchPaneEngine(d, three.panes[1].id, 'Codex');
+    await openPaneMenu(d, three.panes[2].id);
+    await shot('bottom-pane-engine-menu');
+    await pickMenuItem(d, 'Grok Build');
+    const mixed = await waitFor(async () => {
+      const s = await readPanes(d);
+      return s.panes.length === 3 && s.panes.every((p, i) => p.session && (i === 0 || p.session !== firstSessions[i])) ? s : null;
+    }, { timeoutMs: 30_000, label: 'panes 2 and 3 restarted' });
+    check('pane headers show Claude Code, Codex, Grok Build', mixed.panes.map((p) => p.header).join('|') === 'Claude Code|Codex|Grok Build', mixed.panes.map((p) => p.header));
+    check('pane 1 kept its terminal', mixed.panes[0].session === firstSessions[0], mixed);
+    const sessions = mixed.panes.map((p) => p.session);
+    await sleep(3000);
+    const swapped = await alive(d, [...firstSessions.slice(1), ...sessions]);
+    check('swapped panes ended their old terminals, all three new ones alive', !swapped[firstSessions[1]] && !swapped[firstSessions[2]] && sessions.every((id) => swapped[id]), swapped);
+    const kidsAtThree = childProcesses(mainPid);
+    check('claude, codex and grok run side by side under the main process', ['claude', 'codex', 'grok'].every((bin) => kidsAtThree.some((c) => c.includes(bin))), kidsAtThree);
+    await shot('mixed-engines');
 
     const sash = await d.page.evaluate(() => {
       const r = document.querySelector('[data-agent-pane] + [role=separator], [role=separator]')?.getBoundingClientRect();

@@ -16,6 +16,8 @@ interface AgentPaneState {
   /** Closes a pane. The last pane never closes. */
   closePane: (id: string) => void;
   focusPane: (id: string) => void;
+  /** Swaps one pane's engine, which restarts only that pane. */
+  setPaneEngine: (id: string, engineType: EngineType) => void;
 }
 
 const newPane = (engineType: EngineType): AgentPane => ({ id: crypto.randomUUID(), engineType });
@@ -62,6 +64,15 @@ export const useAgentPaneStore = create<AgentPaneState>((set, get) => ({
     if (!pane || id === focusedPaneId) return;
     set({ focusedPaneId: id });
     showEngineOf(pane);
+  },
+
+  setPaneEngine: (id, engineType) => {
+    const { panes, focusedPaneId } = get();
+    const pane = panes.find((p) => p.id === id);
+    if (!pane || pane.engineType === engineType) return;
+    const next = { ...pane, engineType };
+    set({ panes: panes.map((p) => (p.id === id ? next : p)) });
+    if (id === focusedPaneId) showEngineOf(next);
   },
 }));
 

@@ -56,6 +56,23 @@ describe("agentPaneStore", () => {
     expect(engines()).toEqual(["claude-code", "codex"]);
   });
 
+  it("swaps one pane's engine, mirroring it in activeEngineType only for the focused pane", () => {
+    const [first] = ids();
+    const second = useAgentPaneStore.getState().addPane()!;
+    useAgentPaneStore.getState().setPaneEngine(first, "grok");
+    expect(engines()).toEqual(["grok", "claude-code"]);
+    expect(useAiStore.getState().activeEngineType).toBe("claude-code");
+
+    useAgentPaneStore.getState().setPaneEngine(second, "codex");
+    expect(engines()).toEqual(["grok", "codex"]);
+    expect(useAiStore.getState().activeEngineType).toBe("codex");
+
+    const before = useAgentPaneStore.getState().panes;
+    useAgentPaneStore.getState().setPaneEngine(second, "codex");
+    useAgentPaneStore.getState().setPaneEngine("nope", "codex");
+    expect(useAgentPaneStore.getState().panes).toBe(before);
+  });
+
   it("never closes the last pane", () => {
     const [only] = ids();
     useAgentPaneStore.getState().closePane(only);
