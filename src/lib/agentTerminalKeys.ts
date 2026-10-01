@@ -12,3 +12,13 @@ export function isAgentNewlineKey(ev: KeyboardEvent): boolean {
   if (ev.isComposing || ev.keyCode === IME_PROCESS_KEY_CODE) return false;
   return ev.key === "Enter" && ev.shiftKey && !ev.ctrlKey && !ev.altKey && !ev.metaKey;
 }
+
+export type AgentZoom = "in" | "out" | "reset";
+
+export const AGENT_FONT_SIZE_MIN = 8;
+export const AGENT_FONT_SIZE_MAX = 32;
+
+export function nextAgentFontSize(current: number, zoom: Exclude<AgentZoom, "reset">): number {
+  const next = current + (zoom === "in" ? 1 : -1);
+  return Math.min(AGENT_FONT_SIZE_MAX, Math.max(AGENT_FONT_SIZE_MIN, next));
+}

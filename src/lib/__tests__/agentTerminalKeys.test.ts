@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { AGENT_NEWLINE_SEQUENCE, isAgentNewlineKey } from "../agentTerminalKeys";
+import {
+  AGENT_FONT_SIZE_MAX,
+  AGENT_FONT_SIZE_MIN,
+  AGENT_NEWLINE_SEQUENCE,
+  isAgentNewlineKey,
+  nextAgentFontSize,
+} from "../agentTerminalKeys";
 
 function key(init: KeyboardEventInit & { type?: string } = {}): KeyboardEvent {
   const { type = "keydown", ...rest } = init;
@@ -35,5 +41,14 @@ describe("agent terminal newline key", () => {
   it("ignores Enter while an IME is composing", () => {
     expect(isAgentNewlineKey(key({ shiftKey: true, isComposing: true }))).toBe(false);
     expect(isAgentNewlineKey(key({ shiftKey: true, keyCode: 229 }))).toBe(false);
+  });
+});
+
+describe("agent terminal font size steps", () => {
+  it("steps one point at a time within the limits", () => {
+    expect(nextAgentFontSize(13, "in")).toBe(14);
+    expect(nextAgentFontSize(13, "out")).toBe(12);
+    expect(nextAgentFontSize(AGENT_FONT_SIZE_MAX, "in")).toBe(AGENT_FONT_SIZE_MAX);
+    expect(nextAgentFontSize(AGENT_FONT_SIZE_MIN, "out")).toBe(AGENT_FONT_SIZE_MIN);
   });
 });

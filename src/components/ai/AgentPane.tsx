@@ -1,6 +1,7 @@
 import { useEffect, type CSSProperties } from "react";
 import { AlertTriangleIcon } from "../../lib/icons";
 import { getHarness } from "../../lib/ai-harnesses";
+import { nextAgentFontSize, type AgentZoom } from "../../lib/agentTerminalKeys";
 import { useAgentPaneStore, type AgentPane as AgentPaneModel } from "../../stores/agentPaneStore";
 import { Button, IconButton, Spinner } from "../ui";
 import TerminalView from "../sessions/TerminalView";
@@ -25,6 +26,7 @@ export default function AgentPane({ pane, epoch, focused, showHeader, style }: P
   const focusPane = useAgentPaneStore((s) => s.focusPane);
   const closePane = useAgentPaneStore((s) => s.closePane);
   const setPaneEngine = useAgentPaneStore((s) => s.setPaneEngine);
+  const setPaneFontSize = useAgentPaneStore((s) => s.setPaneFontSize);
   const name = getHarness(pane.engineType).name;
 
   // TerminalView skips focusing while another textarea (the other panes' xterm input) holds focus,
@@ -34,6 +36,9 @@ export default function AgentPane({ pane, epoch, focused, showHeader, style }: P
     const frame = requestAnimationFrame(() => focusPaneTerminal(pane.id));
     return () => cancelAnimationFrame(frame);
   }, [sessionId, pane.id]);
+
+  const zoom = (direction: AgentZoom, currentSize: number) =>
+    setPaneFontSize(pane.id, direction === "reset" ? null : nextAgentFontSize(currentSize, direction));
 
   const close = () => {
     closePane(pane.id);
@@ -77,7 +82,7 @@ export default function AgentPane({ pane, epoch, focused, showHeader, style }: P
       )}
       {sessionId && (
         <div className="min-h-0 flex-1" data-agent-session={sessionId}>
-          <TerminalView sessionId={sessionId} isActive={true} isAgentTerminal />
+          <TerminalView sessionId={sessionId} isActive={true} isAgentTerminal fontSize={pane.fontSize} onFontZoom={zoom} />
         </div>
       )}
     </div>

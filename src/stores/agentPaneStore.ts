@@ -6,6 +6,8 @@ export const MAX_AGENT_PANES = 3;
 export interface AgentPane {
   readonly id: string;
   readonly engineType: EngineType;
+  /** This pane's own font size from Cmd/Ctrl +/-; unset follows the AI terminal font setting. */
+  readonly fontSize?: number;
 }
 
 interface AgentPaneState {
@@ -18,6 +20,8 @@ interface AgentPaneState {
   focusPane: (id: string) => void;
   /** Swaps one pane's engine, which restarts only that pane. */
   setPaneEngine: (id: string, engineType: EngineType) => void;
+  /** Sets one pane's font size; null goes back to the AI terminal font setting. */
+  setPaneFontSize: (id: string, fontSize: number | null) => void;
 }
 
 const newPane = (engineType: EngineType): AgentPane => ({ id: crypto.randomUUID(), engineType });
@@ -73,6 +77,15 @@ export const useAgentPaneStore = create<AgentPaneState>((set, get) => ({
     const next = { ...pane, engineType };
     set({ panes: panes.map((p) => (p.id === id ? next : p)) });
     if (id === focusedPaneId) showEngineOf(next);
+  },
+
+  setPaneFontSize: (id, fontSize) => {
+    const { panes } = get();
+    const pane = panes.find((p) => p.id === id);
+    if (!pane || pane.fontSize === (fontSize ?? undefined)) return;
+    const { fontSize: _previous, ...rest } = pane;
+    const next: AgentPane = fontSize === null ? rest : { ...rest, fontSize };
+    set({ panes: panes.map((p) => (p.id === id ? next : p)) });
   },
 }));
 

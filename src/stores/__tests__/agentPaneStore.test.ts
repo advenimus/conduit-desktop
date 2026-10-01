@@ -73,6 +73,26 @@ describe("agentPaneStore", () => {
     expect(useAgentPaneStore.getState().panes).toBe(before);
   });
 
+  it("keeps each pane's own font size, through an engine swap, until it is reset", () => {
+    const [first] = ids();
+    const second = useAgentPaneStore.getState().addPane()!;
+    useAgentPaneStore.getState().setPaneFontSize(first, 18);
+    const fontSizes = () => useAgentPaneStore.getState().panes.map((p) => p.fontSize);
+    expect(fontSizes()).toEqual([18, undefined]);
+
+    useAgentPaneStore.getState().setPaneEngine(first, "codex");
+    expect(fontSizes()).toEqual([18, undefined]);
+
+    useAgentPaneStore.getState().setPaneFontSize(first, null);
+    expect(fontSizes()).toEqual([undefined, undefined]);
+    expect("fontSize" in useAgentPaneStore.getState().panes[0]).toBe(false);
+
+    const before = useAgentPaneStore.getState().panes;
+    useAgentPaneStore.getState().setPaneFontSize(second, null);
+    useAgentPaneStore.getState().setPaneFontSize("nope", 20);
+    expect(useAgentPaneStore.getState().panes).toBe(before);
+  });
+
   it("never closes the last pane", () => {
     const [only] = ids();
     useAgentPaneStore.getState().closePane(only);
