@@ -398,6 +398,7 @@ bring their own agent subscription.
 
 ### CLI Agent Terminals
 - CLI agents always launch as native terminals (the rich chat interface and its toggle have been retired)
+- Up to 3 agents at once: the panel's + stacks a new agent pane (disabled at 3), panes split the height with draggable dividers, each pane keeps its own engine (the header switcher swaps the last focused one), and with more than one open each pane has a header with an X that ends its terminal
 - Launch commands: `claude`, `codex`, `grok`, `cursor-agent` (Cursor; falls back to a verified `agent` binary), `openclaw tui --local`, `gemini`, `copilot`, `opencode`
 - Working directory: explicit cwd, then Settings default, then `{userData}/conduit[-dev]/agent/{engine}/`
 - Configurable terminal font size
