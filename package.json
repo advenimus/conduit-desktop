@@ -13,6 +13,7 @@
     "dev": "vite",
     "dev:electron": "cross-env CONDUIT_ENV=preview tsc -p electron/tsconfig.json && cd mcp && npx tsc && cd .. && concurrently -k \"cross-env CONDUIT_ENV=preview vite\" \"wait-on http://localhost:1420 && cross-env CONDUIT_ENV=preview electron .\"",
     "dev:electron:prod": "cross-env CONDUIT_ENV=production tsc -p electron/tsconfig.json && cd mcp && npx tsc && cd .. && concurrently -k \"cross-env CONDUIT_ENV=production vite\" \"wait-on http://localhost:1420 && cross-env CONDUIT_ENV=production electron .\"",
+    "dev:account": "node scripts/dev/dev-account.mjs",
     "build": "tsc && vite build && tsc -p electron/tsconfig.json && cd mcp && npx tsc",
     "build:mac": "cross-env CONDUIT_ENV=production npm run build && electron-builder --mac",
     "build:win": "cross-env CONDUIT_ENV=production npm run build && electron-builder --win",
