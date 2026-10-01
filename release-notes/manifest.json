@@ -76,7 +76,7 @@
           "category": "fix"
         }
       ],
-      "hasMedia": false
+      "hasMedia": true
     },
     {
       "version": "0.17.0",
