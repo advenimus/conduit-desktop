@@ -10,6 +10,7 @@ import net from 'node:net';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { randomUUID } from 'node:crypto';
 
 // ---------- IPC Protocol Types ----------
 
@@ -82,6 +83,16 @@ export type IpcRequest =
   | { type: 'SshKeyGenerate'; payload: { name: string; type: 'ed25519' | 'rsa' | 'ecdsa'; bits: number | null; curve: string | null; comment: string | null; tags: string[] } }
   | { type: 'GetTierInfo'; payload: Record<string, never> };
 
+/**
+ * Sent with every request so the app can tell agents apart: each CLI agent runs its own MCP
+ * process, and the app keeps one agent out of a session another agent is working in.
+ */
+export interface AgentIdentity {
+  readonly id: string;
+  readonly pid: number;
+  readonly client: string | null;
+}
+
 export interface TierInfo {
   tier_name: string;
   authenticated: boolean;
@@ -145,9 +156,19 @@ function getSocketPath(): string {
 
 export class ConduitClient {
   private socketPath: string;
+  private agent: AgentIdentity = { id: randomUUID(), pid: process.pid, client: null };
 
   private constructor(socketPath: string) {
     this.socketPath = socketPath;
+  }
+
+  /** Names this agent after its MCP client (from the initialize handshake) in the app's messages. */
+  setClientName(name: string | null | undefined): void {
+    this.agent = { ...this.agent, client: name || null };
+  }
+
+  get agentIdentity(): AgentIdentity {
+    return this.agent;
   }
 
   static async connect(): Promise<ConduitClient> {
@@ -172,7 +193,8 @@ export class ConduitClient {
       let responseData = '';
 
       socket.on('connect', () => {
-        const requestJson = JSON.stringify(request) + '\n';
+        // Apps without session ownership ignore the extra field.
+        const requestJson = JSON.stringify({ ...request, agent: this.agent }) + '\n';
         socket.write(requestJson);
       });
 

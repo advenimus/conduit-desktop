@@ -331,6 +331,59 @@ async function auditLog(ctx) {
   ctx.step(`${checked} MCP calls across this run are in the audit logs`);
 }
 
+const SESSION_IN_USE = 'SESSION_IN_USE';
+
+function ownerIn(list, sessionId) {
+  return list.connections.find((c) => c.id === sessionId) ?? null;
+}
+
+/** Two MCP processes are two agents: neither may act in a session the other is working in. */
+async function twoAgents(ctx) {
+  const { flows, ui } = ctx;
+  const device = await ctx.launchDevice('m7');
+  await flows.enterLocalMode(device);
+  await flows.createVault(device, path.join(ctx.cloudDir, 'McpAgents.conduit'), PASSWORD);
+  const a = await ctx.connectMcp(device);
+  const b = await ctx.connectMcp(device);
+
+  const { session_id: shellA } = await a.callTool('local_shell_create', {});
+  const ranA = await a.callToolRaw('terminal_execute', { connection_id: shellA, command: 'echo agent-a-ran' });
+  ctx.check(!ranA.isError && ranA.text.includes('agent-a-ran'), `agent A runs a command in its own shell: ${ranA.text.slice(0, 200)}`);
+  ctx.step(`agent A opened ${shellA.slice(0, 8)} and ran a command in it`);
+
+  const seenByA = ownerIn(await a.callTool('connection_list', {}), shellA);
+  const seenByB = ownerIn(await b.callTool('connection_list', {}), shellA);
+  ctx.checkEqual([seenByA?.owner, seenByB?.owner], ['you', 'other_agent'], 'connection_list shows the shell as A\'s to A and as another agent\'s to B');
+  ctx.check(/local_shell_create/.test(seenByB?.note ?? ''), `B's list tells it to open its own session: ${seenByB?.note}`);
+
+  const refused = await b.callToolRaw('terminal_execute', { connection_id: shellA, command: 'echo agent-b-intrudes' });
+  ctx.check(refused.isError && refused.data?.code === SESSION_IN_USE, `agent B is refused in A's shell: ${refused.text.slice(0, 300)}`);
+  const keys = await b.callToolRaw('terminal_send_keys', { connection_id: shellA, keys: 'x' });
+  ctx.check(keys.isError && keys.data?.code === SESSION_IN_USE, 'agent B cannot send keys to A\'s shell');
+  const read = await b.callToolRaw('terminal_read_pane', { connection_id: shellA });
+  ctx.check(!read.isError && !read.text.includes('agent-b-intrudes'), 'agent B can still read A\'s shell, and its command never ran there');
+  ctx.step(`agent B refused with ${SESSION_IN_USE}; reading still works`);
+
+  const { session_id: shellB } = await b.callTool('local_shell_create', {});
+  const ranB = await b.callToolRaw('terminal_execute', { connection_id: shellB, command: 'echo agent-b-ran' });
+  ctx.check(!ranB.isError && ranB.text.includes('agent-b-ran'), 'agent B works in a shell of its own');
+  const crossed = await a.callToolRaw('terminal_execute', { connection_id: shellB, command: 'echo nope' });
+  ctx.check(crossed.isError && crossed.data?.code === SESSION_IN_USE, 'agent A is refused in B\'s shell');
+  ctx.step(`agent B opened ${shellB.slice(0, 8)} and works there; A is refused in it`);
+
+  const userShell = await ui.invoke(device, 'local_shell_create', {});
+  ctx.check(ownerIn(await a.callTool('connection_list', {}), userShell)?.owner === 'free', 'a shell the user opened is free');
+  await ui.invoke(device, 'terminal_close', { sessionId: userShell });
+
+  await a.close();
+  await ctx.waitFor(async () => {
+    const res = await b.callToolRaw('terminal_execute', { connection_id: shellA, command: 'echo b-after-a-left' });
+    return !res.isError && res.text.includes('b-after-a-left');
+  }, { timeoutMs: 15_000, intervalMs: 500, label: 'agent B can use A\'s shell once A exits' });
+  await b.callTool('connection_close', { connection_id: shellA });
+  ctx.step('after agent A exited, B used and closed its old shell');
+}
+
 export default {
   id: 'mcp',
   title: 'MCP tools on real devices',
@@ -340,6 +393,7 @@ export default {
     { id: 'writes-sync', title: 'Pro user: MCP notes and document writes show on the device and reach a second device', run: writesSync },
     { id: 'has-conflict', title: 'Pro user: a same-field conflict sets has_conflict until it is resolved in the review panel', run: hasConflictFlag },
     { id: 'locked-and-elsewhere', title: 'Locked vault error, then open_elsewhere after a Free take-over', run: lockedAndElsewhere },
+    { id: 'two-agents', title: 'Two MCP agents: each keeps its own shell, the other is refused but can read, freed when one exits', needsSupabase: false, run: twoAgents },
     { id: 'audit', title: 'Every MCP call of the run is in the MCP audit log, secrets redacted', run: auditLog },
   ],
 };

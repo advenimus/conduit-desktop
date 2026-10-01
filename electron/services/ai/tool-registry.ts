@@ -120,7 +120,9 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   {
     name: 'connection_list',
     category: 'read',
-    description: 'List all connections (active and saved). Each entry includes id (session ID for terminal/RDP/VNC tools) and entry_id (vault entry ID for entry_info, entry_update_notes, document_read tools).',
+    description:
+      'List all connections (active and saved). Each entry includes id (session ID for terminal/RDP/VNC tools) and entry_id (vault entry ID for entry_info, entry_update_notes, document_read tools). ' +
+      'Active sessions have an owner: "you", "other_agent" (another AI agent is working in it; do not use it) or "free".',
     parameters: { type: 'object', properties: {}, required: [] },
     ipcType: 'ConnectionList',
   },
@@ -153,7 +155,8 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     description:
       'Open a saved connection from the vault by its entry_id. Host, port, and credentials are resolved ' +
       'from the saved entry server-side. Works for ssh, rdp, and vnc entries. Get entry_id values from ' +
-      'connection_list, entry_list, or entry_search.',
+      'connection_list, entry_list, or entry_search. SSH always opens a new session of your own; RDP and VNC ' +
+      'return the entry\'s open session when no other agent is using it, and fail with SESSION_IN_USE when one is.',
     parameters: {
       type: 'object',
       properties: {

@@ -31,6 +31,16 @@ import {
 } from './terminal-requests.js';
 import { hasConflict, lockedResponse, vaultFailure } from './vault-guard.js';
 import { isMcpHeld, mcpHeldResponse } from './mcp-hold.js';
+import { parseAgentIdentity } from './agent-requests.js';
+import type { AgentIdentity, SessionOwner } from './session-claims.js';
+import {
+  openSessionsForEntry,
+  ownerOf,
+  pruneClosedSessions,
+  runWithAgentClaims,
+  sessionClaims,
+  sessionInUseResponse,
+} from './agent-sessions.js';
 
 // ---------- IPC Protocol Types ----------
 
@@ -99,6 +109,17 @@ export { getSocketPath };
 
 // ---------- Helpers ----------
 
+interface ListedConnection {
+  id: string;
+  entry_id: string | null;
+  name: string;
+  connection_type: string;
+  host: string | null;
+  port: number | null;
+  status: string;
+  owner?: SessionOwner;
+}
+
 /** Normalize null port to default for the connection type */
 function defaultPort(port: number | null | undefined, connType: string): number {
   if (port != null) return port;
@@ -141,7 +162,7 @@ function resolveEntryId(id: string, state: AppState): string {
 // ---------- Request handler ----------
 
 export async function handleRequest(
-  request: { type: string; payload?: Record<string, unknown> },
+  request: { type: string; payload?: Record<string, unknown>; agent?: unknown },
   state: AppState,
 ): Promise<IpcResponse> {
   const authState = state.authService?.getAuthState();
@@ -167,6 +188,15 @@ export async function handleRequest(
     return errorResponse('TIER_RESTRICTED', 'MCP access is not available on your plan');
   }
 
+  const agent = parseAgentIdentity(request.agent);
+  return runWithAgentClaims(request, state, agent, () => dispatchRequest(request, state, agent));
+}
+
+async function dispatchRequest(
+  request: { type: string; payload?: Record<string, unknown> },
+  state: AppState,
+  agent: AgentIdentity | null,
+): Promise<IpcResponse> {
   try {
     switch (request.type) {
       // ---- Terminal operations ----
@@ -444,6 +474,7 @@ export async function handleRequest(
 
       case 'ConnectionList': {
         try {
+          pruneClosedSessions(state);
           // Pre-fetch vault entries once for entry_id lookup
           const vaultEntries = state.getActiveVault().isUnlocked() ? state.getActiveVault().listEntries() : [];
 
@@ -471,7 +502,7 @@ export async function handleRequest(
               }
               return true;
             })
-            .map((c) => {
+            .map((c): ListedConnection => {
               // Resolve vault entry ID so agents can use it with entry tools
               const matchingEntry = vaultEntries.find(
                 (e) => e.host === c.host &&
@@ -486,6 +517,7 @@ export async function handleRequest(
                 host: c.host,
                 port: c.port,
                 status: c.status,
+                owner: ownerOf(state, c.session_id, agent),
               };
             });
 
@@ -505,6 +537,7 @@ export async function handleRequest(
                 host: (() => { try { return new URL(ws.url).hostname; } catch { return ws.url; } })(),
                 port: (() => { try { const u = new URL(ws.url); return u.port ? parseInt(u.port, 10) : (u.protocol === 'https:' ? 443 : 80); } catch { return null; } })(),
                 status: 'connected',
+                owner: ownerOf(state, ws.id, agent),
               });
             }
           }
@@ -701,6 +734,33 @@ export async function handleRequest(
 
         const host = entry.host;
         const entryConfig = entry.config ?? {};
+
+        // A second RDP or VNC login to the same machine shares or takes over the screen, so an agent
+        // gets the entry's open session when it is free (or its own) instead of a new one.
+        if (agent && (entry.entry_type === 'rdp' || entry.entry_type === 'vnc')) {
+          const existing = openSessionsForEntry(state, entry);
+          const claims = sessionClaims(state);
+          const holder = existing.map((id) => claims.holder(id)).find((h) => h && h.id !== agent.id);
+          if (holder) return sessionInUseResponse(holder, entry.entry_type);
+          const reuse = existing[0];
+          if (reuse) {
+            const dims = entry.entry_type === 'rdp'
+              ? state.rdpManager.get(reuse)?.getDimensions()
+              : state.vncManager.get(reuse)?.getDimensions();
+            const registered = state.mcpConnections.get(reuse);
+            return successResponse({
+              session_id: reuse,
+              connection_type: entry.entry_type,
+              host: registered?.host ?? host,
+              port: registered?.port ?? entry.port ?? (entry.entry_type === 'rdp' ? 3389 : 5900),
+              status: 'connected',
+              ...(dims ? { width: dims.width, height: dims.height } : {}),
+              entry_id,
+              name: entry.name,
+              reused: true,
+            });
+          }
+        }
         // Per-entry auth-method override: explicit MCP arg wins, then the SSH
         // entry's stored config, then the credential's own preference (applied
         // inside resolveSshAuth).

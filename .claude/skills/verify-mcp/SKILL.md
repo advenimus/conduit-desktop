@@ -1,6 +1,6 @@
 ---
 name: verify-mcp
-description: Run only the live MCP suite (tool list, no daily quota, MCP writes that sync to a second device, has_conflict, locked and open_elsewhere errors, audit log) against the real Conduit app, its MCP server and a local Supabase. Use after changing mcp/src/, electron/ipc-server/, the MCP gatekeeper, tier or quota handling, or vault lock errors, or when asked to verify MCP live. Fully isolated; takes about 1 minute.
+description: Run only the live MCP suite (tool list, no daily quota, MCP writes that sync to a second device, has_conflict, locked and open_elsewhere errors, two agents side by side, audit log) against the real Conduit app, its MCP server and a local Supabase. Use after changing mcp/src/, electron/ipc-server/, the MCP gatekeeper, agent session ownership, tier or quota handling, or vault lock errors, or when asked to verify MCP live. Fully isolated; takes about 1 minute.
 ---
 
 # /verify-mcp: MCP suite
@@ -19,6 +19,7 @@ device's own socket. The harness reference is `scripts/verify/README.md`. Every 
 | `writes-sync` | On Pro, `entry_update_notes`, `document_create` and `document_update` show on the device (IPC and the entry tree) and reach a second device. |
 | `has-conflict` | A same-field edit on two Pro devices makes `entry_info` return `has_conflict: true`; after it is resolved in the review panel it is false on both devices. |
 | `locked-and-elsewhere` | A manually locked vault returns `code: VAULT_LOCKED` with no reason; after a Free take-over from another device it returns `reason: open_elsewhere` and the device shows the locked-out dialog. |
+| `two-agents` | Two MCP clients on one device are two agents. Each runs commands in its own local shell; the other is refused with `SESSION_IN_USE` in it but can still read it; `connection_list` shows `owner` you, other_agent and free (a shell the user opened); once agent A's MCP process exits, B can use A's old shell. |
 | `audit` | Every MCP call of the run is in `<HOME>/.config/conduit/audit.log` in order with the right outcome, an `api_key` argument is logged as `[REDACTED]`, and failed calls are logged as errors. It also passes alone (`--only audit`). |
 
 ## Prerequisites (the harness checks or fixes these itself)
