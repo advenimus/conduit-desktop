@@ -698,7 +698,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Replayable via "Getting Started" button in Help dialog
 
 ### Sidebar
-- **Pin or auto-hide**: A pin button sits next to the close button in the sidebar header
+- **Pin or auto-hide**: A pin button sits at the start of the sidebar header; a close button follows it only while the sidebar floats unpinned
   - Unpinned (default): the sidebar floats over your sessions and closes itself when you open an entry or switch tabs
   - Pinned: the sidebar docks beside your sessions, which shrink to make room, and stays open while you work
   - Cmd+B / Ctrl+B hides and shows the sidebar in either mode; Cmd+Shift+B / Ctrl+Shift+B toggles the pin
@@ -715,14 +715,15 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Search field shows a clear (✕) button once text is entered; Escape also clears it
 - Context menu: open, edit, duplicate, copy host, move, delete
 - Inline folder creation
-- **Look**: the header row is 33px, level with the pane tab bars and the AI panel header; 22px tree rows with neutral gray selection; favorite stars in their own yellow; the vault switcher menu shares the popup menu look (24px rows, 8px-radius panel)
+- **Look**: the header row is 38px, level with the pane tab bars and the AI panel header, on the same bar color; on macOS the vault name sits on its own row below it, since the window buttons take the header's start; 22px tree rows with neutral gray selection; favorite stars in their own yellow; the vault switcher menu shares the popup menu look (24px rows, 8px-radius panel)
 
 ### Tab Bar
 - Multi-session tabs
 - Close tab (Cmd+W)
 - Tab navigation: next (Cmd+Tab), previous (Cmd+Shift+Tab)
 - Active tab highlighting
-- **Connected tabs**: the active tab is filled with the session's background and joins the session below it; inactive tabs show a rounded hover fill. The bar is 33px, tabs are 24px with 16px icons
+- **Pill tabs**: the same look as the iPad app. The active tab is a rounded pill tinted with the accent color; inactive tabs show a rounded hover fill. The bar is 38px, tabs are 28px with 16px icons
+- **Unified title bar (macOS)**: no separate system title bar. The window buttons sit in the app's top row (the side bar header, or the top-left pane's tab bar when the side bar is hidden), and empty space in the top row moves the window. A banner shown above the bars takes the window buttons instead; full screen drops the space kept for them. Windows and Linux keep their native title bar
 - Every tab keeps its close button visible, and its status dot (connected, connecting, error) after the title
 - Tabs shrink to fit the pane, the title truncating first, down to a 78px minimum; only then does the strip scroll
 

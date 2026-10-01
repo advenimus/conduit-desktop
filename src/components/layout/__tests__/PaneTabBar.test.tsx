@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { render, fireEvent, act, waitFor } from "@testing-library/react";
 import PaneTabBar from "../PaneTabBar";
+import type { PaneEdges } from "../LayoutRenderer";
 import { useSessionStore, type Session } from "../../../stores/sessionStore";
 import { findLeaf, useLayoutStore } from "../../../stores/layoutStore";
 import { useSidebarStore } from "../../../stores/sidebarStore";
@@ -41,9 +42,10 @@ interface SetupOptions {
   sidebar?: SidebarMode;
   rightSlot?: React.ReactNode;
   sessions?: Session[];
+  edges?: PaneEdges;
 }
 
-function setup({ active = "s-term", sidebar = "closed", rightSlot, sessions = SESSIONS }: SetupOptions = {}) {
+function setup({ active = "s-term", sidebar = "closed", rightSlot, sessions = SESSIONS, edges }: SetupOptions = {}) {
   useSessionStore.setState({ sessions, updateSessionTitle: vi.fn(), closeSession: vi.fn(async () => undefined) });
   useLayoutStore.setState({
     root: { type: "leaf", id: PANE, sessionIds: sessions.map((s) => s.id), activeSessionId: active },
@@ -51,7 +53,7 @@ function setup({ active = "s-term", sidebar = "closed", rightSlot, sessions = SE
   });
   useEntryStore.setState({ entries: [] });
   setSidebar(sidebar);
-  const view = render(<PaneTabBar paneId={PANE} isFocused rightSlot={rightSlot} />);
+  const view = render(<PaneTabBar paneId={PANE} isFocused rightSlot={rightSlot} edges={edges} />);
   const bar = view.container.querySelector("[data-tabbar]") as HTMLElement;
   const tabs = () => [...bar.querySelectorAll<HTMLElement>("[data-cv-tab]")];
   const tab = (id: string) => bar.querySelector<HTMLElement>(`[data-cv-tab="${id}"]`)!;
@@ -72,6 +74,45 @@ beforeEach(() => {
 
 afterEach(() => {
   delete (Element.prototype as Partial<Element>).scrollIntoView;
+});
+
+describe("PaneTabBar title bar role", () => {
+  it("a pane along the top is part of the title bar; one lower down is not", () => {
+    expect(setup({ edges: { top: true, left: false } }).bar.hasAttribute("data-cv-titlebar")).toBe(true);
+  });
+
+  it("a lower pane is not part of the title bar", () => {
+    const { bar } = setup({ edges: { top: false, left: true } });
+    expect(bar.hasAttribute("data-cv-titlebar")).toBe(false);
+    expect(bar.hasAttribute("data-cv-window-lead")).toBe(false);
+  });
+
+  it("the top-left pane leaves room for the window buttons unless the side bar is docked open", () => {
+    expect(setup({ edges: { top: true, left: true } }).bar.hasAttribute("data-cv-window-lead")).toBe(true);
+  });
+
+  it("a docked open side bar takes the window buttons instead", () => {
+    expect(setup({ edges: { top: true, left: true }, sidebar: "docked-open" }).bar.hasAttribute("data-cv-window-lead")).toBe(false);
+  });
+
+  it("a pane with no window edge is neither", () => {
+    const { bar } = setup();
+    expect(bar.hasAttribute("data-cv-titlebar")).toBe(false);
+    expect(bar.hasAttribute("data-cv-window-lead")).toBe(false);
+  });
+});
+
+describe("PaneTabBar drag state", () => {
+  it("clears a tab's dragging mark when the drag ends elsewhere", () => {
+    const { tab } = setup();
+    fireEvent.dragStart(tab("s-doc"), { dataTransfer: { setData: vi.fn(), effectAllowed: "" } });
+    expect(tab("s-doc").hasAttribute("data-dragging")).toBe(true);
+
+    act(() => {
+      document.dispatchEvent(new CustomEvent("conduit:drag-change", { detail: false }));
+    });
+    expect(tab("s-doc").hasAttribute("data-dragging")).toBe(false);
+  });
 });
 
 describe("PaneTabBar strip", () => {

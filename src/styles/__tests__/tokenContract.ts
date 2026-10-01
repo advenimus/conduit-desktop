@@ -33,9 +33,8 @@ export const COLOR_TOKENS: readonly string[] = [
 
 /** Layout sizes of spec 2.5, plain tokens on :root with one value each (no density variants, D-7). */
 export const LAYOUT_TOKENS: Readonly<Record<string, string>> = {
-  "--c-tabstrip-h": "33px",
-  "--c-tab-h": "24px",
-  "--c-tab-gutter-top": "4px",
+  "--c-tabstrip-h": "38px",
+  "--c-tab-h": "28px",
   "--c-tab-min-w": "78px",
   "--c-list-inset": "4px",
   "--c-banner-h": "26px",

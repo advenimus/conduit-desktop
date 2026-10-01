@@ -24,22 +24,29 @@ function declsOf(selector: string): Record<string, string> {
 describe("pane tab bars (spec 3.4)", () => {
   const tabs = readRepoFile("src", "styles", "components", "tabs.css");
 
-  it("the strip is 33px on the strip color and never shows a scrollbar", () => {
-    expect(declsOf(".cv-tabstrip")).toMatchObject({ height: "var(--c-tabstrip-h)", overflow: "hidden", background: "var(--c-tabstrip)" });
-    expect(declsOf(".cv-tabs")).toMatchObject({ "overflow-x": "auto", "scrollbar-width": "none", "padding-top": "var(--c-tab-gutter-top)" });
+  it("the strip is 38px on the strip color, ruled off below, and never shows a scrollbar", () => {
+    expect(declsOf(".cv-tabstrip")).toMatchObject({
+      height: "var(--c-tabstrip-h)",
+      overflow: "hidden",
+      background: "var(--c-tabstrip)",
+      "box-shadow": "inset 0 -1px 0 var(--c-divider)",
+    });
+    expect(declsOf(".cv-tabs")).toMatchObject({ "align-items": "center", "overflow-x": "auto", "scrollbar-width": "none" });
   });
 
   it("tabs shrink to fit down to the 78px floor, the label giving way first", () => {
-    expect(declsOf(".cv-tab")).toMatchObject({ flex: "0 1 auto", "min-width": "var(--c-tab-min-w)", height: "var(--c-tab-h)", padding: "0 4px 0 8px", gap: "6px" });
+    expect(declsOf(".cv-tab")).toMatchObject({ flex: "0 1 auto", "min-width": "var(--c-tab-min-w)", height: "var(--c-tab-h)", padding: "0 4px 0 10px", gap: "6px" });
     expect(declsOf(".cv-tab > *")).toMatchObject({ flex: "none" });
-    expect(declsOf(".cv-tab > .cv-tab-label")).toMatchObject({ flex: "0 1 auto", "min-width": "0", "max-width": "120px" });
+    expect(declsOf(".cv-tab > .cv-tab-label")).toMatchObject({ flex: "0 1 auto", "min-width": "0", "max-width": "140px" });
   });
 
-  it("the active tab is marked with data-active and its fill reaches the strip bottom", () => {
+  it("the active tab is an accent-tinted pill, like the iPad app's tab strip", () => {
     expect(tabs).not.toContain("aria-selected");
+    expect(declsOf(".cv-tab-fill")).toMatchObject({ "border-radius": "var(--c-radius-md)" });
+    expect(declsOf(".cv-tab[data-active]")).toMatchObject({ color: "var(--c-accent-text)" });
     expect(declsOf(".cv-tab[data-active] > .cv-tab-fill")).toMatchObject({
-      bottom: "calc(var(--c-tab-gutter-top) + var(--c-tab-h) - var(--c-tabstrip-h))",
-      background: "var(--c-tab-active-bg)",
+      background: "color-mix(in srgb, var(--c-accent) 16%, transparent)",
+      "border-color": "color-mix(in srgb, var(--c-accent) 35%, transparent)",
     });
   });
 
@@ -74,5 +81,42 @@ describe("resize handles (spec 3.5 to 3.7)", () => {
     expect(declsOf(".cv-split-sash[data-dragging]::after")).toEqual({ opacity: "1", "transition-delay": "0s" });
     expect(declsOf(".cv-sash-handle:hover > .cv-sash-line")).toEqual({ opacity: "1", "transition-delay": "var(--c-sash-delay)" });
     expect(declsOf(".cv-sash-line")).toMatchObject({ width: "4px" });
+  });
+});
+
+describe("unified title bar (macOS)", () => {
+  const css = readRepoFile("src", "styles", "components", "titlebar.css");
+
+  it("the bars move the window and their controls stay clickable", () => {
+    expect(css).toMatch(/\[data-titlebar="inset"\] :is\(\[data-cv-titlebar\], \[data-cv-top-banners\] > \*\) \{ -webkit-app-region: drag; app-region: drag; \}/);
+    expect(css).toMatch(/:is\(button, a, input, select, textarea, \[role="button"\], \[role="menu"\], \[draggable="true"\], \.cv-tab\) \{ -webkit-app-region: no-drag;/);
+  });
+
+  it("drag regions step aside under dialogs, the floating side bar and tab drags", () => {
+    expect(css).toContain(':has([data-dialog-content])');
+    expect(css).toMatch(/:is\(:has\(\[data-dialog-content\]\), \[data-cv-tab-dragging\]\)\s+:is\(\[data-cv-titlebar\], \[data-cv-top-banners\] > \*\) \{/);
+    expect(css).toContain(':has([data-sidebar-panel]:not([data-docked]))');
+  });
+
+  it("a floating side bar's header still moves the window: the side bar comes after the bars in the page", () => {
+    expect(css).toMatch(/:has\(\[data-sidebar-panel\]:not\(\[data-docked\]\)\)\s+:is\(\[data-cv-titlebar\]:not\(\[data-cv-sidebar-header\]\), \[data-cv-top-banners\] > \*\) \{\s+-webkit-app-region: no-drag;/);
+    const app = readRepoFile("src", "App.tsx");
+    expect(app.indexOf("<Sidebar />")).toBeGreaterThan(app.indexOf("<ChatPanel />"));
+    expect(readRepoFile("src", "components", "layout", "SidebarPanel.tsx")).toContain("relative z-30 order-first flex-shrink-0");
+  });
+
+  it("every bar along the top keeps a gap at its end for moving the window", () => {
+    expect(css).toContain('[data-titlebar="inset"] .cv-tabstrip[data-cv-titlebar] .cv-tabs { padding-right: 28px; }');
+  });
+
+  it("keeps room for the window buttons, none in full screen, and none below a banner row", () => {
+    expect(css).toContain(':root[data-titlebar="inset"] { --cv-window-controls-w: 86px;');
+    expect(css).toContain(':root[data-titlebar="inset"][data-fullscreen] { --cv-window-controls-w: 0px; }');
+    expect(css).toContain(':root[data-titlebar="inset"]:has([data-cv-top-banners] > *) { --cv-window-lead: 0px; }');
+  });
+
+  it("matches the 38px bar the window buttons are centered in", () => {
+    expect(readRepoFile("electron", "window-title-bar.ts")).toContain("{ x: 14, y: 12 }");
+    expect(readRepoFile("src", "styles", "tokens.css")).toContain("--c-tabstrip-h: 38px;");
   });
 });

@@ -40,6 +40,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       invoke("web_session_hide_all").catch(() => {});
     }, 0);
+    document.documentElement.dataset.cvTabDragging = "";
     document.dispatchEvent(
       new CustomEvent("conduit:drag-change", { detail: true }),
     );
@@ -51,6 +52,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
     setDraggedSessionId(null);
     setDragSourcePaneId(null);
     releaseFreeze();
+    delete document.documentElement.dataset.cvTabDragging;
     document.dispatchEvent(
       new CustomEvent("conduit:drag-change", { detail: false }),
     );
@@ -73,6 +75,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
     if (!draggingRef.current) return;
     draggingRef.current = false;
     releaseFreeze();
+    delete document.documentElement.dataset.cvTabDragging;
     document.dispatchEvent(new CustomEvent("conduit:drag-change", { detail: false }));
   }, [releaseFreeze]);
 

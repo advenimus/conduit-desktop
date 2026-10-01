@@ -3,13 +3,15 @@ import { useLayoutStore } from "../../stores/layoutStore";
 import PaneTabBar from "./PaneTabBar";
 import PaneContent from "./PaneContent";
 import DropZoneOverlay from "./DropZoneOverlay";
+import type { PaneEdges } from "./LayoutRenderer";
 
 interface PaneProps {
   paneId: string;
   rightSlot?: React.ReactNode;
+  edges: PaneEdges;
 }
 
-export default function Pane({ paneId, rightSlot }: PaneProps) {
+export default function Pane({ paneId, rightSlot, edges }: PaneProps) {
   const isFocused = useLayoutStore((s) => s.focusedPaneId === paneId);
 
   const handleFocus = useCallback(() => {
@@ -21,7 +23,7 @@ export default function Pane({ paneId, rightSlot }: PaneProps) {
       className="flex flex-col h-full w-full relative"
       onMouseDown={handleFocus}
     >
-      <PaneTabBar paneId={paneId} isFocused={isFocused} rightSlot={isFocused ? rightSlot : undefined} />
+      <PaneTabBar paneId={paneId} isFocused={isFocused} rightSlot={isFocused ? rightSlot : undefined} edges={edges} />
       <div
         className="flex flex-col flex-1 min-h-0 min-w-0 relative overflow-hidden"
         data-cv-session-area=""

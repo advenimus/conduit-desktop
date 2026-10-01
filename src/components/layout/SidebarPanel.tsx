@@ -25,7 +25,7 @@ export default function SidebarPanel({
 
   const motion = closing ? "animate-sidebar-out" : slideIn ? "animate-sidebar-in" : "";
   const frame = docked
-    ? "relative z-30 flex-shrink-0"
+    ? "relative z-30 order-first flex-shrink-0"
     : `fixed top-0 bottom-0 left-0 z-40 shadow-overlay ${motion}`;
 
   // Element order stays fixed across modes so pinning never remounts the tree.

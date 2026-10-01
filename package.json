@@ -16,6 +16,7 @@
     "dev:account": "node scripts/dev/dev-account.mjs",
     "build": "tsc && vite build && tsc -p electron/tsconfig.json && cd mcp && npx tsc",
     "build:mac": "cross-env CONDUIT_ENV=production npm run build && electron-builder --mac",
+    "icons:mac": "bash scripts/build-mac-icon.sh",
     "build:win": "cross-env CONDUIT_ENV=production npm run build && electron-builder --win",
     "build:linux": "cross-env CONDUIT_ENV=production npm run build && electron-builder --linux",
     "preview": "vite preview",

@@ -4,6 +4,7 @@
 @import "./styles/base.css";
 @import "./styles/components/tabs.css";
 @import "./styles/components/sash.css";
+@import "./styles/components/titlebar.css";
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 

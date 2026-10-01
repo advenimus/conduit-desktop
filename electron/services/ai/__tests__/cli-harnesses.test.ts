@@ -218,6 +218,69 @@ describe('projectMcpConfigFiles', () => {
     expect(claudeFiles.some((f) => f.relativePath === '.codex/config.toml')).toBe(false);
   });
 
+  it('writes .grok/config.toml for Grok Build, which skips .mcp.json', () => {
+    const files = projectMcpConfigFiles('grok', '/mcp/index.js', '/tmp/dev.sock', 'preview');
+    const grokToml = files.find((f) => f.relativePath === '.grok/config.toml');
+    expect(grokToml?.contents).toBe(
+      [
+        '[mcp_servers.conduit]',
+        'command = "node"',
+        'args = ["/mcp/index.js"]',
+        'enabled = true',
+        '',
+        '[mcp_servers.conduit.env]',
+        'CONDUIT_SOCKET_PATH = "/tmp/dev.sock"',
+        'CONDUIT_ENV = "preview"',
+        'CONDUIT_INTERNAL_AGENT = "1"',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('writes .gemini/settings.json for Gemini CLI, which ignores .mcp.json', () => {
+    const files = projectMcpConfigFiles('gemini', '/mcp/index.js', '/tmp/dev.sock', 'preview');
+    const settings = files.find((f) => f.relativePath === '.gemini/settings.json');
+    expect(JSON.parse(settings!.contents)).toEqual({
+      mcpServers: {
+        conduit: {
+          command: 'node',
+          args: ['/mcp/index.js'],
+          env: {
+            CONDUIT_SOCKET_PATH: '/tmp/dev.sock',
+            CONDUIT_ENV: 'preview',
+            CONDUIT_INTERNAL_AGENT: '1',
+          },
+        },
+      },
+    });
+  });
+
+  it('writes opencode.json for OpenCode', () => {
+    const files = projectMcpConfigFiles('opencode', '/mcp/index.js', '/tmp/dev.sock', 'preview');
+    const config = files.find((f) => f.relativePath === 'opencode.json');
+    expect(JSON.parse(config!.contents)).toEqual({
+      mcp: {
+        conduit: {
+          type: 'local',
+          command: ['node', '/mcp/index.js'],
+          environment: {
+            CONDUIT_SOCKET_PATH: '/tmp/dev.sock',
+            CONDUIT_ENV: 'preview',
+            CONDUIT_INTERNAL_AGENT: '1',
+          },
+          enabled: true,
+        },
+      },
+    });
+  });
+
+  it('writes agent-specific files only for their own agent', () => {
+    const claudePaths = projectMcpConfigFiles('claude-code', '/m', '/s', 'preview').map(
+      (f) => f.relativePath,
+    );
+    expect(claudePaths).toEqual(['.mcp.json']);
+  });
+
   it('escapes Windows paths as TOML basic strings', () => {
     const files = projectMcpConfigFiles(
       'codex',
