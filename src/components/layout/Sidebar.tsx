@@ -20,8 +20,10 @@ import TeamSyncIndicator from "../vault/TeamSyncIndicator";
 import PersonalSyncIndicator from "../sync/PersonalSyncIndicator";
 import SidebarPanel from "./SidebarPanel";
 import SidebarWindowControls from "./SidebarWindowControls";
+import { hasInsetTitleBar } from "../../lib/titleBar";
 
 const CREATE_DISABLED_REASON = "View-only access";
+const INSET_TITLE_BAR = hasInsetTitleBar();
 
 const TRIAL_TONES = {
   urgent: { box: "bg-danger-bg border-danger-border text-danger", icon: "text-danger" },
@@ -253,12 +255,41 @@ export default function Sidebar() {
 
   const trialTone = TRIAL_TONES[trialUrgency === "urgent" || trialUrgency === "moderate" ? trialUrgency : "none"];
 
+  const vaultSwitcher = (
+    <div className="relative min-w-0 flex-1" ref={vaultMenuRef}>
+      <button
+        type="button"
+        data-cv-vault-switcher
+        onClick={() => setShowVaultMenu(!showVaultMenu)}
+        className="flex h-6 max-w-full min-w-0 items-center gap-1.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover"
+        title={`${isNetworkVault ? `Network vault — ${currentVaultPath}` : (currentVaultPath ?? "Open a vault")}${autoUnlockOn ? ` · ${INDICATOR_TEXT}` : ""}`}
+      >
+        <span className="min-w-0 truncate">{vaultName}</span>
+        {autoUnlockOn && (
+          <span data-cv-auto-unlock-indicator="" className="inline-flex shrink-0">
+            <LockOpenIcon size={12} className="text-ink-faint" />
+            <span className="sr-only">{INDICATOR_TEXT}</span>
+          </span>
+        )}
+        <ChevronDownIcon size={16} className="-ml-0.5 shrink-0 text-ink-muted" />
+      </button>
+      {showVaultMenu && (
+        <VaultSwitcherMenu
+          onClose={() => setShowVaultMenu(false)}
+          onNeedDeviceSetup={handleNeedDeviceSetup}
+          onTeamVaultUnlock={handleTeamVaultUnlock}
+        />
+      )}
+    </div>
+  );
+
   // ── Full sidebar content (panel) ──
   const sidebarContent = (
     <>
       {/* Header */}
       <div
         data-cv-sidebar-header
+        data-cv-titlebar=""
         className={cx(
           "flex h-tabstrip shrink-0 items-center gap-0.5 px-1",
           isTeamVaultActive && "border-l-2 border-l-team-border-strong bg-team",
@@ -270,31 +301,8 @@ export default function Sidebar() {
           onClose={animatedCollapse}
           onTogglePin={togglePin}
         />
-        <div className="relative min-w-0 flex-1" ref={vaultMenuRef}>
-          <button
-            type="button"
-            data-cv-vault-switcher
-            onClick={() => setShowVaultMenu(!showVaultMenu)}
-            className="flex h-6 max-w-full min-w-0 items-center gap-1.5 rounded px-1 text-body font-semibold text-ink hover:bg-hover"
-            title={`${isNetworkVault ? `Network vault — ${currentVaultPath}` : (currentVaultPath ?? "Open a vault")}${autoUnlockOn ? ` · ${INDICATOR_TEXT}` : ""}`}
-          >
-            <span className="min-w-0 truncate">{vaultName}</span>
-            {autoUnlockOn && (
-              <span data-cv-auto-unlock-indicator="" className="inline-flex shrink-0">
-                <LockOpenIcon size={12} className="text-ink-faint" />
-                <span className="sr-only">{INDICATOR_TEXT}</span>
-              </span>
-            )}
-            <ChevronDownIcon size={16} className="-ml-0.5 shrink-0 text-ink-muted" />
-          </button>
-          {showVaultMenu && (
-            <VaultSwitcherMenu
-              onClose={() => setShowVaultMenu(false)}
-              onNeedDeviceSetup={handleNeedDeviceSetup}
-              onTeamVaultUnlock={handleTeamVaultUnlock}
-            />
-          )}
-        </div>
+        {!INSET_TITLE_BAR && vaultSwitcher}
+        {INSET_TITLE_BAR && <div className="flex-1" />}
         <div className="flex shrink-0 items-center gap-1">
           <IconButton
             icon={showFavoritesOnly ? "starFilled" : "star"}
@@ -321,6 +329,13 @@ export default function Sidebar() {
           />
         </div>
       </div>
+
+      {/* The macOS window buttons take the header's start, so the vault name gets a row of its own. */}
+      {INSET_TITLE_BAR && (
+        <div className={cx("flex h-8 shrink-0 items-center px-1", isTeamVaultActive && "border-l-2 border-l-team-border-strong bg-team")}>
+          {vaultSwitcher}
+        </div>
+      )}
 
       {/* Team vault context bar */}
       <VaultContextBar />

@@ -31,7 +31,6 @@
   --c-radius-overlay: 8px;
   --c-radius-xl: 12px;
   --c-radius-full: 9999px;
-  --c-tab-cap-radius: 5px;
 
   --c-control-h-sm: 22px;
   --c-control-h: 26px;
@@ -43,9 +42,8 @@
   --c-icon-lg: 24px;
   --c-toolbar-btn: 22px;
 
-  --c-tabstrip-h: 33px;
-  --c-tab-h: 24px;
-  --c-tab-gutter-top: 4px;
+  --c-tabstrip-h: 38px;
+  --c-tab-h: 28px;
   --c-tab-min-w: 78px;
   --c-list-inset: 4px;
   --c-banner-h: 26px;

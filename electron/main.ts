@@ -21,6 +21,7 @@ import { devServerUrl } from './services/env-config.js';
 import { describeDeepLink } from './services/deep-link-log.js';
 import { attachStartupWindow, initStartupVault, noteLaunchUrl, noteSecondInstance } from './ipc/startup-vault.js';
 import { SKIP_SWITCH } from './services/vault/startup-modifiers.js';
+import { reportFullScreen, titleBarOptions } from './window-title-bar.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -733,6 +734,7 @@ function createWindow(): BrowserWindow {
     show: false,
     backgroundColor: windowBackground(readSettings(), nativeTheme.shouldUseDarkColors),
     title: 'Conduit',
+    ...titleBarOptions(process.platform),
     ...(!isMac && {
       icon: path.join(
         isDev ? path.join(__dirname, '..') : process.resourcesPath,
@@ -798,6 +800,7 @@ function createWindow(): BrowserWindow {
   });
 
   attachStartupWindow(mainWindow);
+  reportFullScreen(mainWindow);
 
   if (isDev) {
     mainWindow.loadURL(devServerUrl());

@@ -151,11 +151,10 @@ afterEach(() => {
 });
 
 describe("Sidebar header", () => {
-  it("keeps today's controls in today's order, titles and names", () => {
+  it("keeps today's controls in today's order, titles and names, less the close button", () => {
     setup();
     expect(header().className).toContain("h-tabstrip");
     expect(buttonsIn(header()).map(describeButton)).toEqual([
-      { title: "Hide sidebar (Ctrl+B)", aria: "Hide sidebar", text: undefined, pressed: undefined },
       { title: "Unpin sidebar so it auto-hides (Ctrl+Shift+B)", aria: "Unpin sidebar", text: undefined, pressed: "true" },
       { text: "Acme Infrastructure", title: VAULT_PATH, aria: undefined, pressed: undefined },
       { title: "Show favorites only", aria: "Show favorites only", text: undefined, pressed: undefined },
@@ -165,7 +164,7 @@ describe("Sidebar header", () => {
     expect(header().querySelector("[data-cv-vault-switcher]")?.textContent).toBe("Acme Infrastructure");
   });
 
-  it("truncates a 60-character vault name before the buttons and keeps all six clickable", () => {
+  it("truncates a 60-character vault name before the buttons and keeps all five clickable", () => {
     setup({ vaultPath: `/tmp/vaults/${LONG_NAME}.conduit` });
     const switcher = header().querySelector("[data-cv-vault-switcher]") as HTMLButtonElement;
     const name = within(switcher).getByText(LONG_NAME);
@@ -185,8 +184,7 @@ describe("Sidebar header", () => {
     document.addEventListener("conduit:new-entry", record);
     document.addEventListener("conduit:new-folder", record);
     const togglePin = vi.fn();
-    const collapse = vi.fn();
-    useSidebarStore.setState({ togglePin, collapse });
+    useSidebarStore.setState({ togglePin });
 
     fireEvent.click(screen.getByRole("button", { name: "New Entry" }));
     fireEvent.click(screen.getByRole("button", { name: "New Folder" }));
@@ -196,11 +194,9 @@ describe("Sidebar header", () => {
     expect(screen.getByText("Lock Current Vault")).toBeTruthy();
     fireEvent.click(switcher);
     fireEvent.click(screen.getByRole("button", { name: "Unpin sidebar" }));
-    fireEvent.click(screen.getByRole("button", { name: "Hide sidebar" }));
 
     expect(events).toEqual(["conduit:new-entry", "conduit:new-folder"]);
     expect(togglePin).toHaveBeenCalledTimes(1);
-    expect(collapse).toHaveBeenCalledTimes(1);
     document.removeEventListener("conduit:new-entry", record);
     document.removeEventListener("conduit:new-folder", record);
   });

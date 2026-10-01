@@ -13,17 +13,10 @@ function pinTitle(isPinned: boolean, isDocked: boolean): string {
   return "Pinned, but the window is too narrow to dock it. Unpin (Ctrl+Shift+B)";
 }
 
-export default function SidebarWindowControls({
-  isPinned,
-  isDocked,
-  onClose,
-  onTogglePin,
-}: SidebarWindowControlsProps) {
-  const closeLabel = isDocked ? "Hide sidebar" : "Close sidebar";
-
+/** The pin, and a close button only while the side bar is popped out unpinned; a pinned one hides by unpinning or Ctrl+B. */
+export default function SidebarWindowControls({ isPinned, isDocked, onClose, onTogglePin }: SidebarWindowControlsProps) {
   return (
     <>
-      <IconButton icon="close" label={closeLabel} title={`${closeLabel} (Ctrl+B)`} onClick={onClose} />
       <IconButton
         icon={isPinned ? "pinFilled" : "pin"}
         label={isPinned ? "Unpin sidebar" : "Pin sidebar open"}
@@ -32,6 +25,7 @@ export default function SidebarWindowControls({
         onClick={onTogglePin}
         className={isPinned && !isDocked ? "opacity-60" : undefined}
       />
+      {!isPinned && <IconButton icon="close" label="Close sidebar" title="Close sidebar (Ctrl+B)" onClick={onClose} />}
     </>
   );
 }

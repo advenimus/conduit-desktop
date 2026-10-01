@@ -25,6 +25,7 @@ import { dashboardViewOf, isHomeSession } from "../../lib/dashboardSessions";
 import { AI_HARNESSES } from "../../lib/ai-harnesses";
 import { IconButton, cx } from "../ui";
 import type { EntryMeta } from "../../types/entry";
+import type { PaneEdges } from "./LayoutRenderer";
 
 const typeIcons: Record<SessionType, React.ReactNode> = {
   local_shell: <TerminalIcon size={16} />,
@@ -47,7 +48,10 @@ interface PaneTabBarProps {
   paneId: string;
   isFocused: boolean;
   rightSlot?: React.ReactNode;
+  edges?: PaneEdges;
 }
+
+const NO_EDGES: PaneEdges = { top: false, left: false };
 
 function newTabMenuItems(cliAgentsEnabled: boolean): PopupMenuItem[] {
   return [
@@ -127,7 +131,7 @@ async function openLocalShell(choice: string): Promise<void> {
   }
 }
 
-export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }: PaneTabBarProps) {
+export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot, edges = NO_EDGES }: PaneTabBarProps) {
   const paneSessionIds = useLayoutStore((s) => {
     const pane = findLeaf(s.root, paneId);
     return pane?.sessionIds ?? [];
@@ -143,6 +147,8 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
     .filter(Boolean) as typeof sessions;
 
   const { startDrag, endDrag } = useDragContext();
+  const sidebarDockedOpen = useSidebarStore(selectIsDockedOpen);
+  const leadsWindow = edges.top && edges.left && !sidebarDockedOpen;
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -157,6 +163,17 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
       renameInputRef.current.select();
     }
   }, [renamingId]);
+
+  // A tab dropped in another pane never sees its own dragend, so the drag context's end clears it too.
+  useEffect(() => {
+    const onDragChange = (e: Event) => {
+      if ((e as CustomEvent<boolean>).detail) return;
+      setDragIndex(null);
+      setDropIndex(null);
+    };
+    document.addEventListener("conduit:drag-change", onDragChange);
+    return () => document.removeEventListener("conduit:drag-change", onDragChange);
+  }, []);
 
   // Only a row whose tabs have all shrunk to their floor scrolls; keep the newly active tab in view.
   useEffect(() => {
@@ -337,7 +354,12 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot }:
   };
 
   return (
-    <div data-tabbar className="cv-tabstrip">
+    <div
+      data-tabbar
+      data-cv-titlebar={edges.top ? "" : undefined}
+      data-cv-window-lead={leadsWindow ? "" : undefined}
+      className="cv-tabstrip"
+    >
       <SidebarToggle />
 
       <div

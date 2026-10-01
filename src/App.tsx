@@ -982,7 +982,9 @@ function App() {
     if (showVaultHub) {
       return (
         <div className="flex flex-col h-screen bg-editor text-ink">
-          {authMode === 'cached' && <OfflineBanner />}
+          <div data-cv-top-banners="" className="contents">
+            {authMode === 'cached' && <OfflineBanner />}
+          </div>
           <VaultHub />
           {/* Overlay dialogs that can appear on top of hub */}
           {showUnlockDialog && (
@@ -1040,11 +1042,11 @@ function App() {
     return (
       <div className="flex flex-col h-screen bg-editor text-ink">
         <div data-cv-accent-line className="h-[2px] shrink-0 bg-accent" />
-        {authMode === 'cached' && <OfflineBanner />}
-        <SyncBanners />
+        <div data-cv-top-banners="" className="contents">
+          {authMode === 'cached' && <OfflineBanner />}
+          <SyncBanners />
+        </div>
         <div className="flex flex-1 min-h-0">
-        {/* Sidebar — docked in this row when pinned, otherwise a fixed overlay */}
-        <Sidebar />
         {/* Main Area */}
         <div className="flex flex-col flex-1 min-w-0">
           {/* Content Area */}
@@ -1084,6 +1086,9 @@ function App() {
             </>
           </div>
         </div>
+        {/* Sidebar: docked in this row when pinned (drawn first by flex order), otherwise a fixed overlay.
+            Last in the page so its header's window-drag area wins over the tab bar it floats above. */}
+        <Sidebar />
         </div>
 
         {/* Startup status bar (background builds, setup tasks) */}
@@ -1270,6 +1275,7 @@ function App() {
 
   return (
     <>
+      <div className="cv-window-drag-strip" aria-hidden="true" />
       {renderScreen()}
       <StartupConfirmHost />
       <NotificationStack />
