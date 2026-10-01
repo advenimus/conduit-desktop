@@ -36,7 +36,8 @@ function readPanes(d) {
       text: el.innerText.slice(0, 80),
     }));
     const focusedPane = document.activeElement?.closest('[data-agent-pane]')?.getAttribute('data-agent-pane') ?? null;
-    return { panes, plusDisabled: plus?.disabled ?? null, plusTitle: plus?.getAttribute('title') ?? null, focusedPane };
+    const headerButtons = [...document.querySelectorAll('[data-cv-ai-header] button')].map((b) => b.getAttribute('aria-label') ?? b.getAttribute('title'));
+    return { headerButtons, panes, plusDisabled: plus?.disabled ?? null, plusTitle: plus?.getAttribute('title') ?? null, focusedPane };
   }, PLUS);
 }
 
@@ -56,7 +57,10 @@ function clickIn(d, selector) {
   }, selector);
 }
 
-function openPaneMenu(d, paneId) {
+async function openPaneMenu(d, paneId) {
+  await d.page.evaluate((id) => {
+    document.querySelector(`[data-agent-pane="${id}"]`).dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  }, paneId);
   return clickIn(d, `[data-agent-pane="${paneId}"] button[aria-haspopup="menu"]`);
 }
 
@@ -108,11 +112,13 @@ async function captureMode(ctx, { mode, outDir, siteUrl }) {
 
     const one = await waitForPanes(d, 1);
     check('one pane has no pane header or X', !one.panes[0].close, one);
+    check('one pane keeps the top engine switcher', one.headerButtons.includes('Switch engine for this session'), one.headerButtons);
     await shot('one-agent');
 
     await clickIn(d, PLUS);
     const two = await waitForPanes(d, 2);
     check('two panes each have an X', two.panes.every((p) => p.close), two);
+    check('two panes leave only + in the top header', two.headerButtons.join() === 'New agent', two.headerButtons);
     await sleep(800);
     const twoFocus = await readPanes(d);
     check('keyboard focus moved to the new pane', twoFocus.focusedPane === two.panes[1].id, twoFocus);

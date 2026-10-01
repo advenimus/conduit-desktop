@@ -123,23 +123,42 @@ describe("ChatPanel agent panes", () => {
     expect(closeButtons()).toHaveLength(0);
   });
 
-  it("swaps only the focused agent's engine from the header", async () => {
+  it("keeps the top engine switcher and model for one agent only, leaving just + over several", async () => {
+    useAiStore.setState({ pendingEngineModel: "claude-opus-4" });
+    await renderPanel();
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(screen.getByTitle("Switch engine for this session")).toHaveTextContent("Claude Code");
+    expect(screen.getByTitle("Model: claude-opus-4 (click to change)")).toBeInTheDocument();
+    expect(screen.queryByTitle(/^Switch this agent's engine/)).toBeNull();
+
+    await addPane();
+    await waitFor(() => expect(shown()).toHaveLength(2));
+    const header = document.querySelector<HTMLElement>("[data-cv-ai-header]")!;
+    expect(within(header).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual(["New agent"]);
+    expect(screen.getAllByTitle(/^Switch this agent's engine/)).toHaveLength(2);
+
+    fireEvent.click(closeButtons()[0]);
+    await waitFor(() => expect(closeButtons()).toHaveLength(0));
+    expect(screen.getByTitle("Switch engine for this session")).toBeInTheDocument();
+  });
+
+  it("starts a new agent with the focused pane's engine", async () => {
     await renderPanel();
     await waitFor(() => expect(created).toHaveLength(1));
     await addPane();
     await waitFor(() => expect(shown()).toHaveLength(2));
-
-    fireEvent.click(screen.getByTitle("Switch engine for this session"));
+    const first = document.querySelector<HTMLElement>(`[data-agent-pane="${created[0].paneId}"]`)!;
+    fireEvent.mouseDown(first);
+    fireEvent.click(within(first).getByTitle(/^Switch this agent's engine/));
     fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /Codex/ }));
-
     await waitFor(() => expect(created).toHaveLength(3));
-    expect(created[2]).toMatchObject({ engineType: "codex", paneId: created[1].paneId });
-    await waitFor(() => expect(closed()).toEqual(["term-2"]));
-    expect(shown()).toEqual(["term-1", "term-3"]);
+    expect(created[2]).toMatchObject({ engineType: "codex", paneId: created[0].paneId });
+    await waitFor(() => expect(closed()).toEqual(["term-1"]));
 
-    fireEvent.mouseDown(document.querySelector(`[data-agent-pane="${created[0].paneId}"]`)!);
-    expect(screen.getByTitle("Switch engine for this session")).toHaveTextContent("Claude Code");
-    expect(created).toHaveLength(3);
+    await addPane();
+    expect(created[3].engineType).toBe("codex");
+    fireEvent.mouseDown(document.querySelector(`[data-agent-pane="${created[1].paneId}"]`)!);
+    expect(useAiStore.getState().activeEngineType).toBe("claude-code");
   });
 
   it("runs a different engine in each pane, switched from the pane headers, restarting only that pane", async () => {
@@ -169,7 +188,6 @@ describe("ChatPanel agent panes", () => {
     await waitFor(() => expect(closed()).toEqual(["term-2", "term-3"]));
     expect(shown()).toEqual(["term-1", "term-4", "term-5"]);
     expect(useAgentPaneStore.getState().panes.map((p) => p.engineType)).toEqual(["claude-code", "codex", "grok"]);
-    expect(screen.getByTitle("Switch engine for this session")).toHaveTextContent("Grok");
   });
 
   it("restarts every agent when the agent session epoch changes", async () => {

@@ -398,7 +398,7 @@ bring their own agent subscription.
 
 ### CLI Agent Terminals
 - CLI agents always launch as native terminals (the rich chat interface and its toggle have been retired)
-- Up to 3 agents at once: the panel's + stacks a new agent pane (disabled at 3), panes split the height with draggable dividers, and with more than one open each pane has a header whose engine name switches that pane's engine (so Claude Code, Codex and Grok Build can run side by side; a switch restarts only that pane) and an X that ends its terminal. New panes start with the top header's engine
+- Up to 3 agents at once: the panel's + stacks a new agent pane (disabled at 3), panes split the height with draggable dividers, and with more than one open each pane has a header whose engine name switches that pane's engine (so Claude Code, Codex and Grok Build can run side by side; a switch restarts only that pane) and an X that ends its terminal. The top header's engine switcher and model button show only with one agent; with several it keeps just the +. New panes start with the focused pane's engine
 - Launch commands: `claude`, `codex`, `grok`, `cursor-agent` (Cursor; falls back to a verified `agent` binary), `openclaw tui --local`, `gemini`, `copilot`, `opencode`
 - Working directory: explicit cwd, then Settings default, then `{userData}/conduit[-dev]/agent/{engine}/`
 - Configurable terminal font size

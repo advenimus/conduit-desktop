@@ -21,6 +21,8 @@ export default function ChatPanel() {
   const agentSessionEpoch = useAiStore((s) => s.agentSessionEpoch);
   const paneCount = useAgentPaneStore((s) => s.panes.length);
   const atPaneLimit = paneCount >= MAX_AGENT_PANES;
+  // With several agents each pane header is its own switcher; a second one up here would only confuse.
+  const showHeaderEngine = !terminalMode || paneCount === 1;
 
   const currentEngineModel =
     engineSessions.find((s) => s.id === activeEngineSessionId)?.model ?? pendingEngineModel;
@@ -89,44 +91,46 @@ export default function ChatPanel() {
   return (
     <div className="flex flex-col h-full bg-sidebar">
       <div data-cv-ai-header data-cv-titlebar="" className="flex h-tabstrip shrink-0 items-center justify-between gap-1 px-2">
-        <div className="flex min-w-0 items-center gap-1">
-          {/* Active engine — click to temporarily swap for this session.
-              Doesn't touch the saved default; change that in Settings. */}
-          <div className="relative" ref={engineSwitcherRef}>
-            <button
-              ref={engineButtonRef}
-              type="button"
-              onClick={() => setEngineSwitcherOpen((o) => !o)}
-              aria-haspopup="menu"
-              aria-expanded={engineSwitcherOpen}
-              className="flex h-6 items-center gap-1.5 rounded px-1.5 text-label font-semibold text-ink-secondary hover:bg-hover hover:text-ink"
-              title="Switch engine for this session"
-            >
-              <EngineLogo type={activeEngineType} size={16} />
-              <span>{getHarness(activeEngineType).name}</span>
-              <ChevronDownIcon size={16} className="text-ink-muted" />
-            </button>
-            {engineSwitcherOpen && (
-              <div className="absolute top-full left-0 mt-1 z-20 min-w-[200px] max-h-72 overflow-y-auto rounded-lg border border-overlay-border bg-overlay shadow-overlay">
-                <Menu onClose={closeEngineSwitcher} onKeyDown={onEngineMenuKeyDown}>
-                  <EngineMenuItems current={activeEngineType} onSelect={(type) => useAiStore.getState().setActiveEngine(type)} />
-                </Menu>
-              </div>
+        {showHeaderEngine && (
+          <div className="flex min-w-0 items-center gap-1">
+            {/* Active engine — click to temporarily swap for this session.
+                Doesn't touch the saved default; change that in Settings. */}
+            <div className="relative" ref={engineSwitcherRef}>
+              <button
+                ref={engineButtonRef}
+                type="button"
+                onClick={() => setEngineSwitcherOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={engineSwitcherOpen}
+                className="flex h-6 items-center gap-1.5 rounded px-1.5 text-label font-semibold text-ink-secondary hover:bg-hover hover:text-ink"
+                title="Switch engine for this session"
+              >
+                <EngineLogo type={activeEngineType} size={16} />
+                <span>{getHarness(activeEngineType).name}</span>
+                <ChevronDownIcon size={16} className="text-ink-muted" />
+              </button>
+              {engineSwitcherOpen && (
+                <div className="absolute top-full left-0 mt-1 z-20 min-w-[200px] max-h-72 overflow-y-auto rounded-lg border border-overlay-border bg-overlay shadow-overlay">
+                  <Menu onClose={closeEngineSwitcher} onKeyDown={onEngineMenuKeyDown}>
+                    <EngineMenuItems current={activeEngineType} onSelect={(type) => useAiStore.getState().setActiveEngine(type)} />
+                  </Menu>
+                </div>
+              )}
+            </div>
+            {currentEngineModel && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => useAiStore.getState().fetchEngineModels()}
+                className="min-w-0 max-w-[160px]"
+                title={`Model: ${currentEngineModel} (click to change)`}
+              >
+                <span className="truncate">{currentEngineModel}</span>
+              </Button>
             )}
           </div>
-          {currentEngineModel && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => useAiStore.getState().fetchEngineModels()}
-              className="min-w-0 max-w-[160px]"
-              title={`Model: ${currentEngineModel} (click to change)`}
-            >
-              <span className="truncate">{currentEngineModel}</span>
-            </Button>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center">
+        )}
+        <div className="ml-auto flex shrink-0 items-center">
           {terminalMode ? (
             <IconButton
               icon="plus"
