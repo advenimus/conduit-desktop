@@ -1,4 +1,4 @@
--- Rollback of 20260929161800_vault_ownership_device_cap. Never removes an RPC signature desktop 0.18
+-- Rollback of 20261001174606_vault_ownership_device_cap. Never removes an RPC signature desktop 0.18
 -- or iOS 1.1 calls: acquire keeps 11 arguments and peek keeps 4, with the bodies of
 -- 20260926150905 (the extra arguments are ignored). Release answers as if nothing is owned.
 -- The two ownership tables are kept (data for a fix-forward); nothing reads them after this.

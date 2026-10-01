@@ -7,7 +7,7 @@ set client_min_messages = warning;
 begin;
 \ir ../pending/_rollback_20260929161900_cloud_backup_count_cap.sql
 \ir ../migrations/_rollback_20260929161756_cloud_backup_plan_gate.sql
-\ir ../migrations/_rollback_20260929161800_vault_ownership_device_cap.sql
+\ir ../migrations/_rollback_20261001174606_vault_ownership_device_cap.sql
 \ir ../migrations/_rollback_20260929161746_app_config_min_version.sql
 \ir ../migrations/_rollback_20260929161642_team_membership_hardening.sql
 set client_min_messages = notice;

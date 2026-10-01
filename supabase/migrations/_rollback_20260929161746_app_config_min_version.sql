@@ -1,4 +1,4 @@
--- Rollback of 20260929161746_app_config_min_version. Run the 20260929161800 rollback first: the
+-- Rollback of 20260929161746_app_config_min_version. Run the 20261001174606 rollback first: the
 -- lease RPCs of that migration call these functions.
 
 drop function if exists public.app_config_int(text, int);
