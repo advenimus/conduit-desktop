@@ -24,7 +24,7 @@
           "category": "feature"
         },
         {
-          "text": "**Cloud backup by snapshot count**: cloud backup is part of Pro and Team. Pro keeps up to 25 snapshots for each of up to 10 vaults, and Conduit clears the oldest one to make room. Local backup stays on every plan.",
+          "text": "**Cloud backup by snapshot count**: cloud backup is part of Pro and Team. Pro keeps up to 25 snapshots from the last 14 days for each of up to 10 vaults, and Conduit clears the oldest one to make room. Team keeps 6 months with no limit. Local backup stays on every plan.",
           "category": "improvement"
         },
         {
