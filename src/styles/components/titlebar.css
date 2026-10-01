@@ -1,0 +1,39 @@
+/* The unified top bar on macOS (lib/titleBar.ts): no native title bar, the window buttons sit in the
+   app's first row and its empty space moves the window. */
+:root { --cv-window-controls-w: 0px; --cv-window-lead: 0px; }
+:root[data-titlebar="inset"] { --cv-window-controls-w: 86px; --cv-window-lead: var(--cv-window-controls-w); }
+:root[data-titlebar="inset"][data-fullscreen] { --cv-window-controls-w: 0px; }
+/* A banner row above the bars takes the window buttons instead. */
+:root[data-titlebar="inset"]:has([data-cv-top-banners] > *) { --cv-window-lead: 0px; }
+
+/* Unlayered, so these beat the elements' own utility classes. */
+[data-titlebar="inset"] :is([data-cv-titlebar], [data-cv-top-banners] > *) { -webkit-app-region: drag; app-region: drag; }
+[data-titlebar="inset"] :is([data-cv-titlebar], [data-cv-top-banners] > *)
+  :is(button, a, input, select, textarea, [role="button"], [role="menu"], [draggable="true"], .cv-tab) { -webkit-app-region: no-drag; app-region: no-drag; }
+/* Drag regions ignore stacking, so they step aside for anything laid over the bars and for tab drags. */
+:root[data-titlebar="inset"]:is(:has([data-dialog-content]), [data-cv-tab-dragging])
+  :is([data-cv-titlebar], [data-cv-top-banners] > *) {
+  -webkit-app-region: no-drag; app-region: no-drag; }
+/* Under a floating side bar a click outside it closes it, so the bars and banners there stop moving the window.
+   The side bar comes last in the page (App.tsx), so its own header still moves the window over them. */
+:root[data-titlebar="inset"]:has([data-sidebar-panel]:not([data-docked]))
+  :is([data-cv-titlebar]:not([data-cv-sidebar-header]), [data-cv-top-banners] > *) {
+  -webkit-app-region: no-drag; app-region: no-drag; }
+
+[data-titlebar="inset"] [data-cv-accent-line] { display: none; }
+[data-titlebar="inset"] .cv-tabstrip[data-cv-window-lead] { padding-left: var(--cv-window-lead); }
+/* Tabs shrink to fill their row, so each bar keeps a gap at its end that always moves the window. */
+[data-titlebar="inset"] .cv-tabstrip[data-cv-titlebar] .cv-tabs { padding-right: 28px; }
+[data-titlebar="inset"] [data-sidebar-panel][data-docked] [data-cv-sidebar-header] { padding-left: max(4px, var(--cv-window-lead)); }
+[data-titlebar="inset"] [data-sidebar-panel]:not([data-docked]) [data-cv-sidebar-header] { padding-left: max(4px, var(--cv-window-controls-w)); }
+[data-titlebar="inset"] [data-cv-top-banners] > :first-child { min-height: var(--c-tabstrip-h); padding-left: max(12px, var(--cv-window-controls-w)); }
+
+/* Screens without bars (sign-in, the Vault Hub) still need somewhere to move the window from. */
+.cv-window-drag-strip { display: none; }
+[data-titlebar="inset"]:not(:has([data-cv-titlebar])) .cv-window-drag-strip { display: block; position: fixed; top: 0; left: 0;
+  right: 0; height: var(--c-tabstrip-h); -webkit-app-region: drag; app-region: drag; }
+
+/* The three top rows read as one bar; layered, so the team vault header keeps its own color. */
+@layer components {
+  [data-cv-sidebar-header], [data-cv-ai-header] { background-color: var(--c-tabstrip); box-shadow: inset 0 -1px 0 var(--c-divider); }
+}

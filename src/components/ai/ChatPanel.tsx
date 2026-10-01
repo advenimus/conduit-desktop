@@ -245,7 +245,7 @@ export default function ChatPanel() {
 
   return (
     <div className="flex flex-col h-full bg-sidebar">
-      <div data-cv-ai-header className="flex h-tabstrip shrink-0 items-center justify-between gap-1 px-2">
+      <div data-cv-ai-header data-cv-titlebar="" className="flex h-tabstrip shrink-0 items-center justify-between gap-1 px-2">
         <div className="flex min-w-0 items-center gap-1">
           {/* Active engine — click to temporarily swap for this session.
               Doesn't touch the saved default; change that in Settings. */}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import SidebarPanel from "../SidebarPanel";
 import SidebarWindowControls from "../SidebarWindowControls";
 
@@ -157,14 +157,7 @@ describe("SidebarWindowControls", () => {
   function renderControls(isPinned: boolean, isDocked: boolean) {
     const onClose = vi.fn();
     const onTogglePin = vi.fn();
-    render(
-      <SidebarWindowControls
-        isPinned={isPinned}
-        isDocked={isDocked}
-        onClose={onClose}
-        onTogglePin={onTogglePin}
-      />,
-    );
+    render(<SidebarWindowControls isPinned={isPinned} isDocked={isDocked} onClose={onClose} onTogglePin={onTogglePin} />);
     return { onClose, onTogglePin };
   }
 
@@ -173,23 +166,32 @@ describe("SidebarWindowControls", () => {
     const pin = screen.getByRole("button", { name: "Pin sidebar open" });
     expect(pin.getAttribute("aria-pressed")).toBe("false");
     expect(pin.title).toBe("Pin sidebar open (Ctrl+Shift+B)");
-    expect(screen.getByRole("button", { name: "Close sidebar" }).title).toBe("Close sidebar (Ctrl+B)");
 
     fireEvent.click(pin);
     expect(onTogglePin).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Close sidebar" }));
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["Pin sidebar open", "Close sidebar"]);
+    expect(buttons[1].title).toBe("Close sidebar (Ctrl+B)");
+    fireEvent.click(buttons[1]);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("offers to unpin or hide a docked sidebar", () => {
+  it("has no close button while pinned, docked or not", () => {
+    renderControls(true, true);
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    cleanup();
+    renderControls(true, false);
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("offers to unpin a docked sidebar", () => {
     renderControls(true, true);
     const pin = screen.getByRole("button", { name: "Unpin sidebar" });
     expect(pin.getAttribute("aria-pressed")).toBe("true");
     expect(pin.title).toBe("Unpin sidebar so it auto-hides (Ctrl+Shift+B)");
     expect(pin.className).toContain("bg-toolbar-active");
     expect(pin.className).not.toContain("opacity-60");
-    expect(screen.getByRole("button", { name: "Hide sidebar" }).title).toBe("Hide sidebar (Ctrl+B)");
   });
 
   it("explains why a pinned sidebar is floating", () => {
