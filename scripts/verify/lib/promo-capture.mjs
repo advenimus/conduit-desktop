@@ -104,6 +104,7 @@ export function createRecorder(outDir) {
   const shots = [];
   return {
     shots,
+    outDir,
     async shot(d, { scene, name, description, targets = [], settleMs = 500, crop = null }) {
       const seq = String(shots.filter((s) => s.scene === scene).length + 1).padStart(2, '0');
       const file = `${scene}-${seq}-${name}.png`;

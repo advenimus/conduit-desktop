@@ -9,7 +9,7 @@ import { fillPromo, homeFixtures, installFakeHandlers } from './promo-data.mjs';
 import { expandFolders, showHome } from './promo-setup.mjs';
 import { setSidebar } from './restyle-data.mjs';
 import { readSyncTab, cancelSettings } from './settings-flows.mjs';
-import { TAKEOVER_TITLE, closeReview, conflictCount, useHereFromTakeover, waitForDisplaced, waitForEntry, waitForDialog } from './sync-flows.mjs';
+import { TAKEOVER_TITLE, closeReview, conflictCount, useHereFromTakeover, waitForDisplaced, waitForEntry } from './sync-flows.mjs';
 import { mainEval, sleep, waitFor } from './ui.mjs';
 import { openVaultHere, waitShared } from './scenario-helpers.mjs';
 

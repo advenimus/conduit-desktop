@@ -163,5 +163,7 @@ export function writeLauncher(root, { version }) {
   fs.writeFileSync(path.join(dir, 'main.mjs'), LAUNCHER_MAIN);
   // app.getAppPath() is this directory; the app registers <appPath>/mcp/dist/index.js with agents.
   linkIfMissing(path.join(REPO, 'mcp'), path.join(dir, 'mcp'));
+  // The RDP engine looks for its helper under <appPath>/freerdp-helper/bundle.
+  if (fs.existsSync(path.join(REPO, 'freerdp-helper', 'bundle'))) linkIfMissing(path.join(REPO, 'freerdp-helper'), path.join(dir, 'freerdp-helper'));
   return dir;
 }
