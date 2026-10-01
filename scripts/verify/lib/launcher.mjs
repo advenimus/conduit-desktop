@@ -7,6 +7,7 @@ import { REPO } from './run-context.mjs';
 
 const LAUNCHER_MAIN = `import fs from 'node:fs';
 import cp from 'node:child_process';
+import os from 'node:os';
 import { syncBuiltinESMExports } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { BrowserWindow, View, app, globalShortcut, ipcMain } from 'electron';
@@ -52,6 +53,14 @@ globalThis.__cvShortcut = (accelerator) => {
   callback();
   return true;
 };
+// A fixed computer name, so screenshots of the sync devices list never carry the real one.
+if (process.env.CV_HOSTNAME) {
+  const fixed = process.env.CV_HOSTNAME;
+  os.hostname = () => fixed;
+  const execFileSync = cp.execFileSync;
+  cp.execFileSync = (file, args, options) =>
+    String(file).endsWith('scutil') && Array.isArray(args) && args.includes('ComputerName') ? \`\${fixed}\\n\` : execFileSync(file, args, options);
+}
 const execSync = cp.execSync;
 cp.execSync = (command, options) =>
   typeof command === 'string' && command.startsWith('ps -axww') ? '' : execSync(command, options);
