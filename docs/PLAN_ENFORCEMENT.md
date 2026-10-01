@@ -85,7 +85,7 @@ All in `DESK/supabase/migrations/`, after `20260928003610_team_invitation_update
 |---|---|---|---|
 | M1 | `supabase/migrations/20260929161642_team_membership_hardening.sql` | Drop `tm_insert` and `ti_insert`; `tm_update` with check; row guard; seat trigger (also refuses a team without a live subscription); `teams` column guard; invitation admin-edit guard; member-removal cleanup trigger; team-vault helpers require team membership; tighter `team_vault_members_insert` and `_update`, `vault_key_wraps_insert`; `team_vaults_insert` checks `created_by`; guarded `upsert_vault_entry_versioned`; revoke TRUNCATE/REFERENCES/TRIGGER from anon and authenticated | 2.7 |
 | M2 | `supabase/migrations/20260929161746_app_config_min_version.sql` | `app_config` table and seed; version helpers | 2.2 |
-| M3 | `supabase/migrations/20260929161800_vault_ownership_device_cap.sql` | `personal_vault_owners`, `personal_vault_guest_grace`; owner helpers; `vault_owner_release`; tier key `account_max_active_devices`; widened `displaced_reason`; new peek/acquire (11 args)/heartbeat bodies | 2.3-2.6 |
+| M3 | `supabase/migrations/20261001174606_vault_ownership_device_cap.sql` | `personal_vault_owners`, `personal_vault_guest_grace`; owner helpers; `vault_owner_release`; tier key `account_max_active_devices`; widened `displaced_reason`; new peek/acquire (11 args)/heartbeat bodies | 2.3-2.6 |
 | M4 | `supabase/migrations/20260929161756_cloud_backup_plan_gate.sql` | `cloud_backup_allowed()` (no arguments); all four `storage.objects` policies for bucket `vaults` created here (INSERT and UPDATE get the plan check and the object-name check); tier key `max_cloud_backup_vaults` | 2.9 |
 | M5 | `supabase/pending/20260929161900_cloud_backup_count_cap.sql` (**not** in `migrations/` until rollout step 8) | `cloud_backup_slot_free(text)`; INSERT and UPDATE policies also get the per-vault snapshot cap and the per-account vault-folder cap | 2.9 |
 
@@ -1473,7 +1473,7 @@ Stripe test-mode checklist before rollout step 6: buy 5 seats, invite 4, accept 
 | 1 | Website: add-self fix, invite email check, accept route bearer path, live-plan check (6.3 e), the personal-sub read fix, and invitation expiry on dissolution | Any time, before M1 | Service-role routes; cookie path unchanged |
 | 2 | M1 team hardening | Applied to prod 2026-09-29 (version 20260929161642) | Prod has 0 teams, 0 members, 0 invitations, 0 team vaults and 0 entries [V: prod SELECT 2026-09-29]; website uses the service role; the desktop's own insert already fails under RLS today; the guarded upsert keeps the desktop's signature |
 | 3 | M2 app_config | Applied to prod 2026-09-29 (version 20260929161746) | Seeds are permissive; nothing reads it until M3 |
-| 4 | M3 ownership and device cap | With desktop 0.18 and iOS 1.1 (a 0.18 build without this work would get answers it does not know) | No released client calls the lease RPCs; 0 session rows [V]. Unreleased 0.18/1.1 dev builds must move to the 11-argument acquire at the same time (a 10-argument named call still resolves through the default) |
+| 4 | M3 ownership and device cap | Applied to prod 2026-10-01 (version 20261001174606), before desktop 0.18 and iOS 1.1 (a 0.18 build without this work would get answers it does not know) | No released client calls the lease RPCs; 0 session rows [V]. Unreleased 0.18/1.1 dev builds must move to the 11-argument acquire at the same time (a 10-argument named call still resolves through the default) |
 | 5 | M4 cloud backup plan gate and name check | Applied to prod 2026-09-29 (version 20260929161756) | Free users cannot enable backup in 0.17 (`v0.17.0:electron/ipc/cloud-sync.ts:38-39` [V]); any Free upload that still happens is refused by design; the name check accepts every shape in prod [V] |
 | 6 | Accept route quantity fix (6.3 c) | After the owner confirms (10) | Changes billing |
 | 7 | Desktop 0.18 and iOS 1.1 | Together | Both catalogs carry `_sync/owner/account`; both parse the new answers |
@@ -1512,7 +1512,7 @@ drop function if exists public.cloud_backup_allowed();
 update public.tiers set features = features - 'max_cloud_backup_vaults', updated_at = now()
  where name in ('free', 'pro', 'team');
 
--- _rollback_20260929161800_vault_ownership_device_cap.sql
+-- _rollback_20261001174606_vault_ownership_device_cap.sql
 -- 1. Acquire keeps the 11-argument signature (0.18 and 1.1 send p_claim) with the body of
 --    20260926150905 (copy verbatim; p_claim is ignored). Heartbeat: the 20260926150905 body (same signature).
 -- 2. Peek keeps the 4-argument signature (0.18 and 1.1 send p_platform and p_app_version; a 2-argument-only

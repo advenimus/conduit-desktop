@@ -21,7 +21,7 @@ const BASE_MIGRATION = '20260501000000_add_parent_entry_id.sql';
 const FIRST_SYNC_VERSION = '20260926000000';
 const VERSIONED_MIGRATION = /^(\d{14})_.+\.sql$/;
 const SESSION_RPCS = ['vault_session_peek', 'vault_session_acquire', 'vault_session_heartbeat', 'vault_session_release', 'vault_session_abandon'];
-// vault_max_open_devices, account_max_active_devices (20260929161800), max_cloud_backup_vaults (20260929161756).
+// vault_max_open_devices, account_max_active_devices (20261001174606), max_cloud_backup_vaults (20260929161756).
 const EXPECTED_TIERS = {
   free: { devices: '1', cap: '5', backupVaults: '0' },
   pro: { devices: '-1', cap: '5', backupVaults: '10' },
