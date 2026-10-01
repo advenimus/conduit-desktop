@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { EngineType } from './engines/engine.js';
+import { ensureConduitServerApproved } from './agent-mcp-approval.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -362,6 +363,14 @@ export function writeProjectMcpFiles(
     const existing = fs.existsSync(fullPath) ? fs.readFileSync(fullPath, 'utf-8') : '';
     if (existing.trim() !== file.contents.trim()) {
       fs.writeFileSync(fullPath, file.contents, 'utf-8');
+    }
+  }
+
+  if (id === 'claude-code') {
+    try {
+      ensureConduitServerApproved(agentDir);
+    } catch (err) {
+      console.warn('[cli-harnesses] Could not approve the conduit MCP server for', agentDir, err);
     }
   }
 }
