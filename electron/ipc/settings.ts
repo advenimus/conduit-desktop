@@ -9,7 +9,7 @@ import { AppState } from '../services/state.js';
 import path from 'node:path';
 import fs from 'node:fs';
 import { getDataDir } from '../services/env-config.js';
-import { getLocalNetworkStatus } from '../services/local-network.js';
+import { getLocalNetworkStatus, localNetworkWarningsEnabled } from '../services/local-network.js';
 import type { EngineType } from '../services/ai/engines/engine.js';
 import { isKnownEngineType } from '../services/ai/cli-harnesses.js';
 import { clearRecentVaults, removeRecentVault, type RecentVaultDeps } from './recent-vaults.js';
@@ -326,7 +326,9 @@ export function registerSettingsHandlers(): void {
   // ── local_network_status ────────────────────────────────────────────
   // Briefly cached rather than fixed at launch: the user may grant access in
   // System Settings and come straight back, and macOS applies that at once.
-  ipcMain.handle('local_network_status', () => getLocalNetworkStatus());
+  ipcMain.handle('local_network_status', () =>
+    localNetworkWarningsEnabled() ? getLocalNetworkStatus() : 'granted',
+  );
 
   // ── open_local_network_settings ─────────────────────────────────────
   // macOS 27 has no URL anchor for the Local Network sub-pane, so this lands

@@ -249,6 +249,19 @@ describe('error annotation', () => {
     expect(isNetworkBlockError(Object.assign(new Error(message), fields))).toBe(expected);
   });
 
+  it('never blames macOS once warnings are off, as in the dev build', async () => {
+    vi.resetModules();
+    const fresh = await import('../local-network.js');
+    setPlatform('darwin');
+    vi.spyOn(os, 'networkInterfaces').mockReturnValue({ lo0: [LOOPBACK], en0: [WIFI_WITH_MASKED_MAC] });
+    const createSocket = vi.spyOn(dgram, 'createSocket');
+    fresh.disableLocalNetworkWarnings();
+
+    expect(fresh.localNetworkWarningsEnabled()).toBe(false);
+    await expect(fresh.isLocalNetworkBlocked('192.168.1.10')).resolves.toBe(false);
+    expect(createSocket).not.toHaveBeenCalled();
+  });
+
   it('exposes a tag the renderer can match on', () => {
     expect(LOCAL_NETWORK_BLOCKED_TAG).toBe('ConduitLocalNetworkBlocked');
   });

@@ -329,6 +329,21 @@ const STATUS_CACHE_MS = 10_000;
 
 let cached: { status: LocalNetworkStatus; at: number } | null = null;
 
+let warningsEnabled = true;
+
+/**
+ * The dev build runs the stock npm Electron, which macOS never grants Local
+ * Network access, so every "denied" it reports is false. Packaged builds keep
+ * the warnings.
+ */
+export function disableLocalNetworkWarnings(): void {
+  warningsEnabled = false;
+}
+
+export function localNetworkWarningsEnabled(): boolean {
+  return warningsEnabled;
+}
+
 export async function getLocalNetworkStatus(): Promise<LocalNetworkStatus> {
   if (cached && Date.now() - cached.at < STATUS_CACHE_MS) return cached.status;
 
@@ -356,7 +371,7 @@ export function isPrivateAddress(host: string): boolean {
  * tell them apart is to re-check the permission at the moment of failure.
  */
 export async function isLocalNetworkBlocked(host: string): Promise<boolean> {
-  if (process.platform !== 'darwin') return false;
+  if (process.platform !== 'darwin' || !warningsEnabled) return false;
   if (!isPrivateAddress(host)) return false;
   return (await probeLocalNetwork()) === 'denied';
 }
