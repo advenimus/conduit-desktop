@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { friendlyConnectionError, localNetworkPermissionMessage } from "../errorMessages";
+import { friendlyConnectionError, localNetworkPermissionMessage, mayBeLocalNetworkBlock } from "../errorMessages";
 
 describe("friendlyConnectionError", () => {
   describe("RDP (FreeRDP) errors", () => {
@@ -149,5 +149,29 @@ describe("friendlyConnectionError", () => {
       expect(friendly).toMatch(/Host unreachable/i);
       expect(friendly).not.toMatch(/Local Network/i);
     });
+  });
+});
+
+describe("mayBeLocalNetworkBlock", () => {
+  it.each([
+    "connect EHOSTUNREACH 192.168.1.10:22",
+    "connect EPERM 10.0.0.5:5900",
+    "No route to host",
+    "net::ERR_ADDRESS_UNREACHABLE",
+    "Failed to connect [ConduitLocalNetworkBlocked]",
+    "ERRCONNECT_CONNECT_TRANSPORT_FAILED",
+  ])("checks macOS for %s", (raw) => {
+    expect(mayBeLocalNetworkBlock(raw)).toBe(true);
+  });
+
+  it.each([
+    "All configured authentication methods failed",
+    "connect ECONNREFUSED 192.168.1.10:22",
+    "connect ETIMEDOUT 192.168.1.10:22",
+    "getaddrinfo ENOTFOUND web-01",
+    "VNC authentication failed",
+    "An authentication failure aborted the connection.",
+  ])("does not blame macOS for %s", (raw) => {
+    expect(mayBeLocalNetworkBlock(raw)).toBe(false);
   });
 });

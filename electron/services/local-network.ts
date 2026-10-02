@@ -128,6 +128,18 @@ function classify(err: NodeJS.ErrnoException): LocalNetworkStatus {
   return DENIAL_CODES.has(err.code ?? '') ? 'denied' : 'unavailable';
 }
 
+const DENIAL_CODE_IN_MESSAGE = /\b(EHOSTUNREACH|EACCES|EPERM)\b/;
+
+/**
+ * True when a connection error has the shape a macOS block produces. Sign-in
+ * failures, refusals and timeouts never do, so they are reported as they are.
+ */
+export function isNetworkBlockError(err: Error): boolean {
+  const { code } = err as NodeJS.ErrnoException;
+  if (code) return DENIAL_CODES.has(code);
+  return DENIAL_CODE_IN_MESSAGE.test(err.message);
+}
+
 /**
  * Send one Bonjour query to the mDNS group and report whether macOS let it out.
  * Never rejects — every failure maps onto a status.
@@ -317,6 +329,21 @@ const STATUS_CACHE_MS = 10_000;
 
 let cached: { status: LocalNetworkStatus; at: number } | null = null;
 
+let warningsEnabled = true;
+
+/**
+ * The dev build runs the stock npm Electron, which macOS never grants Local
+ * Network access, so every "denied" it reports is false. Packaged builds keep
+ * the warnings.
+ */
+export function disableLocalNetworkWarnings(): void {
+  warningsEnabled = false;
+}
+
+export function localNetworkWarningsEnabled(): boolean {
+  return warningsEnabled;
+}
+
 export async function getLocalNetworkStatus(): Promise<LocalNetworkStatus> {
   if (cached && Date.now() - cached.at < STATUS_CACHE_MS) return cached.status;
 
@@ -344,7 +371,7 @@ export function isPrivateAddress(host: string): boolean {
  * tell them apart is to re-check the permission at the moment of failure.
  */
 export async function isLocalNetworkBlocked(host: string): Promise<boolean> {
-  if (process.platform !== 'darwin') return false;
+  if (process.platform !== 'darwin' || !warningsEnabled) return false;
   if (!isPrivateAddress(host)) return false;
   return (await probeLocalNetwork()) === 'denied';
 }
@@ -368,6 +395,7 @@ export async function annotateLocalNetworkError(
  * carrying the marker — the original is never mutated.
  */
 export async function withLocalNetworkHint(err: Error, host: string): Promise<Error> {
+  if (!isNetworkBlockError(err)) return err;
   const message = await annotateLocalNetworkError(err.message, host);
   if (message === err.message) return err;
 

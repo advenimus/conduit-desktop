@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSessionStore, type SessionType } from "../../stores/sessionStore";
 import { useEntryStore } from "../../stores/entryStore";
-import { friendlyConnectionError, localNetworkSettingsAppName } from "../../lib/errorMessages";
+import { friendlyConnectionError, localNetworkSettingsAppName, mayBeLocalNetworkBlock } from "../../lib/errorMessages";
 import { PlugDisconnectedIcon } from "../../lib/icons";
 import { invoke } from "../../lib/electron";
 import { Button, Callout } from "../ui";
@@ -22,9 +22,12 @@ export default function ConnectionError({ sessionId, entryId, error, sessionType
   // macOS can block LAN traffic app-wide, which surfaces here as an ordinary
   // unreachable-host error. Only the main process can tell the difference, and
   // only at the moment of asking; the user may fix it and come back.
+  // Sign-in failures, refusals and timeouts are never a macOS block, so only
+  // unreachable-host errors ask.
+  const mayBeBlocked = error ? mayBeLocalNetworkBlock(error) : false;
   const [localNetworkBlocked, setLocalNetworkBlocked] = useState(false);
   useEffect(() => {
-    if (!error) return;
+    if (!error || !mayBeBlocked) return;
     let active = true;
     invoke<string>("local_network_status")
       .then((status) => {
@@ -36,7 +39,7 @@ export default function ConnectionError({ sessionId, entryId, error, sessionType
     return () => {
       active = false;
     };
-  }, [error]);
+  }, [error, mayBeBlocked]);
 
   return (
     <SessionStatePanel className="flex-1">
@@ -44,7 +47,7 @@ export default function ConnectionError({ sessionId, entryId, error, sessionType
       <div className="mb-2 text-title font-medium text-danger">Connection Error</div>
       <div className="mb-1 max-w-md text-center text-body text-ink-muted">{friendly}</div>
       {showRaw && <div className="mt-1 max-w-md break-all text-center font-mono text-label text-ink-faint">{error}</div>}
-      {localNetworkBlocked && (
+      {mayBeBlocked && localNetworkBlocked && (
         <Callout
           tone="warning"
           className="mt-4 max-w-md"

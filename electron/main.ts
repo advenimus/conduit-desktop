@@ -10,7 +10,12 @@ import { OverlayManager } from './services/overlay/overlay-manager.js';
 import { logger } from './services/logger.js';
 import { AppState } from './services/state.js';
 import { writeAgentInstructions } from './services/agent-instructions.js';
-import { ensureLocalNetworkAccess, localNetworkAppName } from './services/local-network.js';
+import {
+  disableLocalNetworkWarnings,
+  ensureLocalNetworkAccess,
+  localNetworkAppName,
+  localNetworkWarningsEnabled,
+} from './services/local-network.js';
 import { readAll, writeAll } from './ipc/ui-state.js';
 import { readSettings } from './ipc/settings.js';
 import { windowBackground } from './services/appearance-palette.js';
@@ -976,12 +981,13 @@ app.whenReady().then(async () => {
   // Probing on every launch moves that decision to startup instead of the
   // middle of the user's first SSH/RDP/VNC connection. Runs in the
   // background — the settle window waits on the user answering the alert.
+  if (!app.isPackaged) disableLocalNetworkWarnings();
   if (isMac) {
     ensureLocalNetworkAccess()
       .then((status) => {
         const appName = localNetworkAppName(app.isPackaged);
         console.log(`[main] macOS local network access: ${status} (${appName})`);
-        if (status === 'denied' && mainWindowRef && !mainWindowRef.isDestroyed()) {
+        if (status === 'denied' && localNetworkWarningsEnabled() && mainWindowRef && !mainWindowRef.isDestroyed()) {
           mainWindowRef.webContents.send('local-network:blocked', { appName });
         }
       })
