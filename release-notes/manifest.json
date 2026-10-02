@@ -3,10 +3,14 @@
   "releases": [
     {
       "version": "0.18.0",
-      "date": "2026-09-28",
+      "date": "2026-10-01",
       "title": "Sync Across Devices and a Fresh Look",
-      "summary": "Keep one vault up to date on all your computers, pin the side bar open, and enjoy a cleaner, more compact look with a choice of icon packs. Everything is still where you left it.",
+      "summary": "Keep one vault up to date on all your computers, start from a new Home dashboard, and enjoy a cleaner, more compact look with a choice of icon packs. Everything is still where you left it.",
       "highlights": [
+        {
+          "text": "**A new Home dashboard**: Home is now the first tab. See recent and open connections, favorites, AI activity, vault status and anything that needs attention. Search from the top, and hide the sections you do not use under Customize.",
+          "category": "feature"
+        },
         {
           "text": "**Your vault on every device**: keep your vault in iCloud Drive, OneDrive, Dropbox, Google Drive or a network share and open it on each computer. Changes merge field by field, and when two devices change the same field, you pick which one to keep. With Pro, the vault can be open on all your devices at once.",
           "category": "feature"
@@ -14,6 +18,14 @@
         {
           "text": "**More on the Free plan**: MCP tool calls are now unlimited. A Free vault is open on one device at a time, and \"Use here instead\" moves it to the computer you are using.",
           "category": "feature"
+        },
+        {
+          "text": "**One owner per vault**: a personal vault belongs to the first account that opens it. Another account can use it for 14 days, then make its own copy. Owners can release a vault in Settings > Sync. Each account can have its vaults open on up to 5 devices at once.",
+          "category": "feature"
+        },
+        {
+          "text": "**Cloud backup by snapshot count**: cloud backup is part of Pro and Team. Pro keeps up to 25 snapshots from the last 14 days for each of up to 10 vaults, and Conduit clears the oldest one to make room. Team keeps 6 months with no limit. Local backup stays on every plan.",
+          "category": "improvement"
         },
         {
           "text": "**Pin the side bar**: dock it beside your sessions so it stays open while you work, or let it float and hide itself. Cmd+Shift+B (Ctrl+Shift+B on Windows and Linux) switches between the two.",
@@ -25,6 +37,10 @@
         },
         {
           "text": "**Refreshed tabs and controls**: the active tab joins its session, and buttons, fields, lists, menus and dialogs share one compact style.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Cleaner window on macOS**: the title bar joins the top row, tabs become rounded pills, and every tab keeps its close button.",
           "category": "improvement"
         },
         {
@@ -46,9 +62,21 @@
         {
           "text": "**Steadier remote clipboard**: copy and paste with remote desktops no longer stalls on Linux, and files copied from a remote desktop paste on macOS without missing items. Conduit also moves to a newer, supported version of Electron.",
           "category": "fix"
+        },
+        {
+          "text": "**Sturdier terminal tools for AI agents**: multi-line scripts, long output and full-screen programs now work reliably, and agents get the exit code with clean text back.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Each agent folder finds the right Conduit**: dev and installed copies no longer mix up their MCP setup, and Conduit now sets up MCP for Grok, Gemini and OpenCode too.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Clearer errors**: dialogs now say why something failed, such as a wrong current password, instead of a general message.",
+          "category": "fix"
         }
       ],
-      "hasMedia": false
+      "hasMedia": true
     },
     {
       "version": "0.17.0",

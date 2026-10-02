@@ -695,6 +695,17 @@ entry dialogs, every Settings tab, the sync panels, toasts and the automatic unl
 empty, and go to `.verify/spacing/<set>/<mode>-<nn>-<name>.png` with an `INDEX.md`; the same command
 gives the same names, so a before and an after set line up file for file.
 
+`node scripts/verify/capture-promo.mjs [--scene s1,s2,s3,s4,s5,s6] [--out <dir>]` writes the desktop footage of
+the 0.18 promo video: 1440x900 windows at device scale 2 (PNG 2880x1800), Modern scheme, dark unless a
+shot says light, in local mode with the fictional "Acme Infrastructure" vault (`lib/promo-data.mjs`; its
+SSH tabs connect to a local mock server, `lib/promo-ssh.mjs`). Scenes: s1 Home and search typing, s2 sync
+(conflict review, Settings > Sync, Use here instead; needs Docker and local Supabase, and renames the two
+devices through `CV_HOSTNAME`), s3 the six icon packs and light mode, s4 side bar pinned, floating and
+hidden plus the pill tabs, s5 a terminal script and the AI activity card, s6 the startup settings. Each
+run also merges a `shots.json` into the output folder: per file, a description and the pixel rects of the
+elements a viewer should look at. The page screenshot has no native window frame, so the macOS window
+buttons are drawn on, as in `capture-titlebar.mjs`.
+
 ## Gotchas
 
 - Playwright locator clicks time out in this app. Use `ui.clickText` / `ui.clickSelector` (DOM clicks);
