@@ -153,3 +153,17 @@ first: `supabase stop` in whichever project owns it.
 **Desktop app shows empty tier capabilities** — confirm the dump was applied
 and users were seeded. `supabase status -o env` will show a working anon key;
 curl `/rest/v1/tiers?select=name` with it to confirm RLS allows your session.
+
+## Testing with an iPad or iPhone
+
+iOS Debug builds (Xcode Run) use this same local stack; Release builds always use production.
+
+- A Debug-only build phase writes this Mac's Bonjour address (`http://<LocalHostName>.local:54321`) into the app and allows plain http on the local network. Settings > Dev Server in the app can override the address (for example a LAN IP). Quit and reopen the app after a change.
+- The device and the Mac must be on the same network. The first connection may ask on the Mac to allow Docker incoming connections, and on the device to allow local network access.
+- Make a test account (also signs the running desktop dev app in with `--signin`):
+
+```bash
+npm run dev:account -- --email you@example.com --plan pro --password '<choose one>' --signin
+```
+
+Use the same email and password in the iOS app's Sign In. For sync, keep the test vault in iCloud Drive and open it on both.
