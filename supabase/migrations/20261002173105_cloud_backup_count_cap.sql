@@ -1,6 +1,6 @@
 -- Cloud backup caps: at most max_cloud_backups snapshots per vault folder and at most
--- max_cloud_backup_vaults vault folders per account. Waits in supabase/pending/ until desktop 0.18
--- ships (0.17 cannot prune by count); rollout step 8 moves it into supabase/migrations/.
+-- max_cloud_backup_vaults vault folders per account. Applied to production 2026-10-02 (version
+-- 20261002173105), after desktop 0.18 shipped (0.17 cannot prune by count).
 -- See docs/PLAN_ENFORCEMENT.md sections 2.9 and 8.
 
 create or replace function public.cloud_backup_slot_free(p_name text) returns boolean

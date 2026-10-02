@@ -5,7 +5,7 @@
 \set ON_ERROR_STOP 1
 set client_min_messages = warning;
 begin;
-\ir ../pending/_rollback_20260929161900_cloud_backup_count_cap.sql
+\ir ../migrations/_rollback_20261002173105_cloud_backup_count_cap.sql
 \ir ../migrations/_rollback_20260929161756_cloud_backup_plan_gate.sql
 \ir ../migrations/_rollback_20261001174606_vault_ownership_device_cap.sql
 \ir ../migrations/_rollback_20260929161746_app_config_min_version.sql

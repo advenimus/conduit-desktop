@@ -87,7 +87,7 @@ All in `DESK/supabase/migrations/`, after `20260928003610_team_invitation_update
 | M2 | `supabase/migrations/20260929161746_app_config_min_version.sql` | `app_config` table and seed; version helpers | 2.2 |
 | M3 | `supabase/migrations/20261001174606_vault_ownership_device_cap.sql` | `personal_vault_owners`, `personal_vault_guest_grace`; owner helpers; `vault_owner_release`; tier key `account_max_active_devices`; widened `displaced_reason`; new peek/acquire (11 args)/heartbeat bodies | 2.3-2.6 |
 | M4 | `supabase/migrations/20260929161756_cloud_backup_plan_gate.sql` | `cloud_backup_allowed()` (no arguments); all four `storage.objects` policies for bucket `vaults` created here (INSERT and UPDATE get the plan check and the object-name check); tier key `max_cloud_backup_vaults` | 2.9 |
-| M5 | `supabase/pending/20260929161900_cloud_backup_count_cap.sql` (**not** in `migrations/` until rollout step 8) | `cloud_backup_slot_free(text)`; INSERT and UPDATE policies also get the per-vault snapshot cap and the per-account vault-folder cap | 2.9 |
+| M5 | `supabase/migrations/20261002173105_cloud_backup_count_cap.sql` (waited in `supabase/pending/` until rollout step 8) | `cloud_backup_slot_free(text)`; INSERT and UPDATE policies also get the per-vault snapshot cap and the per-account vault-folder cap | 2.9 |
 
 Each file is idempotent (`create or replace`, `drop ... if exists`, `on conflict do nothing`) because the `/verify` harness re-applies every migration on every run [V: `scripts/verify/README.md:104`]. M5 lives in `supabase/pending/` so no in-order apply of `migrations/` (for example `supabase db push`) can ship it before desktop 0.18; the SQL test runner (7.1) applies `supabase/pending/*.sql` after the migrations. At rollout step 8 the owner moves it into `migrations/` (same file name).
 
@@ -1477,7 +1477,7 @@ Stripe test-mode checklist before rollout step 6: buy 5 seats, invite 4, accept 
 | 5 | M4 cloud backup plan gate and name check | Applied to prod 2026-09-29 (version 20260929161756) | Free users cannot enable backup in 0.17 (`v0.17.0:electron/ipc/cloud-sync.ts:38-39` [V]); any Free upload that still happens is refused by design; the name check accepts every shape in prod [V] |
 | 6 | Accept route quantity fix (6.3 c) | After the owner confirms (10) | Changes billing |
 | 7 | Desktop 0.18 and iOS 1.1 | Together | Both catalogs carry `_sync/owner/account`; both parse the new answers |
-| 8 | M5 backup count cap: move `supabase/pending/20260929161900_cloud_backup_count_cap.sql` into `supabase/migrations/`, then apply it | With desktop 0.18 | 0.17 cannot prune by count and skips its prune when a snapshot fails; one prod Pro user (29 snapshots in one vault) would stop getting snapshots until updating. Find them before applying: `select split_part(name,'/',1), count(*) from storage.objects where bucket_id = 'vaults' and name like '%/backups/%' group by 1, split_part(name,'/',2) having count(*) >= 25;` (the user id stays out of this public repo) |
+| 8 | M5 backup count cap: move it into `supabase/migrations/`, then apply it | Applied to prod 2026-10-02 (version 20261002173105), right after desktop 0.18 was published | 0.17 cannot prune by count and skips its prune when a snapshot fails; one prod Pro user (29 snapshots in one vault) would stop getting snapshots until updating. Find them before applying: `select split_part(name,'/',1), count(*) from storage.objects where bucket_id = 'vaults' and name like '%/backups/%' group by 1, split_part(name,'/',2) having count(*) >= 25;` (the user id stays out of this public repo) |
 | 9 | Raise `min_app_version` | When needed | Config only |
 
 Prod stays read-only for this work. Applying migrations to prod is the owner's step: apply M1 to M4 one at a time (Supabase MCP `apply_migration` or the SQL editor), in order, never `supabase db push` of the whole folder while M5 is pending.
@@ -1487,7 +1487,7 @@ Prod stays read-only for this work. Applying migrations to prod is the owner's s
 Each goes in `supabase/migrations/_rollback_<version>_<name>.sql` (the M5 one in `supabase/pending/` until M5 moves). **Rule:** a rollback never removes an RPC signature that desktop 0.18 or iOS 1.1 calls; it restores the old behavior behind the new signature, so shipped apps keep getting well-formed answers.
 
 ```sql
--- _rollback_20260929161900_cloud_backup_count_cap.sql: put M4's INSERT and UPDATE policies back
+-- _rollback_20261002173105_cloud_backup_count_cap.sql: put M4's INSERT and UPDATE policies back
 drop policy if exists "Users can insert own vault" on storage.objects;
 create policy "Users can insert own vault" on storage.objects for insert to authenticated
   with check (bucket_id = 'vaults' and (storage.foldername(name))[1] = (select auth.uid())::text

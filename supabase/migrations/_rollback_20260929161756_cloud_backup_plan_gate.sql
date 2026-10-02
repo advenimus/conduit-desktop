@@ -1,5 +1,5 @@
 -- Rollback of 20260929161756_cloud_backup_plan_gate: the folder-only storage policies read from
--- production on 2026-09-29. Run the 20260929161900 rollback first if that migration was applied.
+-- production on 2026-09-29. Run the 20261002173105 rollback first if that migration was applied.
 
 drop policy if exists "Users can insert own vault" on storage.objects;
 drop policy if exists "Users can update own vault" on storage.objects;
