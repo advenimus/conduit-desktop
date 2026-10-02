@@ -18,6 +18,18 @@ export function localNetworkPermissionMessage(appName: string): string {
 
 const LOCAL_NETWORK_MESSAGE = localNetworkPermissionMessage(localNetworkSettingsAppName());
 
+/**
+ * Errors a macOS Local Network block can surface as. FreeRDP runs as its own
+ * process and only reports a generic transport failure, so that stays in.
+ */
+const POSSIBLE_LOCAL_NETWORK_BLOCK =
+  /ConduitLocalNetworkBlocked|EHOSTUNREACH|EACCES|EPERM|No route to host|ERR_ADDRESS_UNREACHABLE|CONNECT_TRANSPORT_FAILED|transport (connection )?failed/i;
+
+/** Whether a connection error is worth checking the macOS permission for. */
+export function mayBeLocalNetworkBlock(raw: string): boolean {
+  return POSSIBLE_LOCAL_NETWORK_BLOCK.test(raw);
+}
+
 const patterns: [RegExp, string][] = [
   [/All configured authentication methods failed/i, "Authentication failed — check your username, password, or SSH key"],
   [/getaddrinfo ENOTFOUND/i, "Host not found — check the hostname or IP address"],

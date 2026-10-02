@@ -128,6 +128,18 @@ function classify(err: NodeJS.ErrnoException): LocalNetworkStatus {
   return DENIAL_CODES.has(err.code ?? '') ? 'denied' : 'unavailable';
 }
 
+const DENIAL_CODE_IN_MESSAGE = /\b(EHOSTUNREACH|EACCES|EPERM)\b/;
+
+/**
+ * True when a connection error has the shape a macOS block produces. Sign-in
+ * failures, refusals and timeouts never do, so they are reported as they are.
+ */
+export function isNetworkBlockError(err: Error): boolean {
+  const { code } = err as NodeJS.ErrnoException;
+  if (code) return DENIAL_CODES.has(code);
+  return DENIAL_CODE_IN_MESSAGE.test(err.message);
+}
+
 /**
  * Send one Bonjour query to the mDNS group and report whether macOS let it out.
  * Never rejects — every failure maps onto a status.
@@ -368,6 +380,7 @@ export async function annotateLocalNetworkError(
  * carrying the marker — the original is never mutated.
  */
 export async function withLocalNetworkHint(err: Error, host: string): Promise<Error> {
+  if (!isNetworkBlockError(err)) return err;
   const message = await annotateLocalNetworkError(err.message, host);
   if (message === err.message) return err;
 

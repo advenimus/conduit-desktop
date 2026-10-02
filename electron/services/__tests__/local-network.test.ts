@@ -8,6 +8,7 @@ import {
   isLocalNetworkBlocked,
   annotateLocalNetworkError,
   withLocalNetworkHint,
+  isNetworkBlockError,
   ensureLocalNetworkAccess,
   localNetworkAppName,
   collectTriggerTargets,
@@ -203,6 +204,49 @@ describe('error annotation', () => {
     setPlatform('linux');
     const err = new Error('connect EHOSTUNREACH 192.168.1.10:22');
     await expect(withLocalNetworkHint(err, '192.168.1.10')).resolves.toBe(err);
+  });
+
+  it('never blames macOS for a sign-in failure on a LAN host', async () => {
+    setPlatform('darwin');
+    vi.spyOn(os, 'networkInterfaces').mockReturnValue({ lo0: [LOOPBACK], en0: [WIFI_WITH_MASKED_MAC] });
+    const createSocket = vi.spyOn(dgram, 'createSocket');
+    const err = Object.assign(new Error('All configured authentication methods failed'), {
+      level: 'client-authentication',
+    });
+
+    await expect(withLocalNetworkHint(err, '192.168.1.10')).resolves.toBe(err);
+    expect(createSocket).not.toHaveBeenCalled();
+  });
+
+  it('never blames macOS for a refused connection on a LAN host', async () => {
+    setPlatform('darwin');
+    vi.spyOn(os, 'networkInterfaces').mockReturnValue({ lo0: [LOOPBACK], en0: [WIFI_WITH_MASKED_MAC] });
+    const createSocket = vi.spyOn(dgram, 'createSocket');
+    const err = Object.assign(new Error('connect ECONNREFUSED 192.168.1.10:22'), { code: 'ECONNREFUSED' });
+
+    await expect(withLocalNetworkHint(err, '192.168.1.10')).resolves.toBe(err);
+    expect(createSocket).not.toHaveBeenCalled();
+  });
+
+  it('checks the permission when a LAN host is unreachable', async () => {
+    setPlatform('darwin');
+    vi.spyOn(os, 'networkInterfaces').mockReturnValue({ lo0: [LOOPBACK], en0: [WIFI_WITH_MASKED_MAC] });
+    const createSocket = vi.spyOn(dgram, 'createSocket');
+    const err = Object.assign(new Error('connect EHOSTUNREACH 192.168.1.10:22'), { code: 'EHOSTUNREACH' });
+
+    await withLocalNetworkHint(err, '192.168.1.10');
+    expect(createSocket).toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ code: 'EHOSTUNREACH' }, 'connect EHOSTUNREACH 10.0.0.5:22', true],
+    [{ code: 'EPERM' }, 'connect EPERM 10.0.0.5:22', true],
+    [{}, 'connect EHOSTUNREACH 10.0.0.5:22', true],
+    [{ code: 'ECONNREFUSED' }, 'connect ECONNREFUSED 10.0.0.5:22', false],
+    [{ code: 'ETIMEDOUT' }, 'connect ETIMEDOUT 10.0.0.5:22', false],
+    [{}, 'All configured authentication methods failed', false],
+  ])('isNetworkBlockError(%o, %s) is %s', (fields, message, expected) => {
+    expect(isNetworkBlockError(Object.assign(new Error(message), fields))).toBe(expected);
   });
 
   it('exposes a tag the renderer can match on', () => {
