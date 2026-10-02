@@ -62,12 +62,19 @@ describe("ConnectionError (restyle)", () => {
 
   it("shows the local network block as a warning callout with Open Settings", async () => {
     invoke.mockImplementation(async (cmd: string) => (cmd === "local_network_status" ? "denied" : null));
-    const { container } = await setup();
+    const { container } = await setup({ error: "connect EHOSTUNREACH 192.168.1.10:22" });
     const title = screen.getByText("macOS is blocking local network access");
     expect(title.closest(".bg-warning-bg")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Open Settings" }));
     expect(invoke).toHaveBeenCalledWith("open_local_network_settings");
     expect(container.querySelector(".bg-yellow-500\\/10, .text-yellow-300")).toBeNull();
+  });
+
+  it("never blames macOS for a sign-in failure, even when the permission check says denied", async () => {
+    invoke.mockImplementation(async (cmd: string) => (cmd === "local_network_status" ? "denied" : null));
+    await setup({ error: "All configured authentication methods failed" });
+    expect(screen.queryByText("macOS is blocking local network access")).toBeNull();
+    expect(invoke).not.toHaveBeenCalledWith("local_network_status");
   });
 });
 
