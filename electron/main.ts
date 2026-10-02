@@ -20,6 +20,7 @@ import { appQuitFlush } from './services/vault/app-quit-flush.js';
 import { devServerUrl } from './services/env-config.js';
 import { describeDeepLink } from './services/deep-link-log.js';
 import { attachStartupWindow, initStartupVault, noteLaunchUrl, noteSecondInstance } from './ipc/startup-vault.js';
+import { installZoomKeys, registerAppZoomKeyHandler, stepAppZoom } from './ipc/zoom-keys.js';
 import { SKIP_SWITCH } from './services/vault/startup-modifiers.js';
 import { reportFullScreen, titleBarOptions } from './window-title-bar.js';
 
@@ -423,10 +424,7 @@ function devViewMenuItems(): Electron.MenuItemConstructorOptions[] {
       accelerator: 'CmdOrCtrl+0',
       click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
         const bw = win as BrowserWindow | undefined;
-        if (bw) {
-          bw.webContents.setZoomFactor(1);
-          bw.webContents.send('zoom-factor-changed', 1);
-        }
+        if (bw) stepAppZoom(bw.webContents, 'reset');
       },
     },
     {
@@ -434,11 +432,7 @@ function devViewMenuItems(): Electron.MenuItemConstructorOptions[] {
       accelerator: 'CmdOrCtrl+Plus',
       click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
         const bw = win as BrowserWindow | undefined;
-        if (bw) {
-          const next = Math.min(bw.webContents.getZoomFactor() + 0.05, 1.5);
-          bw.webContents.setZoomFactor(next);
-          bw.webContents.send('zoom-factor-changed', next);
-        }
+        if (bw) stepAppZoom(bw.webContents, 'in');
       },
     },
     {
@@ -446,11 +440,7 @@ function devViewMenuItems(): Electron.MenuItemConstructorOptions[] {
       accelerator: 'CmdOrCtrl+-',
       click: (_mi: MenuItem, win: BaseWindow | undefined, _ev: ElectronKeyboardEvent) => {
         const bw = win as BrowserWindow | undefined;
-        if (bw) {
-          const next = Math.max(bw.webContents.getZoomFactor() - 0.05, 0.75);
-          bw.webContents.setZoomFactor(next);
-          bw.webContents.send('zoom-factor-changed', next);
-        }
+        if (bw) stepAppZoom(bw.webContents, 'out');
       },
     },
     { type: 'separator' },
@@ -801,6 +791,7 @@ function createWindow(): BrowserWindow {
 
   attachStartupWindow(mainWindow);
   reportFullScreen(mainWindow);
+  installZoomKeys(mainWindow);
 
   if (isDev) {
     mainWindow.loadURL(devServerUrl());
@@ -896,6 +887,8 @@ app.whenReady().then(async () => {
       mainWindowRef.webContents.send('zoom-factor-changed', factor);
     }
   });
+
+  registerAppZoomKeyHandler(isDev);
 
   ipcMain.handle('get-zoom-factor', () => {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {

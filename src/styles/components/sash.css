@@ -35,6 +35,12 @@
       var(--c-editor);
   }
 
+  /* Between stacked agents in the AI panel: a 1px divider on the panel's surface. */
+  .cv-split-sash-ai[data-orientation="horizontal"] {
+    height: 4px;
+    background: linear-gradient(var(--c-divider), var(--c-divider)) center / 100% 1px no-repeat, var(--c-sidebar);
+  }
+
   /* The AI divider: the panes' surface, a 1px divider, then the panel's surface. */
   .cv-sash-ai {
     background: linear-gradient(to right, var(--c-editor) 0 1.5px, var(--c-divider) 1.5px 2.5px, var(--c-sidebar) 2.5px);

@@ -7,7 +7,7 @@ vi.mock("../../../lib/electron", () => ({
   listen: vi.fn(async () => () => undefined),
   listenSync: vi.fn(() => () => undefined),
 }));
-vi.mock("../../sessions/TerminalView", () => ({ default: () => <div data-testid="terminal-view" /> }));
+vi.mock("../../sessions/TerminalView", () => ({ default: () => <div data-testid="terminal-view" />, disposeTerminalEntry: vi.fn() }));
 
 import ChatPanel from "../ChatPanel";
 import { useAiStore } from "../../../stores/aiStore";

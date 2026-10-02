@@ -440,6 +440,10 @@ export class TerminalManager {
     return Array.from(this.sessions.keys());
   }
 
+  isAgentTerminal(sessionId: string): boolean {
+    return this.agentSessionIds.has(sessionId);
+  }
+
   /**
    * Open connections (SSH, local shells) and CLI agent terminals running an AI task
    * (agentTerminalActive); an idle agent terminal counts as neither.

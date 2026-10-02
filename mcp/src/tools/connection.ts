@@ -17,7 +17,9 @@ export function connectionListDefinition() {
     description:
       'List all connections (active and saved). Returns id (session ID for terminal/RDP/VNC/web tools) and entry_id (vault entry ID for entry_info, entry_update_notes, document_read tools). ' +
       'Active connections can be used directly with terminal tools. ' +
-      'Saved connections with status "disconnected" must first be opened with connection_open_entry (pass the entry_id; credentials are resolved server-side) before use.',
+      'Saved connections with status "disconnected" must first be opened with connection_open_entry (pass the entry_id; credentials are resolved server-side) before use. ' +
+      'Other AI agents may be working at the same time: owner is "you" for sessions you opened or used, "other_agent" when another agent is working in it ' +
+      '(do not type, click or run commands there), and "free" otherwise.',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -26,22 +28,38 @@ export function connectionListDefinition() {
   };
 }
 
+const SHARED_SCREEN_TYPES = new Set(['rdp', 'vnc', 'web']);
+
+function connectionNote(c: Record<string, unknown>): string | null {
+  if (c.status === 'disconnected') {
+    return 'Use connection_open_entry with this entry_id to open this saved connection (credentials resolved server-side) before using terminal tools';
+  }
+  if (c.owner !== 'other_agent') return null;
+  if (SHARED_SCREEN_TYPES.has(c.connection_type as string)) {
+    return 'Another agent is working in this session. Do not use it or open a second one; tell the user it is busy.';
+  }
+  return 'Another agent is working in this session. Do not use it; open your own with connection_open_entry (this entry_id) or local_shell_create.';
+}
+
 export async function connectionList(client: ConduitClient): Promise<unknown> {
   const connections = await client.connectionList();
 
   return {
-    connections: connections.map((c) => ({
-      id: c.id,
-      entry_id: c.entry_id ?? c.id,
-      name: c.name,
-      connection_type: c.connection_type,
-      host: c.host ?? null,
-      port: c.port ?? null,
-      status: c.status ?? 'unknown',
-      ...(c.status === 'disconnected'
-        ? { note: 'Use connection_open_entry with this entry_id to open this saved connection (credentials resolved server-side) before using terminal tools' }
-        : {}),
-    })),
+    connections: connections.map((c) => {
+      const note = connectionNote(c);
+      return {
+        id: c.id,
+        entry_id: c.entry_id ?? c.id,
+        name: c.name,
+        connection_type: c.connection_type,
+        host: c.host ?? null,
+        port: c.port ?? null,
+        status: c.status ?? 'unknown',
+        // Apps without session ownership send no owner.
+        ...(typeof c.owner === 'string' ? { owner: c.owner } : {}),
+        ...(note ? { note } : {}),
+      };
+    }),
   };
 }
 
@@ -150,7 +168,10 @@ export function connectionOpenEntryDefinition() {
       'Open a saved connection from the vault by its entry_id. Host, port, and credentials are ' +
       'resolved from the saved entry on the server side — no need to look up or pass credentials. ' +
       'Works for ssh, rdp, and vnc entries. The vault must be unlocked. ' +
-      'Get entry_id values from connection_list, entry_list, or entry_search.',
+      'Get entry_id values from connection_list, entry_list, or entry_search. ' +
+      'SSH always opens a new session of your own, so use it when another agent is working in that entry\'s session. ' +
+      'RDP and VNC return the entry\'s open session when no other agent is using it (reused: true), and fail with ' +
+      'SESSION_IN_USE when one is: then tell the user instead of retrying.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -186,6 +207,7 @@ export async function connectionOpenEntry(
     status: connection.status,
     ...(connection.width !== undefined ? { width: connection.width } : {}),
     ...(connection.height !== undefined ? { height: connection.height } : {}),
+    ...(connection.reused === true ? { reused: true } : {}),
   };
 }
 

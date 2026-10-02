@@ -330,6 +330,8 @@ async function main(): Promise<void> {
     },
   );
 
+  server.oninitialized = () => client?.setClientName(server.getClientVersion()?.name);
+
   // Handle list tools
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const tools = Array.from(toolRegistry.values()).map((entry) => entry.definition);

@@ -398,9 +398,12 @@ bring their own agent subscription.
 
 ### CLI Agent Terminals
 - CLI agents always launch as native terminals (the rich chat interface and its toggle have been retired)
+- Up to 3 agents at once: the panel's + stacks a new agent pane (disabled at 3), panes split the height with draggable dividers, and with more than one open each pane has a header whose engine name switches that pane's engine (so Claude Code, Codex and Grok Build can run side by side; a switch restarts only that pane) and an X that ends its terminal. The top header's engine switcher and model button show only with one agent; with several it keeps just the +. New panes start with the focused pane's engine
 - Launch commands: `claude`, `codex`, `grok`, `cursor-agent` (Cursor; falls back to a verified `agent` binary), `openclaw tui --local`, `gemini`, `copilot`, `opencode`
 - Working directory: explicit cwd, then Settings default, then `{userData}/conduit[-dev]/agent/{engine}/`
 - Configurable terminal font size
+- Shift+Enter adds a new line to the agent's prompt and Enter sends it, with no `/terminal-setup` needed (the agent terminal sends ESC + Return, the Option+Enter keys Claude Code, Codex, Gemini CLI, Grok Build and Cursor Agent read as a new line)
+- Cmd/Ctrl + and - change the font size of just the focused agent pane (8 to 32 pt) and Cmd/Ctrl+0 returns it to the Terminal Font Size setting; the size survives an engine switch in that pane. With focus outside the agent panes the keys zoom the whole app as before (dev builds only, the zoom items live in the dev View menu)
 - MCP tool access: the agent connects to Conduit via the MCP server. Settings > AI includes an "MCP Server Setup" button that shows the setup command or config snippet for each supported CLI
 - Managed agent directories get a project MCP config pointing at the running build's socket: `.mcp.json` for every CLI, plus `.cursor/mcp.json` for Cursor and `.codex/config.toml` for Codex (Codex loads it once the folder is trusted, and it overrides any global `conduit` entry)
 
@@ -480,6 +483,7 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 - **Document**: read, create, and update markdown document entries (!!secret!! values auto-redacted on read)
 - **Sync conflicts**: `entry_info` and `credential_read` return `has_conflict: true` while the item has an unresolved multi-device sync conflict; the values returned are the provisional ones. MCP writes, imports and autofill-selector saves replace only the provisional value, so an open conflict stays open for the user
 - **Tool errors**: a failed call returns `{"error", "code", "reason"}`. `code` is the app's error code (for example `VAULT_LOCKED`), and `reason` is `open_elsewhere` when another device took the vault over, so agents can tell a locked vault from one that is open elsewhere
+- **Agents side by side**: each MCP process is its own agent. A session becomes an agent's when it opens it or types, clicks or runs a command in it, and is free again when it closes, the agent exits, or after 15 idle minutes. `connection_list` shows each session's `owner` (`you`, `other_agent`, `free`); acting in another agent's session fails with `SESSION_IN_USE` (reading still works). `connection_open_entry` opens a new SSH session, and for RDP and VNC returns the entry's free open session (`reused: true`) instead of a second login. No MCP call can use a CLI agent's own terminal
 
 ### Safety & Controls
 - **Local-socket isolation**: MCP server speaks over a Unix socket (or named pipe on Windows) created with `0o600` permissions — only the user that owns the Conduit process can connect. Nothing is exposed over the network.

@@ -4,6 +4,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, listen, type UnlistenFn } from "../../lib/electron";
 import { getTerminalTheme } from "../../lib/terminalTheme";
+import { AGENT_NEWLINE_SEQUENCE, isAgentNewlineKey, type AgentZoom } from "../../lib/agentTerminalKeys";
+import { AGENT_TERMINAL_ATTR, AGENT_ZOOM_EVENT } from "../../lib/zoomKeys";
 import { useSettingsStore } from "../../stores/settingsStore";
 import "@xterm/xterm/css/xterm.css";
 
@@ -33,6 +35,10 @@ interface TerminalViewProps {
   sessionId: string;
   isActive?: boolean;
   isAgentTerminal?: boolean;
+  /** Agent terminals: this pane's own font size, overriding the AI terminal font setting. */
+  fontSize?: number;
+  /** Agent terminals: Cmd/Ctrl +, - or 0 while this terminal has focus. */
+  onFontZoom?: (zoom: AgentZoom, currentSize: number) => void;
   onClose?: () => void;
   onTitleChange?: (title: string) => void;
 }
@@ -41,6 +47,8 @@ export default function TerminalView({
   sessionId,
   isActive = true,
   isAgentTerminal = false,
+  fontSize,
+  onFontZoom,
   onClose: _onClose,
   onTitleChange,
 }: TerminalViewProps) {
@@ -51,6 +59,9 @@ export default function TerminalView({
   const onTitleChangeRef = useRef(onTitleChange);
   const startedRef = useRef(false);
   useEffect(() => { onTitleChangeRef.current = onTitleChange; }, [onTitleChange]);
+  const onFontZoomRef = useRef(onFontZoom);
+  useEffect(() => { onFontZoomRef.current = onFontZoom; }, [onFontZoom]);
+  const [settingFontSize, setSettingFontSize] = useState<number | null>(null);
 
   // Create or reuse terminal instance
   useEffect(() => {
@@ -151,36 +162,55 @@ export default function TerminalView({
     return () => document.removeEventListener("conduit:resolved-theme-change", handler);
   }, [terminal]);
 
-  // For agent terminals: apply persisted font size from settings
+  // For agent terminals: the persisted font size from settings, then live updates from the slider
   useEffect(() => {
-    if (!terminal || !isAgentTerminal) return;
+    if (!isAgentTerminal) return;
     invoke<{ cli_font_size?: number }>('settings_get').then((s) => {
-      if (s.cli_font_size && s.cli_font_size !== 14) {
-        terminal.options.fontSize = s.cli_font_size;
-        fitAddonRef.current?.fit();
-      }
-    });
-  }, [terminal, isAgentTerminal]);
-
-  // For agent terminals: live-update font size from settings slider
-  useEffect(() => {
-    if (!terminal || !isAgentTerminal) return;
-    const handler = (e: Event) => {
-      const fontSize = (e as CustomEvent).detail.fontSize;
-      terminal.options.fontSize = fontSize;
-      fitAddonRef.current?.fit();
-    };
+      if (s.cli_font_size) setSettingFontSize(s.cli_font_size);
+    }).catch((err) => console.error("Failed to read the agent terminal font size:", err));
+    const handler = (e: Event) => setSettingFontSize((e as CustomEvent).detail.fontSize);
     document.addEventListener("conduit:terminal-font-size-change", handler);
     return () => document.removeEventListener("conduit:terminal-font-size-change", handler);
+  }, [isAgentTerminal]);
+
+  // Cmd/Ctrl +, - and 0 arrive from the main process while this agent terminal has focus (see App.tsx)
+  useEffect(() => {
+    const host = terminalRef.current;
+    if (!terminal || !isAgentTerminal || !host) return;
+    const handler = (e: Event) => {
+      const zoom = (e as CustomEvent<AgentZoom>).detail;
+      onFontZoomRef.current?.(zoom, terminal.options.fontSize ?? useSettingsStore.getState().sessionDefaultsTerminal.fontSize);
+    };
+    host.addEventListener(AGENT_ZOOM_EVENT, handler);
+    return () => host.removeEventListener(AGENT_ZOOM_EVENT, handler);
   }, [terminal, isAgentTerminal]);
 
-  // Handle Windows/Linux clipboard shortcuts (Ctrl+C/V, Ctrl+Shift+C/V).
+  // A pane's own size wins over the setting
+  useEffect(() => {
+    if (!terminal || !isAgentTerminal) return;
+    const size = fontSize ?? settingFontSize;
+    if (!size || terminal.options.fontSize === size) return;
+    terminal.options.fontSize = size;
+    fitAddonRef.current?.fit();
+  }, [terminal, isAgentTerminal, fontSize, settingFontSize]);
+
+  // Agent terminals: Shift+Enter inserts a new line instead of submitting.
+  // Windows/Linux: clipboard shortcuts (Ctrl+C/V, Ctrl+Shift+C/V).
   // On macOS, Cmd+C/V work natively through Electron — no interception needed.
   useEffect(() => {
-    if (!terminal || IS_MAC) return;
+    if (!terminal) return;
 
     terminal.attachCustomKeyEventHandler((ev: KeyboardEvent) => {
-      if (ev.type !== "keydown") return true;
+      if (isAgentTerminal && isAgentNewlineKey(ev)) {
+        // Swallow keypress too, or xterm sends its own CR for the same key.
+        if (ev.type === "keydown") {
+          ev.preventDefault();
+          terminal.input(AGENT_NEWLINE_SEQUENCE);
+        }
+        return false;
+      }
+
+      if (IS_MAC || ev.type !== "keydown") return true;
 
       const isCtrl = ev.ctrlKey && !ev.altKey && !ev.metaKey;
 
@@ -211,7 +241,7 @@ export default function TerminalView({
 
       return true;
     });
-  }, [terminal]);
+  }, [terminal, isAgentTerminal]);
 
   // Re-fit and focus when tab becomes active
   useEffect(() => {
@@ -346,6 +376,7 @@ export default function TerminalView({
     <div data-session-keyboard className="h-full w-full bg-editor overflow-hidden">
       <div
         ref={terminalRef}
+        {...(isAgentTerminal && onFontZoom ? { [AGENT_TERMINAL_ATTR]: "" } : {})}
         className="h-full w-full"
         style={{ padding: "4px" }}
       />

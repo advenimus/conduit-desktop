@@ -59,6 +59,7 @@ import StartupConfirmHost from "./components/vault/StartupConfirmHost";
 import { installHomeTabGuard, openHome } from "./lib/openHome";
 import { preloadHomeSettings } from "./components/dashboard/home/useHomeSettings";
 import { isHomeSession } from "./lib/dashboardSessions";
+import { routeZoomKey } from "./lib/zoomKeys";
 
 /**
  * Notification controllers — manage toast + update state and push to overlay window.
@@ -829,6 +830,10 @@ function App() {
       document.dispatchEvent(new CustomEvent("conduit:unlock-vault"));
     });
 
+    const unlistenZoomKey = window.electron.on("zoom-key", (zoom: unknown) =>
+      routeZoomKey(zoom, (channel, z) => window.electron.send(channel, z)),
+    );
+
     // Listen for native menu actions from Electron main process
     const unlistenMenu = window.electron.on("menu-action", (action: unknown) => {
       const a = action as string;
@@ -937,6 +942,7 @@ function App() {
       unwatchStartupStatus();
       unlistenOpenVaultFile();
       unlistenMenu();
+      unlistenZoomKey();
       unlistenLocalNetwork();
     };
   }, []);
