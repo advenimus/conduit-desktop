@@ -121,7 +121,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     name: 'connection_list',
     category: 'read',
     description:
-      'List all connections (active and saved). Each entry includes id (session ID for terminal/RDP/VNC tools) and entry_id (vault entry ID for entry_info, entry_update_notes, document_read tools). ' +
+      'List all connections (active and saved). Each entry includes id (session ID for terminal/RDP/VNC tools) and entry_id (vault entry ID for entry_info, entry_update_notes, entry_edit_notes, document_read tools). ' +
       'Active sessions have an owner: "you", "other_agent" (another AI agent is working in it; do not use it) or "free".',
     parameters: { type: 'object', properties: {}, required: [] },
     ipcType: 'ConnectionList',
@@ -781,12 +781,12 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   {
     name: 'entry_info',
     category: 'read',
-    description: 'Get metadata for any vault entry (connection, document, command). Optionally include notes with !!secret!! values redacted.',
+    description: 'Get metadata for any vault entry (connection, document, command). Optionally include notes, with !!secret!! values shown as [SECRET_n] tokens.',
     parameters: {
       type: 'object',
       properties: {
         entry_id: { type: 'string', description: 'UUID of the entry' },
-        include_notes: { type: 'boolean', description: 'Include the entry notes field (secrets redacted). Default: false' },
+        include_notes: { type: 'boolean', description: 'Include the entry notes field (secrets shown as [SECRET_n] tokens). Default: false' },
       },
       required: ['entry_id'],
     },
@@ -796,7 +796,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   {
     name: 'document_read',
     category: 'read',
-    description: 'Read the markdown content of a document entry. !!secret!! values are automatically redacted.',
+    description: 'Read the markdown content of a document entry. !!secret!! values show as [SECRET_n] tokens.',
     parameters: {
       type: 'object',
       properties: {
@@ -810,7 +810,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   {
     name: 'entry_update_notes',
     category: 'write',
-    description: 'Update the markdown notes on any vault entry. IMPORTANT: Always show the user what you plan to write and get their approval before calling this tool.',
+    description: 'Replace all of the markdown notes on any vault entry. To change only part of the notes, use entry_edit_notes. Keep [SECRET_n] tokens to keep those secrets. IMPORTANT: Always show the user what you plan to write and get their approval before calling this tool.',
     parameters: {
       type: 'object',
       properties: {
@@ -821,6 +821,32 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     ipcType: 'EntryUpdateNotes',
     argRenames: { entry_id: 'id' },
+  },
+  {
+    // Runs inside the MCP process (find-and-replace plus secret tokens), so no ipcType.
+    name: 'entry_edit_notes',
+    category: 'write',
+    description: 'Change part of the markdown notes on any vault entry without rewriting the rest. Each edit swaps an exact old_string (must match once unless replace_all) for new_string; edits apply in order and all succeed or none are saved. Keep or copy [SECRET_n] tokens to keep those secrets. IMPORTANT: Always show the user each change and get their approval before calling this tool.',
+    parameters: {
+      type: 'object',
+      properties: {
+        entry_id: { type: 'string', description: 'UUID of the entry to update' },
+        edits: {
+          type: 'array',
+          description: 'Changes to make, applied in order',
+          items: {
+            type: 'object',
+            properties: {
+              old_string: { type: 'string', description: 'Exact text to replace' },
+              new_string: { type: 'string', description: 'Text to put in its place' },
+              replace_all: { type: 'boolean', description: 'Replace every match. Default: false' },
+            },
+            required: ['old_string', 'new_string'],
+          },
+        },
+      },
+      required: ['entry_id', 'edits'],
+    },
   },
   {
     name: 'document_create',

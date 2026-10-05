@@ -62,6 +62,7 @@ export const TOOL_CATEGORIES: Record<string, string> = {
   entry_info: 'read',
   document_read: 'read',
   entry_update_notes: 'write',
+  entry_edit_notes: 'write',
   document_create: 'write',
   document_update: 'write',
   entry_list: 'read',

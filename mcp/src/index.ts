@@ -106,6 +106,7 @@ import {
   entryInfoDefinition, entryInfo,
   documentReadDefinition, documentRead,
   entryUpdateNotesDefinition, entryUpdateNotes,
+  entryEditNotesDefinition, entryEditNotes,
   documentCreateDefinition, documentCreate,
   documentUpdateDefinition, documentUpdate,
   entryListDefinition, entryList,
@@ -236,6 +237,7 @@ function buildToolRegistry(): Map<string, ToolEntry> {
   // Entry
   add(entryInfoDefinition(), entryInfo as ToolHandler);
   add(entryUpdateNotesDefinition(), entryUpdateNotes as ToolHandler);
+  add(entryEditNotesDefinition(), entryEditNotes as ToolHandler);
   add(documentReadDefinition(), documentRead as ToolHandler);
   add(documentCreateDefinition(), documentCreate as ToolHandler);
   add(documentUpdateDefinition(), documentUpdate as ToolHandler);
