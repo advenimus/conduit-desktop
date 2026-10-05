@@ -14,9 +14,9 @@ device's own socket. The harness reference is `scripts/verify/README.md`. Every 
 
 | Scenario | In plain words |
 |---|---|
-| `tools-list` | A Free user with an unlocked vault: tools/list has the vault tools (`entry_list`, `entry_info`, `entry_search`, `entry_update_notes`, `document_create`, `document_update`, `credential_list`) and `entry_list` works. |
+| `tools-list` | A Free user with an unlocked vault: tools/list has the vault tools (`entry_list`, `entry_info`, `entry_search`, `entry_update_notes`, `entry_edit_notes`, `document_create`, `document_update`, `credential_list`) and `entry_list` works. |
 | `no-daily-quota` | A Free user makes 60 tool calls (the old daily cap was 50), spaced under the per-minute rate limit; none is refused and no `mcp-quota.json` exists in the device's HOME, app data or the cloud folder. |
-| `writes-sync` | On Pro, `entry_update_notes`, `document_create` and `document_update` show on the device (IPC and the entry tree) and reach a second device. |
+| `writes-sync` | On Pro, `entry_update_notes`, `entry_edit_notes` (a one-line edit that keeps a `!!secret!!`), `document_create` and `document_update` show on the device (IPC and the entry tree) and reach a second device. |
 | `has-conflict` | A same-field edit on two Pro devices makes `entry_info` return `has_conflict: true`; after it is resolved in the review panel it is false on both devices. |
 | `locked-and-elsewhere` | A manually locked vault returns `code: VAULT_LOCKED` with no reason; after a Free take-over from another device it returns `reason: open_elsewhere` and the device shows the locked-out dialog. |
 | `two-agents` | Two MCP clients on one device are two agents. Each runs commands in its own local shell; the other is refused with `SESSION_IN_USE` in it but can still read it; `connection_list` shows `owner` you, other_agent and free (a shell the user opened); once agent A's MCP process exits, B can use A's old shell. |

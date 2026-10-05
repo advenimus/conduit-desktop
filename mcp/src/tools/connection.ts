@@ -15,7 +15,7 @@ export function connectionListDefinition() {
   return {
     name: 'connection_list',
     description:
-      'List all connections (active and saved). Returns id (session ID for terminal/RDP/VNC/web tools) and entry_id (vault entry ID for entry_info, entry_update_notes, document_read tools). ' +
+      'List all connections (active and saved). Returns id (session ID for terminal/RDP/VNC/web tools) and entry_id (vault entry ID for entry_info, entry_update_notes, entry_edit_notes, document_read tools). ' +
       'Active connections can be used directly with terminal tools. ' +
       'Saved connections with status "disconnected" must first be opened with connection_open_entry (pass the entry_id; credentials are resolved server-side) before use. ' +
       'Other AI agents may be working at the same time: owner is "you" for sessions you opened or used, "other_agent" when another agent is working in it ' +

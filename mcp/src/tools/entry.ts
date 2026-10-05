@@ -1,12 +1,22 @@
 /**
  * Entry & document MCP tools.
  *
- * Read tools apply automatic !!secret!! redaction.
- * Write tools (update notes, create/update documents) modify the vault.
+ * Read tools show !!secret!! values as [SECRET_n] tokens.
+ * Write tools (update/edit notes, create/update documents) modify the vault and put
+ * tokens back as the stored secrets.
  */
 
 import type { ConduitClient } from '../ipc-client.js';
-import { maskSecrets } from '../mask-secrets.js';
+import { maskSecrets, redactSecrets, restoreSecrets } from '../mask-secrets.js';
+import { applyTextEdits, MAX_TEXT_EDITS, parseTextEdits } from '../text-edits.js';
+
+const SECRET_TOKENS_HELP =
+  'Secrets show as [SECRET_n] tokens. Keep a token where it is, or copy it into new text, to keep that secret; ' +
+  'Conduit puts the real value back. Dropping a token deletes that secret. Write a new secret as !!value!!.';
+
+function textField(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
 
 // ---------- entry_info ----------
 
@@ -15,7 +25,7 @@ export function entryInfoDefinition() {
     name: 'entry_info',
     description:
       'Get metadata for any vault entry (connection, document, command). ' +
-      'Optionally include notes with !!secret!! values redacted. ' +
+      'Optionally include notes, with !!secret!! values shown as [SECRET_n] tokens. ' +
       'has_conflict is true when devices saved different values and the conflict is not resolved yet; ' +
       'the values shown are the provisional ones.',
     inputSchema: {
@@ -24,7 +34,7 @@ export function entryInfoDefinition() {
         entry_id: { type: 'string', description: 'UUID of the entry' },
         include_notes: {
           type: 'boolean',
-          description: 'Include the entry notes field (secrets redacted). Default: false',
+          description: 'Include the entry notes field (secrets shown as [SECRET_n] tokens). Default: false',
         },
       },
       required: ['entry_id'],
@@ -70,7 +80,7 @@ export function documentReadDefinition() {
   return {
     name: 'document_read',
     description:
-      'Read the markdown content of a document entry. !!secret!! values are automatically redacted.',
+      'Read the markdown content of a document entry. !!secret!! values show as [SECRET_n] tokens.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -105,7 +115,8 @@ export function entryUpdateNotesDefinition() {
   return {
     name: 'entry_update_notes',
     description:
-      'Update the markdown notes on any vault entry. ' +
+      'Replace all of the markdown notes on any vault entry. To change only part of the notes, use entry_edit_notes instead. ' +
+      SECRET_TOKENS_HELP + ' ' +
       'IMPORTANT: Always show the user what you plan to write and get their approval before calling this tool.',
     inputSchema: {
       type: 'object' as const,
@@ -122,7 +133,64 @@ export async function entryUpdateNotes(
   client: ConduitClient,
   args: { entry_id: string; notes: string },
 ): Promise<unknown> {
-  return client.entryUpdateNotes(args.entry_id, args.notes);
+  if (typeof args.notes !== 'string') throw new Error('notes must be a string.');
+  const current = await client.entryGetInfo(args.entry_id, true);
+  const restored = restoreSecrets(args.notes, redactSecrets(textField(current.notes)));
+  const result = await client.entryUpdateNotes(args.entry_id, restored.text);
+  return { ...result, secrets_removed: restored.secretsRemoved };
+}
+
+// ---------- entry_edit_notes ----------
+
+export function entryEditNotesDefinition() {
+  return {
+    name: 'entry_edit_notes',
+    description:
+      'Change part of the markdown notes on any vault entry without rewriting the rest. ' +
+      'Each edit swaps old_string for new_string. old_string must match the notes from entry_info exactly, ' +
+      'spaces and line breaks included, and match only once unless replace_all is true. ' +
+      'Edits apply in order; if any edit fails, nothing is saved. ' +
+      SECRET_TOKENS_HELP + ' ' +
+      'IMPORTANT: Always show the user each change and get their approval before calling this tool.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        entry_id: { type: 'string', description: 'UUID of the entry to update' },
+        edits: {
+          type: 'array',
+          minItems: 1,
+          maxItems: MAX_TEXT_EDITS,
+          description: 'Changes to make, applied in order',
+          items: {
+            type: 'object',
+            properties: {
+              old_string: {
+                type: 'string',
+                description: 'Exact text to replace. Include enough nearby text to match once. Empty only when the notes are empty.',
+              },
+              new_string: { type: 'string', description: 'Text to put in its place. Use an empty string to delete.' },
+              replace_all: { type: 'boolean', description: 'Replace every match of old_string. Default: false' },
+            },
+            required: ['old_string', 'new_string'],
+          },
+        },
+      },
+      required: ['entry_id', 'edits'],
+    },
+  };
+}
+
+export async function entryEditNotes(
+  client: ConduitClient,
+  args: { entry_id: string; edits: unknown },
+): Promise<unknown> {
+  const edits = parseTextEdits(args.edits);
+  const current = await client.entryGetInfo(args.entry_id, true);
+  const redacted = redactSecrets(textField(current.notes));
+  const edited = applyTextEdits(redacted.text, edits);
+  const restored = restoreSecrets(edited.text, redacted);
+  const result = await client.entryUpdateNotes(args.entry_id, restored.text);
+  return { ...result, replacements: edited.replacements, secrets_removed: restored.secretsRemoved };
 }
 
 // ---------- document_create ----------
@@ -169,6 +237,7 @@ export function documentUpdateDefinition() {
     name: 'document_update',
     description:
       'Update the content of an existing markdown document entry. ' +
+      SECRET_TOKENS_HELP + ' ' +
       'IMPORTANT: Always show the user the proposed changes and get their approval before calling this tool.',
     inputSchema: {
       type: 'object' as const,
@@ -186,7 +255,11 @@ export async function documentUpdate(
   client: ConduitClient,
   args: { entry_id: string; content: string; name?: string },
 ): Promise<unknown> {
-  return client.documentUpdate(args.entry_id, args.content, args.name ?? null);
+  if (typeof args.content !== 'string') throw new Error('content must be a string.');
+  const current = await client.entryGetDocument(args.entry_id);
+  const restored = restoreSecrets(args.content, redactSecrets(textField(current.content)));
+  const result = await client.documentUpdate(args.entry_id, restored.text, args.name ?? null);
+  return { ...result, secrets_removed: restored.secretsRemoved };
 }
 
 // ---------- entry_list ----------

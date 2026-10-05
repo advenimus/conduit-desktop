@@ -1685,10 +1685,10 @@ async function dispatchRequest(
             updated_at: entry.updated_at,
             has_conflict: hasConflict(state, entry.id),
           };
-          // Only include notes when explicitly requested — and redact !!secret!! values
+          // Notes go out raw: the MCP server swaps !!secret!! values for tokens before an
+          // agent sees them, and needs the real values to put tokens back on write.
           if (include_notes) {
-            const raw = entry.notes ?? '';
-            result.notes = raw.replace(/!!secret!![^!]*!!secret!!/g, '********');
+            result.notes = entry.notes ?? '';
           }
           return successResponse(result);
         } catch (e) {

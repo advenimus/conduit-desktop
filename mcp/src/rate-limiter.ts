@@ -92,6 +92,7 @@ export function defaultRateLimits(): Map<string, ToolRateLimit> {
   // Entry / document tools
   limits.set('entry_info', { requestsPerMinute: 120, burst: 20 });
   limits.set('entry_update_notes', { requestsPerMinute: 30, burst: 5 });
+  limits.set('entry_edit_notes', { requestsPerMinute: 30, burst: 5 });
   limits.set('document_read', { requestsPerMinute: 120, burst: 20 });
   limits.set('document_create', { requestsPerMinute: 30, burst: 5 });
   limits.set('document_update', { requestsPerMinute: 30, burst: 5 });
