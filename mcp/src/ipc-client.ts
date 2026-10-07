@@ -26,6 +26,7 @@ export type IpcRequest =
   | { type: 'CredentialCreate'; payload: { name: string; username: string | null; password: string | null; domain: string | null; private_key: string | null; tags: string[]; credential_type?: string | null; public_key?: string | null; fingerprint?: string | null; totp_secret?: string | null; totp_issuer?: string | null; totp_label?: string | null } }
   | { type: 'CredentialDelete'; payload: { id: string } }
   | { type: SecretRequestType; payload: Record<string, unknown> }
+  | { type: KbRequestType; payload: Record<string, unknown> }
   | { type: 'ConnectionList'; payload: Record<string, never> }
   | { type: 'ConnectionOpen'; payload: { connection_type: string; host: string; port: number; credential_id: string | null; username: string | null; password: string | null; ssh_auth_method?: string | null } }
   | { type: 'ConnectionOpenEntry'; payload: { entry_id: string; ssh_auth_method: string | null } }
@@ -156,6 +157,9 @@ function getSocketPath(): string {
 
 // Longer than the app's 60s reveal dialog timeout, so its Deny arrives before ours.
 const REVEAL_WAIT_MS = 75_000;
+
+export type KbRequestType =
+  | 'KbContext' | 'KbSearch' | 'KbRead' | 'KbWrite' | 'KbLog' | 'KbVerify' | 'KbArchive' | 'KbImportNotes' | 'KbDismissMigration';
 
 export type SecretRequestType = 'SecretCreate' | 'SecretRotate' | 'SecretCommit' | 'SecretDiscard' | 'SecretCapture';
 
@@ -306,6 +310,10 @@ export class ConduitClient {
     });
     // Response is the array directly
     return response as unknown as Record<string, unknown>[];
+  }
+
+  async kbRequest(type: KbRequestType, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.sendRequest({ type, payload } as IpcRequest);
   }
 
   /** Secret create/rotate/commit/discard/capture; the payload is passed through as the tool gave it. */

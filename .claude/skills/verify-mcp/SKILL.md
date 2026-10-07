@@ -21,6 +21,7 @@ device's own socket. The harness reference is `scripts/verify/README.md`. Every 
 | `has-conflict` | A same-field edit on two Pro devices makes `entry_info` return `has_conflict: true`; after it is resolved in the review panel it is false on both devices. |
 | `locked-and-elsewhere` | A manually locked vault returns `code: VAULT_LOCKED` with no reason; after a Free take-over from another device it returns `reason: open_elsewhere` and the device shows the locked-out dialog. |
 | `two-agents` | Two MCP clients on one device are two agents. Each runs commands in its own local shell; the other is refused with `SESSION_IN_USE` in it but can still read it; `connection_list` shows `owner` you, other_agent and free (a shell the user opened); once agent A's MCP process exits, B can use A's old shell. |
+| `knowledge` | `entry_info` suggests moving heading-structured notes; `kb_import_notes` makes articles and keeps the notes; folder and tag-matched vault articles reach the asset in contract order; `kb_write` edits flag the article for review with reasons in its history; `kb_log`, `kb_verify` and `kb_search` work; articles stay out of `entry_list` and the renderer's lists and are deleted with their asset. |
 | `audit` | Every MCP call of the run is in `<HOME>/.config/conduit/audit.log` in order with the right outcome, an `api_key` argument is logged as `[REDACTED]`, and failed calls are logged as errors. It also passes alone (`--only audit`). |
 
 ## Prerequisites (the harness checks or fixes these itself)

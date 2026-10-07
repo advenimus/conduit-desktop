@@ -36,6 +36,9 @@ import { errorResponse, successResponse, type IpcResponse } from './ipc-response
 import { guardSecrets } from './secret-guard.js';
 import { defaultPort, notifyRendererEntryChanged, resolveEntryId } from './entry-helpers.js';
 import { handleSecretRequest, SECRET_REQUEST_TYPES } from './handlers/secrets.js';
+import { handleKnowledgeRequest, KNOWLEDGE_REQUEST_TYPES } from './handlers/knowledge.js';
+import { knowledgeBlock } from '../services/knowledge/kb-query.js';
+import type { KbVault } from '../services/knowledge/kb-store.js';
 import { isHiddenEntry } from '../services/knowledge/kb-model.js';
 import { credentialGetResponse } from './credential-reveal.js';
 import { createWithSecrets, updateWithSecrets } from '../services/secrets/embedded-secrets.js';
@@ -113,6 +116,7 @@ async function dispatchRequest(
   agent: AgentIdentity | null,
 ): Promise<IpcResponse> {
   if (SECRET_REQUEST_TYPES.has(request.type)) return handleSecretRequest(request, state, agent);
+  if (KNOWLEDGE_REQUEST_TYPES.has(request.type)) return handleKnowledgeRequest(request, state, agent);
   try {
     switch (request.type) {
       // ---- Terminal operations ----
@@ -1528,6 +1532,7 @@ async function dispatchRequest(
           if (include_notes) {
             result.notes = entry.notes ?? '';
           }
+          if (!isHiddenEntry(entry)) result.knowledge = knowledgeBlock(vault as unknown as KbVault, entry);
           return successResponse(result);
         } catch (e) {
           return vaultFailure('ENTRY_ERROR', e);

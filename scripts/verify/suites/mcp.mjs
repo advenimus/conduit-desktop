@@ -599,6 +599,94 @@ async function notesSecrets(ctx) {
   ctx.step('entry info page shows chips; audit log has no user-typed secret');
 }
 
+/** What the renderer's entry store holds: lists show `entries`; articles and secrets live in `hiddenEntries`. */
+export function readEntryStoreInPage(ids) {
+  return import('/src/stores/entryStore.ts').then(({ useEntryStore }) => {
+    const { entries, hiddenEntries } = useEntryStore.getState();
+    return { listed: ids.filter((id) => entries.some((e) => e.id === id)), hidden: ids.filter((id) => hiddenEntries.some((e) => e.id === id)) };
+  });
+}
+
+const KB_NOTES = [
+  'Ubuntu 24.04 web server for the client portal.',
+  '## Restart steps',
+  '1. systemctl restart nginx',
+  '2. check https://portal/health',
+  '## Known issues',
+  'Disk fills from /var/log; logrotate runs nightly.',
+].join('\n');
+
+/** An agent learns from, writes to and verifies the knowledge base; the app keeps articles out of the entry tree. */
+async function knowledgeBase(ctx) {
+  const { flows, ui } = ctx;
+  const user = await ctx.createUser('free');
+  const [device] = await signedInDevices(ctx, user, ['m9']);
+  await createSharedVault(ctx, device, 'McpKnowledge.conduit');
+  const folder = await ui.invoke(device, 'folder_create', { name: 'Client Portal' });
+  const entry = await flows.addEntry(device, { name: 'portal-web-01', host: '10.70.0.1', folder_id: folder.id, tags: ['ubuntu'], notes: KB_NOTES });
+  const mcp = await trackedMcp(ctx, device);
+
+  // 1. entry_info suggests moving notes that look like a knowledge base.
+  const info = await mcp.call('entry_info', { entry_id: entry.id, include_notes: true });
+  ctx.checkEqual([info.knowledge?.migration_suggested, info.knowledge?.articles], ['headings', []], 'entry_info suggests migrating the notes and lists no articles yet');
+
+  // 2. The agent moves the notes into articles, keeping the notes.
+  const imported = await mcp.call('kb_import_notes', {
+    entry_id: entry.id,
+    articles: [
+      { title: 'Overview', kind: 'overview', content: 'Ubuntu 24.04 web server for the client portal.' },
+      { title: 'Restart steps', kind: 'procedure', content: '1. systemctl restart nginx\n2. check https://portal/health' },
+      { title: 'Disk fills from logs', kind: 'troubleshooting', content: 'Disk fills from /var/log; logrotate runs nightly.' },
+    ],
+  });
+  ctx.checkEqual(imported.created.length, 3, 'kb_import_notes created three articles');
+  ctx.checkEqual((await ui.invoke(device, 'entry_get', { id: entry.id })).notes, KB_NOTES, 'the notes were kept');
+
+  // 3. Folder and vault knowledge reach the asset; the order follows the contract.
+  await mcp.call('kb_write', { scope: 'folder', folder_id: folder.id, kind: 'facts', title: 'Portal network', content: 'VLAN 30, gateway 10.70.0.254' });
+  await mcp.call('kb_write', { scope: 'vault', kind: 'playbook', title: 'Ubuntu patching', content: 'apt update && apt upgrade -y, then reboot in the window', tags: ['Ubuntu'] });
+  const context = await mcp.call('kb_context', { entry_id: entry.id });
+  ctx.checkEqual(context.articles.map((a) => [a.title, a.group]), [
+    ['Overview', 'asset'], ['Restart steps', 'asset'], ['Disk fills from logs', 'asset'],
+    ['Portal network', 'folder'], ['Ubuntu patching', 'vault'],
+  ], 'kb_context lists asset, folder and vault knowledge in order');
+  const after = await mcp.call('entry_info', { entry_id: entry.id });
+  ctx.checkEqual([after.knowledge.migration_suggested, after.knowledge.articles.length], [null, 5], 'entry_info stops suggesting migration once articles exist');
+
+  // 4. Partial edits, logging, verification and search.
+  const steps = context.articles.find((a) => a.title === 'Restart steps');
+  const edit = await mcp.call('kb_write', { article_id: steps.id, edits: [{ old_string: 'restart nginx', new_string: 'reload nginx' }], reason: 'reload keeps connections' });
+  ctx.checkEqual(edit.replacements, 1, 'kb_write applied a partial edit');
+  const read = await mcp.call('kb_read', { article_id: steps.id });
+  ctx.check(read.content.includes('systemctl reload nginx') && read.unseen_agent_edit === true, `the article changed and is flagged for review: ${JSON.stringify(read).slice(0, 300)}`);
+  ctx.checkEqual(read.history.map((h) => h.reason), ['Moved from notes', 'reload keeps connections'], 'the history has both revisions with reasons');
+  await mcp.call('kb_log', { entry_id: entry.id, text: 'Switched restarts to reloads' });
+  await mcp.call('kb_verify', { article_id: steps.id, still_true: true, note: 'ran it' });
+  const found = await mcp.call('kb_search', { query: 'logrotate' });
+  ctx.checkEqual(found.results[0]?.title, 'Disk fills from logs', 'kb_search finds the troubleshooting article');
+  const withLog = await mcp.call('kb_context', { entry_id: entry.id });
+  ctx.check(withLog.articles.some((a) => a.title === 'Change log' && a.kind === 'changelog'), 'kb_log created the change log');
+  ctx.step('agent imported notes, added folder and vault knowledge, edited, logged, verified and searched');
+
+  // 5. Articles stay out of entry lists; the app lists them only as knowledge.
+  const listed = await mcp.call('entry_list', {});
+  ctx.check(!listed.entries.some((e) => e.id === steps.id), 'entry_list leaves articles out');
+  await flows.refreshEntries(device);
+  const store = await evaluateIn(device, readEntryStoreInPage, [entry.id, steps.id], { label: 'read entry store' });
+  ctx.checkEqual(store, { listed: [entry.id], hidden: [steps.id] }, 'the renderer lists the asset and keeps the article hidden');
+
+  // 6. Deleting the asset deletes its articles too.
+  await flows.deleteEntry(device, entry.id);
+  const gone = await ui.invokeResult(device, 'entry_get', { id: steps.id });
+  ctx.check(!gone.ok, 'the asset\'s articles were deleted with it');
+  const folderLeft = await mcp.call('kb_context', { folder_id: folder.id });
+  // A folder inherits only pinned vault articles; the tag-matched playbook applied to the asset, not the folder.
+  ctx.checkEqual(folderLeft.articles.map((a) => a.title), ['Portal network'], 'the folder article remains');
+  const playbook = await mcp.call('kb_search', { query: 'patching' });
+  ctx.checkEqual(playbook.results.map((r) => r.title), ['Ubuntu patching'], 'the vault playbook remains');
+  ctx.step('articles are hidden from entry lists and deleted with their asset');
+}
+
 export default {
   id: 'mcp',
   title: 'MCP tools on real devices',
@@ -610,6 +698,7 @@ export default {
     { id: 'locked-and-elsewhere', title: 'Locked vault error, then open_elsewhere after a Free take-over', run: lockedAndElsewhere },
     { id: 'two-agents', title: 'Two MCP agents: each keeps its own shell, the other is refused but can read, freed when one exits', needsSupabase: false, run: twoAgents },
     { id: 'notes-secrets', title: 'Free user: partial notes edits and full rewrites keep hidden secrets; bad writes change nothing', run: notesSecrets },
+    { id: 'knowledge', title: 'Free user: an agent imports notes, writes, logs, verifies and searches knowledge; articles stay out of lists', run: knowledgeBase },
     { id: 'audit', title: 'Every MCP call of the run is in the MCP audit log, secrets redacted', run: auditLog },
   ],
 };

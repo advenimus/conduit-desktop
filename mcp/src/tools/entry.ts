@@ -28,6 +28,8 @@ export function entryInfoDefinition() {
     description:
       'Get metadata for any vault entry (connection, document, command). ' +
       'Optionally include notes, with !!secret!! values shown as [SECRET_n] tokens. ' +
+      'knowledge lists the knowledge articles that apply (the asset\'s own, its folders\', matching vault playbooks) ' +
+      'with a hint on what to do next, including when to offer moving long notes into articles. ' +
       'has_conflict is true when devices saved different values and the conflict is not resolved yet; ' +
       'the values shown are the provisional ones.',
     inputSchema: {
@@ -72,6 +74,7 @@ export async function entryInfo(
     const notes = entry.notes as string | null;
     result.notes = notes ? maskSecrets(notes) : null;
   }
+  if (entry.knowledge) result.knowledge = entry.knowledge;
 
   return result;
 }

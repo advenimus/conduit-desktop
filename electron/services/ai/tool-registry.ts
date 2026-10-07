@@ -8,6 +8,7 @@
  */
 
 import type { AppState } from '../state.js';
+import { KB_AND_SECRET_TOOLS } from './tool-registry-kb.js';
 
 // ── Registry types ──────────────────────────────────────────────────────────
 
@@ -1069,4 +1070,5 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     ipcType: 'VncGetDimensions',
   },
+  ...KB_AND_SECRET_TOOLS,
 ];
