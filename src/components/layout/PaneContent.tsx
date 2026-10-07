@@ -1,3 +1,4 @@
+import VaultKnowledgeView from "../knowledge/VaultKnowledgeView";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useLayoutStore, findLeaf } from "../../stores/layoutStore";
 import {
@@ -131,6 +132,7 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
         const view = dashboardViewOf(session);
         if (view.kind === "folder") return <FolderDashboard folderId={view.folderId} />;
         if (view.kind === "entry") return <EntryDashboard entryId={view.entryId} />;
+        if (view.kind === "knowledge") return <VaultKnowledgeView />;
         return <DashboardOverview active={isPaneActive} />;
       }
       default:

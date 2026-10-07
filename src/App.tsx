@@ -656,6 +656,7 @@ function App() {
     const handleNewAgentEvent = () => {
       handleNewAgent();
     };
+    const handleAiPrompt = () => setShowAiPanel(true);
     const handleReplayOnboarding = () => {
       onboardingChecked.current = true;
       setShowOnboarding(true);
@@ -708,6 +709,7 @@ function App() {
     document.addEventListener("conduit:new-terminal", handleNewTerminal);
     document.addEventListener("conduit:close-tab", handleCloseTab);
     document.addEventListener("conduit:home", openHome);
+    document.addEventListener("conduit:ai-prompt", handleAiPrompt);
     document.addEventListener("conduit:next-tab", handleNextTab);
     document.addEventListener("conduit:prev-tab", handlePrevTab);
     document.addEventListener("conduit:split-right", handleSplitRight);
@@ -906,6 +908,7 @@ function App() {
       document.removeEventListener("conduit:new-terminal", handleNewTerminal);
       document.removeEventListener("conduit:close-tab", handleCloseTab);
       document.removeEventListener("conduit:home", openHome);
+      document.removeEventListener("conduit:ai-prompt", handleAiPrompt);
       document.removeEventListener("conduit:next-tab", handleNextTab);
       document.removeEventListener("conduit:prev-tab", handlePrevTab);
       document.removeEventListener("conduit:split-right", handleSplitRight);

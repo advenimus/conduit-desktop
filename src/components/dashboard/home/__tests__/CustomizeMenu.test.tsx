@@ -52,6 +52,7 @@ describe("CustomizeMenu", () => {
       "Favorites",
       "Needs attention",
       "AI activity",
+      "Agent learnings",
       "Vault status and overview",
     ]);
     expect(boxes.every((b) => (b as HTMLInputElement).checked)).toBe(true);

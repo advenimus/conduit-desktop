@@ -4,6 +4,7 @@ import { useTierStore } from "../../stores/tierStore";
 import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import { Button, IconButton, SearchInput, Select } from "../ui";
 import TypeTiles, { countByType } from "./TypeTiles";
+import FolderKnowledgeSection from "../knowledge/FolderKnowledgeSection";
 import CheckAllButton from "./folder/CheckAllButton";
 import FolderEntryList from "./folder/FolderEntryList";
 import OpenAllButton from "./folder/OpenAllButton";
@@ -91,6 +92,7 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
       <div className={CONTENT_WIDTH}>
         {/* Summary cards */}
         <TypeTiles counts={typeCounts} className="grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] px-6 pt-6 pb-2" />
+        <FolderKnowledgeSection folderId={folderId} assetCount={total} />
         {total > 0 && (
           <section className="px-6 pt-4 pb-6">
             <div className="mb-3 flex items-center gap-3">

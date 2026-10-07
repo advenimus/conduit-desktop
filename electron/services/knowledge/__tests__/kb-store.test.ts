@@ -50,6 +50,17 @@ describe('articles', () => {
     expect(content).toBe(`root: {{secret:${ref.id}|root}}`);
     expect(vault.getEntry(ref.id).password).toBe('r00t-db');
     expect(readHistory(art.config)[0].content).toBe(content);
+    // The summary is plain text and must not keep the value either.
+    expect(readKb(art.config)!.summary).toBe('root: ••••');
+    expect(JSON.stringify(art)).not.toContain('r00t-db');
+  });
+
+  it('never keeps a secret in a summary or title the caller gives', () => {
+    const a = asset('db-02');
+    const art = createArticle(vault, { scope: 'asset', entry_id: a.id, title: 'pw !!t1tle-pw!!', kind: 'facts', content: 'x', summary: 'pw !!summ-pw!!' }, claude);
+    expect([art.name, readKb(art.config)!.summary]).toEqual(['pw ••••', 'pw ••••']);
+    const updated = updateArticle(vault, art.id, { summary: 'now !!other-pw!!' }, claude);
+    expect(readKb(updated.config)!.summary).toBe('now ••••');
   });
 
   it('rejects bad placement', () => {

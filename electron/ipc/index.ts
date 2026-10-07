@@ -7,6 +7,7 @@ import { registerAiHandlers } from './ai.js';
 import { registerApprovalHandlers } from './approval.js';
 import { registerEntryHandlers } from './entry.js';
 import { registerSecretHandlers } from './secrets.js';
+import { registerKnowledgeHandlers } from './knowledge.js';
 import { registerFolderHandlers } from './folder.js';
 import { registerRdpHandlers } from './rdp.js';
 import { registerSettingsHandlers } from './settings.js';
@@ -43,6 +44,7 @@ export function registerIpcHandlers(): void {
   // ── Entry commands (replaces connection) ──────────────────────────
   registerEntryHandlers();
   registerSecretHandlers();
+  registerKnowledgeHandlers();
 
   // ── Folder commands ───────────────────────────────────────────────
   registerFolderHandlers();

@@ -42,13 +42,19 @@ export interface ArticleChanges {
 
 const nowIso = () => new Date().toISOString();
 
+// Summaries and titles are stored as plain text, so a !!secret!! in them must never be kept.
+const hideSecretSpans = (text: string) => text.replace(/!!(.+?)!!/g, '••••');
+
 function cleanSummary(summary: string | undefined, content: string): string {
-  const source = summary?.trim() || content.split('\n').map((l) => l.replace(/^[#>*\-\s]+/, '').trim()).find(Boolean) || '';
-  return Array.from(source).slice(0, KB_SUMMARY_MAX).join('');
+  // Derived summaries skip table rows and rules, which read badly on one line.
+  const firstLine = content.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('|') && !/^[-*_=\s]+$/.test(l))
+    .map((l) => l.replace(/^[#>*\-\s]+/, '').trim()).find(Boolean);
+  const source = summary?.trim() || firstLine || '';
+  return Array.from(hideSecretSpans(source)).slice(0, KB_SUMMARY_MAX).join('');
 }
 
 function cleanTitle(title: string | undefined): string {
-  const t = (title ?? '').trim();
+  const t = hideSecretSpans(title ?? '').trim();
   if (!t) throw new KbError('title is required');
   return t.slice(0, 200);
 }

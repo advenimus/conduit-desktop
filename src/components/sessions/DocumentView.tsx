@@ -5,6 +5,10 @@ import { toolbarActions, type ToolbarAction } from "../markdown/markdownToolbar"
 import ConfirmDialog from "../common/ConfirmDialog";
 import { CloseIcon, FileTextIcon, FloppyIcon, PencilIcon } from "../../lib/icons";
 import { Button, IconButton } from "../ui";
+import AddSecretPopover from "../markdown/AddSecretPopover";
+import ArticleHeader from "../knowledge/ArticleHeader";
+import { articleOf } from "../knowledge/kbUi";
+import { kbCall } from "../knowledge/kbActions";
 
 interface DocumentViewProps {
   entryId: string;
@@ -12,8 +16,9 @@ interface DocumentViewProps {
 }
 
 export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
-  const entry = useEntryStore((s) => s.entries.find((e) => e.id === entryId));
+  const entry = useEntryStore((s) => s.entries.find((e) => e.id === entryId) ?? s.hiddenEntries.find((e) => e.id === entryId));
   const updateEntry = useEntryStore((s) => s.updateEntry);
+  const article = articleOf(entry);
 
   const savedContent = (entry?.config as { content?: string })?.content ?? "";
 
@@ -37,12 +42,28 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
   };
 
   const handleSave = async () => {
-    await updateEntry(entryId, {
-      // Keep the other config keys (a knowledge article's metadata lives there too).
-      config: { ...(entry?.config ?? {}), content: draftContent },
-    });
+    if (article) {
+      // Article saves go through the knowledge store so they get a revision and encrypt secrets.
+      if ((await kbCall("kb_update", { id: entryId, content: draftContent }, "Couldn't save the article")) === null) return;
+    } else {
+      await updateEntry(entryId, {
+        config: { ...(entry?.config ?? {}), content: draftContent },
+      });
+    }
     setIsEditing(false);
   };
+
+  const insertSecretRef = useCallback(
+    ({ id, label }: { id: string; label: string }) => {
+      const ta = textareaRef.current;
+      const at = ta?.selectionStart ?? draftContent.length;
+      const lineStart = draftContent.lastIndexOf("\n", at - 1) + 1;
+      const inTable = draftContent.slice(lineStart).trimStart().startsWith("|");
+      const ref = inTable ? `{{secret:${id}}}` : `{{secret:${id}|${label.replace(/[{}|\r\n]/g, " ")}}}`;
+      setDraftContent(draftContent.slice(0, at) + ref + draftContent.slice(ta?.selectionEnd ?? at));
+    },
+    [draftContent]
+  );
 
   const handleCancel = () => {
     if (isDirty) {
@@ -102,6 +123,8 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
             Edit
           </Button>
         </div>
+
+        {article && <ArticleHeader entry={entry} kb={article.kb} />}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 allow-select">
@@ -163,6 +186,7 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
                   />
                 )
               )}
+              <AddSecretPopover ownerId={entry.id} onInsert={insertSecretRef} />
             </div>
 
             {/* Textarea */}

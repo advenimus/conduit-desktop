@@ -8,6 +8,7 @@ import {
   PlayerPlayIcon,
   InfoCircleIcon,
   HomeIcon,
+  NotesIcon,
   MenuIcon,
 } from "../../lib/icons";
 import { useSessionStore, type Session, type SessionType } from "../../stores/sessionStore";
@@ -505,7 +506,7 @@ function StatusDot({ session }: { session: Session }) {
 function TabIcon({ session }: { session: Session }) {
   const entryId = session.entryId;
   const entry = useEntryStore((s) =>
-    entryId ? s.entries.find((e) => e.id === entryId) : undefined,
+    entryId ? (s.entries.find((e) => e.id === entryId) ?? s.hiddenEntries.find((e) => e.id === entryId)) : undefined,
   );
   const view = session.type === "dashboard" ? dashboardViewOf(session) : null;
   const folderId = view?.kind === "folder" ? view.folderId : null;
@@ -533,6 +534,10 @@ function TabIcon({ session }: { session: Session }) {
 
   if (view?.kind === "home") {
     return <span className="flex"><HomeIcon size={16} className="text-link" /></span>;
+  }
+
+  if (view?.kind === "knowledge") {
+    return <span className="flex"><NotesIcon size={16} className="text-link" /></span>;
   }
 
   return <span className="flex">{typeIcons[session.type]}</span>;

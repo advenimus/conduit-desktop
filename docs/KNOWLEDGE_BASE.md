@@ -54,6 +54,10 @@ writes them (`2026-10-06T14:03:00.000Z`). They compare correctly as strings.
 
 `name` for an agent is its display name, for example `Claude Code` or `Codex`. A user has no name.
 
+The article title (`name`) and `kb.summary` are stored as plain text. Before saving either, replace
+every `!!value!!` span in it with `••••` (four U+2022 bullets). A summary derived from the body is
+derived from the text before conversion, so it needs the same treatment.
+
 ### 1.2 Embedded secret
 
 An embedded secret is an `entries` row with `entry_type = 'credential'` and a `config.embedded`

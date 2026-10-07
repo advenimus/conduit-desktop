@@ -1,3 +1,5 @@
+import KnowledgeBadge, { useKnowledgeCounts } from "../knowledge/KnowledgeBadge";
+import NewArticleDialog from "../knowledge/NewArticleDialog";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useEntryStore } from "../../stores/entryStore";
 import { useTierStore } from "../../stores/tierStore";
@@ -137,6 +139,8 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
     duplicateEntry,
     getEntry,
   } = useEntryStore();
+  const knowledgeCounts = useKnowledgeCounts();
+  const [newArticleFor, setNewArticleFor] = useState<{ entryId: string } | { folderId: string } | null>(null);
 
   const lockedEntryIds = useTierStore((s) => s.lockedEntryIds);
   const isEntryLocked = useTierStore((s) => s.isEntryLocked);
@@ -543,6 +547,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         items.push({ id: "sep_info", label: "", type: "separator" });
         items.push({ id: "new_entry", label: "New Entry", icon: "plus" });
         items.push({ id: "new_folder", label: "New Folder", icon: "folderPlus" });
+        items.push({ id: "new_article", label: "Add Knowledge Article", icon: "notes" });
         items.push({ id: "sep1", label: "", type: "separator" });
         items.push({ id: "edit_folder", label: "Edit Folder", icon: "pencil" });
         items.push({ id: "rename", label: "Rename", icon: "textCursor" });
@@ -620,6 +625,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         if (canEdit) {
           items.push({ id: "rename", label: "Rename", icon: "textCursor" });
           items.push({ id: "duplicate", label: "Duplicate", icon: "copy" });
+          items.push({ id: "new_article", label: "Add Knowledge Article", icon: "notes" });
         }
         if (role === "admin") {
           items.push({ id: "sep2", label: "", type: "separator" });
@@ -640,6 +646,9 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         break;
       case "new_folder":
         document.dispatchEvent(new CustomEvent("conduit:new-folder", { detail: { parentId: node.id } }));
+        break;
+      case "new_article":
+        setNewArticleFor(node.kind === "folder" ? { folderId: node.id } : { entryId: node.id });
         break;
       case "edit_folder":
         document.dispatchEvent(new CustomEvent("conduit:edit-folder", { detail: node.id }));
@@ -1042,6 +1051,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
               {!isFolder && !isLocked && favoriteIds.has(node.id) && (
                 <StarFilledIcon size={12} className="text-favorite flex-shrink-0" />
               )}
+              <KnowledgeBadge info={knowledgeCounts.get(node.id)} />
             </span>
           )}
         </div>
@@ -1177,6 +1187,15 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
             setCredPickerEntryId(null);
           }}
           onClose={() => setCredPickerEntryId(null)}
+        />
+      )}
+
+      {newArticleFor && (
+        <NewArticleDialog
+          scope={"folderId" in newArticleFor ? "folder" : "asset"}
+          entryId={"entryId" in newArticleFor ? newArticleFor.entryId : undefined}
+          folderId={"folderId" in newArticleFor ? newArticleFor.folderId : undefined}
+          onClose={() => setNewArticleFor(null)}
         />
       )}
     </div>

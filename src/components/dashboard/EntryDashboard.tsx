@@ -10,9 +10,11 @@ import MarkdownRenderer from "../markdown/MarkdownRenderer";
 import PasswordHistoryDialog from "../vault/PasswordHistoryDialog";
 import EntryConflictInline from "../sync/EntryConflictInline";
 import NotesSecurityBanners from "../secrets/NotesSecurityBanners";
+import EntrySidePanel from "../knowledge/EntrySidePanel";
+import EntryMigrationBanner from "../knowledge/EntryMigrationBanner";
 import type { EntryFull, ResolvedCredential } from "../../types/entry";
 import {
-  CalendarIcon, ClockIcon, GlobeIcon, KeyIcon, LockIcon, NotesIcon, ServerIcon, ShieldLockIcon, TagIcon, UserIcon
+  CalendarIcon, ClockIcon, GlobeIcon, KeyIcon, LockIcon, ServerIcon, ShieldLockIcon, TagIcon, UserIcon
 } from "../../lib/icons";
 import { Button, IconButton } from "../ui";
 import { DetailLabel, DetailRow, TotpCountdown } from "./EntryDetailParts";
@@ -202,11 +204,12 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
 
       <EntryConflictInline entryId={entryId} mode="detail" />
       <NotesSecurityBanners entry={entry} />
+      <EntryMigrationBanner entry={entry} />
 
-      {/* Content area — two columns when notes exist */}
-      <div className={`flex-1 min-h-0 flex ${entry.notes ? "" : "flex-col"}`}>
+      {/* Content area: details on the left, knowledge and notes on the right */}
+      <div className="flex-1 min-h-0 flex">
         {/* Left: Details */}
-        <div className={`overflow-y-auto px-6 py-5 ${entry.notes ? "w-2/5 flex-shrink-0 border-r border-divider" : `flex-1 ${entry.entry_type !== "document" ? "max-w-2xl" : ""}`}`}>
+        <div className="overflow-y-auto px-6 py-5 w-2/5 flex-shrink-0 border-r border-divider">
           {/* Document preview */}
           {entry.entry_type === "document" && (
             <div className="mb-4">
@@ -335,17 +338,8 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
           {HISTORY_TYPES.has(entry.entry_type) && <ConnectionHistorySection entryId={entryId} />}
         </div>
 
-        {/* Right: Notes (only when notes exist) */}
-        {entry.notes && (
-          <div className="flex-1 min-w-0 overflow-y-auto px-6 py-5 allow-select">
-            <div className="flex items-center gap-2 mb-4">
-              <NotesIcon size={16} className="text-ink-muted" />
-              <DetailLabel>Notes</DetailLabel>
-              <div className="flex-1 border-b border-divider" />
-            </div>
-            <MarkdownRenderer content={entry.notes} />
-          </div>
-        )}
+        {/* Right: Knowledge and notes */}
+        <EntrySidePanel entry={entry} />
       </div>
     </div>
     {showPasswordHistory && (

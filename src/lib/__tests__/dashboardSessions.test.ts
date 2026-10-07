@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { HOME_SESSION_ID, dashboardViewOf, entryInfoSessionId, folderViewSessionId, isHomeSession } from "../dashboardSessions";
+import { HOME_SESSION_ID, KNOWLEDGE_SESSION_ID, dashboardViewOf, entryInfoSessionId, folderViewSessionId, isHomeSession } from "../dashboardSessions";
 import { openDashboardForEntry, openFolderView } from "../openDashboard";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useEntryStore } from "../../stores/entryStore";
@@ -13,6 +13,7 @@ vi.hoisted(() => {
 describe("dashboardViewOf", () => {
   it("tells Home, entry info and folder view tabs apart", () => {
     expect(dashboardViewOf({ id: HOME_SESSION_ID })).toEqual({ kind: "home" });
+    expect(dashboardViewOf({ id: KNOWLEDGE_SESSION_ID })).toEqual({ kind: "knowledge" });
     expect(dashboardViewOf({ id: entryInfoSessionId("e1"), entryId: "e1" })).toEqual({ kind: "entry", entryId: "e1" });
     expect(dashboardViewOf({ id: folderViewSessionId("f1"), metadata: { folderId: "f1" } })).toEqual({ kind: "folder", folderId: "f1" });
     expect(dashboardViewOf({ id: "other" })).toEqual({ kind: "home" });

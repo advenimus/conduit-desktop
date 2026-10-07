@@ -1,9 +1,9 @@
 import type { AiActivityItem, AiActivityOutcome } from "../../../types/dashboard";
 import type { BadgeTone } from "../../ui";
 
-/** "terminal_execute" becomes "Terminal execute". */
+/** "terminal_execute" becomes "Terminal execute"; "kb_write" becomes "Knowledge write". */
 export function toolLabel(tool: string): string {
-  const words = tool.replace(/_/g, " ").trim();
+  const words = tool.replace(/^kb_/, "knowledge_").replace(/_/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
