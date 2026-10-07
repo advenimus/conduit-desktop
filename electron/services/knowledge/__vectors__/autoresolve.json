@@ -1,0 +1,706 @@
+{
+  "format": 1,
+  "module": "autoresolve",
+  "notes": [
+    "mergeKbMeta(versions) and mergeKbHistory({versions, reviewed_at}). Section 5.1.",
+    "mergeKbHistory builds the result with the append rule of section 5 (cap 20 plus the baseline)."
+  ],
+  "cases": [
+    {
+      "name": "newest editor wins",
+      "fn": "mergeKbMeta",
+      "input": [
+        {
+          "v": 1,
+          "scope": "asset",
+          "kind": "facts",
+          "summary": "old",
+          "pinned": false,
+          "status": "active",
+          "author": {
+            "kind": "user"
+          },
+          "last_editor": {
+            "kind": "user",
+            "at": "2026-10-01T00:01:00.000Z"
+          }
+        },
+        {
+          "v": 1,
+          "scope": "asset",
+          "kind": "facts",
+          "summary": "new",
+          "pinned": false,
+          "status": "active",
+          "author": {
+            "kind": "user"
+          },
+          "last_editor": {
+            "kind": "user",
+            "at": "2026-10-01T00:02:00.000Z"
+          }
+        }
+      ],
+      "expect": {
+        "v": 1,
+        "scope": "asset",
+        "kind": "facts",
+        "summary": "new",
+        "pinned": false,
+        "status": "active",
+        "author": {
+          "kind": "user"
+        },
+        "last_editor": {
+          "kind": "user",
+          "at": "2026-10-01T00:02:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "reviewed_at is the latest of all versions",
+      "fn": "mergeKbMeta",
+      "input": [
+        {
+          "v": 1,
+          "scope": "asset",
+          "kind": "facts",
+          "summary": "",
+          "pinned": false,
+          "status": "active",
+          "author": {
+            "kind": "user"
+          },
+          "last_editor": {
+            "kind": "user",
+            "at": "2026-10-01T00:05:00.000Z"
+          },
+          "reviewed_at": "2026-10-01T00:01:00.000Z"
+        },
+        {
+          "v": 1,
+          "scope": "asset",
+          "kind": "facts",
+          "summary": "",
+          "pinned": false,
+          "status": "active",
+          "author": {
+            "kind": "user"
+          },
+          "last_editor": {
+            "kind": "user",
+            "at": "2026-10-01T00:03:00.000Z"
+          },
+          "reviewed_at": "2026-10-01T00:04:00.000Z"
+        }
+      ],
+      "expect": {
+        "v": 1,
+        "scope": "asset",
+        "kind": "facts",
+        "summary": "",
+        "pinned": false,
+        "status": "active",
+        "author": {
+          "kind": "user"
+        },
+        "last_editor": {
+          "kind": "user",
+          "at": "2026-10-01T00:05:00.000Z"
+        },
+        "reviewed_at": "2026-10-01T00:04:00.000Z"
+      }
+    },
+    {
+      "name": "tie broken by JSON text",
+      "fn": "mergeKbMeta",
+      "input": [
+        {
+          "v": 1,
+          "scope": "asset",
+          "kind": "facts",
+          "summary": "b",
+          "pinned": false,
+          "status": "active",
+          "author": {
+            "kind": "user"
+          },
+          "last_editor": {
+            "kind": "user",
+            "at": "2026-10-01T00:02:00.000Z"
+          }
+        },
+        {
+          "v": 1,
+          "scope": "asset",
+          "kind": "facts",
+          "summary": "a",
+          "pinned": false,
+          "status": "active",
+          "author": {
+            "kind": "user"
+          },
+          "last_editor": {
+            "kind": "user",
+            "at": "2026-10-01T00:02:00.000Z"
+          }
+        }
+      ],
+      "expect": {
+        "v": 1,
+        "scope": "asset",
+        "kind": "facts",
+        "summary": "b",
+        "pinned": false,
+        "status": "active",
+        "author": {
+          "kind": "user"
+        },
+        "last_editor": {
+          "kind": "user",
+          "at": "2026-10-01T00:02:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "missing last_editor sorts first",
+      "fn": "mergeKbMeta",
+      "input": [
+        {
+          "v": 1,
+          "scope": "asset",
+          "kind": "facts",
+          "summary": "",
+          "pinned": false,
+          "status": "active",
+          "author": {
+            "kind": "user"
+          },
+          "last_editor": {
+            "kind": "user",
+            "at": "2026-10-01T00:01:00.000Z"
+          }
+        },
+        {
+          "v": 1,
+          "scope": "asset",
+          "kind": "facts",
+          "summary": "x",
+          "pinned": false,
+          "status": "active",
+          "author": {
+            "kind": "user"
+          }
+        }
+      ],
+      "expect": {
+        "v": 1,
+        "scope": "asset",
+        "kind": "facts",
+        "summary": "",
+        "pinned": false,
+        "status": "active",
+        "author": {
+          "kind": "user"
+        },
+        "last_editor": {
+          "kind": "user",
+          "at": "2026-10-01T00:01:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "union without duplicates, sorted",
+      "fn": "mergeKbHistory",
+      "input": {
+        "versions": [
+          [
+            {
+              "at": "2026-10-01T00:01:00.000Z",
+              "author": {
+                "kind": "user"
+              },
+              "content": "a"
+            },
+            {
+              "at": "2026-10-01T00:03:00.000Z",
+              "author": {
+                "kind": "user"
+              },
+              "content": "c"
+            }
+          ],
+          [
+            {
+              "at": "2026-10-01T00:01:00.000Z",
+              "author": {
+                "kind": "user"
+              },
+              "content": "a"
+            },
+            {
+              "at": "2026-10-01T00:02:00.000Z",
+              "author": {
+                "kind": "user"
+              },
+              "content": "b"
+            }
+          ]
+        ],
+        "reviewed_at": null
+      },
+      "expect": [
+        {
+          "at": "2026-10-01T00:01:00.000Z",
+          "author": {
+            "kind": "user"
+          },
+          "content": "a"
+        },
+        {
+          "at": "2026-10-01T00:02:00.000Z",
+          "author": {
+            "kind": "user"
+          },
+          "content": "b"
+        },
+        {
+          "at": "2026-10-01T00:03:00.000Z",
+          "author": {
+            "kind": "user"
+          },
+          "content": "c"
+        }
+      ]
+    },
+    {
+      "name": "same time, different content keeps both",
+      "fn": "mergeKbHistory",
+      "input": {
+        "versions": [
+          [
+            {
+              "at": "2026-10-01T00:01:00.000Z",
+              "author": {
+                "kind": "user"
+              },
+              "content": "y"
+            }
+          ],
+          [
+            {
+              "at": "2026-10-01T00:01:00.000Z",
+              "author": {
+                "kind": "user"
+              },
+              "content": "x"
+            }
+          ]
+        ],
+        "reviewed_at": null
+      },
+      "expect": [
+        {
+          "at": "2026-10-01T00:01:00.000Z",
+          "author": {
+            "kind": "user"
+          },
+          "content": "x"
+        },
+        {
+          "at": "2026-10-01T00:01:00.000Z",
+          "author": {
+            "kind": "user"
+          },
+          "content": "y"
+        }
+      ]
+    },
+    {
+      "name": "cap keeps the baseline",
+      "fn": "mergeKbHistory",
+      "input": {
+        "versions": [
+          [
+            {
+              "at": "2026-10-01T00:00:00.000Z",
+              "author": {
+                "kind": "user"
+              },
+              "content": "c0"
+            },
+            {
+              "at": "2026-10-01T00:01:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a1"
+            },
+            {
+              "at": "2026-10-01T00:03:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a2"
+            },
+            {
+              "at": "2026-10-01T00:05:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a3"
+            },
+            {
+              "at": "2026-10-01T00:07:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a4"
+            },
+            {
+              "at": "2026-10-01T00:09:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a5"
+            },
+            {
+              "at": "2026-10-01T00:11:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a6"
+            },
+            {
+              "at": "2026-10-01T00:13:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a7"
+            },
+            {
+              "at": "2026-10-01T00:15:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a8"
+            },
+            {
+              "at": "2026-10-01T00:17:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a9"
+            },
+            {
+              "at": "2026-10-01T00:19:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a10"
+            },
+            {
+              "at": "2026-10-01T00:21:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a11"
+            },
+            {
+              "at": "2026-10-01T00:23:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a12"
+            },
+            {
+              "at": "2026-10-01T00:25:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a13"
+            },
+            {
+              "at": "2026-10-01T00:27:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a14"
+            },
+            {
+              "at": "2026-10-01T00:29:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "a15"
+            }
+          ],
+          [
+            {
+              "at": "2026-10-01T00:00:00.000Z",
+              "author": {
+                "kind": "user"
+              },
+              "content": "c0"
+            },
+            {
+              "at": "2026-10-01T00:02:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b1"
+            },
+            {
+              "at": "2026-10-01T00:04:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b2"
+            },
+            {
+              "at": "2026-10-01T00:06:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b3"
+            },
+            {
+              "at": "2026-10-01T00:08:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b4"
+            },
+            {
+              "at": "2026-10-01T00:10:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b5"
+            },
+            {
+              "at": "2026-10-01T00:12:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b6"
+            },
+            {
+              "at": "2026-10-01T00:14:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b7"
+            },
+            {
+              "at": "2026-10-01T00:16:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b8"
+            },
+            {
+              "at": "2026-10-01T00:18:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b9"
+            },
+            {
+              "at": "2026-10-01T00:20:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b10"
+            },
+            {
+              "at": "2026-10-01T00:22:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b11"
+            },
+            {
+              "at": "2026-10-01T00:24:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b12"
+            },
+            {
+              "at": "2026-10-01T00:26:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b13"
+            },
+            {
+              "at": "2026-10-01T00:28:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b14"
+            },
+            {
+              "at": "2026-10-01T00:30:00.000Z",
+              "author": {
+                "kind": "agent"
+              },
+              "content": "b15"
+            }
+          ]
+        ],
+        "reviewed_at": null
+      },
+      "expect": [
+        {
+          "at": "2026-10-01T00:00:00.000Z",
+          "author": {
+            "kind": "user"
+          },
+          "content": "c0"
+        },
+        {
+          "at": "2026-10-01T00:11:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a6"
+        },
+        {
+          "at": "2026-10-01T00:12:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b6"
+        },
+        {
+          "at": "2026-10-01T00:13:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a7"
+        },
+        {
+          "at": "2026-10-01T00:14:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b7"
+        },
+        {
+          "at": "2026-10-01T00:15:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a8"
+        },
+        {
+          "at": "2026-10-01T00:16:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b8"
+        },
+        {
+          "at": "2026-10-01T00:17:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a9"
+        },
+        {
+          "at": "2026-10-01T00:18:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b9"
+        },
+        {
+          "at": "2026-10-01T00:19:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a10"
+        },
+        {
+          "at": "2026-10-01T00:20:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b10"
+        },
+        {
+          "at": "2026-10-01T00:21:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a11"
+        },
+        {
+          "at": "2026-10-01T00:22:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b11"
+        },
+        {
+          "at": "2026-10-01T00:23:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a12"
+        },
+        {
+          "at": "2026-10-01T00:24:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b12"
+        },
+        {
+          "at": "2026-10-01T00:25:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a13"
+        },
+        {
+          "at": "2026-10-01T00:26:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b13"
+        },
+        {
+          "at": "2026-10-01T00:27:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a14"
+        },
+        {
+          "at": "2026-10-01T00:28:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b14"
+        },
+        {
+          "at": "2026-10-01T00:29:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "a15"
+        },
+        {
+          "at": "2026-10-01T00:30:00.000Z",
+          "author": {
+            "kind": "agent"
+          },
+          "content": "b15"
+        }
+      ]
+    }
+  ]
+}

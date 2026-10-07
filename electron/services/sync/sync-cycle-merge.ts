@@ -6,6 +6,7 @@
  * session hooks, divergence, publish verification). Used only by sync-cycle.ts.
  */
 
+import { knowledgeAutoResolutions } from './kb-auto-resolve.js';
 import path from 'node:path';
 import { listConflicts } from './conflicts.js';
 import { digestState } from './digest.js';
@@ -82,8 +83,11 @@ function bookkeeping(env: CycleEnv, snap: SharedSnapshot, committed: CommitOutco
   recordHeld(env, snap, capture);
   if (capture.notices.length > 0) notices.addFromCapture(capture.notices);
   for (const key of violations) notices.add({ kind: 'invariant-repair', key, sourceSha256: snap.sha256, count: 1 });
-  status.setConflicts(countConflicts(replica, committed.state));
-  session.afterMerge(committed.state);
+  // Knowledge-article bookkeeping conflicts are settled here; the next cycle publishes the writes.
+  const autoWrites = knowledgeAutoResolutions(committed.state, replica.context());
+  if (autoWrites.length > 0) replica.applyWrites(autoWrites, { interactive: true });
+  status.setConflicts(countConflicts(replica, replica.state()));
+  session.afterMerge(replica.state());
 }
 
 function observeDivergence(env: CycleEnv, state: SyncState, sState: SyncState | null): void {

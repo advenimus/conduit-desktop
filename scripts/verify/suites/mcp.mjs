@@ -5,6 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { evaluateIn } from '../lib/selectors.mjs';
 import { setSidebar } from '../lib/restyle-data.mjs';
+import { createTeamVault, ensureIdentityKey, openTeamVault } from '../lib/team.mjs';
+import { psql } from '../lib/supabase-stack.mjs';
 
 const PASSWORD = 'verify-mcp-password-1';
 const REQUIRED_TOOLS = ['entry_list', 'entry_info', 'entry_search', 'entry_update_notes', 'entry_edit_notes', 'document_create', 'document_update', 'credential_list'];
@@ -92,7 +94,6 @@ function waitUpToDate(ctx, device) {
   });
 }
 
-/** Files called `name` under `root`; symlinks are not followed (launcher/mcp points into the repo). */
 /** Files under `root` (any depth) whose bytes contain `needle`; skips files over 64 MB. */
 function filesContaining(root, needle) {
   const hits = [];
@@ -108,6 +109,7 @@ function filesContaining(root, needle) {
   return hits;
 }
 
+/** Files called `name` under `root`; symlinks are not followed (launcher/mcp points into the repo). */
 function findFiles(root, name) {
   const found = [];
   const walk = (dir) => {
@@ -705,6 +707,113 @@ async function knowledgeBase(ctx) {
   ctx.step('articles are hidden from entry lists and deleted with their asset');
 }
 
+const KB_SYNC_SECRET = 'kb-sync-secret-5521';
+
+/** An article and its encrypted secret reach a second device; edits made on both at once end in one agreed article. */
+async function knowledgeSync(ctx) {
+  const { flows, ui } = ctx;
+  const { a, b, entry } = await proPair(ctx, ['k1a', 'k1b'], 'McpKbSync.conduit', { name: 'kb sync target', host: '10.80.0.1' });
+  await Promise.all([waitUpToDate(ctx, a), waitUpToDate(ctx, b)]);
+  const [mcpA, mcpB] = await Promise.all([trackedMcp(ctx, a), trackedMcp(ctx, b)]);
+
+  const art = await mcpA.call('kb_write', { scope: 'asset', entry_id: entry.id, kind: 'procedure', title: 'Restart', content: `1. stop\n2. start\nadmin: !!${KB_SYNC_SECRET}!!` });
+  const onA = await mcpA.call('kb_read', { article_id: art.id });
+  const [ref] = secretRefsIn(onA.content);
+  ctx.check(!!ref && !onA.content.includes(KB_SYNC_SECRET), `the article on k1a holds a ref, not the value: ${onA.content}`);
+  await ctx.waitFor(async () => {
+    const [article, secret] = await Promise.all([ui.invokeResult(b, 'entry_get', { id: art.id }), ui.invokeResult(b, 'entry_get_full', { id: ref.id })]);
+    return article.ok && article.value.config?.content === onA.content && secret.ok && secret.value.password === KB_SYNC_SECRET;
+  }, { timeoutMs: SYNC_DEADLINE_MS, intervalMs: 500, label: 'k1b receives the article and its secret' });
+  ctx.step('k1b received the article and decrypts its embedded secret');
+  const fromB = await mcpB.call('kb_context', { entry_id: entry.id });
+  ctx.checkEqual(fromB.articles.map((x) => x.title), ['Restart'], 'kb_context on k1b lists the article');
+  await Promise.all([waitUpToDate(ctx, a), waitUpToDate(ctx, b)]);
+
+  // Both devices edit the same article at once.
+  await Promise.all([
+    mcpA.call('kb_write', { article_id: art.id, edits: [{ old_string: '1. stop', new_string: '1. drain, then stop' }], reason: 'edit on k1a' }),
+    mcpB.call('kb_write', { article_id: art.id, edits: [{ old_string: '2. start', new_string: '2. start and check health' }], reason: 'edit on k1b' }),
+  ]);
+  ctx.step('k1a and k1b edited the same article at the same time');
+  const flagged = await ctx.waitFor(async () => {
+    const info = await mcpA.call('entry_info', { entry_id: art.id });
+    return info.has_conflict === true ? info : null;
+  }, { timeoutMs: 60_000, intervalMs: 1_000, label: 'the article has a conflict on k1a' });
+  ctx.check(flagged.has_conflict, 'the concurrent edits are a conflict the user resolves');
+
+  await flows.openConflictReview(a);
+  await ui.waitForText(a, 'Use this', { timeoutMs: 15_000 });
+  await ctx.shot(a, 'kb-conflict-review');
+  let resolved = 0;
+  while (resolved < 10) {
+    const chosen = await useVersionNotInUse(ctx, a);
+    if (chosen === null) break;
+    resolved += 1;
+    await ui.sleep(800);
+    if ((await ui.bodyText(a)).includes('Nothing to review')) break;
+  }
+  await ui.waitForText(a, 'Nothing to review', { timeoutMs: 20_000 });
+  // Metadata and history conflicts settle themselves (KNOWLEDGE_BASE.md 5.1); only the text is the user's.
+  ctx.checkEqual(resolved, 1, 'the review panel asked only about the article text');
+  ctx.step('resolved the article conflict with one choice; metadata and history settled themselves');
+
+  const finalA = await mcpA.call('kb_read', { article_id: art.id });
+  await ctx.waitFor(async () => (await mcpB.call('kb_read', { article_id: art.id })).content === finalA.content, {
+    timeoutMs: SYNC_DEADLINE_MS, intervalMs: 1_000, label: 'k1b agrees on the article after the resolution',
+  });
+  ctx.check(finalA.content.includes(ref.raw) || finalA.content.includes(ref.id), `the resolved article still links the secret: ${finalA.content}`);
+  ctx.check(Array.isArray(finalA.history) && finalA.history.length >= 2, `the resolved article has a readable history: ${JSON.stringify(finalA.history)}`);
+  const after = await mcpA.call('entry_info', { entry_id: art.id });
+  ctx.checkEqual(after.has_conflict, false, 'no conflict left on the article');
+  ctx.step(`both devices agree; history has ${finalA.history.length} revisions`);
+}
+
+const KB_TEAM_SECRET = 'kb-team-secret-8847';
+
+/** Articles and chips in a team vault: uploaded encrypted, and a second member gets them with working secrets. */
+async function knowledgeTeam(ctx) {
+  const { flows, ui } = ctx;
+  const owner = await ctx.createUser('team');
+  const member = await ctx.createUser('team');
+  const team = await ctx.createTeam(owner, { members: [{ user: member, role: 'member' }] });
+  const [a] = await signedInDevices(ctx, owner, ['k2a']);
+  const [b] = await signedInDevices(ctx, member, ['k2b']);
+  await ensureIdentityKey(b);
+  const vault = await createTeamVault(a, team, `KB team ${ctx.run.shortId}`);
+  await openTeamVault(a, vault.id);
+  await flows.refreshEntries(a);
+
+  const asset = await ui.invoke(a, 'entry_create', { name: 'team-web-01', entry_type: 'ssh', host: '10.90.0.1', notes: `admin: !!${KB_TEAM_SECRET}!!` });
+  const article = await ui.invoke(a, 'kb_create', { scope: 'asset', entry_id: asset.id, kind: 'facts', title: 'Team facts', content: 'Owned by ops' });
+  const notes = (await ui.invoke(a, 'entry_get', { id: asset.id })).notes;
+  const [ref] = secretRefsIn(notes);
+  ctx.check(!!ref, `the team asset's notes hold a secret ref: ${notes}`);
+  await ui.invoke(a, 'team_vault_sync_now');
+  await ui.invoke(a, 'team_vault_add_member', { teamVaultId: vault.id, userId: member.id, role: 'editor' }, { timeoutMs: 60_000 });
+  ctx.step('k2a created an asset with a secret chip and an article in the team vault, then added k2b');
+
+  const serverRows = () => psql(
+    "select count(*) || '|' || count(*) filter (where row_to_json(v)::text like '%' || :'secret' || '%') from public.vault_entries v where vault_id = :'vault' and deleted_at is null",
+    { vars: { vault: vault.id, secret: KB_TEAM_SECRET } },
+  ).then((out) => out.split('|').map(Number));
+  const [count, leaking] = await ctx.waitFor(async () => {
+    const r = await serverRows();
+    return r[0] >= 3 ? r : null;
+  }, { timeoutMs: 60_000, intervalMs: 1_000, label: 'the team vault rows reach the server' });
+  ctx.checkEqual([count, leaking], [3, 0], 'the server holds the asset, the article and the secret, none with the value in plain text');
+
+  await ui.invoke(b, 'auth_refresh').catch(() => null);
+  await openTeamVault(b, vault.id);
+  await flows.refreshEntries(b);
+  await ctx.waitFor(async () => {
+    const [art, secret] = await Promise.all([ui.invokeResult(b, 'entry_get', { id: article.id }), ui.invokeResult(b, 'entry_get_full', { id: ref.id })]);
+    return art.ok && art.value.parent_entry_id === asset.id && art.value.config?.kb?.kind === 'facts' && secret.ok && secret.value.password === KB_TEAM_SECRET;
+  }, { timeoutMs: 60_000, intervalMs: 1_000, label: 'k2b gets the article under its asset and decrypts the chip' });
+  const listed = (await flows.listEntries(b)).filter((e) => !e.config?.kb && !e.config?.embedded).map((e) => e.name);
+  ctx.checkEqual(listed, ['team-web-01'], 'k2b lists only the asset; the article and the secret stay hidden');
+  ctx.step('k2b opened the team vault: the article sits under its asset and the chip decrypts');
+}
+
 export default {
   id: 'mcp',
   title: 'MCP tools on real devices',
@@ -717,6 +826,8 @@ export default {
     { id: 'two-agents', title: 'Two MCP agents: each keeps its own shell, the other is refused but can read, freed when one exits', needsSupabase: false, run: twoAgents },
     { id: 'notes-secrets', title: 'Free user: partial notes edits and full rewrites keep hidden secrets; bad writes change nothing', run: notesSecrets },
     { id: 'knowledge', title: 'Free user: an agent imports notes, writes, logs, verifies and searches knowledge; articles stay out of lists', run: knowledgeBase },
+    { id: 'knowledge-sync', title: 'Pro user: an article and its secret reach a second device; concurrent edits resolve to one article', run: knowledgeSync },
+    { id: 'knowledge-team', title: 'Team vault: articles and chips upload encrypted and a second member gets them', run: knowledgeTeam },
     { id: 'audit', title: 'Every MCP call of the run is in the MCP audit log, secrets redacted', run: auditLog },
   ],
 };

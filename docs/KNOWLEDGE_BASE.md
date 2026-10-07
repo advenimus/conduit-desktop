@@ -225,6 +225,23 @@ Every save appends the saved content. The array keeps the newest 20 revisions, p
   article was created by an agent and never reviewed, so the app offers **Archive** instead.
 - **Restore** (from History) saves the chosen revision's content as a new user revision.
 
+### 5.1 Sync conflicts on metadata and history [vectors: `autoresolve.json`]
+
+When an article is edited on two devices at once, `config.content` conflicts like any document and
+the user picks a version. `config.kb` and `config.kb_history` conflict too, but apps resolve those
+themselves, right after a merge, by writing one value over every conflicting version (an ordinary
+conflict resolution). The value depends only on the versions, so two devices that resolve at the
+same time write the same value:
+
+- **`config.kb`:** the version whose `last_editor.at` is greatest (string order); on a tie, the one
+  whose `JSON.stringify` text is greater. Its `reviewed_at` becomes the greatest `reviewed_at` of all
+  versions (missing ones ignored).
+- **`config.kb_history`:** every revision of every version, without duplicates (same `at` and same
+  `content`), sorted by `at` and then `content` (string order), then built up with the append rule of
+  section 5 one revision at a time, using the merged `reviewed_at`.
+
+Versions that are not valid JSON of the right shape are left for the user.
+
 ## 6. Stale articles [vectors: `stale.json`]
 
 An article is **stale** when `verified_at` (or the entry's `updated_at` if it was never verified)

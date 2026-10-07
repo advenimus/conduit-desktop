@@ -12,6 +12,7 @@ import { migrationSuggestion, splitNotes } from '../notes-split.js';
 import { knowledgeFor, type KbEntryLike, type KbFolderLike } from '../kb-inherit.js';
 import { appendRevision, baselineRevision, hasUnseenAgentEdit, type KbRevision, type KbEditor } from '../kb-revisions.js';
 import { formatChangelogLine, insertChangelogLine } from '../changelog.js';
+import { mergeKbHistory, mergeKbMeta } from '../../sync/kb-auto-resolve.js';
 
 const VECTORS = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '__vectors__');
 
@@ -114,4 +115,10 @@ run('changelog.json', (c) => {
   }
   const { content, line } = c.input as { content: string; line: string };
   return insertChangelogLine(content, line);
+});
+
+run('autoresolve.json', (c) => {
+  if (c.fn === 'mergeKbMeta') return mergeKbMeta(c.input as Record<string, unknown>[]);
+  const { versions, reviewed_at } = c.input as { versions: unknown[][]; reviewed_at: string | null };
+  return mergeKbHistory(versions, reviewed_at ?? undefined);
 });
