@@ -37,6 +37,13 @@ export function kindForTitle(title: string): KbKind {
   return 'facts';
 }
 
+const HEADING_SECRET_RE = /!!(.+?)!!|\{\{(?:secret|cred):[^}\n]*\}\}/g;
+
+function headingParts(heading: string): { title: string; secrets: string[] } {
+  const secrets = heading.match(HEADING_SECRET_RE) ?? [];
+  return { title: heading.replace(HEADING_SECRET_RE, '••••').trim(), secrets };
+}
+
 function trimBlankLines(lines: string[]): string {
   let start = 0;
   let end = lines.length;
@@ -70,8 +77,11 @@ export function splitNotes(notes: string): SplitArticle[] {
   const intro = trimBlankLines(lines.slice(0, heads.length ? heads[0] : lines.length));
   if (intro.trim()) sections.push({ title: 'Overview', body: intro });
   heads.forEach((lineIndex, i) => {
-    const body = trimBlankLines(lines.slice(lineIndex + 1, heads[i + 1] ?? lines.length));
-    if (body.trim()) sections.push({ title: lines[lineIndex].slice(prefix).trim(), body });
+    const { title, secrets } = headingParts(lines[lineIndex].slice(prefix));
+    const rest = trimBlankLines(lines.slice(lineIndex + 1, heads[i + 1] ?? lines.length));
+    // A secret in a heading would be lost in the plain-text title, so it moves to the top of the body.
+    const body = secrets.length ? [secrets.join(' '), rest].filter(Boolean).join('\n') : rest;
+    if (body.trim()) sections.push({ title, body });
   });
 
   let pinned = false;

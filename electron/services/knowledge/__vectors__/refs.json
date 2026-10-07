@@ -156,6 +156,26 @@
       "expect": []
     },
     {
+      "name": "label of 80 UTF-16 units with emoji",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑}}",
+      "expect": [
+        {
+          "kind": "secret",
+          "id": "11111111-2222-4333-8444-555555555555",
+          "pending": false,
+          "label": "🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑",
+          "field": null
+        }
+      ]
+    },
+    {
+      "name": "label over 80 UTF-16 units with emoji is not a ref",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑}}",
+      "expect": []
+    },
+    {
       "name": "mixed order",
       "fn": "parseRefs",
       "input": "{{cred:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee}} then {{secret:11111111-2222-4333-8444-555555555555|a}}",

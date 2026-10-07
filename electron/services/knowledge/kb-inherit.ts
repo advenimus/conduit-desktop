@@ -35,7 +35,7 @@ interface Candidate<E> {
 }
 
 function compareArticles<E extends KbEntryLike>(a: Candidate<E>, b: Candidate<E>): number {
-  if (a.kb.pinned !== b.kb.pinned) return a.kb.pinned ? -1 : 1;
+  if (!!a.kb.pinned !== !!b.kb.pinned) return a.kb.pinned ? -1 : 1;
   const kind = kindRank(a.kb.kind) - kindRank(b.kb.kind);
   if (kind !== 0) return kind;
   const an = a.entry.name.toLowerCase();

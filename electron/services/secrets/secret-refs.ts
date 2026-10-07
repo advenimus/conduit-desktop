@@ -58,7 +58,15 @@ export function formatSecretRef(id: string, label: string | null): string {
   return clean ? `{{secret:${id}|${clean}}}` : `{{secret:${id}}}`;
 }
 
-/** Strips characters a label can't hold and cuts it to the ref's limit. */
+/**
+ * Strips characters a label can't hold and cuts it to the ref's limit. The limit counts UTF-16 code
+ * units, like the ref regex, and never splits a surrogate pair.
+ */
 export function sanitizeLabel(label: string): string {
-  return Array.from(label.replace(/[{}|\r\n]/g, ' ').trim()).slice(0, SECRET_LABEL_MAX).join('').trim();
+  let out = '';
+  for (const ch of label.replace(/[{}|\r\n]/g, ' ').trim()) {
+    if (out.length + ch.length > SECRET_LABEL_MAX) break;
+    out += ch;
+  }
+  return out.trim();
 }

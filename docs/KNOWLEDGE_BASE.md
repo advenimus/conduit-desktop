@@ -97,8 +97,9 @@ cred ref:    {{cred:<uuid>[.username|.password|.totp]}}
 ```
 
 - `<uuid>` is `8-4-4-4-12` hex digits, case-insensitive. Anything else is not a ref.
-- `<label>` is up to 80 characters and contains no `}`, `|` or line break. It is display-only:
-  the id decides what the ref points to. An empty label counts as no label.
+- `<label>` is up to 80 UTF-16 code units (an emoji counts as 2) and contains no `}`, `|` or line
+  break. It is display-only: the id decides what the ref points to. An empty label counts as no label.
+  When writing a label, cut it to 80 code units without splitting a surrogate pair.
 - `.pending` points to the staged value of a rotation (section 3.4).
 - A `cred` ref with no field means `.password`. `.totp` means the current one-time code.
 
@@ -110,6 +111,10 @@ Regular expressions (JavaScript flavour):
 ```
 
 Ids are compared in lower case.
+
+All regular expressions in this document are JavaScript (no `u` flag): `.` and character classes
+work on UTF-16 code units, `\s` is the JavaScript whitespace set, `^` with the `m` flag matches after
+`\n`, and strings compare by code unit. Ports to other regex engines must spell these out.
 
 ### 2.2 Where refs are resolved
 
@@ -161,6 +166,8 @@ secret ref with its id. After each save, the app checks the owner's embedded sec
 - referenced and `orphaned_at` set → clear `orphaned_at`;
 - not referenced and `orphaned_at` not set → set `orphaned_at` to now.
 
+A staged rotation row (`pending_for` set) is never flagged: its original's ref covers it.
+
 Apps never delete orphans on their own. The asset page offers "Clean up N unused secrets", and
 orphans go when their owner is deleted. Restoring an old revision brings a ref back, which clears
 the flag on the next save.
@@ -187,7 +194,7 @@ The knowledge for a folder is the folder group starting at that folder, then pin
 
 Inside each group (and inside each folder level), articles sort by:
 
-1. pinned first;
+1. pinned first (a missing `pinned` counts as `false`);
 2. kind, in this order: `overview`, `facts`, `procedure`, `troubleshooting`, `contact`,
    `playbook`, `changelog`;
 3. name, lower-cased, by code unit.
@@ -206,10 +213,11 @@ Every save appends the saved content. The array keeps the newest 20 revisions, p
 **baseline** revision when it would otherwise fall off (so it can hold 21).
 
 - **Unseen agent edit:** `last_editor.kind = 'agent'` and (`reviewed_at` is missing or
-  `reviewed_at < last_editor.at`).
+  `reviewed_at < last_editor.at`). A `last_editor` without `at` counts as unseen only while
+  `reviewed_at` is missing.
 - **Baseline:** if `reviewed_at` is set, the newest revision with `at <= reviewed_at`. Otherwise
   the newest revision by a user. There may be none.
-- **Keep** sets `reviewed_at` to the newest revision's `at`.
+- **Keep** sets `reviewed_at` to the newest revision's `at` (with no history, `last_editor.at`, or now).
 - **Undo** restores the baseline's content as a new user revision with reason
   `Undo agent edits`, then sets `reviewed_at` to that new revision's `at`. With no baseline, the
   article was created by an agent and never reviewed, so the app offers **Archive** instead.
@@ -241,8 +249,10 @@ The app can split notes into articles with no AI:
    lines inside fenced code blocks (between lines starting with ` ``` ` or `~~~`) do not count.
 2. Text before the first heading becomes an article titled `Overview`, if it is not blank.
 3. Each section becomes an article titled with the heading text (trimmed). The body is the lines
-   after the heading, with leading and trailing blank lines removed. Sections with a blank body
-   are dropped.
+   after the heading, with leading and trailing blank lines removed. If the heading holds secrets
+   (`!!value!!` spans or `{{secret:…}}` / `{{cred:…}}` refs), each becomes `••••` in the title, and
+   the secrets, joined by single spaces, become the first line of the body so nothing is lost.
+   Sections whose body is then blank are dropped.
 4. If there are no headings at all, the whole text becomes one `Overview` article.
 5. Kind comes from the title. Lower-case it and split it into words at every run of characters
    other than `a-z` and `0-9`. Check these lists in order; the first list with a matching word wins:

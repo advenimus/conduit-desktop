@@ -156,7 +156,7 @@ export function verifyArticle(vault: KbVault, id: string, stillTrue: boolean, no
 export function keepAgentEdits(vault: KbVault, id: string): EntryMeta {
   const { entry, kb } = requireArticle(vault, id);
   const history = readHistory(entry.config);
-  const newest = history[history.length - 1]?.at ?? nowIso();
+  const newest = history[history.length - 1]?.at ?? kb.last_editor?.at ?? nowIso();
   return vault.updateEntry(id, { config: { ...entry.config, kb: { ...kb, reviewed_at: newest } } });
 }
 

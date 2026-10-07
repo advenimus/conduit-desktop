@@ -207,6 +207,32 @@
       "fn": "splitNotes",
       "input": "   \n",
       "expect": []
+    },
+    {
+      "name": "secret in a heading moves to the body",
+      "fn": "splitNotes",
+      "input": "## Wifi !!key-1!!\nSSID home",
+      "expect": [
+        {
+          "title": "Wifi ••••",
+          "kind": "facts",
+          "pinned": false,
+          "body": "!!key-1!!\nSSID home"
+        }
+      ]
+    },
+    {
+      "name": "ref in a heading with no body",
+      "fn": "splitNotes",
+      "input": "## Router {{secret:11111111-2222-4333-8444-555555555555|admin}}",
+      "expect": [
+        {
+          "title": "Router ••••",
+          "kind": "facts",
+          "pinned": false,
+          "body": "{{secret:11111111-2222-4333-8444-555555555555|admin}}"
+        }
+      ]
     }
   ]
 }
