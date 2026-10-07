@@ -34,7 +34,11 @@ import { isMcpHeld, mcpHeldResponse } from './mcp-hold.js';
 import { parseAgentIdentity } from './agent-requests.js';
 import { errorResponse, successResponse, type IpcResponse } from './ipc-response.js';
 import { guardSecrets } from './secret-guard.js';
+import { defaultPort, notifyRendererEntryChanged, resolveEntryId } from './entry-helpers.js';
+import { handleSecretRequest, SECRET_REQUEST_TYPES } from './handlers/secrets.js';
+import { isHiddenEntry } from '../services/knowledge/kb-model.js';
 import { credentialGetResponse } from './credential-reveal.js';
+import { createWithSecrets, updateWithSecrets } from '../services/secrets/embedded-secrets.js';
 import type { AgentIdentity, SessionOwner } from './session-claims.js';
 import {
   openSessionsForEntry,
@@ -66,45 +70,6 @@ interface ListedConnection {
   port: number | null;
   status: string;
   owner?: SessionOwner;
-}
-
-/** Normalize null port to default for the connection type */
-function defaultPort(port: number | null | undefined, connType: string): number {
-  if (port != null) return port;
-  switch (connType) {
-    case 'ssh': return 22;
-    case 'rdp': return 3389;
-    case 'vnc': return 5900;
-    default: return 0;
-  }
-}
-
-/** Notify the renderer that a vault entry was created or modified (triggers UI refresh). */
-function notifyRendererEntryChanged(): void {
-  const mainWindow = AppState.getInstance().getMainWindow();
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('vault:entry-changed');
-  }
-}
-
-/**
- * Resolve an ID that may be a session ID (from active connections) to the
- * corresponding vault entry ID. Falls through to the original ID if no
- * matching MCP session is found — handles vault entry IDs transparently.
- */
-function resolveEntryId(id: string, state: AppState): string {
-  const session = state.mcpConnections.get(id);
-  if (!session) return id;
-
-  // Session found — look up the vault entry by host/port/type match
-  if (!state.getActiveVault().isUnlocked()) return id;
-  const entries = state.getActiveVault().listEntries();
-  const match = entries.find(
-    (e) => e.host === session.host &&
-      defaultPort(e.port, e.entry_type) === defaultPort(session.port, session.connection_type) &&
-      e.entry_type === session.connection_type,
-  );
-  return match?.id ?? id;
 }
 
 // ---------- Request handler ----------
@@ -147,6 +112,7 @@ async function dispatchRequest(
   state: AppState,
   agent: AgentIdentity | null,
 ): Promise<IpcResponse> {
+  if (SECRET_REQUEST_TYPES.has(request.type)) return handleSecretRequest(request, state, agent);
   try {
     switch (request.type) {
       // ---- Terminal operations ----
@@ -1605,12 +1571,13 @@ async function dispatchRequest(
 
         try {
           const resolvedId = resolveEntryId(id, state);
-          const updated = vault.runNonInteractive(() => vault.updateEntry(resolvedId, { notes }));
+          const { entry: updated, converted } = vault.runNonInteractive(() => updateWithSecrets(vault, resolvedId, { notes }));
           notifyRendererEntryChanged();
           return successResponse({
             id: updated.id,
             name: updated.name,
             updated_at: updated.updated_at,
+            secrets_encrypted: converted,
           });
         } catch (e) {
           return vaultFailure('ENTRY_ERROR', e);
@@ -1630,7 +1597,7 @@ async function dispatchRequest(
         }
 
         try {
-          const entry = vault.runNonInteractive(() => vault.createEntry({
+          const { entry, converted } = vault.runNonInteractive(() => createWithSecrets(vault, {
             name,
             entry_type: 'document',
             folder_id: folder_id ?? undefined,
@@ -1642,6 +1609,7 @@ async function dispatchRequest(
             id: entry.id,
             name: entry.name,
             created_at: entry.created_at,
+            secrets_encrypted: converted,
           });
         } catch (e) {
           return vaultFailure('ENTRY_ERROR', e);
@@ -1673,12 +1641,13 @@ async function dispatchRequest(
             updateInput.name = newName;
           }
 
-          const updated = vault.runNonInteractive(() => vault.updateEntry(resolvedId, updateInput));
+          const { entry: updated, converted } = vault.runNonInteractive(() => updateWithSecrets(vault, resolvedId, updateInput));
           notifyRendererEntryChanged();
           return successResponse({
             id: updated.id,
             name: updated.name,
             updated_at: updated.updated_at,
+            secrets_encrypted: converted,
           });
         } catch (e) {
           return vaultFailure('ENTRY_ERROR', e);
@@ -1698,7 +1667,8 @@ async function dispatchRequest(
         }
 
         try {
-          let entries = vault.listEntries();
+          // Knowledge articles and embedded secrets have their own tools.
+          let entries = vault.listEntries().filter((e) => !isHiddenEntry(e));
           if (entry_type) {
             entries = entries.filter((e) => e.entry_type === entry_type);
           }
@@ -1751,7 +1721,8 @@ async function dispatchRequest(
             return successResponse({ entries: [] });
           }
 
-          let entries = vault.listEntries();
+          // Knowledge articles and embedded secrets have their own tools.
+          let entries = vault.listEntries().filter((e) => !isHiddenEntry(e));
           if (entry_type) {
             entries = entries.filter((e) => e.entry_type === entry_type);
           }

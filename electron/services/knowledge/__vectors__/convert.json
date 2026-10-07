@@ -87,7 +87,7 @@
       }
     },
     {
-      "name": "table cell",
+      "name": "table cell gets no label",
       "fn": "convert",
       "input": {
         "text": "| DB | !!pw1!! |",
@@ -96,7 +96,7 @@
         ]
       },
       "expect": {
-        "text": "| DB | {{secret:11111111-2222-4333-8444-555555555555|DB}} |",
+        "text": "| DB | {{secret:11111111-2222-4333-8444-555555555555}} |",
         "created": [
           {
             "id": "11111111-2222-4333-8444-555555555555",
@@ -110,18 +110,38 @@
       "name": "table cell with label text",
       "fn": "convert",
       "input": {
-        "text": "| Name | Admin pw: !!x!! |",
+        "text": "  | Name | Admin pw: !!x!! |",
         "ids": [
           "11111111-2222-4333-8444-555555555555"
         ]
       },
       "expect": {
-        "text": "| Name | Admin pw: {{secret:11111111-2222-4333-8444-555555555555|Admin pw}} |",
+        "text": "  | Name | Admin pw: {{secret:11111111-2222-4333-8444-555555555555}} |",
         "created": [
           {
             "id": "11111111-2222-4333-8444-555555555555",
             "label": "Admin pw",
             "value": "x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "same value in a table and a line",
+      "fn": "convert",
+      "input": {
+        "text": "Root: !!pw!!\n| copy | !!pw!! |",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "Root: {{secret:11111111-2222-4333-8444-555555555555|Root}}\n| copy | {{secret:11111111-2222-4333-8444-555555555555}} |",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Root",
+            "value": "pw"
           }
         ]
       }

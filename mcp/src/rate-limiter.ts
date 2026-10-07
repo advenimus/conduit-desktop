@@ -82,6 +82,12 @@ export function defaultRateLimits(): Map<string, ToolRateLimit> {
   limits.set('credential_create', { requestsPerMinute: 30, burst: 5 });
   limits.set('credential_list', { requestsPerMinute: 60, burst: 10 });
   limits.set('credential_delete', { requestsPerMinute: 30, burst: 5 });
+  limits.set('secret_create', { requestsPerMinute: 30, burst: 5 });
+  limits.set('secret_rotate', { requestsPerMinute: 20, burst: 5 });
+  limits.set('secret_commit', { requestsPerMinute: 20, burst: 5 });
+  limits.set('secret_discard', { requestsPerMinute: 20, burst: 5 });
+  limits.set('secret_capture', { requestsPerMinute: 20, burst: 5 });
+  limits.set('secret_reveal', { requestsPerMinute: 10, burst: 2 });
 
   // Connection tools
   limits.set('connection_list', { requestsPerMinute: 60, burst: 10 });

@@ -9,6 +9,7 @@ import { invoke } from "../../lib/electron";
 import MarkdownRenderer from "../markdown/MarkdownRenderer";
 import PasswordHistoryDialog from "../vault/PasswordHistoryDialog";
 import EntryConflictInline from "../sync/EntryConflictInline";
+import NotesSecurityBanners from "../secrets/NotesSecurityBanners";
 import type { EntryFull, ResolvedCredential } from "../../types/entry";
 import {
   CalendarIcon, ClockIcon, GlobeIcon, KeyIcon, LockIcon, NotesIcon, ServerIcon, ShieldLockIcon, TagIcon, UserIcon
@@ -200,6 +201,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
       </div>
 
       <EntryConflictInline entryId={entryId} mode="detail" />
+      <NotesSecurityBanners entry={entry} />
 
       {/* Content area — two columns when notes exist */}
       <div className={`flex-1 min-h-0 flex ${entry.notes ? "" : "flex-col"}`}>

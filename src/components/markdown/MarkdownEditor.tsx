@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useId } from "react";
 import { IconButton, TabPanel, Tabs, type TabItem } from "../ui";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { toolbarActions, type ToolbarAction } from "./markdownToolbar";
+import AddSecretPopover from "./AddSecretPopover";
 
 type EditorTab = "write" | "preview";
 
@@ -15,9 +16,11 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   minRows?: number;
+  /** The saved entry this text belongs to; enables storing a secret right away. */
+  ownerId?: string;
 }
 
-export default function MarkdownEditor({ value, onChange, placeholder = "Write markdown...", minRows = 8 }: MarkdownEditorProps) {
+export default function MarkdownEditor({ value, onChange, placeholder = "Write markdown...", minRows = 8, ownerId }: MarkdownEditorProps) {
   const [tab, setTab] = useState<EditorTab>("write");
   const idBase = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -38,6 +41,24 @@ export default function MarkdownEditor({ value, onChange, placeholder = "Write m
     [value, onChange]
   );
 
+  const insertRef = useCallback(
+    ({ id, label }: { id: string; label: string }) => {
+      const ta = textareaRef.current;
+      const at = ta?.selectionStart ?? value.length;
+      const end = ta?.selectionEnd ?? at;
+      const lineStart = value.lastIndexOf("\n", at - 1) + 1;
+      // A label's "|" would split a Markdown table cell.
+      const inTable = value.slice(lineStart).trimStart().startsWith("|");
+      const ref = inTable ? `{{secret:${id}}}` : `{{secret:${id}|${label.replace(/[{}|\r\n]/g, " ")}}}`;
+      onChange(value.slice(0, at) + ref + value.slice(end));
+      requestAnimationFrame(() => {
+        ta?.focus();
+        ta?.setSelectionRange(at + ref.length, at + ref.length);
+      });
+    },
+    [value, onChange]
+  );
+
   return (
     <div className="overflow-hidden rounded border border-input-border bg-input">
       <Tabs idBase={idBase} items={TABS} value={tab} onChange={setTab} className="border-b border-divider" />
@@ -53,6 +74,7 @@ export default function MarkdownEditor({ value, onChange, placeholder = "Write m
                   <IconButton key={i} size="sm" icon={action.icon} label={action.title} onClick={() => handleToolbar(action)} />
                 )
               )}
+              {ownerId && <AddSecretPopover ownerId={ownerId} onInsert={insertRef} />}
             </div>
             <textarea
               ref={textareaRef}

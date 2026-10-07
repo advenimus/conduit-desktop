@@ -43,11 +43,16 @@ export function planConversion(text: string, newId: () => string): ConversionPla
       byValue.set(value, secret);
       created.push(secret);
     }
-    out += text.slice(last, start) + formatSecretRef(secret.id, secret.label);
+    out += text.slice(last, start) + formatSecretRef(secret.id, isTableRow(text, start) ? null : secret.label);
     last = start + m[0].length;
   }
 
   return { text: out + text.slice(last), created };
+}
+
+/** A label's `|` would split a Markdown table cell. */
+function isTableRow(text: string, index: number): boolean {
+  return text.slice(text.lastIndexOf('\n', index - 1) + 1).trimStart().startsWith('|');
 }
 
 /** The line text before `index`, starting after the last ref or span earlier on that line. */

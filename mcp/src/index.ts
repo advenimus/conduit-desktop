@@ -87,6 +87,14 @@ import {
   credentialReadDefinition, credentialRead,
   credentialDeleteDefinition, credentialDelete,
 } from './tools/credential.js';
+import {
+  secretCreateDefinition, secretCreate,
+  secretRotateDefinition, secretRotate,
+  secretCommitDefinition, secretCommit,
+  secretDiscardDefinition, secretDiscard,
+  secretCaptureDefinition, secretCapture,
+  secretRevealDefinition, secretReveal,
+} from './tools/secret.js';
 
 // Connection tools
 import {
@@ -223,6 +231,14 @@ function buildToolRegistry(): Map<string, ToolEntry> {
   add(credentialCreateDefinition(), credentialCreate as ToolHandler);
   add(credentialReadDefinition(), credentialRead as ToolHandler);
   add(credentialDeleteDefinition(), credentialDelete as ToolHandler);
+
+  // Secrets
+  add(secretCreateDefinition(), secretCreate as ToolHandler);
+  add(secretRotateDefinition(), secretRotate as ToolHandler);
+  add(secretCommitDefinition(), secretCommit as ToolHandler);
+  add(secretDiscardDefinition(), secretDiscard as ToolHandler);
+  add(secretCaptureDefinition(), secretCapture as ToolHandler);
+  add(secretRevealDefinition(), secretReveal as ToolHandler);
 
   // Connections
   add(connectionListDefinition(), (client) => connectionList(client));

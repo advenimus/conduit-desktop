@@ -38,7 +38,8 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
 
   const handleSave = async () => {
     await updateEntry(entryId, {
-      config: { content: draftContent },
+      // Keep the other config keys (a knowledge article's metadata lives there too).
+      config: { ...(entry?.config ?? {}), content: draftContent },
     });
     setIsEditing(false);
   };

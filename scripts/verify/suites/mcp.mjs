@@ -160,20 +160,21 @@ async function writesSync(ctx) {
   const { a, b, entry } = await proPair(ctx, ['m3a', 'm3b'], 'McpSync.conduit', { name: 'MCP sync target', host: '10.30.0.1' });
   const mcp = await trackedMcp(ctx, a);
   const firstNotes = `Notes written by MCP in run ${ctx.runId}\nadmin: !!mcp-verify-secret!!`;
-  const notes = firstNotes.replace('written by MCP', 'edited by MCP');
   const docName = `MCP doc ${ctx.run.shortId}`;
   const docV1 = '# Draft\n\nfirst version';
   const docV2 = '# Runbook\n\nsecond version from MCP';
 
   const noted = await mcp.call('entry_update_notes', { entry_id: entry.id, notes: firstNotes });
-  ctx.checkEqual(noted.id, entry.id, 'entry_update_notes answers for the entry');
+  ctx.checkEqual([noted.id, noted.secrets_encrypted], [entry.id, 1], 'entry_update_notes answers for the entry and encrypted the !!secret!!');
   const info = await mcp.call('entry_info', { entry_id: entry.id, include_notes: true });
-  ctx.check(info.notes.includes('admin: [SECRET_1]') && !info.notes.includes('mcp-verify-secret'), `entry_info shows the secret as a token: ${info.notes}`);
+  const [secretRef] = secretRefsIn(info.notes);
+  ctx.check(!!secretRef && info.notes.endsWith(`admin: ${secretRef.raw}`) && !info.notes.includes('mcp-verify-secret'), `entry_info shows the secret as a ref: ${info.notes}`);
   const edited = await mcp.call('entry_edit_notes', {
     entry_id: entry.id,
     edits: [{ old_string: 'Notes written by MCP', new_string: 'Notes edited by MCP' }],
   });
   ctx.checkEqual([edited.replacements, edited.secrets_removed], [1, 0], 'entry_edit_notes changed one line and kept the secret');
+  const notes = `Notes edited by MCP in run ${ctx.runId}\nadmin: ${secretRef.raw}`;
   const doc = await mcp.call('document_create', { name: docName, content: docV1 });
   ctx.check(typeof doc?.id === 'string', `document_create returned an id: ${JSON.stringify(doc)}`);
   await mcp.call('document_update', { entry_id: doc.id, content: docV2 });
@@ -181,7 +182,9 @@ async function writesSync(ctx) {
   ctx.step(`MCP on m3a: wrote and edited notes on ${entry.id}, created and updated document ${doc.id}`);
 
   const onA = await ui.invoke(a, 'entry_get', { id: entry.id });
-  ctx.checkEqual(onA.notes, notes, 'm3a entry store (IPC entry_get) has the edited MCP notes with the secret intact');
+  ctx.checkEqual(onA.notes, notes, 'm3a entry store (IPC entry_get) has the edited MCP notes with the secret ref intact');
+  const secretOnA = await ui.invoke(a, 'entry_get_full', { id: secretRef.id });
+  ctx.checkEqual([secretOnA.password, secretOnA.parent_entry_id, secretOnA.config?.embedded?.owner_id], ['mcp-verify-secret', entry.id, entry.id], 'm3a holds the value in an encrypted secret owned by the entry');
   const docOnA = await ui.invoke(a, 'entry_get', { id: doc.id });
   ctx.checkEqual([docOnA.name, docOnA.entry_type, docOnA.config?.content], [docName, 'document', docV2], 'm3a entry store has the MCP document');
   // Home no longer lists recent entries and test windows start with the side bar hidden, so the entry tree is the place to look.
@@ -190,9 +193,13 @@ async function writesSync(ctx) {
   ctx.step('m3a renderer reloaded its entry list and shows the new document');
 
   await ctx.waitFor(async () => {
-    const [e, d] = await Promise.all([ui.invoke(b, 'entry_get', { id: entry.id }), ui.invoke(b, 'entry_get', { id: doc.id })]);
-    return e.notes === notes && d.name === docName && d.config?.content === docV2;
-  }, { timeoutMs: SYNC_DEADLINE_MS, intervalMs: 500, label: 'm3b receives the MCP notes and document' });
+    const [e, d, sec] = await Promise.all([
+      ui.invoke(b, 'entry_get', { id: entry.id }),
+      ui.invoke(b, 'entry_get', { id: doc.id }),
+      ui.invokeResult(b, 'entry_get_full', { id: secretRef.id }),
+    ]);
+    return e.notes === notes && d.name === docName && d.config?.content === docV2 && sec.ok && sec.value?.password === 'mcp-verify-secret';
+  }, { timeoutMs: SYNC_DEADLINE_MS, intervalMs: 500, label: 'm3b receives the MCP notes, the encrypted secret and the document' });
   ctx.step(`m3b received all four MCP writes ${((Date.now() - wroteAt) / 1000).toFixed(1)} s after the last one`);
   await flows.refreshEntries(b);
   await setSidebar(b, 'docked');
@@ -396,7 +403,7 @@ async function twoAgents(ctx) {
   ctx.step('after agent A exited, B used and closed its old shell');
 }
 
-// Secrets the agent must never see. Stored notes keep them; MCP output, errors and the audit log must not.
+// Secrets the agent must never see. They live encrypted in hidden credentials; notes, MCP output, errors and the audit log must not hold them.
 const NOTE_SECRETS = ['verify-root-pw-7731', 'verify-db-pw-4402', 'verify-api-key-9915'];
 // Notes writes allow 30 calls a minute with a burst of 5 (mcp/src/rate-limiter.ts).
 const NOTES_WRITE_GAP_MS = 2_100;
@@ -414,14 +421,14 @@ const NOTES_V1 = [
   '- nginx upgraded',
 ].join('\n');
 
-/** The notes pane's text outside blurred secret spans, and the blurred spans' text (SecretSpan keeps the value in the DOM, blurred). */
+/** The notes pane's text outside secret chips, and each chip's text (a chip shows the secret's name, never its value). */
 export function readNotesPaneInPage() {
-  const pane = [...document.querySelectorAll('.prose, [class*=prose]')].find((el) => /root:/.test(el.textContent ?? ''));
+  const pane = [...document.querySelectorAll('.prose, [class*=prose]')].find((el) => /Summary/.test(el.textContent ?? ''));
   if (!pane) return null;
-  const blurred = [...pane.querySelectorAll('.blur-sm')].map((el) => el.textContent ?? '');
+  const chips = [...pane.querySelectorAll('[data-cv-secret-chip]')].map((el) => (el.textContent ?? '').trim());
   const copy = pane.cloneNode(true);
-  for (const el of copy.querySelectorAll('.blur-sm')) el.remove();
-  return { visible: copy.textContent ?? '', blurred };
+  for (const el of copy.querySelectorAll('[data-cv-secret-chip]')) el.remove();
+  return { visible: copy.textContent ?? '', chips, all: pane.textContent ?? '' };
 }
 
 export function openEntryDashboardInPage(id) {
@@ -429,6 +436,15 @@ export function openEntryDashboardInPage(id) {
     m.openDashboardForEntry(id);
     return true;
   });
+}
+
+const SECRET_REF_RE = /\{\{secret:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\|([^}|\n]*))?\}\}/g;
+const REVEAL_DIALOG_TITLE = 'Show a secret to an agent?';
+// credential_read allows a burst of 2, then one call every 6 s (mcp/src/rate-limiter.ts).
+const CREDENTIAL_READ_GAP_MS = 6_500;
+
+function secretRefsIn(text) {
+  return [...(text ?? '').matchAll(SECRET_REF_RE)].map((m) => ({ raw: m[0], id: m[1], label: m[2] ?? null }));
 }
 
 async function notesSecrets(ctx) {
@@ -440,59 +456,67 @@ async function notesSecrets(ctx) {
   await flows.updateEntry(device, entry.id, { notes: NOTES_V1 });
   const mcp = await trackedMcp(ctx, device);
   const stored = async () => (await ui.invoke(device, 'entry_get', { id: entry.id })).notes;
+  const valueOf = async (id) => (await ui.invoke(device, 'entry_get_full', { id })).password;
   const noSecretIn = (label, text) => {
     const leaked = NOTE_SECRETS.filter((v) => text.includes(v));
     ctx.checkEqual(leaked, [], `${label} shows no secret value`);
   };
-  ctx.step('m8: entry with two !!secret!! values in its notes, set through the app');
 
-  // 1. Reads show numbered tokens and never the values.
+  // 1. Saving in the app encrypts each !!secret!! into a hidden credential and keeps only a ref.
+  const v1 = await stored();
+  noSecretIn('stored notes after the app save', v1);
+  const [root, postgres] = secretRefsIn(v1);
+  ctx.checkEqual([root?.label, postgres?.label], ['root', 'postgres'], 'both secrets became labelled refs');
+  ctx.checkEqual(v1, NOTES_V1.replace(`!!${NOTE_SECRETS[0]}!!`, root.raw).replace(`!!${NOTE_SECRETS[1]}!!`, postgres.raw), 'the rest of the notes is unchanged');
+  ctx.checkEqual([await valueOf(root.id), await valueOf(postgres.id)], NOTE_SECRETS.slice(0, 2), 'the encrypted secrets hold the typed values');
+  const listed = await mcp.call('credential_list', {});
+  ctx.check(!JSON.stringify(listed).includes(root.id), 'credential_list does not offer embedded secrets');
+  ctx.step('m8: the app encrypted two !!secret!! values on save; the notes hold refs');
+
+  // 2. Reads show the refs, never the values.
   const info = await mcp.callRaw('entry_info', { entry_id: entry.id, include_notes: true });
   noSecretIn('entry_info', info.text);
-  ctx.checkEqual(info.data.notes, NOTES_V1.replace(`!!${NOTE_SECRETS[0]}!!`, '[SECRET_1]').replace(`!!${NOTE_SECRETS[1]}!!`, '[SECRET_2]'), 'entry_info shows [SECRET_1] and [SECRET_2]');
+  ctx.checkEqual(info.data.notes, v1, 'entry_info shows the notes with refs');
 
-  // 2. A one-line edit leaves the secrets in place.
-  let want = NOTES_V1.replace('port: 22', 'port: 2222');
+  // 3. A one-line edit leaves the refs in place.
+  let want = v1.replace('port: 22', 'port: 2222');
   const one = await mcp.call('entry_edit_notes', { entry_id: entry.id, edits: [{ old_string: 'port: 22', new_string: 'port: 2222' }] });
-  ctx.checkEqual([one.replacements, one.secrets_removed], [1, 0], 'one-line edit: 1 replacement, no secret removed');
-  ctx.checkEqual(await stored(), want, 'stored notes: port changed, both secrets intact');
-  ctx.step('edited one line; the stored secrets did not change');
+  ctx.checkEqual([one.replacements, one.secrets_removed, one.secrets_encrypted], [1, 0, 0], 'one-line edit: 1 replacement, nothing removed or added');
+  ctx.checkEqual(await stored(), want, 'stored notes: port changed, both refs intact');
 
-  // 3. Reword the line that holds a secret by reusing its token.
-  want = want.replace('root: !!', 'root (sudo only): !!');
-  await mcp.call('entry_edit_notes', { entry_id: entry.id, edits: [{ old_string: 'root: [SECRET_1]', new_string: 'root (sudo only): [SECRET_1]' }] });
-  ctx.checkEqual(await stored(), want, 'stored notes: reworded secret line keeps the real password');
+  // 4. Reword the line that holds a secret by keeping its ref.
+  want = want.replace(`root: ${root.raw}`, `root (sudo only): ${root.raw}`);
+  await mcp.call('entry_edit_notes', { entry_id: entry.id, edits: [{ old_string: `root: ${root.raw}`, new_string: `root (sudo only): ${root.raw}` }] });
+  ctx.checkEqual(await stored(), want, 'stored notes: reworded secret line keeps its ref');
 
-  // 4. Several edits in one call: move the Database section above Access (tokens travel with it),
-  //    replace_all on a repeated word, and add a new secret the user gave the agent.
-  const access = 'root (sudo only): [SECRET_1]\nport: 2222\n\n';
+  // 5. Several edits in one call: move a section with its ref, replace_all, and add a new secret.
+  const access = `root (sudo only): ${root.raw}\nport: 2222\n\n`;
   const multi = await mcp.call('entry_edit_notes', {
     entry_id: entry.id,
     edits: [
-      { old_string: `## Access\n${access}## Database\npostgres: [SECRET_2]\nversion: 15\n`, new_string: `## Database\npostgres: [SECRET_2]\nversion: 16\n\n## Access\n${access.trimEnd()}\n` },
+      { old_string: `## Access\n${access}## Database\npostgres: ${postgres.raw}\nversion: 15\n`, new_string: `## Database\npostgres: ${postgres.raw}\nversion: 16\n\n## Access\n${access.trimEnd()}\n` },
       { old_string: 'nginx', new_string: 'caddy', replace_all: true },
       { old_string: '- caddy upgraded', new_string: `- caddy upgraded\n- api key: !!${NOTE_SECRETS[2]}!!` },
     ],
   });
-  ctx.checkEqual([multi.replacements, multi.secrets_removed], [4, 0], 'multi-edit: 4 replacements, no secret removed');
+  ctx.checkEqual([multi.replacements, multi.secrets_removed, multi.secrets_encrypted], [4, 0, 1], 'multi-edit: 4 replacements, the new secret encrypted');
+  const v5 = await stored();
+  const api = secretRefsIn(v5).find((r) => r.label === 'api key');
+  ctx.check(!!api && (await valueOf(api.id)) === NOTE_SECRETS[2], `the new secret is encrypted under its own ref: ${v5}`);
   want = [
-    '## Database', `postgres: !!${NOTE_SECRETS[1]}!!`, 'version: 16', '',
-    '## Access', `root (sudo only): !!${NOTE_SECRETS[0]}!!`, 'port: 2222', '',
-    '## Log', '- caddy reloaded', '- caddy upgraded', `- api key: !!${NOTE_SECRETS[2]}!!`,
+    '## Database', `postgres: ${postgres.raw}`, 'version: 16', '',
+    '## Access', `root (sudo only): ${root.raw}`, 'port: 2222', '',
+    '## Log', '- caddy reloaded', '- caddy upgraded', `- api key: ${api.raw}`,
   ].join('\n');
-  ctx.checkEqual(await stored(), want, 'stored notes: section moved with its secret, words replaced, new secret added');
-  const reread = await mcp.callRaw('entry_info', { entry_id: entry.id, include_notes: true });
-  noSecretIn('entry_info after the edits', reread.text);
-  ctx.check(/postgres: \[SECRET_1\][\s\S]*root \(sudo only\): \[SECRET_2\][\s\S]*api key: \[SECRET_3\]/.test(reread.data.notes), `tokens renumber by position: ${reread.data.notes}`);
-  ctx.step('one call moved a section, replaced every "nginx" and added a new secret; all three secrets correct');
+  ctx.checkEqual(v5, want, 'stored notes: section moved with its ref, words replaced, new secret added as a ref');
+  ctx.step('one call moved a section, replaced every "nginx" and added an encrypted secret');
 
-  // 5. Refused writes change nothing and leak nothing.
+  // 6. Refused writes change nothing and leak nothing.
   const refused = [
     ['old text not found', 'entry_edit_notes', { edits: [{ old_string: 'version: 99', new_string: 'x' }] }, /not found/],
     ['old text matches twice', 'entry_edit_notes', { edits: [{ old_string: 'caddy', new_string: 'x' }] }, /matches 2 places/],
-    ['bare [REDACTED] marker', 'entry_edit_notes', { edits: [{ old_string: 'postgres: [SECRET_1]', new_string: 'postgres: [REDACTED]' }] }, /\[REDACTED\]/],
+    ['bare [REDACTED] marker', 'entry_edit_notes', { edits: [{ old_string: 'version: 16', new_string: 'version: [REDACTED]' }] }, /\[REDACTED\]/],
     ['token not in the notes', 'entry_edit_notes', { edits: [{ old_string: 'port: 2222', new_string: 'port: [SECRET_9]' }] }, /SECRET_9/],
-    ['token inside !! markers', 'entry_edit_notes', { edits: [{ old_string: 'postgres: [SECRET_1]', new_string: 'postgres: !!x [SECRET_1]!!' }] }, /stand on its own/],
     ['edits is not a list', 'entry_edit_notes', { edits: 'port: 2222' }, /edits must be/],
     ['second of two edits fails', 'entry_edit_notes', { edits: [{ old_string: 'port: 2222', new_string: 'port: 1' }, { old_string: 'nope', new_string: 'x' }] }, /edit 2/],
     ['full rewrite with [REDACTED]', 'entry_update_notes', { notes: 'root: [REDACTED]' }, /\[REDACTED\]/],
@@ -506,41 +530,73 @@ async function notesSecrets(ctx) {
   ctx.checkEqual(await stored(), want, 'stored notes unchanged after every refused write');
   ctx.step(`${refused.length} bad writes refused; the stored notes did not change`);
 
-  // 6. Full rewrite keeps tokens and reports a dropped secret.
-  const rewrite = await mcp.call('entry_update_notes', { entry_id: entry.id, notes: '## Summary\nroot: [SECRET_2]\napi: [SECRET_3]' });
-  ctx.checkEqual(rewrite.secrets_removed, 1, 'entry_update_notes reports the one secret it dropped');
-  want = `## Summary\nroot: !!${NOTE_SECRETS[0]}!!\napi: !!${NOTE_SECRETS[2]}!!`;
-  ctx.checkEqual(await stored(), want, 'stored notes after full rewrite: kept secrets have their real values');
+  // 7. A full rewrite that drops a ref keeps the secret, flagged as unused.
+  await mcp.call('entry_update_notes', { entry_id: entry.id, notes: `## Summary\nroot: ${root.raw}\napi: ${api.raw}` });
+  ctx.checkEqual(await stored(), `## Summary\nroot: ${root.raw}\napi: ${api.raw}`, 'stored notes after full rewrite');
+  const dropped = await ui.invoke(device, 'entry_get', { id: postgres.id });
+  ctx.check(!!dropped.config?.embedded?.orphaned_at, 'the dropped secret is kept and flagged as unused');
 
-  // 7. An entry with no notes takes an empty old_string.
+  // 8. An entry with no notes takes an empty old_string.
   const blank = await flows.addEntry(device, { name: 'Notes blank target', host: '10.60.0.2' });
   await ui.sleep(NOTES_WRITE_GAP_MS);
   await mcp.call('entry_edit_notes', { entry_id: blank.id, edits: [{ old_string: '', new_string: '# Fresh notes' }] });
   ctx.checkEqual((await ui.invoke(device, 'entry_get', { id: blank.id })).notes, '# Fresh notes', 'empty notes filled through entry_edit_notes');
 
-  // 8. Documents round-trip their secrets the same way.
+  // 9. Documents encrypt their secrets the same way.
   const doc = await mcp.call('document_create', { name: `Notes doc ${ctx.run.shortId}`, content: `API key: !!${NOTE_SECRETS[2]}!!` });
+  ctx.checkEqual(doc.secrets_encrypted, 1, 'document_create encrypted the secret');
   const read = await mcp.callRaw('document_read', { entry_id: doc.id });
   noSecretIn('document_read', read.text);
-  ctx.checkEqual(read.data.content, 'API key: [SECRET_1]', 'document_read shows the token');
+  const [docRef] = secretRefsIn(read.data.content);
+  ctx.checkEqual(read.data.content, `API key: ${docRef?.raw}`, 'document_read shows the ref');
   await mcp.call('document_update', { entry_id: doc.id, content: `${read.data.content}\nRotated: 2026-10` });
-  ctx.checkEqual((await ui.invoke(device, 'entry_get', { id: doc.id })).config?.content, `API key: !!${NOTE_SECRETS[2]}!!\nRotated: 2026-10`, 'document_update kept the real secret');
-  ctx.step('blank notes filled; document secret survived read and update');
+  ctx.checkEqual((await ui.invoke(device, 'entry_get', { id: doc.id })).config?.content, `API key: ${docRef.raw}\nRotated: 2026-10`, 'document_update kept the ref');
+  ctx.step('blank notes filled; document secret encrypted and kept through read and update');
 
-  // 9. The app shows the edited notes with the secrets masked.
+  // 10. An agent types a secret by ref; what it reads back shows the ref, not the value.
+  const { session_id: shell } = await mcp.call('local_shell_create', {});
+  const counted = await mcp.callRaw('terminal_execute', { connection_id: shell, command: `printf '%s' ${root.raw} | wc -c` });
+  ctx.check(!counted.isError && new RegExp(`\\b${NOTE_SECRETS[0].length}\\b`).test(counted.text), `the shell got the real value (length ${NOTE_SECRETS[0].length}): ${counted.text.slice(-200)}`);
+  const echoed = await mcp.callRaw('terminal_execute', { connection_id: shell, command: `echo ${root.raw}` });
+  noSecretIn('terminal_execute output', echoed.text);
+  ctx.check(echoed.text.includes(root.id), `the echoed value comes back as the ref: ${echoed.text.slice(-200)}`);
+  const pane = await mcp.callRaw('terminal_read_pane', { connection_id: shell });
+  noSecretIn('terminal_read_pane', pane.text);
+  const js = await mcp.callRaw('website_execute_js', { connection_id: shell, code: `'${root.raw}'` });
+  ctx.check(js.isError && /SECRET_REF_ERROR|page scripts/.test(js.text), `page scripts refuse refs: ${js.text.slice(0, 160)}`);
+  ctx.step('typed a secret into a shell by ref; output and screen show only the ref');
+
+  // 11. credential_read gives refs; a plain value needs the user's Allow in the reveal dialog.
+  const cred = await mcp.call('credential_read', { credential_id: root.id });
+  ctx.check(cred.password_ref?.includes(root.id) && !('password' in cred), `credential_read returns a ref and no value: ${JSON.stringify(cred)}`);
+  const answer = async (button) => {
+    const pending = mcp.callRaw('credential_read', { credential_id: root.id, reveal: true, purpose: `verify ${button}` });
+    await ui.waitForText(device, REVEAL_DIALOG_TITLE, { timeoutMs: 15_000 });
+    await ui.clickText(device, button, { exact: true });
+    return pending;
+  };
+  const denied = await answer('Deny');
+  ctx.check(denied.isError && /APPROVAL_DENIED/.test(denied.text), `Deny refuses the reveal: ${denied.text.slice(0, 160)}`);
+  noSecretIn('denied reveal', denied.text);
+  await ui.sleep(CREDENTIAL_READ_GAP_MS);
+  const allowed = await answer('Allow once');
+  ctx.checkEqual([allowed.isError, allowed.data?.password], [false, NOTE_SECRETS[0]], 'Allow once returns the plain value');
+  ctx.step('credential_read returned a ref; the reveal dialog denied, then allowed, a plain value');
+
+  // 12. The app shows the notes with chips naming the secrets.
   await flows.refreshEntries(device);
   await evaluateIn(device, openEntryDashboardInPage, entry.id, { label: 'open entry info' });
   await ui.waitForText(device, 'Summary', { timeoutMs: 15_000 });
-  const pane = await ctx.waitFor(() => evaluateIn(device, readNotesPaneInPage, null, { label: 'read notes pane' }), { timeoutMs: 15_000, label: 'notes pane rendered' });
-  noSecretIn('entry info notes outside blurred secrets', pane.visible);
-  ctx.checkEqual(pane.blurred, [NOTE_SECRETS[0], NOTE_SECRETS[2]], 'entry info shows both kept secrets as blurred secret spans');
+  const shown = await ctx.waitFor(() => evaluateIn(device, readNotesPaneInPage, null, { label: 'read notes pane' }), { timeoutMs: 15_000, label: 'notes pane rendered' });
+  noSecretIn('entry info notes', shown.all);
+  ctx.checkEqual(shown.chips, ['root', 'api key'], 'entry info shows a chip for each secret, by name');
   await ctx.shot(device, 'mcp-notes-edited');
 
-  // 10. The audit log has every call but none of the stored secret values the agent never wrote.
+  // 13. The audit log has every call but none of the stored secret values the agent never wrote.
   const audit = fs.readFileSync(auditLogPath(device), 'utf8');
   const neverWritten = NOTE_SECRETS.slice(0, 2).filter((v) => audit.includes(v));
   ctx.checkEqual(neverWritten, [], 'audit log has no secret value that only the user typed');
-  ctx.step('entry info page shows the notes with secrets hidden; audit log has no user-typed secret');
+  ctx.step('entry info page shows chips; audit log has no user-typed secret');
 }
 
 export default {

@@ -73,8 +73,9 @@ object. Its value is stored, encrypted, in `password_encrypted`, like every othe
 
 An entry is **hidden** when its `config` is a JSON object whose `kb` key or `embedded` key holds a
 JSON object. Hidden entries are left out of the sidebar tree, folder lists, counts, favorites,
-recents, quick search, and the MCP `entry_list` and `entry_search` tools. Lookups by id still find
-them, because chips and article links resolve by id.
+recents, quick search, credential pickers and credential lists, and the MCP `entry_list` and
+`entry_search` tools. They never act as an inherited credential for a connection nested under the
+same parent. Lookups by id still find them, because chips and article links resolve by id.
 
 ### 1.4 Delete cascade
 
@@ -128,7 +129,9 @@ secret ref. Plaintext `!!…!!` is never stored by a current app.
   masked before.
 - Identical values in one text map to one secret. The label comes from the first occurrence.
 - New secrets get fresh UUIDs. The vectors pass the ids in, in order of first appearance.
-- The replacement is `{{secret:<id>|<label>}}`.
+- The replacement is `{{secret:<id>|<label>}}`. On a table row (a line whose first non-space character
+  is `|`) it is `{{secret:<id>}}` with no label, because a `|` would split the table cell. The secret
+  still gets the derived label as its name.
 
 ### 3.2 Labels [vectors: `convert.json`]
 
