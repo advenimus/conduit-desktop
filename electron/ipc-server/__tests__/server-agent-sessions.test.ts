@@ -22,6 +22,7 @@ const B = { id: 'agent-b', pid: 202, client: 'codex-mcp-client' };
 const ENTRIES = [
   { id: 'e-ssh', name: 'Web server', entry_type: 'ssh', host: '10.0.0.5', port: 22, credential_id: null, config: {} },
   { id: 'e-rdp', name: 'Windows box', entry_type: 'rdp', host: 'win', port: null, credential_id: null, config: {} },
+  { id: 'e-article', name: 'Overview', entry_type: 'document', host: null, port: null, credential_id: null, parent_entry_id: 'e-ssh', config: { kb: { scope: 'asset', kind: 'overview' } } },
 ];
 
 function fakeState() {
@@ -82,6 +83,13 @@ describe('ConnectionList owner', () => {
     const saved = (forA.payload as Array<{ id: string; owner?: string; status: string }>).find((c) => c.id === 'e-rdp');
     expect(saved).toMatchObject({ status: 'disconnected' });
     expect(saved?.owner).toBeUndefined();
+  });
+});
+
+describe('ConnectionList knowledge articles', () => {
+  it('leaves knowledge articles out of the saved connections', async () => {
+    const res = await call('ConnectionList', {}, A);
+    expect((res.payload as Array<{ id: string }>).map((c) => c.id)).not.toContain('e-article');
   });
 });
 

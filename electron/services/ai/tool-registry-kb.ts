@@ -37,7 +37,7 @@ export const KB_AND_SECRET_TOOLS: ToolRegistryEntry[] = [
   {
     name: 'kb_write',
     category: 'write',
-    description: 'Create or update a knowledge article. Saves at once; the user can review and undo. Use for findings, procedures and fixes.',
+    description: 'Create or update a knowledge article. Saves at once; the user can review and undo. Use for findings, procedures, fixes and facts the user tells you, rather than your own memory.',
     parameters: obj({
       article_id: s('Article to update'),
       scope: s('asset, folder or vault (new articles)'),

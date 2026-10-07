@@ -290,6 +290,7 @@ const SERVER_INSTRUCTIONS = [
   'Conduit holds the user\'s servers, sessions, credentials and a knowledge base about each of them.',
   'Knowledge: before working on an asset, call entry_info (its knowledge block lists what applies) or kb_context, and read the relevant articles with kb_read.',
   'As you work, record what a future session would need: kb_write for findings, procedures and fixes (it saves at once; the user can review and undo), kb_log for each change you make on a system, kb_verify when you confirm or disprove an article.',
+  'Conduit\'s knowledge base is your memory for the user\'s systems: save facts about an asset (including what the user tells you) with kb_write, not in your own memory or files, so other devices and agents see them.',
   'If entry_info says the notes look like a knowledge base, offer once to move them with kb_import_notes; if the user declines, call kb_dismiss_migration.',
   'Secrets: you never need to see a password to use it. Put refs like {{secret:<id>}} or {{cred:<id>}} into typing tools and Conduit types the value.',
   'Make new passwords with secret_create (generate) and change them with secret_rotate, then secret_commit. Never write a plain password into notes or articles.',

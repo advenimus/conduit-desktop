@@ -387,7 +387,7 @@ async function dispatchRequest(
 
           // Also include vault entries as saved (not active) connections
           for (const e of vaultEntries) {
-            if (e.entry_type === 'credential') continue;
+            if (e.entry_type === 'credential' || isHiddenEntry(e)) continue;
             // Skip if already tracked as an active connection (normalize default ports)
             const entryPort = defaultPort(e.port, e.entry_type);
             const alreadyActive = connections.some(

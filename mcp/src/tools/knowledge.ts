@@ -96,7 +96,8 @@ export function kbWriteDefinition() {
     description:
       'Create or update a knowledge article. It saves right away (no need to ask first) and the user can review and undo ' +
       'your edit in Conduit, so write whenever you learn something a future session would need: what you found, what you ' +
-      'changed, what fixed a problem. Keep one topic per article and update an existing one rather than adding a near duplicate. ' +
+      'changed, what fixed a problem, and facts the user tells you about their systems. Use this rather than your own memory ' +
+      'or files: it is shared with the user\'s other devices and agents. Keep one topic per article and update an existing one rather than adding a near duplicate. ' +
       'To create: give scope (asset, folder or vault), entry_id or folder_id, kind, title and content. ' +
       'To update: give article_id plus content (a full rewrite) or edits (exact find-and-replace, like entry_edit_notes), ' +
       'and a short reason. ' + KIND_HELP + ' ' + SECRETS_HELP,

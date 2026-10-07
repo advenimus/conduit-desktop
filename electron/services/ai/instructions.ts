@@ -86,6 +86,7 @@ const USAGE_GUIDELINES = [
   '',
   '- **Read before you work**: use the `knowledge` block from entry_info, kb_context, or kb_search (to see how a problem was solved elsewhere). Check articles marked `stale` against the system and call kb_verify.',
   '- **Write as you learn, without asking first**: kb_write saves at once and the user reviews and can undo agent edits in Conduit. Record discoveries (OS, versions, roles, paths, layouts), procedures that worked, and problems with their cause and fix. Update the existing article on a topic rather than adding a near duplicate, and give a short `reason`.',
+  '- **Conduit\'s knowledge base is your memory for the user\'s systems**: anything about an asset, folder or the user\'s infrastructure, including facts the user tells you ("it runs PHP 8.3", "the app lives in /srv/app"), goes into kb_write, never into your own memory, notes or local files. Only the knowledge base reaches the user\'s other devices, other agents and the Conduit app. Find the asset with entry_search when you have no entry_id.',
   '- **Pick the right home**: `asset` for one machine; `folder` for things every asset in a folder shares (a client\'s network, VPN, vendor contacts); `vault` playbooks for routines across many assets (tag them so they reach the right assets).',
   '- **Pick the right kind**: overview (what it is and what matters; one per asset), facts, procedure, troubleshooting, contact, playbook.',
   '- **Log every change** you make on a system with kb_log: installs, config edits, restarts, rotations. One sentence each.',

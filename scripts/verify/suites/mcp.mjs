@@ -691,6 +691,8 @@ async function knowledgeBase(ctx) {
   // 5. Articles stay out of entry lists; the app lists them only as knowledge.
   const listed = await mcp.call('entry_list', {});
   ctx.check(!listed.entries.some((e) => e.id === steps.id), 'entry_list leaves articles out');
+  const conns = await mcp.call('connection_list', {});
+  ctx.check(!conns.connections.some((c) => c.entry_id === steps.id), 'connection_list leaves articles out');
   await flows.refreshEntries(device);
   const store = await evaluateIn(device, readEntryStoreInPage, [entry.id, steps.id], { label: 'read entry store' });
   ctx.checkEqual(store, { listed: [entry.id], hidden: [steps.id] }, 'the renderer lists the asset and keeps the article hidden');
