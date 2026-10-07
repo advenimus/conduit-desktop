@@ -278,7 +278,13 @@ Inserting a line into the article body:
   trailing blank line) becomes `<heading>\n\n<line>`.
 - Otherwise the new line goes at the top.
 
-## 9. Older apps
+## 9. Export and import
+
+Exports carry `parent_entry_id`. Imported entries get new ids, so import restores nesting and rewrites
+every `{{secret:<id>` and `{{cred:<id>` in notes and `config.content`, and `config.embedded.owner_id` /
+`pending_for`, to the new ids. Ids not in the export are left as they are.
+
+## 10. Older apps
 
 Desktop 0.18 and iOS 1.1.0 do not know these keys. They keep working: articles look like plain
 documents, embedded secrets look like credentials, and refs show as raw text. They may write

@@ -187,3 +187,16 @@ export const CREDENTIAL_TYPES: Record<CredentialType, { label: string; descripti
 ```
 
 UI components (type selectors, badges, form headers) all read from this registry. Adding a new entry automatically makes it appear in type selectors and badge rendering.
+
+## Before you add a type or a column
+
+- The vault `schema_version` must stay at 10: iOS 1.0.5 refuses any vault with a higher number, and a new
+  `entry_type` needs a table rebuild because of the CHECK constraint. Sync also carries only the columns in
+  `electron/services/sync/catalog-defs.ts`, and adding one needs `sync_format 2`.
+- New data that rides on existing entries belongs in a top-level `config` key: each key is its own synced
+  register, and team sync encrypts `config`. The knowledge base is built this way (`docs/KNOWLEDGE_BASE.md`):
+  articles are documents with `config.kb`, embedded secrets are credentials with `config.embedded`.
+- Entries whose `config.kb` or `config.embedded` is set are hidden from lists (`isHiddenEntry` in
+  `electron/services/knowledge/kb-model.ts`, re-exported by `src/lib/kb.ts`). Code that lists or counts
+  entries must use `useEntryStore().entries` (visible only) or filter with `isHiddenEntry`.
+
