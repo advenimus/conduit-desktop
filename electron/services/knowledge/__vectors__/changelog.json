@@ -1,0 +1,93 @@
+{
+  "format": 1,
+  "module": "changelog",
+  "notes": [
+    "formatLine({at, name, text}) and insertLine({content, line}). Section 8."
+  ],
+  "cases": [
+    {
+      "name": "agent line",
+      "fn": "formatLine",
+      "input": {
+        "at": "2026-10-06T14:03:59.123Z",
+        "name": "Claude Code",
+        "text": "Rotated pw."
+      },
+      "expect": "- 2026-10-06 14:03 UTC · Claude Code: Rotated pw."
+    },
+    {
+      "name": "user line",
+      "fn": "formatLine",
+      "input": {
+        "at": "2026-01-02T03:04:00.000Z",
+        "name": null,
+        "text": "Replaced disk"
+      },
+      "expect": "- 2026-01-02 03:04 UTC · You: Replaced disk"
+    },
+    {
+      "name": "line breaks become spaces",
+      "fn": "formatLine",
+      "input": {
+        "at": "2026-01-02T03:04:00.000Z",
+        "name": "Codex",
+        "text": "  a\nb\r\nc  "
+      },
+      "expect": "- 2026-01-02 03:04 UTC · Codex: a b c"
+    },
+    {
+      "name": "empty body",
+      "fn": "insertLine",
+      "input": {
+        "content": "",
+        "line": "- L"
+      },
+      "expect": "- L"
+    },
+    {
+      "name": "heading and blank line",
+      "fn": "insertLine",
+      "input": {
+        "content": "# Change log\n\n- old",
+        "line": "- L"
+      },
+      "expect": "# Change log\n\n- L\n- old"
+    },
+    {
+      "name": "heading without blank line",
+      "fn": "insertLine",
+      "input": {
+        "content": "# Change log\n- old",
+        "line": "- L"
+      },
+      "expect": "# Change log\n- L\n- old"
+    },
+    {
+      "name": "heading only",
+      "fn": "insertLine",
+      "input": {
+        "content": "# Change log",
+        "line": "- L"
+      },
+      "expect": "# Change log\n\n- L"
+    },
+    {
+      "name": "heading and trailing newline",
+      "fn": "insertLine",
+      "input": {
+        "content": "# Change log\n",
+        "line": "- L"
+      },
+      "expect": "# Change log\n\n- L"
+    },
+    {
+      "name": "no heading",
+      "fn": "insertLine",
+      "input": {
+        "content": "- old",
+        "line": "- L"
+      },
+      "expect": "- L\n- old"
+    }
+  ]
+}

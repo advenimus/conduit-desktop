@@ -1,0 +1,84 @@
+{
+  "format": 1,
+  "module": "stale",
+  "notes": [
+    "isStale(kb, updated_at, now). Section 6. Exactly 90 days is not stale."
+  ],
+  "cases": [
+    {
+      "name": "verified 91 days ago",
+      "fn": "isStale",
+      "input": {
+        "kb": {
+          "kind": "facts",
+          "verified_at": "2026-07-07T12:00:00.000Z"
+        },
+        "updated_at": "2026-10-05T12:00:00.000Z",
+        "now": "2026-10-06T12:00:00.000Z"
+      },
+      "expect": true
+    },
+    {
+      "name": "verified 89 days ago",
+      "fn": "isStale",
+      "input": {
+        "kb": {
+          "kind": "facts",
+          "verified_at": "2026-07-09T12:00:00.000Z"
+        },
+        "updated_at": "2026-03-20T12:00:00.000Z",
+        "now": "2026-10-06T12:00:00.000Z"
+      },
+      "expect": false
+    },
+    {
+      "name": "exactly 90 days",
+      "fn": "isStale",
+      "input": {
+        "kb": {
+          "kind": "facts",
+          "verified_at": "2026-07-08T12:00:00.000Z"
+        },
+        "updated_at": "2026-03-20T12:00:00.000Z",
+        "now": "2026-10-06T12:00:00.000Z"
+      },
+      "expect": false
+    },
+    {
+      "name": "never verified, updated 100 days ago",
+      "fn": "isStale",
+      "input": {
+        "kb": {
+          "kind": "procedure"
+        },
+        "updated_at": "2026-06-28T12:00:00.000Z",
+        "now": "2026-10-06T12:00:00.000Z"
+      },
+      "expect": true
+    },
+    {
+      "name": "never verified, updated 10 days ago",
+      "fn": "isStale",
+      "input": {
+        "kb": {
+          "kind": "procedure"
+        },
+        "updated_at": "2026-09-26T12:00:00.000Z",
+        "now": "2026-10-06T12:00:00.000Z"
+      },
+      "expect": false
+    },
+    {
+      "name": "changelog never stale",
+      "fn": "isStale",
+      "input": {
+        "kb": {
+          "kind": "changelog"
+        },
+        "updated_at": "2025-09-01T12:00:00.000Z",
+        "now": "2026-10-06T12:00:00.000Z"
+      },
+      "expect": false
+    }
+  ]
+}

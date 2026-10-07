@@ -1,0 +1,394 @@
+{
+  "format": 1,
+  "module": "convert",
+  "notes": [
+    "convert(text, ids) replaces each !!value!! span with a secret ref (sections 3.1 and 3.2).",
+    "ids are the UUIDs to hand out, in order of first appearance of each distinct value. created lists the new secrets in that order."
+  ],
+  "cases": [
+    {
+      "name": "simple label",
+      "fn": "convert",
+      "input": {
+        "text": "Admin pw: !!hunter2!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "Admin pw: {{secret:11111111-2222-4333-8444-555555555555|Admin pw}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Admin pw",
+            "value": "hunter2"
+          }
+        ]
+      }
+    },
+    {
+      "name": "list marker and bold",
+      "fn": "convert",
+      "input": {
+        "text": "- **Root**: !!s3cret!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "- **Root**: {{secret:11111111-2222-4333-8444-555555555555|Root}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Root",
+            "value": "s3cret"
+          }
+        ]
+      }
+    },
+    {
+      "name": "numbered list",
+      "fn": "convert",
+      "input": {
+        "text": "  2) Wifi key = !!abc 123!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "  2) Wifi key = {{secret:11111111-2222-4333-8444-555555555555|Wifi key}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Wifi key",
+            "value": "abc 123"
+          }
+        ]
+      }
+    },
+    {
+      "name": "heading",
+      "fn": "convert",
+      "input": {
+        "text": "## Wifi !!key!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "## Wifi {{secret:11111111-2222-4333-8444-555555555555|Wifi}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Wifi",
+            "value": "key"
+          }
+        ]
+      }
+    },
+    {
+      "name": "table cell",
+      "fn": "convert",
+      "input": {
+        "text": "| DB | !!pw1!! |",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "| DB | {{secret:11111111-2222-4333-8444-555555555555|DB}} |",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "DB",
+            "value": "pw1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "table cell with label text",
+      "fn": "convert",
+      "input": {
+        "text": "| Name | Admin pw: !!x!! |",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "| Name | Admin pw: {{secret:11111111-2222-4333-8444-555555555555|Admin pw}} |",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Admin pw",
+            "value": "x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "two on one line",
+      "fn": "convert",
+      "input": {
+        "text": "user: !!bob!! pass: !!pw!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555",
+          "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        ]
+      },
+      "expect": {
+        "text": "user: {{secret:11111111-2222-4333-8444-555555555555|user}} pass: {{secret:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee|pass}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "user",
+            "value": "bob"
+          },
+          {
+            "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "label": "pass",
+            "value": "pw"
+          }
+        ]
+      }
+    },
+    {
+      "name": "no text before",
+      "fn": "convert",
+      "input": {
+        "text": "!!x!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "{{secret:11111111-2222-4333-8444-555555555555|Secret 1}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Secret 1",
+            "value": "x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "secret number counts created secrets",
+      "fn": "convert",
+      "input": {
+        "text": "user: !!a!!\n!!b!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555",
+          "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        ]
+      },
+      "expect": {
+        "text": "user: {{secret:11111111-2222-4333-8444-555555555555|user}}\n{{secret:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee|Secret 2}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "user",
+            "value": "a"
+          },
+          {
+            "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            "label": "Secret 2",
+            "value": "b"
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate values share one secret",
+      "fn": "convert",
+      "input": {
+        "text": "a: !!same!! b: !!same!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "a: {{secret:11111111-2222-4333-8444-555555555555|a}} b: {{secret:11111111-2222-4333-8444-555555555555|a}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "a",
+            "value": "same"
+          }
+        ]
+      }
+    },
+    {
+      "name": "after an existing ref",
+      "fn": "convert",
+      "input": {
+        "text": "a {{secret:cccccccc-0000-4000-8000-000000000001|a}} b: !!x!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "a {{secret:cccccccc-0000-4000-8000-000000000001|a}} b: {{secret:11111111-2222-4333-8444-555555555555|b}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "b",
+            "value": "x"
+          }
+        ]
+      }
+    },
+    {
+      "name": "multi-line",
+      "fn": "convert",
+      "input": {
+        "text": "Line one\nKey = !!abc!!\n",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "Line one\nKey = {{secret:11111111-2222-4333-8444-555555555555|Key}}\n",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Key",
+            "value": "abc"
+          }
+        ]
+      }
+    },
+    {
+      "name": "label cut to 40 code points",
+      "fn": "convert",
+      "input": {
+        "text": "This is a very long description of the secret value here: !!v!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "This is a very long description of the secret value here: {{secret:11111111-2222-4333-8444-555555555555|This is a very long description of the s}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "This is a very long description of the s",
+            "value": "v"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cut then trimmed",
+      "fn": "convert",
+      "input": {
+        "text": "This is a very long description of the  secret: !!v!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "This is a very long description of the  secret: {{secret:11111111-2222-4333-8444-555555555555|This is a very long description of the}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "This is a very long description of the",
+            "value": "v"
+          }
+        ]
+      }
+    },
+    {
+      "name": "backticks removed, underscores kept",
+      "fn": "convert",
+      "input": {
+        "text": "`db_admin` token: !!t!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "`db_admin` token: {{secret:11111111-2222-4333-8444-555555555555|db_admin token}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "db_admin token",
+            "value": "t"
+          }
+        ]
+      }
+    },
+    {
+      "name": "braces removed",
+      "fn": "convert",
+      "input": {
+        "text": "x} y{ !!v!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "x} y{ {{secret:11111111-2222-4333-8444-555555555555|x y}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "x y",
+            "value": "v"
+          }
+        ]
+      }
+    },
+    {
+      "name": "trailing dash and em dash",
+      "fn": "convert",
+      "input": {
+        "text": "Key — !!v!!",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "Key — {{secret:11111111-2222-4333-8444-555555555555|Key}}",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "Key",
+            "value": "v"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nothing to convert",
+      "fn": "convert",
+      "input": {
+        "text": "see {{secret:cccccccc-0000-4000-8000-000000000001|a}}",
+        "ids": []
+      },
+      "expect": {
+        "text": "see {{secret:cccccccc-0000-4000-8000-000000000001|a}}",
+        "created": []
+      }
+    },
+    {
+      "name": "in a code block",
+      "fn": "convert",
+      "input": {
+        "text": "```\nexport PW=!!x!!\n```",
+        "ids": [
+          "11111111-2222-4333-8444-555555555555"
+        ]
+      },
+      "expect": {
+        "text": "```\nexport PW={{secret:11111111-2222-4333-8444-555555555555|export PW}}\n```",
+        "created": [
+          {
+            "id": "11111111-2222-4333-8444-555555555555",
+            "label": "export PW",
+            "value": "x"
+          }
+        ]
+      }
+    }
+  ]
+}

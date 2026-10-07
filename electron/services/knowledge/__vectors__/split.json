@@ -1,0 +1,212 @@
+{
+  "format": 1,
+  "module": "split",
+  "notes": [
+    "splitNotes(notes) returns articles in order. Section 7.2."
+  ],
+  "cases": [
+    {
+      "name": "intro and sections",
+      "fn": "splitNotes",
+      "input": "Intro text\n\n## Reboot procedure\n1. step\n2. step\n\n## Known issues\nDisk fills\n",
+      "expect": [
+        {
+          "title": "Overview",
+          "kind": "overview",
+          "pinned": true,
+          "body": "Intro text"
+        },
+        {
+          "title": "Reboot procedure",
+          "kind": "procedure",
+          "pinned": false,
+          "body": "1. step\n2. step"
+        },
+        {
+          "title": "Known issues",
+          "kind": "troubleshooting",
+          "pinned": false,
+          "body": "Disk fills"
+        }
+      ]
+    },
+    {
+      "name": "no headings",
+      "fn": "splitNotes",
+      "input": "Just some text\n",
+      "expect": [
+        {
+          "title": "Overview",
+          "kind": "overview",
+          "pinned": true,
+          "body": "Just some text"
+        }
+      ]
+    },
+    {
+      "name": "level-1 only",
+      "fn": "splitNotes",
+      "input": "# Network\nIP 10.0.0.1\n# Contacts\nBob",
+      "expect": [
+        {
+          "title": "Network",
+          "kind": "facts",
+          "pinned": false,
+          "body": "IP 10.0.0.1"
+        },
+        {
+          "title": "Contacts",
+          "kind": "contact",
+          "pinned": false,
+          "body": "Bob"
+        }
+      ]
+    },
+    {
+      "name": "level-2 wins over level-1",
+      "fn": "splitNotes",
+      "input": "# Server\n## Specs\n8GB\n## How to restart\nrun x",
+      "expect": [
+        {
+          "title": "Overview",
+          "kind": "overview",
+          "pinned": true,
+          "body": "# Server"
+        },
+        {
+          "title": "Specs",
+          "kind": "facts",
+          "pinned": false,
+          "body": "8GB"
+        },
+        {
+          "title": "How to restart",
+          "kind": "procedure",
+          "pinned": false,
+          "body": "run x"
+        }
+      ]
+    },
+    {
+      "name": "heading inside code fence",
+      "fn": "splitNotes",
+      "input": "## Setup\n```\n## not a heading\n```\nend",
+      "expect": [
+        {
+          "title": "Setup",
+          "kind": "facts",
+          "pinned": false,
+          "body": "```\n## not a heading\n```\nend"
+        }
+      ]
+    },
+    {
+      "name": "blank section dropped",
+      "fn": "splitNotes",
+      "input": "## Empty\n\n## Next\nx",
+      "expect": [
+        {
+          "title": "Next",
+          "kind": "facts",
+          "pinned": false,
+          "body": "x"
+        }
+      ]
+    },
+    {
+      "name": "whole words only",
+      "fn": "splitNotes",
+      "input": "## Fixtures list\na\n## How-to: restart\nb",
+      "expect": [
+        {
+          "title": "Fixtures list",
+          "kind": "facts",
+          "pinned": false,
+          "body": "a"
+        },
+        {
+          "title": "How-to: restart",
+          "kind": "procedure",
+          "pinned": false,
+          "body": "b"
+        }
+      ]
+    },
+    {
+      "name": "explicit overview heading is pinned",
+      "fn": "splitNotes",
+      "input": "## Overview\nabc\n## Wifi\nkey",
+      "expect": [
+        {
+          "title": "Overview",
+          "kind": "overview",
+          "pinned": true,
+          "body": "abc"
+        },
+        {
+          "title": "Wifi",
+          "kind": "facts",
+          "pinned": false,
+          "body": "key"
+        }
+      ]
+    },
+    {
+      "name": "only first overview pinned",
+      "fn": "splitNotes",
+      "input": "pre\n## Summary\nabc",
+      "expect": [
+        {
+          "title": "Overview",
+          "kind": "overview",
+          "pinned": true,
+          "body": "pre"
+        },
+        {
+          "title": "Summary",
+          "kind": "overview",
+          "pinned": false,
+          "body": "abc"
+        }
+      ]
+    },
+    {
+      "name": "contact checked before troubleshooting",
+      "fn": "splitNotes",
+      "input": "## Vendor issues\nx",
+      "expect": [
+        {
+          "title": "Vendor issues",
+          "kind": "contact",
+          "pinned": false,
+          "body": "x"
+        }
+      ]
+    },
+    {
+      "name": "crlf",
+      "fn": "splitNotes",
+      "input": "a\r\n## B\r\nc\r\n",
+      "expect": [
+        {
+          "title": "Overview",
+          "kind": "overview",
+          "pinned": true,
+          "body": "a"
+        },
+        {
+          "title": "B",
+          "kind": "facts",
+          "pinned": false,
+          "body": "c"
+        }
+      ]
+    },
+    {
+      "name": "empty notes",
+      "fn": "splitNotes",
+      "input": "   \n",
+      "expect": []
+    }
+  ]
+}
