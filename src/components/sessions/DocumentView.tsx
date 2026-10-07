@@ -14,9 +14,11 @@ import { formatSecretRef } from "../../lib/kb";
 interface DocumentViewProps {
   entryId: string;
   isActive: boolean;
+  /** Told whenever the editor gains or loses unsaved changes (article sub-tabs ask before closing). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
+export default function DocumentView({ entryId, isActive, onDirtyChange }: DocumentViewProps) {
   const entry = useEntryStore((s) => s.entries.find((e) => e.id === entryId) ?? s.hiddenEntries.find((e) => e.id === entryId));
   const updateEntry = useEntryStore((s) => s.updateEntry);
   const article = articleOf(entry);
@@ -29,6 +31,7 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isDirty = isEditing && draftContent !== savedContent;
+  useEffect(() => onDirtyChange?.(isDirty), [isDirty, onDirtyChange]);
 
   // Sync draft when saved content changes externally (e.g. after save)
   useEffect(() => {

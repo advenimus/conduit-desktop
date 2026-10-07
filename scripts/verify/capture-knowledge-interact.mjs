@@ -110,6 +110,10 @@ async function flow(ctx, d) {
   await refreshEntries(d);
   await open(d, async (id) => (await import('/src/components/knowledge/kbUi.ts')).openArticle(id), art.id, 'open article');
   await waitForText(d, 'Review what changed?', { timeoutMs: 10_000 });
+  const tabs = await open(d, (id, s) => ({ paneTab: s.session.getState().sessions.some((x) => x.id === id) }), art.id, 'read tabs');
+  const strip = await d.page.evaluate(() => [...document.querySelectorAll('[data-cv-article-tabs] [role=tab]')].filter((t) => t.getClientRects().length > 0).map((t) => t.textContent.trim()));
+  check(!tabs.paneTab && JSON.stringify(strip) === JSON.stringify(['Info', 'Restart']), `the article opened as a sub-tab of the asset's Info tab: ${JSON.stringify({ strip, paneTab: tabs.paneTab })}`);
+  await shot(d, 'article-sub-tab');
   await waitFor(() => clickVisible(d, '[role=status] button', 'Review'), { timeoutMs: 10_000, label: 'Review' });
   await waitForText(d, 'Review changes by', { timeoutMs: 10_000 });
   await shot(d, 'review-before-undo');
@@ -119,6 +123,17 @@ async function flow(ctx, d) {
     return e.config.content === '1. restart nginx' ? e : null;
   }, { timeoutMs: 10_000, label: 'undo applied' }).catch(() => invoke(d, 'entry_get', { id: art.id }));
   check(after.config.content === '1. restart nginx', `Undo restored the reviewed text: ${after.config.content}`);
+
+  // 5b. The kind picker shows the new kind at once and saves it.
+  await d.page.evaluate(() => {
+    const sel = [...document.querySelectorAll('select[aria-label="Kind"]')].find((x) => x.getClientRects().length > 0);
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(sel, 'troubleshooting');
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await sleep(300);
+  const kindShown = await d.page.evaluate(() => [...document.querySelectorAll('select[aria-label="Kind"]')].find((x) => x.getClientRects().length > 0)?.value);
+  const kindStored = (await invoke(d, 'entry_get', { id: art.id })).config.kb.kind;
+  check(kindShown === 'troubleshooting' && kindStored === 'troubleshooting', `the kind picker kept the new kind (shown ${kindShown}, saved ${kindStored})`);
 
   // 6. Edit the article in the document view with a !!secret!!; it saves as a chip.
   await clickText(d, 'Edit', { exact: true, selector: 'button' });

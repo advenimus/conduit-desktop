@@ -11,6 +11,7 @@ import ReviewChangesDialog from "./ReviewChangesDialog";
 import { editorLabel, KIND_META } from "./kbUi";
 import { kbCall } from "./kbActions";
 import { useSessionStore } from "../../stores/sessionStore";
+import { useArticleTabsStore } from "../../stores/articleTabsStore";
 
 /** The strip above a knowledge article: where it belongs, its kind, verification, history and review. */
 export default function ArticleHeader({ entry, kb }: { entry: EntryMeta; kb: KbMeta }) {
@@ -29,6 +30,7 @@ export default function ArticleHeader({ entry, kb }: { entry: EntryMeta; kb: KbM
     setDialog(null);
     if ((await kbCall("kb_delete", { id: entry.id }, "Couldn't delete the article")) !== null) {
       useSessionStore.getState().removeSession(entry.id);
+      useArticleTabsStore.getState().closeEverywhere(entry.id);
       toast.success("Article deleted");
     }
   };

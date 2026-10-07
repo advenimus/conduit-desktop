@@ -7,6 +7,7 @@ import ArticleRow from "./ArticleRow";
 import NewArticleDialog from "./NewArticleDialog";
 import { contentOf, KIND_META, NEW_ARTICLE_KINDS, openArticle } from "./kbUi";
 import { useKnowledge } from "./useKnowledge";
+import { entryInfoSessionId, folderViewSessionId } from "../../lib/dashboardSessions";
 
 type PanelTarget = { entryId: string } | { folderId: string };
 
@@ -15,6 +16,7 @@ const OVERVIEW_PREVIEW_CHARS = 1200;
 /** The Knowledge list on an asset or folder page: own articles by kind, then inherited ones. */
 export default function KnowledgePanel({ target }: { target: PanelTarget }) {
   const kbTarget = "entryId" in target ? { entry_id: target.entryId } : { folder_id: target.folderId };
+  const host = "entryId" in target ? entryInfoSessionId(target.entryId) : folderViewSessionId(target.folderId);
   const items = useKnowledge(kbTarget);
   const folders = useEntryStore((s) => s.folders);
   const ownGroup = "entryId" in target ? "asset" : "folder";
@@ -55,7 +57,7 @@ export default function KnowledgePanel({ target }: { target: PanelTarget }) {
 
       {overview && (
         <div className="mb-3 rounded border border-card-border bg-well px-3 py-2">
-          <button type="button" className="mb-1 flex items-center gap-1.5 text-label text-ink-muted hover:text-ink" onClick={() => openArticle(overview.entry.id)}>
+          <button type="button" className="mb-1 flex items-center gap-1.5 text-label text-ink-muted hover:text-ink" onClick={() => openArticle(overview.entry.id, host)}>
             <IconSlot icon="pinFilled" size={12} />
             {overview.entry.name}
           </button>
@@ -67,7 +69,7 @@ export default function KnowledgePanel({ target }: { target: PanelTarget }) {
         <section key={kind} className="mb-2">
           <h4 className="px-2 text-meta font-semibold uppercase tracking-wide text-ink-faint">{KIND_META[kind].plural}</h4>
           {list.map((i) => (
-            <ArticleRow key={i.entry.id} entry={i.entry} kb={i.kb} />
+            <ArticleRow key={i.entry.id} entry={i.entry} kb={i.kb} host={host} />
           ))}
         </section>
       ))}
@@ -86,7 +88,7 @@ export default function KnowledgePanel({ target }: { target: PanelTarget }) {
           </button>
           {showInherited &&
             inherited.map((i) => (
-              <ArticleRow key={i.entry.id} entry={i.entry} kb={i.kb} context={i.group === "folder" ? folderName(i.folder_id) : "Vault"} />
+              <ArticleRow key={i.entry.id} entry={i.entry} kb={i.kb} host={host} context={i.group === "folder" ? folderName(i.folder_id) : "Vault"} />
             ))}
         </section>
       )}
@@ -97,6 +99,7 @@ export default function KnowledgePanel({ target }: { target: PanelTarget }) {
           entryId={"entryId" in target ? target.entryId : undefined}
           folderId={"folderId" in target ? target.folderId : undefined}
           initialKind={newKind}
+          host={host}
           onClose={() => setNewKind(null)}
         />
       )}

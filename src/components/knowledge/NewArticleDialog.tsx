@@ -13,10 +13,12 @@ interface NewArticleDialogProps {
   entryId?: string;
   folderId?: string;
   initialKind?: KbKind;
+  /** The dashboard tab to open the new article in; its owner's tab when left out. */
+  host?: string;
   onClose: () => void;
 }
 
-export default function NewArticleDialog({ scope, entryId, folderId, initialKind = "procedure", onClose }: NewArticleDialogProps) {
+export default function NewArticleDialog({ scope, entryId, folderId, initialKind = "procedure", host, onClose }: NewArticleDialogProps) {
   const [kind, setKind] = useState<KbKind>(initialKind);
   const [title, setTitle] = useState(initialKind === "overview" ? "Overview" : "");
   const [busy, setBusy] = useState(false);
@@ -34,7 +36,7 @@ export default function NewArticleDialog({ scope, entryId, folderId, initialKind
         content: TEMPLATES[kind],
       });
       await loadAll();
-      openArticle(created.id);
+      openArticle(created.id, host);
       onClose();
     } catch (err) {
       toast.error(errorText(err, "Couldn't create the article"));

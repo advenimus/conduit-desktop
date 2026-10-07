@@ -3,6 +3,7 @@ import { hasUnseenAgentEdit, isStale, readKb, type KbKind } from "../../lib/kb";
 import { useEntryStore } from "../../stores/entryStore";
 import { Button, SearchInput, Select } from "../ui";
 import ArticleRow from "./ArticleRow";
+import { KNOWLEDGE_SESSION_ID } from "../../lib/dashboardSessions";
 import NewArticleDialog from "./NewArticleDialog";
 import { contentOf, KIND_META, type ArticleItem } from "./kbUi";
 
@@ -78,7 +79,7 @@ export default function VaultKnowledgeView() {
             <h3 className="mb-1 text-body font-semibold text-ink">Needs review ({needsReview.length})</h3>
             <p className="mb-2 text-label text-ink-muted">Agent edits you have not looked at, and articles flagged as out of date.</p>
             {needsReview.slice(0, 8).map((a) => (
-              <ArticleRow key={a.entry.id} entry={a.entry} kb={a.kb} context={contextOf(a)} />
+              <ArticleRow key={a.entry.id} entry={a.entry} kb={a.kb} context={contextOf(a)} host={KNOWLEDGE_SESSION_ID} />
             ))}
             {needsReview.length > 8 && (
               <Button variant="link" onClick={() => setState("review")}>
@@ -128,11 +129,11 @@ export default function VaultKnowledgeView() {
             {articles.length === 0 ? "No knowledge yet. Agents add articles as they work on your assets." : "No articles match."}
           </p>
         ) : (
-          listed.map((a) => <ArticleRow key={a.entry.id} entry={a.entry} kb={a.kb} context={contextOf(a)} />)
+          listed.map((a) => <ArticleRow key={a.entry.id} entry={a.entry} kb={a.kb} context={contextOf(a)} host={KNOWLEDGE_SESSION_ID} />)
         )}
       </div>
 
-      {creating && <NewArticleDialog scope="vault" initialKind="playbook" onClose={() => setCreating(false)} />}
+      {creating && <NewArticleDialog scope="vault" initialKind="playbook" host={KNOWLEDGE_SESSION_ID} onClose={() => setCreating(false)} />}
     </div>
   );
 }

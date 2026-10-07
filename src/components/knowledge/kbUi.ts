@@ -1,9 +1,11 @@
 import type { SemanticIconName } from "../../lib/icons/types";
 import { readKb, type KbKind, type KbMeta } from "../../lib/kb";
 import type { EntryMeta } from "../../types/entry";
-import { useSessionStore } from "../../stores/sessionStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { focusSession } from "../../lib/focusSession";
+import { useArticleTabsStore } from "../../stores/articleTabsStore";
+import { openDashboardForEntry, openFolderView, openKnowledgeView } from "../../lib/openDashboard";
+import { KNOWLEDGE_SESSION_ID, entryInfoSessionId, folderViewSessionId } from "../../lib/dashboardSessions";
 
 export const KIND_META: Readonly<Record<KbKind, { label: string; plural: string; icon: SemanticIconName }>> = {
   overview: { label: "Overview", plural: "Overview", icon: "infoCircle" },
@@ -48,14 +50,26 @@ export function contentOf(entry: EntryMeta): string {
   return typeof c === "string" ? c : "";
 }
 
-/** Opens an article in a document tab (the article header shows above the body). */
-export function openArticle(id: string): void {
-  const { sessions, addSession } = useSessionStore.getState();
-  if (sessions.some((s) => s.id === id)) {
-    focusSession(id);
-    return;
+/** The dashboard tab an article belongs in when it is opened from outside one: its asset, folder, or the Knowledge page. */
+function ownerHost(entry: EntryMeta): string {
+  const kb = readKb(entry.config);
+  if (kb?.scope === "asset" && entry.parent_entry_id && useEntryStore.getState().entries.some((e) => e.id === entry.parent_entry_id)) {
+    openDashboardForEntry(entry.parent_entry_id);
+    return entryInfoSessionId(entry.parent_entry_id);
   }
+  if (kb?.scope === "folder" && entry.folder_id) {
+    openFolderView(entry.folder_id);
+    return folderViewSessionId(entry.folder_id);
+  }
+  openKnowledgeView();
+  return KNOWLEDGE_SESSION_ID;
+}
+
+/** Opens an article as a sub-tab of `host` (the dashboard tab it was opened from), or of its owner's tab. */
+export function openArticle(id: string, host?: string): void {
   const entry = useEntryStore.getState().hiddenEntries.find((e) => e.id === id);
   if (!entry) return;
-  addSession({ id, type: "document", title: entry.name, status: "connected", entryId: id });
+  const target = host ?? ownerHost(entry);
+  useArticleTabsStore.getState().openTab(target, id);
+  focusSession(target);
 }

@@ -6,10 +6,12 @@ import { editorLabel, KIND_META, openArticle, type ArticleItem } from "./kbUi";
 interface ArticleRowProps extends ArticleItem {
   /** Shown before the title, e.g. the folder an inherited article comes from. */
   context?: string | null;
+  /** The dashboard tab to open the article in; its owner's tab when left out. */
+  host?: string;
 }
 
 /** One article in a Knowledge list: kind, title, summary, who edited it when, and its state. */
-export default function ArticleRow({ entry, kb, context }: ArticleRowProps) {
+export default function ArticleRow({ entry, kb, context, host }: ArticleRowProps) {
   // A change log changes every time something is logged; it is not something to review.
   const unseen = kb.kind !== "changelog" && hasUnseenAgentEdit(kb);
   const stale = isStale(kb, entry.updated_at, new Date().toISOString());
@@ -17,7 +19,7 @@ export default function ArticleRow({ entry, kb, context }: ArticleRowProps) {
   return (
     <button
       type="button"
-      onClick={() => openArticle(entry.id)}
+      onClick={() => openArticle(entry.id, host)}
       className="flex w-full items-start gap-2.5 rounded px-2 py-1.5 text-left hover:bg-hover"
       data-cv-kb-article={entry.id}
     >

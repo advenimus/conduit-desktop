@@ -3,6 +3,7 @@ import { effectiveFolderId, folderChain, readKb } from "../../lib/kb";
 import { useEntryStore } from "../../stores/entryStore";
 import ArticleRow from "./ArticleRow";
 import KnowledgePanel from "./KnowledgePanel";
+import { folderViewSessionId } from "../../lib/dashboardSessions";
 
 const RECENT_LEARNINGS = 6;
 
@@ -38,7 +39,7 @@ export default function FolderKnowledgeSection({ folderId, assetCount }: { folde
         <div className="mt-3 border-t border-divider pt-2">
           <h4 className="px-2 text-meta font-semibold uppercase tracking-wide text-ink-faint">Recent agent learnings here</h4>
           {recent.map((a) => (
-            <ArticleRow key={a.entry.id} entry={a.entry} kb={a.kb} context={assetName(a.entry.parent_entry_id)} />
+            <ArticleRow key={a.entry.id} entry={a.entry} kb={a.kb} context={assetName(a.entry.parent_entry_id)} host={folderViewSessionId(folderId)} />
           ))}
         </div>
       )}

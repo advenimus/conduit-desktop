@@ -143,7 +143,8 @@ A structured memory that agents and the user build up about every asset. Data co
 - Sidebar: a small count badge on assets and folders with articles, with a dot when agent edits wait for review; right-click menu "Add Knowledge Article"
 
 ### Article view, history and review
-- Articles open in a document tab with a header: where it lives, kind picker, last editor, Mark verified, pin, History, and Archive / Flag as needs review / Delete
+- Articles open as sub-tabs inside the tab they were opened from, like browser tabs: an asset's Info tab, a folder's tab, or the Knowledge page (opened from Home or the review queue, they go to their asset's, folder's or the Knowledge tab). The dashboard stays the first sub-tab, each article tab can be closed, unsaved edits are kept while switching and confirmed before closing, and closing the dashboard tab forgets its articles
+- Each article has a header: where it lives, kind picker, last editor, Mark verified, pin, History, and Archive / Flag as needs review / Delete
 - Every content save keeps a revision (the last 20, plus the review baseline). History shows each revision with who saved it and why, a line diff against the current text, and Restore
 - Agent edits save at once and show a banner: Review opens a diff against the last reviewed version, then Keep or Undo (Archive for an agent-made article nobody reviewed)
 - Articles not verified in 90 days are marked as not checked

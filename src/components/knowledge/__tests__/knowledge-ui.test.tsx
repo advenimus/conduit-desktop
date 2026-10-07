@@ -8,6 +8,7 @@ vi.mock("../../../lib/electron", () => ({
 
 const { useEntryStore } = await import("../../../stores/entryStore");
 const { useSessionStore } = await import("../../../stores/sessionStore");
+const { useArticleTabsStore } = await import("../../../stores/articleTabsStore");
 const { invoke } = await import("../../../lib/electron");
 const { default: KnowledgePanel } = await import("../KnowledgePanel");
 const { default: VaultKnowledgeView } = await import("../VaultKnowledgeView");
@@ -67,10 +68,11 @@ describe("KnowledgePanel", () => {
     expect(screen.queryByText("Old")).not.toBeInTheDocument();
   });
 
-  it("opens an article in a document tab", () => {
+  it("opens an article as a sub-tab of the asset's Info tab, not a new pane tab", () => {
     render(<KnowledgePanel target={{ entryId: "a1" }} />);
     fireEvent.click(screen.getByText("Restart steps"));
-    expect(useSessionStore.getState().sessions.map((s) => [s.id, s.type])).toEqual([["k2", "document"]]);
+    expect(useSessionStore.getState().sessions).toEqual([]);
+    expect(useArticleTabsStore.getState().byHost["dashboard::a1"]).toEqual({ open: ["k2"], active: "k2" });
   });
 });
 
