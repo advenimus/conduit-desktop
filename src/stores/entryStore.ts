@@ -414,10 +414,9 @@ export const useEntryStore = create<EntryState>((set, get) => ({
         entries: state.entries.map((e) => (e.id === id ? entry : e)),
         hiddenEntries: state.hiddenEntries.map((e) => (e.id === id ? entry : e)),
       }));
-      if (secrets_converted) {
-        announceConverted(secrets_converted);
-        void get().loadAll();
-      }
+      announceConverted(secrets_converted);
+      // Saving text can create secrets or change which ones are in use; both live in hiddenEntries.
+      if (secrets_converted || updates.notes !== undefined || updates.config !== undefined) void get().loadAll();
       if (entry.entry_type === "credential") {
         useVaultStore.getState().loadCredentials();
       }

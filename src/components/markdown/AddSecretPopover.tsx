@@ -53,6 +53,8 @@ export default function AddSecretPopover({ ownerId, onInsert }: AddSecretPopover
           className="w-72 space-y-2 p-2"
           onSubmit={(e) => {
             e.preventDefault();
+            // React bubbles events through the portal; without this the entry dialog's form submits too.
+            e.stopPropagation();
             if (value) void save(false);
           }}
         >
