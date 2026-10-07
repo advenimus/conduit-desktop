@@ -93,6 +93,21 @@ function waitUpToDate(ctx, device) {
 }
 
 /** Files called `name` under `root`; symlinks are not followed (launcher/mcp points into the repo). */
+/** Files under `root` (any depth) whose bytes contain `needle`; skips files over 64 MB. */
+function filesContaining(root, needle) {
+  const hits = [];
+  const bytes = Buffer.from(needle, 'utf8');
+  const walk = (dir) => {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, ent.name);
+      if (ent.isDirectory()) walk(full);
+      else if (ent.isFile() && fs.statSync(full).size < 64 * 1024 * 1024 && fs.readFileSync(full).includes(bytes)) hits.push(full);
+    }
+  };
+  walk(root);
+  return hits;
+}
+
 function findFiles(root, name) {
   const found = [];
   const walk = (dir) => {
@@ -201,6 +216,9 @@ async function writesSync(ctx) {
     return e.notes === notes && d.name === docName && d.config?.content === docV2 && sec.ok && sec.value?.password === 'mcp-verify-secret';
   }, { timeoutMs: SYNC_DEADLINE_MS, intervalMs: 500, label: 'm3b receives the MCP notes, the encrypted secret and the document' });
   ctx.step(`m3b received all four MCP writes ${((Date.now() - wroteAt) / 1000).toFixed(1)} s after the last one`);
+  // The value lives only in an encrypted column: no vault file, working copy, journal or log holds it.
+  const leaks = [ctx.cloudDir, a.dataDir, b.dataDir].flatMap((root) => filesContaining(root, 'mcp-verify-secret'));
+  ctx.checkEqual(leaks, [], 'no file in the cloud folder or either device\'s data holds the secret value in plain text');
   await flows.refreshEntries(b);
   await setSidebar(b, 'docked');
   await ui.waitForText(b, docName, { timeoutMs: 15_000 });
