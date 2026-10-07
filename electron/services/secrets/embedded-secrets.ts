@@ -61,10 +61,21 @@ export function createPlannedSecrets(vault: SecretVault, ownerId: string, planne
   }
 }
 
-export function createEmbeddedSecret(vault: SecretVault, ownerId: string, label: string, value: string): { id: string; ref: string } {
+export function createEmbeddedSecret(
+  vault: SecretVault,
+  ownerId: string,
+  label: string,
+  value: string,
+  { unusedUntilSaved = false }: { unusedUntilSaved?: boolean } = {},
+): { id: string; ref: string } {
   const clean = sanitizeLabel(label) || 'Secret';
   const id = uuidv4();
   createPlannedSecrets(vault, ownerId, [{ id, label: clean, value }]);
+  // An editor inserts the chip into unsaved text; until that text is saved nothing links to it.
+  if (unusedUntilSaved) {
+    const meta = vault.getEntryMeta(id);
+    vault.updateEntry(id, { config: { ...meta.config, embedded: { ...readEmbedded(meta.config)!, orphaned_at: new Date().toISOString() } } });
+  }
   return { id, ref: formatSecretRef(id, clean) };
 }
 
@@ -72,12 +83,18 @@ export function ownedSecrets(vault: SecretVault, ownerId: string): EntryMeta[] {
   return vault.listEntries().filter((e) => e.entry_type === 'credential' && readEmbedded(e.config)?.owner_id === ownerId);
 }
 
+/** Every secret id linked from notes, document/article bodies or article history (3.3). */
 function allReferencedIds(vault: SecretVault): Set<string> {
   const ids = new Set<string>();
+  const add = (text: unknown) => {
+    if (typeof text === 'string') for (const id of referencedSecretIds(text)) ids.add(id);
+  };
   for (const e of vault.listEntries()) {
-    for (const text of [e.notes, e.config?.content]) {
-      if (typeof text === 'string') for (const id of referencedSecretIds(text)) ids.add(id);
-    }
+    add(e.notes);
+    add(e.config?.content);
+    // A revision can be restored, so a secret it links to is still in use.
+    const history = e.config?.kb_history;
+    if (Array.isArray(history)) for (const rev of history) add((rev as { content?: unknown })?.content);
   }
   return ids;
 }
@@ -106,12 +123,17 @@ export function cleanupOrphans(vault: SecretVault, ownerId: string): number {
 }
 
 /** Converts notes/content in an update to an existing entry, then saves it. */
-export function updateWithSecrets(vault: SecretVault, id: string, input: UpdateEntryInput): { entry: EntryMeta; converted: number } {
+export function updateWithSecrets(
+  vault: SecretVault,
+  id: string,
+  input: UpdateEntryInput,
+  { checkOrphans = true }: { checkOrphans?: boolean } = {},
+): { entry: EntryMeta; converted: number } {
   if (input.notes === undefined && input.config === undefined) return { entry: vault.updateEntry(id, input), converted: 0 };
   const { input: next, planned } = planFieldConversion(input);
   createPlannedSecrets(vault, id, planned);
   const entry = vault.updateEntry(id, next);
-  refreshOrphans(vault, id);
+  if (checkOrphans) refreshOrphans(vault, id);
   return { entry, converted: planned.length };
 }
 
@@ -201,7 +223,8 @@ export function encryptAllPlaintext(vault: SecretVault): EncryptAllResult {
   for (const e of vault.listEntries()) {
     const { planned } = planFieldConversion({ notes: e.notes, config: e.config });
     if (planned.length === 0) continue;
-    const { converted } = updateWithSecrets(vault, e.id, { notes: e.notes, config: e.config });
+    // Converting only adds refs, so no secret becomes unused; skipping the vault-wide orphan scan keeps this linear.
+    const { converted } = updateWithSecrets(vault, e.id, { notes: e.notes, config: e.config }, { checkOrphans: false });
     entries++;
     secrets += converted;
   }

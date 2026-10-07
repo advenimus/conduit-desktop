@@ -580,6 +580,19 @@ function linkImportedEntries(vault: ConduitVault, entries: ExportEntry[], idMap:
       const content = remapRefs(config.content);
       if (content !== config.content) config = { ...config, content };
     }
+    // Undo and restore bring revision text back, so its refs must point at the new ids too.
+    if (Array.isArray(config.kb_history)) {
+      const history = config.kb_history as Array<{ content?: unknown } | null>;
+      let changed = false;
+      const remapped = history.map((rev) => {
+        if (typeof rev?.content !== 'string') return rev;
+        const next = remapRefs(rev.content);
+        if (next === rev.content) return rev;
+        changed = true;
+        return { ...rev, content: next };
+      });
+      if (changed) config = { ...config, kb_history: remapped };
+    }
     const embedded = config.embedded as { owner_id?: string; pending_for?: string } | undefined;
     if (embedded && typeof embedded === 'object') {
       const owner = embedded.owner_id ? mapped(embedded.owner_id) : undefined;

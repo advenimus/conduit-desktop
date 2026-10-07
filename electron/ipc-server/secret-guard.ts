@@ -115,7 +115,8 @@ export async function guardSecrets(
   const prepared = substitutePayload(request, state);
   if (!prepared.ok) return prepared.response;
   const response = await next(prepared.request);
-  if (response.type !== 'Success' || !SCRUBBED.has(request.type)) return response;
+  // Errors are scrubbed too: some quote the substituted input (a busy terminal names its running command).
+  if (response.type === 'Success' && !SCRUBBED.has(request.type)) return response;
   const vault = unlockedVault(state);
   return vault ? { ...response, payload: scrubber.scrubDeep(vault, response.payload) } : response;
 }

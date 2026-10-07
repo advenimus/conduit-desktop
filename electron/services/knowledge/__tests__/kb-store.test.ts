@@ -63,6 +63,14 @@ describe('articles', () => {
     expect(readKb(updated.config)!.summary).toBe('now ••••');
   });
 
+  it('keeps a derived summary in step with the body, but not one someone wrote', () => {
+    const a = asset('sum-01');
+    const derived = createArticle(vault, { scope: 'asset', entry_id: a.id, title: 'D', kind: 'facts', content: 'first line\nmore' }, me);
+    expect(readKb(updateArticle(vault, derived.id, { content: 'new first line' }, me).config)!.summary).toBe('new first line');
+    const written = createArticle(vault, { scope: 'asset', entry_id: a.id, title: 'W', kind: 'facts', content: 'body', summary: 'My summary' }, me);
+    expect(readKb(updateArticle(vault, written.id, { content: 'other body' }, me).config)!.summary).toBe('My summary');
+  });
+
   it('rejects bad placement', () => {
     expect(() => createArticle(vault, { scope: 'folder', folder_id: 'nope', title: 't', kind: 'facts', content: '' }, me)).toThrow(/folder/);
     expect(() => createArticle(vault, { scope: 'asset', title: 't', kind: 'facts', content: '' }, me)).toThrow(/entry_id/);

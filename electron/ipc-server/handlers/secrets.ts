@@ -10,6 +10,7 @@ import {
   type SecretVault,
 } from '../../services/secrets/embedded-secrets.js';
 import { generateSecret, type GenerateOptions } from '../../services/secrets/secret-generate.js';
+import { execRegexWithTimeout, RegexTimeoutError } from '../../services/secrets/safe-regex.js';
 import { agentDisplayName } from '../agent-names.js';
 import { notifyRendererEntryChanged, resolveEntryId } from '../entry-helpers.js';
 import { errorResponse, successResponse, type IpcResponse } from '../ipc-response.js';
@@ -51,14 +52,19 @@ function ownerIdOf(payload: Record<string, unknown>, state: AppState): string {
 async function captureValue(payload: Record<string, unknown>, state: AppState): Promise<string> {
   const sessionId = typeof payload.connection_id === 'string' ? payload.connection_id : '';
   if (typeof payload.pattern === 'string' && payload.pattern) {
-    let re: RegExp;
     try {
-      re = new RegExp(payload.pattern, 'm');
+      new RegExp(payload.pattern, 'm');
     } catch (e) {
       throw new BadRequest(`pattern is not a valid regular expression: ${(e as Error).message}`);
     }
     const screen = await state.terminalManager.readScreen(sessionId, CAPTURE_SCREEN_LINES);
-    const match = re.exec(screen.lines.join('\n'));
+    let match: string[] | null;
+    try {
+      match = await execRegexWithTimeout(payload.pattern, 'm', screen.lines.join('\n'));
+    } catch (e) {
+      if (e instanceof RegexTimeoutError) throw new BadRequest(e.message);
+      throw e;
+    }
     if (!match) throw new BadRequest('pattern matched nothing on the terminal screen.');
     return (match[1] ?? match[0]).trim();
   }

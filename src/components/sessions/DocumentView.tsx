@@ -9,6 +9,7 @@ import AddSecretPopover from "../markdown/AddSecretPopover";
 import ArticleHeader from "../knowledge/ArticleHeader";
 import { articleOf } from "../knowledge/kbUi";
 import { kbCall } from "../knowledge/kbActions";
+import { formatSecretRef } from "../../lib/kb";
 
 interface DocumentViewProps {
   entryId: string;
@@ -59,7 +60,7 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
       const at = ta?.selectionStart ?? draftContent.length;
       const lineStart = draftContent.lastIndexOf("\n", at - 1) + 1;
       const inTable = draftContent.slice(lineStart).trimStart().startsWith("|");
-      const ref = inTable ? `{{secret:${id}}}` : `{{secret:${id}|${label.replace(/[{}|\r\n]/g, " ")}}}`;
+      const ref = formatSecretRef(id, inTable ? null : label);
       setDraftContent(draftContent.slice(0, at) + ref + draftContent.slice(ta?.selectionEnd ?? at));
     },
     [draftContent]

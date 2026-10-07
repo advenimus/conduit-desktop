@@ -344,7 +344,7 @@ export function registerEntryHandlers(): void {
       }
     }
 
-    const { entry, converted } = createWithSecrets(state.getActiveVault(), {
+    const entry = state.getActiveVault().createEntry({
       name: args.name,
       entry_type: args.connection_type as 'ssh' | 'rdp' | 'vnc' | 'web',
       host: args.host,

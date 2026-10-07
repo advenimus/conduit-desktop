@@ -160,8 +160,10 @@ The label comes from the text before the span, on the same line:
 
 ### 3.3 Orphans
 
-A secret is **referenced** when any entry's `notes` or `config.content` in the vault contains a
-secret ref with its id. After each save, the app checks the owner's embedded secrets:
+A secret is **referenced** when any entry's `notes`, `config.content` or the `content` of any
+revision in its `config.kb_history` contains a secret ref with its id. (A revision can be restored,
+so a secret it links to is still in use.) A secret an editor creates for text that is not saved yet
+may start with `orphaned_at` set; the save clears it. After each save, the app checks the owner's embedded secrets:
 
 - referenced and `orphaned_at` set → clear `orphaned_at`;
 - not referenced and `orphaned_at` not set → set `orphaned_at` to now.

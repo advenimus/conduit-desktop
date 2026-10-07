@@ -38,8 +38,9 @@ import { defaultPort, notifyRendererEntryChanged, resolveEntryId } from './entry
 import { handleSecretRequest, SECRET_REQUEST_TYPES } from './handlers/secrets.js';
 import { handleKnowledgeRequest, KNOWLEDGE_REQUEST_TYPES } from './handlers/knowledge.js';
 import { knowledgeBlock } from '../services/knowledge/kb-query.js';
-import type { KbVault } from '../services/knowledge/kb-store.js';
-import { isHiddenEntry } from '../services/knowledge/kb-model.js';
+import { updateArticle, type KbVault } from '../services/knowledge/kb-store.js';
+import { isHiddenEntry, isKbArticle } from '../services/knowledge/kb-model.js';
+import { agentDisplayName } from './agent-names.js';
 import { credentialGetResponse } from './credential-reveal.js';
 import { createWithSecrets, updateWithSecrets } from '../services/secrets/embedded-secrets.js';
 import type { AgentIdentity, SessionOwner } from './session-claims.js';
@@ -1637,6 +1638,17 @@ async function dispatchRequest(
           const existing = vault.getEntryMeta(resolvedId);
           if (existing.entry_type !== 'document') {
             return errorResponse('INVALID_TYPE', 'Entry is not a document type');
+          }
+          if (isKbArticle(existing)) {
+            // Articles keep a revision for every agent edit so the user can review and undo it.
+            const editor = { kind: 'agent' as const, name: agentDisplayName(agent) };
+            const article = vault.runNonInteractive(() => updateArticle(vault as unknown as KbVault, resolvedId, {
+              content,
+              ...(newName ? { title: newName } : {}),
+              reason: 'Edited with document_update',
+            }, editor));
+            notifyRendererEntryChanged();
+            return successResponse({ id: article.id, name: article.name, updated_at: article.updated_at });
           }
 
           const existingConfig = (existing.config ?? {}) as Record<string, unknown>;

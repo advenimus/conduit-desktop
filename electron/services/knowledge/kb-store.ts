@@ -43,7 +43,8 @@ export interface ArticleChanges {
 const nowIso = () => new Date().toISOString();
 
 // Summaries and titles are stored as plain text, so a !!secret!! in them must never be kept.
-const hideSecretSpans = (text: string) => text.replace(/!!(.+?)!!/g, '••••');
+// Refs are hidden too, so a summary derived before conversion matches one derived after it.
+const hideSecretSpans = (text: string) => text.replace(/!!(.+?)!!|\{\{(?:secret|cred):[^}\n]*\}\}/g, '••••');
 
 function cleanSummary(summary: string | undefined, content: string): string {
   // Derived summaries skip table rows and rules, which read badly on one line.
@@ -138,6 +139,10 @@ export function updateArticle(vault: KbVault, id: string, changes: ArticleChange
     ...(changes.tags !== undefined ? { tags: changes.tags } : {}),
   };
   const current = typeof entry.config.content === 'string' ? entry.config.content : '';
+  // A summary taken from the body's first line follows the body; one someone wrote stays.
+  if (changes.summary === undefined && changes.content !== undefined && kb.summary === cleanSummary(undefined, current)) {
+    nextKb.summary = cleanSummary(undefined, changes.content);
+  }
   if (changes.content !== undefined && changes.content !== current) {
     return saveContent(vault, entry, nextKb, changes.content, editor, changes.reason, extra);
   }

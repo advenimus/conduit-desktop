@@ -5,6 +5,8 @@
 
 import { ipcMain } from 'electron';
 import { AppState } from '../services/state.js';
+import { clearSecretScrubber } from '../ipc-server/secret-guard.js';
+import { onPersonalLocked } from './vault-events.js';
 
 export const REVEAL_REQUEST_EVENT = 'mcp:approval_request';
 export const REVEAL_RESOLVED_EVENT = 'mcp:approval_resolved';
@@ -42,4 +44,10 @@ export function registerApprovalHandlers(): void {
 
   // The renderer asks on mount, so a request that arrived before the dialog loaded is not lost.
   ipcMain.handle('approval_list_pending', async () => state.approvalManager.listPending());
+
+  // A lock drops the scrubber's decrypted values and answers every waiting reveal with Deny.
+  onPersonalLocked(() => {
+    state.approvalManager.denyAll();
+    clearSecretScrubber();
+  });
 }

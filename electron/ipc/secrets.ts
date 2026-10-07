@@ -24,7 +24,7 @@ export function registerSecretHandlers(): void {
 
   ipcMain.handle('secret_create', async (_e, args: { owner_id: string; label: string; value?: string; generate?: GenerateOptions }) => {
     const value = args.generate ? generateSecret(args.generate) : requireText(args.value, 'value');
-    return createEmbeddedSecret(vault(), requireText(args.owner_id, 'owner_id'), args.label ?? '', value);
+    return createEmbeddedSecret(vault(), requireText(args.owner_id, 'owner_id'), args.label ?? '', value, { unusedUntilSaved: true });
   });
 
   ipcMain.handle('secret_rename', async (_e, args: { id: string; label: string }) => {

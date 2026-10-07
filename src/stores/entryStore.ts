@@ -103,6 +103,21 @@ function splitHidden(all: EntryMeta[]): { entries: EntryMeta[]; hiddenEntries: E
   return { entries, hiddenEntries };
 }
 
+function withoutHiddenDescendants(hidden: EntryMeta[], rootId: string): EntryMeta[] {
+  const doomed = new Set([rootId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const e of hidden) {
+      if (e.parent_entry_id && doomed.has(e.parent_entry_id) && !doomed.has(e.id)) {
+        doomed.add(e.id);
+        grew = true;
+      }
+    }
+  }
+  return hidden.filter((e) => !doomed.has(e.id));
+}
+
 function announceConverted(count: number | undefined): void {
   if (count) toast.success(count === 1 ? "1 secret encrypted" : `${count} secrets encrypted`);
 }
@@ -437,8 +452,8 @@ export const useEntryStore = create<EntryState>((set, get) => ({
 
         return {
           entries: updatedEntries,
-          // The server deletes an entry's articles and secrets with it.
-          hiddenEntries: state.hiddenEntries.filter((e) => e.id !== id && e.parent_entry_id !== id),
+          // The server deletes an entry's articles and secrets with it, at any depth.
+          hiddenEntries: withoutHiddenDescendants(state.hiddenEntries, id),
           selectedEntryIds: nextIds,
           selectedEntryId: deriveSingleId(nextIds),
         };

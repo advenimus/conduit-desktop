@@ -3,6 +3,7 @@ import { IconButton, TabPanel, Tabs, type TabItem } from "../ui";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { toolbarActions, type ToolbarAction } from "./markdownToolbar";
 import AddSecretPopover from "./AddSecretPopover";
+import { formatSecretRef } from "../../lib/kb";
 
 type EditorTab = "write" | "preview";
 
@@ -49,7 +50,7 @@ export default function MarkdownEditor({ value, onChange, placeholder = "Write m
       const lineStart = value.lastIndexOf("\n", at - 1) + 1;
       // A label's "|" would split a Markdown table cell.
       const inTable = value.slice(lineStart).trimStart().startsWith("|");
-      const ref = inTable ? `{{secret:${id}}}` : `{{secret:${id}|${label.replace(/[{}|\r\n]/g, " ")}}}`;
+      const ref = formatSecretRef(id, inTable ? null : label);
       onChange(value.slice(0, at) + ref + value.slice(end));
       requestAnimationFrame(() => {
         ta?.focus();

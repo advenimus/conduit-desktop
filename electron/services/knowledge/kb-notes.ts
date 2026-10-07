@@ -22,7 +22,11 @@ export function importNotes(
   editor: KbEditorRef,
 ): EntryMeta[] {
   if (articles.length === 0) throw new KbError('articles must not be empty');
-  for (const a of articles) if (!isKbKind(a.kind)) throw new KbError(`Unknown kind for "${a.title}"`);
+  // Checked before anything is written, so a bad article can't leave a half-finished import behind.
+  for (const a of articles) {
+    if (typeof a.title !== 'string' || !a.title.trim()) throw new KbError('Every article needs a title');
+    if (!isKbKind(a.kind)) throw new KbError(`Unknown kind for "${a.title}"`);
+  }
   const created = articles.map((a) =>
     createArticle(vault, { scope: 'asset', entry_id: entryId, title: a.title, kind: a.kind, content: a.content, summary: a.summary, pinned: a.pinned, reason: 'Moved from notes' }, editor),
   );

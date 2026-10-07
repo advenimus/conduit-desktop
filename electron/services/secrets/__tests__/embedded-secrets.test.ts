@@ -82,6 +82,25 @@ describe('updateWithSecrets', () => {
   });
 });
 
+describe('unused secrets and history', () => {
+  it('keeps a secret that only article history links to', () => {
+    const asset = newAsset('hist-01');
+    const { id, ref } = createEmbeddedSecret(vault, asset.id, 'Old key', 'old-key-value');
+    vault.updateEntry(asset.id, { config: { kb_history: [{ at: '2026-01-01T00:00:00.000Z', author: { kind: 'user' }, content: `key: ${ref}` }] } });
+    updateWithSecrets(vault, asset.id, { notes: 'no links now' });
+    expect(readEmbedded(vault.getEntryMeta(id).config)?.orphaned_at).toBeUndefined();
+    expect(cleanupOrphans(vault, asset.id)).toBe(0);
+  });
+
+  it('marks an editor-made secret unused until its text is saved', () => {
+    const asset = newAsset('draft-01');
+    const { id, ref } = createEmbeddedSecret(vault, asset.id, 'Draft', 'draft-value', { unusedUntilSaved: true });
+    expect(readEmbedded(vault.getEntryMeta(id).config)?.orphaned_at).toBeTruthy();
+    updateWithSecrets(vault, asset.id, { notes: `pw: ${ref}` });
+    expect(readEmbedded(vault.getEntryMeta(id).config)?.orphaned_at).toBeUndefined();
+  });
+});
+
 describe('deleting an owner', () => {
   it('deletes its embedded secrets and keeps normal children', () => {
     const asset = newAsset('to-delete');
