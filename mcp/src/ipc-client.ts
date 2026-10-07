@@ -22,10 +22,9 @@ export type IpcRequest =
   | { type: 'TerminalReadScreen'; payload: { session_id: string; lines: number } }
   | { type: 'LocalShellCreate'; payload: { shell_type: string | null; working_directory: string | null } }
   | { type: 'CredentialList'; payload: Record<string, never> }
-  | { type: 'CredentialGet'; payload: { id: string } }
+  | { type: 'CredentialGet'; payload: { id: string; reveal?: boolean; purpose?: string } }
   | { type: 'CredentialCreate'; payload: { name: string; username: string | null; password: string | null; domain: string | null; private_key: string | null; tags: string[]; credential_type?: string | null; public_key?: string | null; fingerprint?: string | null; totp_secret?: string | null; totp_issuer?: string | null; totp_label?: string | null } }
   | { type: 'CredentialDelete'; payload: { id: string } }
-  | { type: 'RequestCredentialApproval'; payload: { credential_id: string; purpose: string } }
   | { type: 'ConnectionList'; payload: Record<string, never> }
   | { type: 'ConnectionOpen'; payload: { connection_type: string; host: string; port: number; credential_id: string | null; username: string | null; password: string | null; ssh_auth_method?: string | null } }
   | { type: 'ConnectionOpenEntry'; payload: { entry_id: string; ssh_auth_method: string | null } }
@@ -153,6 +152,9 @@ function getSocketPath(): string {
 }
 
 // ---------- IPC Client ----------
+
+// Longer than the app's 60s reveal dialog timeout, so its Deny arrives before ours.
+const REVEAL_WAIT_MS = 75_000;
 
 export class ConduitClient {
   private socketPath: string;
@@ -303,11 +305,10 @@ export class ConduitClient {
     return response as unknown as Record<string, unknown>[];
   }
 
-  async credentialGet(id: string): Promise<Record<string, unknown>> {
-    return this.sendRequest({
-      type: 'CredentialGet',
-      payload: { id },
-    });
+  /** With reveal, the app shows the user a dialog and answers only after Allow, Deny or its timeout. */
+  async credentialGet(id: string, reveal?: { purpose: string }): Promise<Record<string, unknown>> {
+    if (!reveal) return this.sendRequest({ type: 'CredentialGet', payload: { id } });
+    return this.sendRequestWithTimeout({ type: 'CredentialGet', payload: { id, reveal: true, purpose: reveal.purpose } }, REVEAL_WAIT_MS);
   }
 
   async credentialCreate(
@@ -350,13 +351,6 @@ export class ConduitClient {
     });
   }
 
-  async requestCredentialApproval(credentialId: string, purpose: string): Promise<boolean> {
-    const response = await this.sendRequest({
-      type: 'RequestCredentialApproval',
-      payload: { credential_id: credentialId, purpose },
-    });
-    return response.approved as boolean;
-  }
 
   // ---------- Tier info ----------
 

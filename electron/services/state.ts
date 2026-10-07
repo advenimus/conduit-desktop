@@ -35,6 +35,7 @@ import { NetworkLockService } from './vault/network-lock.js';
 import { McpGatekeeper } from './mcp-gatekeeper.js';
 import { CommandExecutor } from './command/executor.js';
 import { NetworkVaultWatcher } from './vault/network-watcher.js';
+import { ApprovalManager } from './reveal-approvals.js';
 
 // ---------- types ----------
 
@@ -57,46 +58,7 @@ export interface McpConnection {
   created_at: number;
 }
 
-// ---------- ApprovalManager ----------
-
-export interface PendingApproval {
-  credentialId: string;
-  credentialName: string;
-  purpose: string;
-  resolve: (approved: boolean) => void;
-}
-
-export interface ApprovalInfo {
-  credential_id: string;
-  credential_name: string;
-  purpose: string;
-}
-
-export class ApprovalManager {
-  private pending: Map<string, PendingApproval> = new Map();
-
-  addPending(requestId: string, approval: PendingApproval): void {
-    this.pending.set(requestId, approval);
-  }
-
-  resolve(requestId: string, approved: boolean): boolean {
-    const approval = this.pending.get(requestId);
-    if (!approval) return false;
-    this.pending.delete(requestId);
-    approval.resolve(approved);
-    return true;
-  }
-
-  getPendingInfo(requestId: string): ApprovalInfo | null {
-    const approval = this.pending.get(requestId);
-    if (!approval) return null;
-    return {
-      credential_id: approval.credentialId,
-      credential_name: approval.credentialName,
-      purpose: approval.purpose,
-    };
-  }
-}
+export { ApprovalManager, type RevealRequestInfo } from './reveal-approvals.js';
 
 // ---------- AppState ----------
 

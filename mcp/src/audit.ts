@@ -33,6 +33,13 @@ export function auditEnv(): AuditEnv {
 }
 
 const SENSITIVE_FIELDS = ['password', 'private_key', 'secret', 'token', 'key'];
+// Free text an agent typed or wrote can hold secrets under any name, so only its size is kept.
+const FREE_TEXT_FIELDS = new Set(['notes', 'content', 'text', 'value', 'command', 'code', 'edits']);
+
+function sizeOf(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.length} items]`;
+  return `[${typeof value === 'string' ? value.length : 0} chars]`;
+}
 
 function redactSensitive(params: unknown): unknown {
   if (params === null || params === undefined) {
@@ -49,6 +56,8 @@ function redactSensitive(params: unknown): unknown {
       const lowerKey = key.toLowerCase();
       if (SENSITIVE_FIELDS.some((f) => lowerKey.includes(f))) {
         result[key] = '[REDACTED]';
+      } else if (FREE_TEXT_FIELDS.has(lowerKey)) {
+        result[key] = sizeOf(value);
       } else {
         result[key] = redactSensitive(value);
       }

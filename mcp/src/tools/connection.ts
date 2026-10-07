@@ -5,6 +5,7 @@
  */
 
 import type { ConduitClient } from '../ipc-client.js';
+import { SECRET_REF_INPUT_HELP } from './secret-help.js';
 import { invalidateRdpScale } from './rdp.js';
 import { invalidateVncScale } from './vnc.js';
 import { invalidateWebScale } from './web.js';
@@ -94,7 +95,7 @@ export function connectionOpenDefinition() {
         },
         password: {
           type: 'string',
-          description: 'Password for authentication (used with username if credential_id is not provided)',
+          description: `Password for authentication (used with username if credential_id is not provided). ${SECRET_REF_INPUT_HELP}`,
         },
         name: {
           type: 'string',

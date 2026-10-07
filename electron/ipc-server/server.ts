@@ -32,6 +32,9 @@ import {
 import { hasConflict, lockedResponse, vaultFailure } from './vault-guard.js';
 import { isMcpHeld, mcpHeldResponse } from './mcp-hold.js';
 import { parseAgentIdentity } from './agent-requests.js';
+import { errorResponse, successResponse, type IpcResponse } from './ipc-response.js';
+import { guardSecrets } from './secret-guard.js';
+import { credentialGetResponse } from './credential-reveal.js';
 import type { AgentIdentity, SessionOwner } from './session-claims.js';
 import {
   openSessionsForEntry,
@@ -44,65 +47,10 @@ import {
 
 // ---------- IPC Protocol Types ----------
 
-/**
- * Must match the protocol in mcp/src/ipc-client.ts and
- * crates/conduit-mcp/src/client.rs exactly.
- */
-interface IpcResponse {
-  type: 'Success' | 'Error';
-  payload: unknown;
-}
-
-function successResponse(payload: unknown): IpcResponse {
-  return { type: 'Success', payload };
-}
-
-function errorResponse(code: string, message: string): IpcResponse {
-  return { type: 'Error', payload: { code, message } };
-}
-
 function terminalErrorResponse(e: unknown): IpcResponse {
   if (e instanceof TerminalError) return errorResponse(e.code, e.message);
   return errorResponse('TERMINAL_ERROR', String(e));
 }
-
-// ---------- Approval Manager ----------
-
-interface PendingApproval {
-  credentialId: string;
-  credentialName: string;
-  purpose: string;
-  resolve: (approved: boolean) => void;
-}
-
-export class ApprovalManager {
-  private pending = new Map<string, PendingApproval>();
-
-  addPending(requestId: string, approval: PendingApproval): void {
-    this.pending.set(requestId, approval);
-  }
-
-  resolve(requestId: string, approved: boolean): boolean {
-    const entry = this.pending.get(requestId);
-    if (!entry) return false;
-    entry.resolve(approved);
-    this.pending.delete(requestId);
-    return true;
-  }
-
-  getPendingInfo(requestId: string): { credentialId: string; credentialName: string; purpose: string } | null {
-    const entry = this.pending.get(requestId);
-    if (!entry) return null;
-    return {
-      credentialId: entry.credentialId,
-      credentialName: entry.credentialName,
-      purpose: entry.purpose,
-    };
-  }
-}
-
-// Singleton approval manager (exported for use by IPC handlers in the renderer)
-export const approvalManager = new ApprovalManager();
 
 // Re-export getSocketPath for consumers that imported from this module
 export { getSocketPath };
@@ -189,7 +137,9 @@ export async function handleRequest(
   }
 
   const agent = parseAgentIdentity(request.agent);
-  return runWithAgentClaims(request, state, agent, () => dispatchRequest(request, state, agent));
+  return runWithAgentClaims(request, state, agent, () =>
+    guardSecrets(request, state, (guarded) => dispatchRequest(guarded, state, agent)),
+  );
 }
 
 async function dispatchRequest(
@@ -316,36 +266,10 @@ async function dispatchRequest(
       }
 
       case 'CredentialGet': {
-        const { id } = request.payload as { id: string };
         if (!state.getActiveVault().isUnlocked()) {
           return lockedResponse(state, 'Vault is locked');
         }
-        try {
-          const cred = state.getActiveVault().getCredential(id);
-          return successResponse({
-            id: cred.id,
-            name: cred.name,
-            username: cred.username,
-            password: cred.password,
-            private_key: cred.private_key,
-            domain: cred.domain,
-            tags: cred.tags,
-            credential_type: cred.credential_type ?? null,
-            public_key: cred.public_key ?? null,
-            fingerprint: cred.fingerprint ?? null,
-            has_totp: !!cred.totp_secret,
-            totp_issuer: cred.totp_issuer ?? null,
-            totp_label: cred.totp_label ?? null,
-            totp_algorithm: cred.totp_algorithm ?? null,
-            totp_digits: cred.totp_digits ?? null,
-            totp_period: cred.totp_period ?? null,
-            created_at: cred.created_at,
-            updated_at: cred.updated_at,
-            has_conflict: hasConflict(state, cred.id),
-          });
-        } catch (e) {
-          return vaultFailure('VAULT_ERROR', e);
-        }
+        return credentialGetResponse(request.payload ?? {}, state, agent);
       }
 
       case 'CredentialCreate': {
@@ -416,58 +340,6 @@ async function dispatchRequest(
         } catch (e) {
           return vaultFailure('VAULT_ERROR', e);
         }
-      }
-
-      case 'RequestCredentialApproval': {
-        const { credential_id, purpose } = request.payload as {
-          credential_id: string;
-          purpose: string;
-        };
-        if (!state.getActiveVault().isUnlocked()) {
-          return lockedResponse(state, 'Vault is locked');
-        }
-
-        // Get credential name for display
-        let credentialName = credential_id;
-        try {
-          const cred = state.getActiveVault().getCredential(credential_id);
-          credentialName = cred.name;
-        } catch {
-          // Use ID as fallback
-        }
-
-        // Create promise for approval response
-        const requestId = randomUUID();
-        const approvalPromise = new Promise<boolean>((resolve) => {
-          approvalManager.addPending(requestId, {
-            credentialId: credential_id,
-            credentialName,
-            purpose,
-            resolve,
-          });
-        });
-
-        // Emit event to renderer to show approval dialog
-        const mainWindow = AppState.getInstance().getMainWindow();
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('mcp:approval_request', {
-            request_id: requestId,
-            credential_id,
-            credential_name: credentialName,
-            purpose,
-          });
-        }
-
-        // Wait with 60s timeout
-        const timeoutPromise = new Promise<boolean>((resolve) => {
-          setTimeout(() => {
-            approvalManager.resolve(requestId, false);
-            resolve(false);
-          }, 60_000);
-        });
-
-        const approved = await Promise.race([approvalPromise, timeoutPromise]);
-        return successResponse({ approved });
       }
 
       // ---- Connection operations ----

@@ -221,8 +221,7 @@ function buildToolRegistry(): Map<string, ToolEntry> {
   // Credentials
   add(credentialListDefinition(), (client) => credentialList(client));
   add(credentialCreateDefinition(), credentialCreate as ToolHandler);
-  add(credentialReadDefinition(), ((client: ConduitClient, args: Record<string, unknown>) =>
-    credentialRead(client, args as { credential_id: string; purpose: string }, true)) as ToolHandler);
+  add(credentialReadDefinition(), credentialRead as ToolHandler);
   add(credentialDeleteDefinition(), credentialDelete as ToolHandler);
 
   // Connections
@@ -385,10 +384,9 @@ async function main(): Promise<void> {
     }
 
     const start = Date.now();
-    const argsSummary = Object.keys(toolArgs).length > 0
-      ? ` ${JSON.stringify(toolArgs)}`
-      : '';
-    process.stderr.write(`[mcp] Tool call: ${toolName}${argsSummary}\n`);
+    // Argument names only: values can hold passwords, notes or typed secrets.
+    const argNames = Object.keys(toolArgs);
+    process.stderr.write(`[mcp] Tool call: ${toolName}${argNames.length ? ` (${argNames.join(', ')})` : ''}\n`);
 
     try {
       const result = await entry.handler(client, toolArgs);

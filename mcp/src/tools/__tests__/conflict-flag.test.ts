@@ -21,7 +21,7 @@ describe('has_conflict from the app reaches the MCP result', () => {
   });
 
   it('credential_read passes has_conflict: true through with the provisional value', async () => {
-    const out = (await credentialRead(makeClient({ ...CREDENTIAL, has_conflict: true }), { credential_id: 'c1', purpose: 'test' }, true)) as Record<
+    const out = (await credentialRead(makeClient({ ...CREDENTIAL, revealed: true, has_conflict: true }), { credential_id: 'c1', reveal: true, purpose: 'test' })) as Record<
       string,
       unknown
     >;
@@ -31,7 +31,7 @@ describe('has_conflict from the app reaches the MCP result', () => {
 
   it('reads false when the app leaves it out or sends something else', async () => {
     const entry = (await entryInfo(makeClient(ENTRY), { entry_id: 'e1' })) as Record<string, unknown>;
-    const credential = (await credentialRead(makeClient({ ...CREDENTIAL, has_conflict: 'yes' }), { credential_id: 'c1', purpose: 'test' }, true)) as Record<
+    const credential = (await credentialRead(makeClient({ ...CREDENTIAL, has_conflict: 'yes' }), { credential_id: 'c1' })) as Record<
       string,
       unknown
     >;

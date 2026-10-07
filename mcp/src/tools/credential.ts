@@ -136,43 +136,51 @@ export function credentialReadDefinition() {
   return {
     name: 'credential_read',
     description:
-      'Retrieve a credential including secrets. REQUIRES USER APPROVAL. ' +
-      'has_conflict is true when devices saved different values and the conflict is not resolved yet; ' +
-      'the values shown are the provisional ones.',
+      'Read a credential without its secret values. You get password_ref (and totp_ref when a one-time password is set up): ' +
+      'put that ref in terminal_execute, terminal_send_keys, rdp_type, vnc_type, website_type, website_fill_input or ' +
+      'connection_open and Conduit types the real value for you. You never need to see a password to use it. ' +
+      'Set reveal: true only when the user truly needs the plain value shown (for example to read it out to them); ' +
+      'Conduit then asks the user to Allow or Deny, and the call fails if they deny or do not answer within a minute. ' +
+      'has_conflict is true when devices saved different values and the conflict is not resolved yet.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         credential_id: { type: 'string', description: 'UUID of the credential' },
+        reveal: {
+          type: 'boolean',
+          description: 'Ask the user to show the plain password and private key (default false)',
+        },
         purpose: {
           type: 'string',
-          description: 'Explanation for why the credential is needed (for user approval)',
+          description: 'Why you need the plain value. Required with reveal; the user reads it before deciding.',
         },
       },
-      required: ['credential_id', 'purpose'],
+      required: ['credential_id'],
     },
   };
 }
 
 export async function credentialRead(
   client: ConduitClient,
-  args: { credential_id: string; purpose: string },
-  approvalGranted = false,
+  args: { credential_id: string; reveal?: boolean; purpose?: string },
 ): Promise<unknown> {
-  // Defense-in-depth: the registry hardcodes approvalGranted=true for the
-  // credential_read tool entry. If this function is ever invoked from another
-  // path that forgets to pass it, block the call so secrets never leak.
-  if (!approvalGranted) {
-    throw new Error('credential_read requires approval — must be called through the approval gate');
+  const reveal = args.reveal === true;
+  if (reveal && !args.purpose?.trim()) {
+    throw new Error('purpose is required with reveal: say why the plain value is needed.');
   }
-  const credential = await client.credentialGet(args.credential_id);
+  const credential = await client.credentialGet(args.credential_id, reveal ? { purpose: args.purpose!.trim() } : undefined);
 
   return {
     id: credential.id,
     name: credential.name,
     username: credential.username ?? null,
-    password: credential.password ?? null,
     domain: credential.domain ?? null,
-    private_key: credential.private_key ?? null,
+    password_ref: credential.password_ref ?? null,
+    totp_ref: credential.totp_ref ?? null,
+    has_password: credential.has_password === true,
+    has_private_key: credential.has_private_key === true,
+    revealed: credential.revealed === true,
+    ...(credential.revealed === true ? { password: credential.password ?? null, private_key: credential.private_key ?? null } : {}),
     credential_type: credential.credential_type ?? null,
     public_key: credential.public_key ?? null,
     fingerprint: credential.fingerprint ?? null,
