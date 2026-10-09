@@ -39,6 +39,12 @@ jobs:
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check out release notes
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: docs/releases
+          sparse-checkout-cone-mode: true
+
       - name: Delete old artifacts
         uses: actions/github-script@v7
         with:
@@ -61,6 +67,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const tag = '${{ steps.version.outputs.tag }}';
             const { owner, repo } = context.repo;
             const isPrerelease = /beta|alpha|rc/.test(tag);
@@ -92,6 +99,34 @@ jobs:
               console.log(`Created tag ${tag} at ${mainRef.object.sha.substring(0, 7)}`);
             }
 
+            const downloads = [
+              '### Downloads',
+              '',
+              '| Platform | File |',
+              '|----------|------|',
+              '| macOS (Apple Silicon) | `.dmg` installer |',
+              '| Windows (x64) | `.exe` installer |',
+              '| Linux (x64) | `.AppImage` or `.deb` |',
+              '',
+              '---',
+              '*Auto-update is built in — existing installations will update automatically.*',
+            ].join('\n');
+
+            // Hand-written notes live in docs/releases/<tag>.md. Without one,
+            // fall back to GitHub's generated list of merged PRs.
+            const notesPath = `docs/releases/${tag}.md`;
+            let notes;
+            if (fs.existsSync(notesPath)) {
+              notes = fs.readFileSync(notesPath, 'utf8').trim();
+              console.log(`Using ${notesPath}`);
+            } else {
+              core.warning(`No ${notesPath}; falling back to generated notes`);
+              const { data: generated } = await github.rest.repos.generateReleaseNotes({
+                owner, repo, tag_name: tag,
+              });
+              notes = `## Conduit ${tag}\n\n${generated.body}`;
+            }
+
             const { data: release } = await github.rest.repos.createRelease({
               owner, repo,
               tag_name: tag,
@@ -99,7 +134,7 @@ jobs:
               name: `Conduit ${tag}`,
               draft: true,
               prerelease: isPrerelease,
-              body: `## Conduit ${tag}\n\n### Downloads\n\n| Platform | File |\n|----------|------|\n| macOS (Apple Silicon) | \`.dmg\` installer |\n| Windows (x64) | \`.exe\` installer |\n| Linux (x64) | \`.AppImage\` or \`.deb\` |\n\n---\n*Auto-update is built in — existing installations will update automatically.*`,
+              body: `${notes}\n\n${downloads}`,
             });
             console.log(`Created draft release: ${release.html_url}`);
             core.setOutput('release_id', release.id.toString());

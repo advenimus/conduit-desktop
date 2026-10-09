@@ -142,6 +142,7 @@ The local anon key is a well-known public development key baked into `env-config
 - `npm run build:electron` must pass before shipping
 - `npx tsc --noEmit` must pass (no new type errors)
 - Feature changes include a matching entry in `docs/FEATURES.md`
+- Every release tag needs a notes file at `docs/releases/vX.Y.Z.md` merged first (format in `docs/releases/README.md`); the release workflow publishes it as the GitHub release body
 - Live `/verify` suites: run only the suite that covers your change (`/verify-sync`, `/verify-mcp`, `/verify-ownership`, `/verify-data`). The full `npm run verify` runs only when the user asks for it or for a release candidate
 - UI changes use the toast notification system documented in `.claude/commands/notification.md` — never `window.alert()` or custom modals for status messages
 
