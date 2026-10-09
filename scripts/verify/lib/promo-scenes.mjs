@@ -10,6 +10,7 @@ import { MORE_SCENES } from './promo-scenes-more.mjs';
 import { SYNC_SCENES } from './promo-scenes-sync.mjs';
 import { SEQ_SCENES } from './promo-sequences.mjs';
 import { FILM_SCENES } from './promo-scenes-film.mjs';
+import { KB_SCENES } from './promo-scenes-kb.mjs';
 
 const COMBOBOX = 'input[role=combobox]';
 const CARDS = ['Recently connected', 'Open now', 'Favorites', 'AI activity'];
@@ -77,4 +78,4 @@ async function s4(ctx, rec) {
   await ctx.quitDevice(d);
 }
 
-export const SCENES = { s1, s3, s4, ...MORE_SCENES, ...SYNC_SCENES, ...SEQ_SCENES, ...FILM_SCENES };
+export const SCENES = { s1, s3, s4, ...MORE_SCENES, ...SYNC_SCENES, ...SEQ_SCENES, ...FILM_SCENES, ...KB_SCENES };

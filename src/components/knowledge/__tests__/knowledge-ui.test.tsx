@@ -95,6 +95,33 @@ describe("VaultKnowledgeView", () => {
     expect(screen.getByText("Network")).toBeInTheDocument();
     expect(screen.queryByText("Patching")).not.toBeInTheDocument();
   });
+
+  const layoutGrid = () => screen.getByLabelText("Search knowledge").closest(".grid") as HTMLElement;
+
+  it("puts the review queue in a second column after the list, so tab order matches the layout", () => {
+    render(<VaultKnowledgeView />);
+    const grid = layoutGrid();
+    expect(grid.className).toContain("@5xl:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)]");
+    const [main, queue] = [...grid.children] as HTMLElement[];
+    expect(within(main).getByLabelText("Search knowledge")).toBeInTheDocument();
+    expect(within(queue).getByText("Needs review (1)")).toBeInTheDocument();
+    expect(queue.className).not.toMatch(/(^|[\s:])(col-start|row-start|order)-/);
+  });
+
+  it("uses one full-width column when there is nothing to review", () => {
+    act(() => useEntryStore.setState({ hiddenEntries: [overview, network, playbook] as never[] }));
+    render(<VaultKnowledgeView />);
+    expect(screen.queryByText(/Needs review \(/)).not.toBeInTheDocument();
+    const grid = layoutGrid();
+    expect(grid.className).not.toMatch(/@5xl:grid-cols/);
+    expect(grid.children).toHaveLength(1);
+  });
+
+  it("drops the second column while another state filter hides the queue", () => {
+    render(<VaultKnowledgeView />);
+    fireEvent.change(screen.getByLabelText("State"), { target: { value: "review" } });
+    expect(layoutGrid().className).not.toMatch(/@5xl:grid-cols/);
+  });
 });
 
 describe("ReviewChangesDialog", () => {

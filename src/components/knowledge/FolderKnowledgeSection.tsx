@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { effectiveFolderId, folderChain, readKb } from "../../lib/kb";
 import { useEntryStore } from "../../stores/entryStore";
+import { cx } from "../ui";
 import ArticleRow from "./ArticleRow";
 import KnowledgePanel from "./KnowledgePanel";
 import { folderViewSessionId } from "../../lib/dashboardSessions";
@@ -8,7 +9,7 @@ import { folderViewSessionId } from "../../lib/dashboardSessions";
 const RECENT_LEARNINGS = 6;
 
 /** Folder page: the folder's own knowledge, and what agents recently learned about assets inside it. */
-export default function FolderKnowledgeSection({ folderId, assetCount }: { folderId: string; assetCount: number }) {
+export default function FolderKnowledgeSection({ folderId, assetCount, className }: { folderId: string; assetCount: number; className?: string }) {
   const entries = useEntryStore((s) => s.entries);
   const hiddenEntries = useEntryStore((s) => s.hiddenEntries);
   const folders = useEntryStore((s) => s.folders);
@@ -27,7 +28,7 @@ export default function FolderKnowledgeSection({ folderId, assetCount }: { folde
   const assetName = (id: string | null) => entries.find((e) => e.id === id)?.name ?? null;
 
   return (
-    <section className="mx-6 mt-4 rounded border border-card-border bg-card p-4" data-cv-folder-knowledge={folderId}>
+    <section className={cx("rounded border border-card-border bg-card p-4", className)} data-cv-folder-knowledge={folderId}>
       <div className="mb-2 flex items-baseline gap-2">
         <h3 className="text-body font-semibold text-ink">Knowledge</h3>
         <span className="text-label text-ink-faint">

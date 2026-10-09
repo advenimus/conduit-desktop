@@ -2,10 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ReleaseNotesManifest, ReleaseEntry } from '../../types/whats-new';
 import { errorText } from '../../lib/errorText';
 
-const MANIFEST_URL =
-  'https://raw.githubusercontent.com/advenimus/conduit-desktop/main/release-notes/manifest.json';
-const MEDIA_BASE =
-  'https://raw.githubusercontent.com/advenimus/conduit-desktop/main/release-notes';
+const PUBLISHED_BASE = 'https://raw.githubusercontent.com/advenimus/conduit-desktop/main/release-notes';
+const LOCAL_BASE = './release-notes';
+
+// Preview dev runs preview unmerged notes; a dev run on production data should show what users see.
+export function releaseNotesBase(isDev: boolean, conduitEnv: string | undefined): string {
+  return isDev && conduitEnv !== 'production' ? LOCAL_BASE : PUBLISHED_BASE;
+}
+
+const MEDIA_BASE = releaseNotesBase(import.meta.env.DEV, import.meta.env.CONDUIT_ENV);
+const MANIFEST_URL = `${MEDIA_BASE}/manifest.json`;
 
 export function getMediaUrl(version: string): string {
   return `${MEDIA_BASE}/v${version}/demo.gif`;
@@ -38,6 +44,15 @@ function isValidManifest(data: unknown): data is ReleaseNotesManifest {
   );
 }
 
+// The Vite dev server answers a missing file with index.html and HTTP 200, so a bad body is the only signal.
+async function readJson(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    throw new Error(`Release notes manifest is missing or not valid JSON (${MANIFEST_URL})`);
+  }
+}
+
 async function fetchManifest(): Promise<void> {
   // Cache-bust with timestamp to avoid GitHub CDN stale responses
   const url = `${MANIFEST_URL}?_t=${Date.now()}`;
@@ -46,7 +61,7 @@ async function fetchManifest(): Promise<void> {
     const res = await fetch(url, { cache: 'no-store' });
     console.log('[whats-new] Response status:', res.status);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data: unknown = await res.json();
+    const data = await readJson(res);
     console.log('[whats-new] Parsed data:', JSON.stringify(data).slice(0, 200));
     if (!isValidManifest(data)) {
       console.warn('[whats-new] Invalid manifest format');

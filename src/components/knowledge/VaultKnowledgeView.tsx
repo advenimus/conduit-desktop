@@ -6,12 +6,11 @@ import ArticleRow from "./ArticleRow";
 import { KNOWLEDGE_SESSION_ID } from "../../lib/dashboardSessions";
 import NewArticleDialog from "./NewArticleDialog";
 import { contentOf, KIND_META, type ArticleItem } from "./kbUi";
+import { CONTENT_WIDTH, splitGrid } from "../dashboard/pageLayout";
 
 type ScopeFilter = "all" | "asset" | "folder" | "vault";
 type StateFilter = "all" | "review" | "stale" | "archived";
 type AuthorFilter = "all" | "agent" | "user";
-
-const CONTENT_WIDTH = "mx-auto w-full max-w-4xl";
 
 /** Every article in the vault: search, filters, and the queue of agent edits to review. */
 export default function VaultKnowledgeView() {
@@ -34,6 +33,7 @@ export default function VaultKnowledgeView() {
   );
   const now = new Date().toISOString();
   const needsReview = articles.filter((a) => a.kb.status !== "archived" && a.kb.kind !== "changelog" && (hasUnseenAgentEdit(a.kb) || a.kb.status === "needs_review"));
+  const showReview = needsReview.length > 0 && state === "all";
 
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   const listed = articles
@@ -58,7 +58,7 @@ export default function VaultKnowledgeView() {
         : "Vault";
 
   return (
-    <div className="flex h-full flex-1 flex-col overflow-y-auto bg-editor" data-cv-knowledge-view="">
+    <div className="@container flex h-full flex-1 flex-col overflow-y-auto bg-editor" data-cv-knowledge-view="">
       <div className="border-b border-divider py-6">
         <div className={`${CONTENT_WIDTH} flex items-center gap-3 px-6`}>
           <div className="min-w-0 flex-1">
@@ -73,9 +73,54 @@ export default function VaultKnowledgeView() {
         </div>
       </div>
 
-      <div className={`${CONTENT_WIDTH} px-6 py-4`}>
-        {needsReview.length > 0 && state === "all" && (
-          <section className="mb-5 rounded border border-card-border bg-card p-3">
+      <div className={`${CONTENT_WIDTH} ${splitGrid(showReview ? "sidebar" : null)} px-6 py-4`}>
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <SearchInput value={query} onChange={setQuery} placeholder="Search knowledge..." aria-label="Search knowledge" wrapperClassName="max-w-xs flex-1" />
+            <span className="w-40 shrink-0">
+              <Select value={kind} onChange={(e) => setKind(e.target.value as KbKind | "all")} aria-label="Kind">
+                <option value="all">All kinds</option>
+                {(Object.keys(KIND_META) as KbKind[]).map((k) => (
+                  <option key={k} value={k}>{KIND_META[k].label}</option>
+                ))}
+              </Select>
+            </span>
+            <span className="w-36 shrink-0">
+              <Select value={scope} onChange={(e) => setScope(e.target.value as ScopeFilter)} aria-label="Where">
+                <option value="all">Everywhere</option>
+                <option value="asset">Assets</option>
+                <option value="folder">Folders</option>
+                <option value="vault">Vault</option>
+              </Select>
+            </span>
+            <span className="w-36 shrink-0">
+              <Select value={author} onChange={(e) => setAuthor(e.target.value as AuthorFilter)} aria-label="Edited by">
+                <option value="all">Anyone</option>
+                <option value="agent">Agents</option>
+                <option value="user">You</option>
+              </Select>
+            </span>
+            <span className="w-48 shrink-0">
+              <Select value={state} onChange={(e) => setState(e.target.value as StateFilter)} aria-label="State">
+                <option value="all">Active</option>
+                <option value="review">Needs review</option>
+                <option value="stale">Not checked in 90 days</option>
+                <option value="archived">Archived</option>
+              </Select>
+            </span>
+          </div>
+
+          {listed.length === 0 ? (
+            <p className="py-8 text-center text-body text-ink-muted">
+              {articles.length === 0 ? "No knowledge yet. Agents add articles as they work on your assets." : "No articles match."}
+            </p>
+          ) : (
+            listed.map((a) => <ArticleRow key={a.entry.id} entry={a.entry} kb={a.kb} context={contextOf(a)} host={KNOWLEDGE_SESSION_ID} />)
+          )}
+        </div>
+
+        {showReview && (
+          <section className="mt-5 self-start rounded border border-card-border bg-card p-3 @5xl:mt-0">
             <h3 className="mb-1 text-body font-semibold text-ink">Needs review ({needsReview.length})</h3>
             <p className="mb-2 text-label text-ink-muted">Agent edits you have not looked at, and articles flagged as out of date.</p>
             {needsReview.slice(0, 8).map((a) => (
@@ -87,49 +132,6 @@ export default function VaultKnowledgeView() {
               </Button>
             )}
           </section>
-        )}
-
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <SearchInput value={query} onChange={setQuery} placeholder="Search knowledge..." aria-label="Search knowledge" wrapperClassName="max-w-xs flex-1" />
-          <span className="w-40 shrink-0">
-            <Select value={kind} onChange={(e) => setKind(e.target.value as KbKind | "all")} aria-label="Kind">
-              <option value="all">All kinds</option>
-              {(Object.keys(KIND_META) as KbKind[]).map((k) => (
-                <option key={k} value={k}>{KIND_META[k].label}</option>
-              ))}
-            </Select>
-          </span>
-          <span className="w-36 shrink-0">
-            <Select value={scope} onChange={(e) => setScope(e.target.value as ScopeFilter)} aria-label="Where">
-              <option value="all">Everywhere</option>
-              <option value="asset">Assets</option>
-              <option value="folder">Folders</option>
-              <option value="vault">Vault</option>
-            </Select>
-          </span>
-          <span className="w-36 shrink-0">
-            <Select value={author} onChange={(e) => setAuthor(e.target.value as AuthorFilter)} aria-label="Edited by">
-              <option value="all">Anyone</option>
-              <option value="agent">Agents</option>
-              <option value="user">You</option>
-            </Select>
-          </span>
-          <span className="w-48 shrink-0">
-            <Select value={state} onChange={(e) => setState(e.target.value as StateFilter)} aria-label="State">
-              <option value="all">Active</option>
-              <option value="review">Needs review</option>
-              <option value="stale">Not checked in 90 days</option>
-              <option value="archived">Archived</option>
-            </Select>
-          </span>
-        </div>
-
-        {listed.length === 0 ? (
-          <p className="py-8 text-center text-body text-ink-muted">
-            {articles.length === 0 ? "No knowledge yet. Agents add articles as they work on your assets." : "No articles match."}
-          </p>
-        ) : (
-          listed.map((a) => <ArticleRow key={a.entry.id} entry={a.entry} kb={a.kb} context={contextOf(a)} host={KNOWLEDGE_SESSION_ID} />)
         )}
       </div>
 

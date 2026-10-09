@@ -76,14 +76,21 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("FolderDashboard header", () => {
-  it("caps the content at Home's width while the header divider spans the pane", async () => {
+  it("uses the pane's width, with entries and knowledge side by side when it is wide", async () => {
     const { container } = await setup();
+    expect(container.firstElementChild).toHaveClass("@container");
     const header = container.querySelector(".border-b.border-divider") as HTMLElement;
-    expect(header.className).not.toMatch(/max-w-4xl/);
-    expect((header.firstElementChild as HTMLElement).className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "w-full", "max-w-4xl", "px-6"]));
+    expect((header.firstElementChild as HTMLElement).className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "w-full", "max-w-[96rem]", "px-6"]));
     expect(header.className.split(" ")).not.toContain("p-6");
-    const list = container.querySelector("[data-cv-folder-list]") as HTMLElement;
-    expect(list.closest(".max-w-4xl")).not.toBeNull();
+    const grid = list().closest(".grid") as HTMLElement;
+    expect(grid.className).toContain("@5xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]");
+  });
+
+  it("puts the entry list before the knowledge section, so tab order matches the left-to-right layout", async () => {
+    await setup();
+    const knowledge = document.querySelector("[data-cv-folder-knowledge]") as HTMLElement;
+    expect(list().compareDocumentPosition(knowledge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(knowledge.className).not.toMatch(/(^|[\s:])(col-start|row-start|order)-/);
   });
 
   it("sits on the editor surface and keeps the header texts", async () => {
@@ -311,5 +318,14 @@ describe("FolderDashboard empty", () => {
     fireEvent.click(primary);
     expect(onNew).toHaveBeenCalled();
     expect(screen.queryByPlaceholderText("Search this folder...")).toBeNull();
+  });
+
+  it("gives the knowledge section the full width instead of a second column", async () => {
+    await setup({ entries: [] });
+    const knowledge = document.querySelector("[data-cv-folder-knowledge]") as HTMLElement;
+    const grid = knowledge.parentElement as HTMLElement;
+    expect(grid).toHaveClass("grid", "grid-cols-1");
+    expect(grid.className).not.toMatch(/@5xl:grid-cols/);
+    expect(grid.children).toHaveLength(1);
   });
 });

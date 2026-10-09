@@ -137,8 +137,8 @@ A structured memory that agents and the user build up about every asset. Data co
 
 ### Asset, folder and vault views
 - Asset page: Knowledge and Notes tabs. Knowledge lists own articles by kind, then "Also applies" for folder and vault articles
-- Folder page: a Knowledge section with the folder's articles ("Shared with N assets") and recent agent learnings on assets inside it
-- Vault Knowledge page (sidebar footer button): search, filters by kind, place, editor and state (active, needs review, not checked in 90 days, archived), and a Needs review queue
+- Folder page: a Knowledge section with the folder's articles ("Shared with N assets") and recent agent learnings on assets inside it. On a wide pane the entries and the knowledge sit side by side; narrow panes stack them
+- Vault Knowledge page (sidebar footer button): search, filters by kind, place, editor and state (active, needs review, not checked in 90 days, archived), and a Needs review queue, beside the list on a wide pane
 - Home: an Agent learnings card with recent agent edits and how many wait for review
 - Sidebar: a small count badge on assets and folders with articles, with a dot when agent edits wait for review; right-click menu "Add Knowledge Article"
 

@@ -8,6 +8,7 @@ import FolderKnowledgeSection from "../knowledge/FolderKnowledgeSection";
 import CheckAllButton from "./folder/CheckAllButton";
 import FolderEntryList from "./folder/FolderEntryList";
 import OpenAllButton from "./folder/OpenAllButton";
+import { CONTENT_WIDTH, splitGrid } from "./pageLayout";
 import {
   FOLDER_SORT_OPTIONS,
   collectFolderItems,
@@ -22,9 +23,6 @@ import { useReachability } from "./reachability/useReachability";
 interface FolderDashboardProps {
   folderId: string;
 }
-
-// The page content keeps Home's width; the header's divider still spans the pane.
-const CONTENT_WIDTH = "mx-auto w-full max-w-4xl";
 
 const SORT_SELECT_ID = "folder-view-sort";
 
@@ -69,7 +67,7 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
   const folderColor = getEntryColor("folder", folder.color);
 
   return (
-    <div className="flex-1 flex flex-col bg-editor overflow-y-auto h-full" data-cv-folder-view={folderId}>
+    <div className="@container flex-1 flex flex-col bg-editor overflow-y-auto h-full" data-cv-folder-view={folderId}>
       {/* Header */}
       <div className="py-6 border-b border-divider">
         <div className={`${CONTENT_WIDTH} flex items-center gap-3 px-6`}>
@@ -92,38 +90,40 @@ export default function FolderDashboard({ folderId }: FolderDashboardProps) {
       <div className={CONTENT_WIDTH}>
         {/* Summary cards */}
         <TypeTiles counts={typeCounts} className="grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] px-6 pt-6 pb-2" />
-        <FolderKnowledgeSection folderId={folderId} assetCount={total} />
-        {total > 0 && (
-          <section className="px-6 pt-4 pb-6">
-            <div className="mb-3 flex items-center gap-3">
-              <SearchInput
-                value={query}
-                onChange={setQuery}
-                placeholder="Search this folder..."
-                aria-label="Search this folder"
-                wrapperClassName="max-w-sm"
-              />
-              <div className="ml-auto flex shrink-0 items-center gap-2">
-                <label htmlFor={SORT_SELECT_ID} className="whitespace-nowrap text-label text-ink-muted">
-                  Sort by
-                </label>
-                <Select
-                  id={SORT_SELECT_ID}
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as FolderSort)}
-                  wrapperClassName="w-40"
-                >
-                  {FOLDER_SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
+        <div className={`${splitGrid(total > 0 ? "balanced" : null)} px-6 pb-6`}>
+          {total > 0 && (
+            <section className="min-w-0 pt-4">
+              <div className="mb-3 flex items-center gap-3">
+                <SearchInput
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="Search this folder..."
+                  aria-label="Search this folder"
+                  wrapperClassName="max-w-sm"
+                />
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <label htmlFor={SORT_SELECT_ID} className="whitespace-nowrap text-label text-ink-muted">
+                    Sort by
+                  </label>
+                  <Select
+                    id={SORT_SELECT_ID}
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as FolderSort)}
+                    wrapperClassName="w-40"
+                  >
+                    {FOLDER_SORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
-            </div>
-            <FolderEntryList items={listed} lastConnected={lastConnected} reachability={reachability} />
-          </section>
-        )}
+              <FolderEntryList items={listed} lastConnected={lastConnected} reachability={reachability} />
+            </section>
+          )}
+          <FolderKnowledgeSection folderId={folderId} assetCount={total} className="mt-4 self-start" />
+        </div>
       </div>
 
       {/* Empty state */}
