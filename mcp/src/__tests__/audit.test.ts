@@ -71,4 +71,31 @@ describe('AuditLogger lines', () => {
     expect(line.parameters).toEqual({ name: 'n', password: '[REDACTED]', nested: { api_key: '[REDACTED]' } });
     expect(fs.readFileSync(logPath, 'utf8')).not.toContain('hunter2');
   });
+
+  it('logs only the length of free text an agent typed or wrote', () => {
+    const logger = AuditLogger.create(logPath);
+    logger.logSuccess('entry_update_notes', 'mcp-client', {
+      entry_id: 'e1',
+      notes: 'pw !!hunter2!!',
+      edits: [{ old_string: 'a', new_string: 'hunter2' }],
+      text: 'hunter2',
+      value: 'hunter2',
+      command: 'echo hunter2',
+      code: 'x="hunter2"',
+      content: 'hunter2',
+    }, 5);
+    logger.close();
+    const [line] = readLines();
+    expect(line.parameters).toEqual({
+      entry_id: 'e1',
+      notes: '[14 chars]',
+      edits: '[1 items]',
+      text: '[7 chars]',
+      value: '[7 chars]',
+      command: '[12 chars]',
+      code: '[11 chars]',
+      content: '[7 chars]',
+    });
+    expect(fs.readFileSync(logPath, 'utf8')).not.toContain('hunter2');
+  });
 });

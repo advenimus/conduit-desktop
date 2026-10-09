@@ -23,6 +23,9 @@ export default defineConfig({
   plugins: [react(), conduitAppearanceBoot()],
   base: './',
   clearScreen: false,
+  define: {
+    "import.meta.env.CONDUIT_ENV": JSON.stringify(process.env.CONDUIT_ENV ?? ""),
+  },
   server: {
     port: 1420,
     strictPort: true,

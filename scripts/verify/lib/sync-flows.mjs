@@ -4,6 +4,7 @@
 import { openDialogs, refreshEntries, waitForUnlockOutcome, listEntries } from './flows.mjs';
 import { bodyText, clickSelector, clickText, exists, invoke, readSyncState, typeInto, waitFor, waitForText, withTimeout } from './ui.mjs';
 import { SYNC_DIALOG, evaluateIn } from './selectors.mjs';
+import { setSidebar } from './restyle-data.mjs';
 
 export const TAKEOVER_TITLE = 'Vault open on another device';
 export const WAITING_TITLE = 'Getting the latest changes';
@@ -129,6 +130,8 @@ export function waitForEntry(device, id, pred, { timeoutMs = 30_000, label = 'en
 /** The entry's name in the renderer's tree (the store reloads on vault:entry-changed). */
 export async function waitForEntryInUi(device, name, { timeoutMs = 15_000 } = {}) {
   await refreshEntries(device);
+  // Home no longer lists entries and test windows start with the side bar hidden, so the tree is where the name shows.
+  await setSidebar(device, 'docked');
   return waitForText(device, name, { timeoutMs });
 }
 

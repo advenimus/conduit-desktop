@@ -1,0 +1,139 @@
+{
+  "format": 1,
+  "module": "migration",
+  "notes": [
+    "migrationSuggestion(notes, asset_article_count, dismissed) returns a reason or null. Section 7.1."
+  ],
+  "cases": [
+    {
+      "name": "no notes",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": null,
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": null
+    },
+    {
+      "name": "short",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "abc",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": null
+    },
+    {
+      "name": "400 chars",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": "long"
+    },
+    {
+      "name": "399 chars",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": null
+    },
+    {
+      "name": "padding does not count",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "   aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa   ",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": null
+    },
+    {
+      "name": "heading",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "# Title\nshort",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": "headings"
+    },
+    {
+      "name": "heading not on first line",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "intro\n### Steps",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": "headings"
+    },
+    {
+      "name": "hashtag is not a heading",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "#hashtag",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": null
+    },
+    {
+      "name": "three numbered lines",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "1. a\n2. b\n 3) c",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": "steps"
+    },
+    {
+      "name": "two numbered lines",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "1. a\n2. b",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": null
+    },
+    {
+      "name": "long wins over headings",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "# T\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "asset_article_count": 0,
+        "dismissed": false
+      },
+      "expect": "long"
+    },
+    {
+      "name": "has articles",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "asset_article_count": 1,
+        "dismissed": false
+      },
+      "expect": null
+    },
+    {
+      "name": "dismissed",
+      "fn": "migrationSuggestion",
+      "input": {
+        "notes": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "asset_article_count": 0,
+        "dismissed": true
+      },
+      "expect": null
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import { ENTRY_TIER_LOCKED_MESSAGE, isEntryTierLocked } from '../services/tier-l
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import * as fs from 'fs';
+import { cloneBorrowedSecrets, createWithSecrets, updateWithSecrets } from '../services/secrets/embedded-secrets.js';
 
 export function registerEntryHandlers(): void {
   const state = AppState.getInstance();
@@ -70,7 +71,7 @@ export function registerEntryHandlers(): void {
       }
     }
 
-    const entry = state.getActiveVault().createEntry({
+    const { entry, converted } = createWithSecrets(state.getActiveVault(), {
       name: args.name,
       entry_type: args.entry_type as 'ssh' | 'rdp' | 'vnc' | 'web' | 'credential' | 'command',
       folder_id: args.folder_id,
@@ -97,7 +98,7 @@ export function registerEntryHandlers(): void {
       details: { entry_type: args.entry_type, folder_id: args.folder_id ?? null },
     });
 
-    return entry;
+    return { ...entry, secrets_converted: converted };
   });
 
   // ── entry_duplicate ────────────────────────────────────────────
@@ -123,7 +124,8 @@ export function registerEntryHandlers(): void {
       }
     }
 
-    const entry = vault.duplicateEntry(args.id);
+    const duplicated = vault.duplicateEntry(args.id);
+    const entry = cloneBorrowedSecrets(vault, args.id, duplicated.id) > 0 ? vault.getEntryMeta(duplicated.id) : duplicated;
 
     logAudit(state, {
       action: 'entry_duplicate', targetType: 'entry',
@@ -177,7 +179,11 @@ export function registerEntryHandlers(): void {
       }
     } catch {}
 
-    const result = state.getActiveVault().updateEntry(id, input as Parameters<ReturnType<typeof state.getActiveVault>['updateEntry']>[1]);
+    const { entry: result, converted } = updateWithSecrets(
+      state.getActiveVault(),
+      id,
+      input as Parameters<ReturnType<typeof state.getActiveVault>['updateEntry']>[1],
+    );
 
     if (passwordChanging || usernameChanging) {
       logAudit(state, {
@@ -204,7 +210,7 @@ export function registerEntryHandlers(): void {
       },
     });
 
-    return result;
+    return { ...result, secrets_converted: converted };
   });
 
   // ── entry_delete ──────────────────────────────────────────────

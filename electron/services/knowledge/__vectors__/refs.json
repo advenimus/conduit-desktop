@@ -1,0 +1,200 @@
+{
+  "format": 1,
+  "module": "refs",
+  "notes": [
+    "parseRefs(text) lists refs in order of appearance. See docs/KNOWLEDGE_BASE.md section 2.1.",
+    "ids are lower-cased; an empty label is null; a cred ref with no field has field \"password\"; secret refs have field null."
+  ],
+  "cases": [
+    {
+      "name": "secret with label",
+      "fn": "parseRefs",
+      "input": "pw {{secret:11111111-2222-4333-8444-555555555555|Local admin}} end",
+      "expect": [
+        {
+          "kind": "secret",
+          "id": "11111111-2222-4333-8444-555555555555",
+          "pending": false,
+          "label": "Local admin",
+          "field": null
+        }
+      ]
+    },
+    {
+      "name": "secret without label",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555}}",
+      "expect": [
+        {
+          "kind": "secret",
+          "id": "11111111-2222-4333-8444-555555555555",
+          "pending": false,
+          "label": null,
+          "field": null
+        }
+      ]
+    },
+    {
+      "name": "empty label is null",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|}}",
+      "expect": [
+        {
+          "kind": "secret",
+          "id": "11111111-2222-4333-8444-555555555555",
+          "pending": false,
+          "label": null,
+          "field": null
+        }
+      ]
+    },
+    {
+      "name": "pending",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555.pending|New pw}}",
+      "expect": [
+        {
+          "kind": "secret",
+          "id": "11111111-2222-4333-8444-555555555555",
+          "pending": true,
+          "label": "New pw",
+          "field": null
+        }
+      ]
+    },
+    {
+      "name": "upper-case id is lower-cased",
+      "fn": "parseRefs",
+      "input": "{{secret:AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE|X}}",
+      "expect": [
+        {
+          "kind": "secret",
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "pending": false,
+          "label": "X",
+          "field": null
+        }
+      ]
+    },
+    {
+      "name": "short id is not a ref",
+      "fn": "parseRefs",
+      "input": "{{secret:1234|x}}",
+      "expect": []
+    },
+    {
+      "name": "second pipe is not a ref",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|a|b}}",
+      "expect": []
+    },
+    {
+      "name": "label over 80 chars is not a ref",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}}",
+      "expect": []
+    },
+    {
+      "name": "label of exactly 80 chars",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}}",
+      "expect": [
+        {
+          "kind": "secret",
+          "id": "11111111-2222-4333-8444-555555555555",
+          "pending": false,
+          "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "field": null
+        }
+      ]
+    },
+    {
+      "name": "line break in label is not a ref",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|a\nb}}",
+      "expect": []
+    },
+    {
+      "name": "cred default field",
+      "fn": "parseRefs",
+      "input": "{{cred:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee}}",
+      "expect": [
+        {
+          "kind": "cred",
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "pending": false,
+          "label": null,
+          "field": "password"
+        }
+      ]
+    },
+    {
+      "name": "cred totp and username",
+      "fn": "parseRefs",
+      "input": "u={{cred:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.username}} c={{cred:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.totp}}",
+      "expect": [
+        {
+          "kind": "cred",
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "pending": false,
+          "label": null,
+          "field": "username"
+        },
+        {
+          "kind": "cred",
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "pending": false,
+          "label": null,
+          "field": "totp"
+        }
+      ]
+    },
+    {
+      "name": "cred unknown field is not a ref",
+      "fn": "parseRefs",
+      "input": "{{cred:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee.private_key}}",
+      "expect": []
+    },
+    {
+      "name": "label of 80 UTF-16 units with emoji",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑}}",
+      "expect": [
+        {
+          "kind": "secret",
+          "id": "11111111-2222-4333-8444-555555555555",
+          "pending": false,
+          "label": "🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑",
+          "field": null
+        }
+      ]
+    },
+    {
+      "name": "label over 80 UTF-16 units with emoji is not a ref",
+      "fn": "parseRefs",
+      "input": "{{secret:11111111-2222-4333-8444-555555555555|🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑}}",
+      "expect": []
+    },
+    {
+      "name": "mixed order",
+      "fn": "parseRefs",
+      "input": "{{cred:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee}} then {{secret:11111111-2222-4333-8444-555555555555|a}}",
+      "expect": [
+        {
+          "kind": "cred",
+          "id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+          "pending": false,
+          "label": null,
+          "field": "password"
+        },
+        {
+          "kind": "secret",
+          "id": "11111111-2222-4333-8444-555555555555",
+          "pending": false,
+          "label": "a",
+          "field": null
+        }
+      ]
+    }
+  ]
+}

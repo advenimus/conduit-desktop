@@ -74,8 +74,8 @@ export function scenarioContext({ run, env, step, scenario = null, options = {} 
     sqlJson,
     leaseRows,
 
-    async connectMcp(device) {
-      const client = await connectMcp(device);
+    async connectMcp(device, opts) {
+      const client = await connectMcp(device, opts);
       mcpClients.push(client);
       return client;
     },

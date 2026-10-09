@@ -177,7 +177,7 @@ export interface ReachabilityResult {
 
 // ---------- Renderer only: Home layout and settings ----------
 
-export type HomeSectionId = 'quick' | 'recent' | 'open-now' | 'favorites' | 'attention' | 'ai-activity' | 'vault-status';
+export type HomeSectionId = 'quick' | 'recent' | 'open-now' | 'favorites' | 'attention' | 'ai-activity' | 'agent-learnings' | 'vault-status';
 
 /** Display order, top to bottom. */
 export const HOME_SECTION_IDS: readonly HomeSectionId[] = [
@@ -187,6 +187,7 @@ export const HOME_SECTION_IDS: readonly HomeSectionId[] = [
   'favorites',
   'attention',
   'ai-activity',
+  'agent-learnings',
   'vault-status',
 ];
 
@@ -198,6 +199,7 @@ export const HOME_SECTION_LABELS: Readonly<Record<HomeSectionId, string>> = {
   favorites: 'Favorites',
   attention: 'Needs attention',
   'ai-activity': 'AI activity',
+  'agent-learnings': 'Agent learnings',
   'vault-status': 'Vault status and overview',
 };
 

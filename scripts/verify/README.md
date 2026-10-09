@@ -706,6 +706,20 @@ run also merges a `shots.json` into the output folder: per file, a description a
 elements a viewer should look at. The page screenshot has no native window frame, so the macOS window
 buttons are drawn on, as in `capture-titlebar.mjs`.
 
+## Knowledge base checks
+
+`node scripts/verify/capture-knowledge-interact.mjs [outDir]` drives the knowledge and secret chip screens like a
+user (local mode, no Supabase) and prints a pass or fail per check.
+
+`node scripts/verify/capture-knowledge-agent.mjs [outDir] [--model <m>] [--only <task>]` runs the real `claude` CLI
+(your own login, so it costs tokens) against one isolated device. It seeds an asset, folder and vault articles,
+then runs seven headless tasks at once from the app's own `agent/claude-code` folder and `CLAUDE.md`: work on an
+asset, answer from an article, find folder knowledge, save a fact the user gives, generate a password, ask for a
+password, and look at notes that should be moved. Each task's tool calls decide pass or fail; transcripts land in
+`outDir` (default `.verify/knowledge/agent`). It deletes the memory folder Claude Code makes for the agent folder
+under `~/.claude/projects/`. One pass is one sample: rerun a task with `--only` before trusting a change to the
+instructions.
+
 ## Gotchas
 
 - Playwright locator clicks time out in this app. Use `ui.clickText` / `ui.clickSelector` (DOM clicks);

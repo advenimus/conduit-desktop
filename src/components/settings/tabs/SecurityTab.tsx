@@ -5,6 +5,7 @@ import { Callout, Card, IconSlot, SectionHeader, Switch, type IconSource } from 
 import AutoUnlockSetting from "./AutoUnlockSetting";
 import { HINT } from "../settings-styles";
 import IdleLockSetting from "../../sync/IdleLockSetting";
+import EncryptNotesSetting from "./EncryptNotesSetting";
 import type { TabProps } from "../SettingsHelpers";
 import { errorText } from "../../../lib/errorText";
 
@@ -113,6 +114,8 @@ export default function SecurityTab({ settings, setSettings }: TabProps) {
           onChange={(minutes) => setSettings((prev) => ({ ...prev, vault_idle_lock_minutes: minutes }))}
         />
       </div>
+
+      <EncryptNotesSetting />
     </div>
   );
 }

@@ -138,7 +138,7 @@ export const toolbarActions: ToolbarAction[] = [
   { separator: true },
   {
     icon: LockIcon,
-    title: "Secret (!!secret!!)",
+    title: "Secret (!!secret!!, encrypted when saved)",
     action: (ta, v) => wrapSelection(ta, v, "!!", "!!", "secret"),
   },
   {

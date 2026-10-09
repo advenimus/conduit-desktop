@@ -482,6 +482,7 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
             setTags={setTags}
             notes={notes}
             setNotes={setNotes}
+            entryId={editingEntryId ?? undefined}
           />
         );
       default:

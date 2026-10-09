@@ -87,6 +87,25 @@ import {
   credentialReadDefinition, credentialRead,
   credentialDeleteDefinition, credentialDelete,
 } from './tools/credential.js';
+import {
+  secretCreateDefinition, secretCreate,
+  secretRotateDefinition, secretRotate,
+  secretCommitDefinition, secretCommit,
+  secretDiscardDefinition, secretDiscard,
+  secretCaptureDefinition, secretCapture,
+  secretRevealDefinition, secretReveal,
+} from './tools/secret.js';
+import {
+  kbContextDefinition, kbContext,
+  kbSearchDefinition, kbSearch,
+  kbReadDefinition, kbRead,
+  kbWriteDefinition, kbWrite,
+  kbLogDefinition, kbLog,
+  kbVerifyDefinition, kbVerify,
+  kbArchiveDefinition, kbArchive,
+  kbImportNotesDefinition, kbImportNotes,
+  kbDismissMigrationDefinition, kbDismissMigration,
+} from './tools/knowledge.js';
 
 // Connection tools
 import {
@@ -221,9 +240,27 @@ function buildToolRegistry(): Map<string, ToolEntry> {
   // Credentials
   add(credentialListDefinition(), (client) => credentialList(client));
   add(credentialCreateDefinition(), credentialCreate as ToolHandler);
-  add(credentialReadDefinition(), ((client: ConduitClient, args: Record<string, unknown>) =>
-    credentialRead(client, args as { credential_id: string; purpose: string }, true)) as ToolHandler);
+  add(credentialReadDefinition(), credentialRead as ToolHandler);
   add(credentialDeleteDefinition(), credentialDelete as ToolHandler);
+
+  // Secrets
+  add(secretCreateDefinition(), secretCreate as ToolHandler);
+  add(secretRotateDefinition(), secretRotate as ToolHandler);
+  add(secretCommitDefinition(), secretCommit as ToolHandler);
+  add(secretDiscardDefinition(), secretDiscard as ToolHandler);
+  add(secretCaptureDefinition(), secretCapture as ToolHandler);
+  add(secretRevealDefinition(), secretReveal as ToolHandler);
+
+  // Knowledge base
+  add(kbContextDefinition(), kbContext as ToolHandler);
+  add(kbSearchDefinition(), kbSearch as ToolHandler);
+  add(kbReadDefinition(), kbRead as ToolHandler);
+  add(kbWriteDefinition(), kbWrite as ToolHandler);
+  add(kbLogDefinition(), kbLog as ToolHandler);
+  add(kbVerifyDefinition(), kbVerify as ToolHandler);
+  add(kbArchiveDefinition(), kbArchive as ToolHandler);
+  add(kbImportNotesDefinition(), kbImportNotes as ToolHandler);
+  add(kbDismissMigrationDefinition(), kbDismissMigration as ToolHandler);
 
   // Connections
   add(connectionListDefinition(), (client) => connectionList(client));
@@ -247,6 +284,18 @@ function buildToolRegistry(): Map<string, ToolEntry> {
 
   return registry;
 }
+
+// Every MCP client shows these to its model, including agents without Conduit's CLAUDE.md/AGENTS.md.
+const SERVER_INSTRUCTIONS = [
+  'Conduit holds the user\'s servers, sessions, credentials and a knowledge base about each of them.',
+  'Knowledge: before working on an asset, call entry_info (its knowledge block lists what applies) or kb_context, and read the relevant articles with kb_read.',
+  'As you work, record what a future session would need: kb_write for findings, procedures and fixes (it saves at once; the user can review and undo), kb_log for each change you make on a system, kb_verify when you confirm or disprove an article.',
+  'Conduit\'s knowledge base is your memory for the user\'s systems: save facts about an asset (including what the user tells you) with kb_write, not in your own memory or files, so other devices and agents see them.',
+  'If entry_info says the notes look like a knowledge base, offer once to move them with kb_import_notes; if the user declines, call kb_dismiss_migration.',
+  'Secrets: you never need to see a password to use it. Put refs like {{secret:<id>}} or {{cred:<id>}} into typing tools and Conduit types the value.',
+  'Make new passwords with secret_create (generate) and change them with secret_rotate, then secret_commit. Never write a plain password into notes or articles.',
+  'Ask to reveal a plain value (credential_read reveal, secret_reveal) only when it must be shown to the user; they approve each time.',
+].join(' ');
 
 // ---------- Main ----------
 
@@ -329,6 +378,7 @@ async function main(): Promise<void> {
       capabilities: {
         tools: {},
       },
+      instructions: SERVER_INSTRUCTIONS,
     },
   );
 
@@ -385,10 +435,9 @@ async function main(): Promise<void> {
     }
 
     const start = Date.now();
-    const argsSummary = Object.keys(toolArgs).length > 0
-      ? ` ${JSON.stringify(toolArgs)}`
-      : '';
-    process.stderr.write(`[mcp] Tool call: ${toolName}${argsSummary}\n`);
+    // Argument names only: values can hold passwords, notes or typed secrets.
+    const argNames = Object.keys(toolArgs);
+    process.stderr.write(`[mcp] Tool call: ${toolName}${argNames.length ? ` (${argNames.join(', ')})` : ''}\n`);
 
     try {
       const result = await entry.handler(client, toolArgs);

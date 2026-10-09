@@ -2,6 +2,47 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.18.1",
+      "date": "2026-10-07",
+      "title": "A Knowledge Base for Every Asset",
+      "summary": "Keep what you know about each server next to it, let your AI agents learn and write it down as they work, and keep passwords in your notes encrypted.",
+      "highlights": [
+        {
+          "text": "**Knowledge for every asset**: open an asset and choose the Knowledge tab. Keep an overview, procedures, fixes, facts and contacts there, each with its own history. Click **+ Article** to start one.",
+          "category": "feature"
+        },
+        {
+          "text": "**Shared knowledge**: a folder article shows on every asset in that folder, and a vault playbook shows on every asset that shares one of its tags. See everything, search it and filter it with the **Knowledge** button at the bottom of the side bar.",
+          "category": "feature"
+        },
+        {
+          "text": "**Agents learn as they work**: Claude Code and other agents read the knowledge before they start, and write down what they find and change. A blue dot marks an agent's edit; click **Review** to see the change and keep it or undo it.",
+          "category": "feature"
+        },
+        {
+          "text": "**Passwords stay encrypted**: type !!password!! in notes or an article, or use the key button. Conduit stores it encrypted and shows a chip you can reveal, copy or type into a session. Agents can type it without seeing it.",
+          "category": "feature"
+        },
+        {
+          "text": "**You decide what agents see**: an agent that needs to see a password now asks first, and you click Allow or Deny each time.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Move old notes**: when an asset's notes look like a knowledge base, split them into articles by heading with one click, or ask your agent to organize them.",
+          "category": "improvement"
+        },
+        {
+          "text": "**Better use of wide windows**: folder pages show the entries beside the folder's knowledge, and the Knowledge page shows the review list beside all articles.",
+          "category": "improvement"
+        },
+        {
+          "text": "Command entries now import from .conduit-export files, and exports keep entries nested under other entries.",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": true
+    },
+    {
       "version": "0.18.0",
       "date": "2026-10-01",
       "title": "Sync Across Devices and a Fresh Look",

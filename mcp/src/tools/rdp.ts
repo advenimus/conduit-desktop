@@ -10,6 +10,7 @@
  */
 
 import type { ConduitClient } from '../ipc-client.js';
+import { SECRET_REF_INPUT_HELP } from './secret-help.js';
 
 // Per-connection scale factors from last screenshot
 const scaleMap = new Map<string, { scaleX: number; scaleY: number }>();
@@ -165,7 +166,7 @@ export function rdpTypeDefinition() {
       type: 'object' as const,
       properties: {
         connection_id: { type: 'string', description: 'UUID of the RDP session' },
-        text: { type: 'string', description: 'Text to type' },
+        text: { type: 'string', description: `Text to type. ${SECRET_REF_INPUT_HELP}` },
         delay_ms: {
           type: 'number',
           description: 'Delay between keystrokes in ms (default: 0)',

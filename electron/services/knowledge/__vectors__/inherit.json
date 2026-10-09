@@ -1,0 +1,1454 @@
+{
+  "format": 1,
+  "module": "inherit",
+  "notes": [
+    "knowledgeFor(target, entries, folders) returns {id, group} in display order. target is {entry_id} or {folder_id}. Section 4.",
+    "groups are \"asset\", \"folder\" and \"vault\". A missing pinned counts as false."
+  ],
+  "cases": [
+    {
+      "name": "asset in a nested folder",
+      "fn": "knowledgeFor",
+      "input": {
+        "target": {
+          "entry_id": "X"
+        },
+        "entries": [
+          {
+            "id": "X",
+            "name": "web-01",
+            "entry_type": "ssh",
+            "folder_id": "F2",
+            "parent_entry_id": null,
+            "tags": [
+              "linux"
+            ],
+            "config": {}
+          },
+          {
+            "id": "Y",
+            "name": "web-01 db",
+            "entry_type": "ssh",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {}
+          },
+          {
+            "id": "a1",
+            "name": "Reboot",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a2",
+            "name": "Overview",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "overview",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a3",
+            "name": "b facts",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a4",
+            "name": "Zed",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "troubleshooting",
+                "summary": "",
+                "pinned": true,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a5",
+            "name": "Old",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "archived"
+              }
+            }
+          },
+          {
+            "id": "a6",
+            "name": "apply patches",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a7",
+            "name": "Check later",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "needs_review"
+              }
+            }
+          },
+          {
+            "id": "d1",
+            "name": "Plain doc",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "content": "x"
+            }
+          },
+          {
+            "id": "s1",
+            "name": "Local admin",
+            "entry_type": "credential",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "embedded": {
+                "owner_id": "X",
+                "label": "Local admin"
+              }
+            }
+          },
+          {
+            "id": "y1",
+            "name": "Y facts",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "Y",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "f1",
+            "name": "Net",
+            "entry_type": "document",
+            "folder_id": "F2",
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "folder",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "f2",
+            "name": "Client",
+            "entry_type": "document",
+            "folder_id": "F1",
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "folder",
+                "kind": "overview",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v1",
+            "name": "Patch",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [
+              "Linux"
+            ],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "playbook",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v2",
+            "name": "Win",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [
+              "windows"
+            ],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "playbook",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v3",
+            "name": "Policies",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "facts",
+                "summary": "",
+                "pinned": true,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v4",
+            "name": "Archived pinned",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "facts",
+                "summary": "",
+                "pinned": true,
+                "status": "archived"
+              }
+            }
+          },
+          {
+            "id": "a8",
+            "name": "aaa no pinned key",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "status": "active"
+              }
+            }
+          }
+        ],
+        "folders": [
+          {
+            "id": "F1",
+            "parent_id": null
+          },
+          {
+            "id": "F2",
+            "parent_id": "F1"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "id": "a4",
+          "group": "asset"
+        },
+        {
+          "id": "a2",
+          "group": "asset"
+        },
+        {
+          "id": "a3",
+          "group": "asset"
+        },
+        {
+          "id": "a7",
+          "group": "asset"
+        },
+        {
+          "id": "a8",
+          "group": "asset"
+        },
+        {
+          "id": "a6",
+          "group": "asset"
+        },
+        {
+          "id": "a1",
+          "group": "asset"
+        },
+        {
+          "id": "f1",
+          "group": "folder"
+        },
+        {
+          "id": "f2",
+          "group": "folder"
+        },
+        {
+          "id": "v3",
+          "group": "vault"
+        },
+        {
+          "id": "v1",
+          "group": "vault"
+        }
+      ]
+    },
+    {
+      "name": "nested asset uses ancestor folder",
+      "fn": "knowledgeFor",
+      "input": {
+        "target": {
+          "entry_id": "Y"
+        },
+        "entries": [
+          {
+            "id": "X",
+            "name": "web-01",
+            "entry_type": "ssh",
+            "folder_id": "F2",
+            "parent_entry_id": null,
+            "tags": [
+              "linux"
+            ],
+            "config": {}
+          },
+          {
+            "id": "Y",
+            "name": "web-01 db",
+            "entry_type": "ssh",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {}
+          },
+          {
+            "id": "a1",
+            "name": "Reboot",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a2",
+            "name": "Overview",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "overview",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a3",
+            "name": "b facts",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a4",
+            "name": "Zed",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "troubleshooting",
+                "summary": "",
+                "pinned": true,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a5",
+            "name": "Old",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "archived"
+              }
+            }
+          },
+          {
+            "id": "a6",
+            "name": "apply patches",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a7",
+            "name": "Check later",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "needs_review"
+              }
+            }
+          },
+          {
+            "id": "d1",
+            "name": "Plain doc",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "content": "x"
+            }
+          },
+          {
+            "id": "s1",
+            "name": "Local admin",
+            "entry_type": "credential",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "embedded": {
+                "owner_id": "X",
+                "label": "Local admin"
+              }
+            }
+          },
+          {
+            "id": "y1",
+            "name": "Y facts",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "Y",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "f1",
+            "name": "Net",
+            "entry_type": "document",
+            "folder_id": "F2",
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "folder",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "f2",
+            "name": "Client",
+            "entry_type": "document",
+            "folder_id": "F1",
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "folder",
+                "kind": "overview",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v1",
+            "name": "Patch",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [
+              "Linux"
+            ],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "playbook",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v2",
+            "name": "Win",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [
+              "windows"
+            ],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "playbook",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v3",
+            "name": "Policies",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "facts",
+                "summary": "",
+                "pinned": true,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v4",
+            "name": "Archived pinned",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "facts",
+                "summary": "",
+                "pinned": true,
+                "status": "archived"
+              }
+            }
+          },
+          {
+            "id": "a8",
+            "name": "aaa no pinned key",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "status": "active"
+              }
+            }
+          }
+        ],
+        "folders": [
+          {
+            "id": "F1",
+            "parent_id": null
+          },
+          {
+            "id": "F2",
+            "parent_id": "F1"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "id": "y1",
+          "group": "asset"
+        },
+        {
+          "id": "f1",
+          "group": "folder"
+        },
+        {
+          "id": "f2",
+          "group": "folder"
+        },
+        {
+          "id": "v3",
+          "group": "vault"
+        }
+      ]
+    },
+    {
+      "name": "folder",
+      "fn": "knowledgeFor",
+      "input": {
+        "target": {
+          "folder_id": "F2"
+        },
+        "entries": [
+          {
+            "id": "X",
+            "name": "web-01",
+            "entry_type": "ssh",
+            "folder_id": "F2",
+            "parent_entry_id": null,
+            "tags": [
+              "linux"
+            ],
+            "config": {}
+          },
+          {
+            "id": "Y",
+            "name": "web-01 db",
+            "entry_type": "ssh",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {}
+          },
+          {
+            "id": "a1",
+            "name": "Reboot",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a2",
+            "name": "Overview",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "overview",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a3",
+            "name": "b facts",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a4",
+            "name": "Zed",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "troubleshooting",
+                "summary": "",
+                "pinned": true,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a5",
+            "name": "Old",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "archived"
+              }
+            }
+          },
+          {
+            "id": "a6",
+            "name": "apply patches",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a7",
+            "name": "Check later",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "needs_review"
+              }
+            }
+          },
+          {
+            "id": "d1",
+            "name": "Plain doc",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "content": "x"
+            }
+          },
+          {
+            "id": "s1",
+            "name": "Local admin",
+            "entry_type": "credential",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "embedded": {
+                "owner_id": "X",
+                "label": "Local admin"
+              }
+            }
+          },
+          {
+            "id": "y1",
+            "name": "Y facts",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "Y",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "f1",
+            "name": "Net",
+            "entry_type": "document",
+            "folder_id": "F2",
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "folder",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "f2",
+            "name": "Client",
+            "entry_type": "document",
+            "folder_id": "F1",
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "folder",
+                "kind": "overview",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v1",
+            "name": "Patch",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [
+              "Linux"
+            ],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "playbook",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v2",
+            "name": "Win",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [
+              "windows"
+            ],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "playbook",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v3",
+            "name": "Policies",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "facts",
+                "summary": "",
+                "pinned": true,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v4",
+            "name": "Archived pinned",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "facts",
+                "summary": "",
+                "pinned": true,
+                "status": "archived"
+              }
+            }
+          },
+          {
+            "id": "a8",
+            "name": "aaa no pinned key",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "status": "active"
+              }
+            }
+          }
+        ],
+        "folders": [
+          {
+            "id": "F1",
+            "parent_id": null
+          },
+          {
+            "id": "F2",
+            "parent_id": "F1"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "id": "f1",
+          "group": "folder"
+        },
+        {
+          "id": "f2",
+          "group": "folder"
+        },
+        {
+          "id": "v3",
+          "group": "vault"
+        }
+      ]
+    },
+    {
+      "name": "root folder",
+      "fn": "knowledgeFor",
+      "input": {
+        "target": {
+          "folder_id": "F1"
+        },
+        "entries": [
+          {
+            "id": "X",
+            "name": "web-01",
+            "entry_type": "ssh",
+            "folder_id": "F2",
+            "parent_entry_id": null,
+            "tags": [
+              "linux"
+            ],
+            "config": {}
+          },
+          {
+            "id": "Y",
+            "name": "web-01 db",
+            "entry_type": "ssh",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {}
+          },
+          {
+            "id": "a1",
+            "name": "Reboot",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a2",
+            "name": "Overview",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "overview",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a3",
+            "name": "b facts",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a4",
+            "name": "Zed",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "troubleshooting",
+                "summary": "",
+                "pinned": true,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a5",
+            "name": "Old",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "archived"
+              }
+            }
+          },
+          {
+            "id": "a6",
+            "name": "apply patches",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "a7",
+            "name": "Check later",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "needs_review"
+              }
+            }
+          },
+          {
+            "id": "d1",
+            "name": "Plain doc",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "content": "x"
+            }
+          },
+          {
+            "id": "s1",
+            "name": "Local admin",
+            "entry_type": "credential",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "embedded": {
+                "owner_id": "X",
+                "label": "Local admin"
+              }
+            }
+          },
+          {
+            "id": "y1",
+            "name": "Y facts",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "Y",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "f1",
+            "name": "Net",
+            "entry_type": "document",
+            "folder_id": "F2",
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "folder",
+                "kind": "facts",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "f2",
+            "name": "Client",
+            "entry_type": "document",
+            "folder_id": "F1",
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "folder",
+                "kind": "overview",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v1",
+            "name": "Patch",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [
+              "Linux"
+            ],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "playbook",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v2",
+            "name": "Win",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [
+              "windows"
+            ],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "playbook",
+                "summary": "",
+                "pinned": false,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v3",
+            "name": "Policies",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "facts",
+                "summary": "",
+                "pinned": true,
+                "status": "active"
+              }
+            }
+          },
+          {
+            "id": "v4",
+            "name": "Archived pinned",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": null,
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "vault",
+                "kind": "facts",
+                "summary": "",
+                "pinned": true,
+                "status": "archived"
+              }
+            }
+          },
+          {
+            "id": "a8",
+            "name": "aaa no pinned key",
+            "entry_type": "document",
+            "folder_id": null,
+            "parent_entry_id": "X",
+            "tags": [],
+            "config": {
+              "kb": {
+                "v": 1,
+                "scope": "asset",
+                "kind": "procedure",
+                "summary": "",
+                "status": "active"
+              }
+            }
+          }
+        ],
+        "folders": [
+          {
+            "id": "F1",
+            "parent_id": null
+          },
+          {
+            "id": "F2",
+            "parent_id": "F1"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "id": "f2",
+          "group": "folder"
+        },
+        {
+          "id": "v3",
+          "group": "vault"
+        }
+      ]
+    }
+  ]
+}

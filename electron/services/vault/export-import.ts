@@ -14,7 +14,7 @@
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import type { ConduitVault, EntryFull, FolderData } from './vault.js';
+import type { ConduitVault, EntryFull, FolderData, UpdateEntryInput } from './vault.js';
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ const TAG_LEN = 16;
 const MIN_BLOB_SIZE = 1 + SALT_LEN + NONCE_LEN + TAG_LEN;
 const MAX_EXPORT_SIZE = 100 * 1024 * 1024; // 100 MB
 const EXPORT_KDF_CONTEXT = Buffer.from('conduit-export-v1');
-const VALID_ENTRY_TYPES = new Set(['ssh', 'rdp', 'vnc', 'web', 'credential', 'document']);
+const VALID_ENTRY_TYPES = new Set(['ssh', 'rdp', 'vnc', 'web', 'credential', 'document', 'command']);
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -47,6 +47,8 @@ export interface ExportEntry {
   name: string;
   entry_type: string;
   folder_id: string | null;
+  /** Missing in exports from before nesting was exported. */
+  parent_entry_id?: string | null;
   host: string | null;
   port: number | null;
   username: string | null;
@@ -209,10 +211,20 @@ export function exportVault(vault: ConduitVault, options: ExportOptions): { fold
 
     scopeFolders = allFolders.filter(f => folderIdSet.has(f.id));
 
-    // Collect entries in those folders
+    // Collect entries in those folders, plus everything nested under them (articles, secrets, children)
     scopeEntryIds = new Set(
       allEntries.filter(e => e.folder_id && folderIdSet.has(e.folder_id)).map(e => e.id)
     );
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const e of allEntries) {
+        if (e.parent_entry_id && scopeEntryIds.has(e.parent_entry_id) && !scopeEntryIds.has(e.id)) {
+          scopeEntryIds.add(e.id);
+          grew = true;
+        }
+      }
+    }
 
     // Build scope_path from the selected folder names
     const selectedNames = options.folderIds
@@ -234,6 +246,7 @@ export function exportVault(vault: ConduitVault, options: ExportOptions): { fold
       name: full.name,
       entry_type: full.entry_type,
       folder_id: full.folder_id,
+      parent_entry_id: full.parent_entry_id,
       host: full.host,
       port: full.port,
       username: full.username,
@@ -527,6 +540,8 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
     createEntry(entry);
   }
 
+  linkImportedEntries(vault, payload.entries, actualEntryIdMap);
+
   return {
     foldersCreated,
     entriesCreated,
@@ -536,6 +551,58 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
+
+const REF_ID_RE = /\{\{(secret|cred):([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/g;
+
+/**
+ * Imported entries get new ids, so restore nesting and point secret refs and embedded-secret owners
+ * at the new ids (docs/KNOWLEDGE_BASE.md). Runs after every entry exists.
+ */
+function linkImportedEntries(vault: ConduitVault, entries: ExportEntry[], idMap: Map<string, string>): void {
+  const mapped = (id: string) => idMap.get(id) ?? idMap.get(id.toLowerCase());
+  const remapRefs = (text: string) => text.replace(REF_ID_RE, (whole, kind: string, id: string) => {
+    const next = mapped(id);
+    return next ? `{{${kind}:${next}` : whole;
+  });
+
+  for (const entry of entries) {
+    const newId = idMap.get(entry.id);
+    if (!newId) continue;
+    const patch: UpdateEntryInput = {};
+    const parent = entry.parent_entry_id ? mapped(entry.parent_entry_id) : undefined;
+    if (parent) patch.parent_entry_id = parent;
+    if (entry.notes) {
+      const notes = remapRefs(entry.notes);
+      if (notes !== entry.notes) patch.notes = notes;
+    }
+    let config = entry.config ?? {};
+    if (typeof config.content === 'string') {
+      const content = remapRefs(config.content);
+      if (content !== config.content) config = { ...config, content };
+    }
+    // Undo and restore bring revision text back, so its refs must point at the new ids too.
+    if (Array.isArray(config.kb_history)) {
+      const history = config.kb_history as Array<{ content?: unknown } | null>;
+      let changed = false;
+      const remapped = history.map((rev) => {
+        if (typeof rev?.content !== 'string') return rev;
+        const next = remapRefs(rev.content);
+        if (next === rev.content) return rev;
+        changed = true;
+        return { ...rev, content: next };
+      });
+      if (changed) config = { ...config, kb_history: remapped };
+    }
+    const embedded = config.embedded as { owner_id?: string; pending_for?: string } | undefined;
+    if (embedded && typeof embedded === 'object') {
+      const owner = embedded.owner_id ? mapped(embedded.owner_id) : undefined;
+      const pendingFor = embedded.pending_for ? mapped(embedded.pending_for) : undefined;
+      if (owner || pendingFor) config = { ...config, embedded: { ...embedded, ...(owner ? { owner_id: owner } : {}), ...(pendingFor ? { pending_for: pendingFor } : {}) } };
+    }
+    if (config !== entry.config) patch.config = config;
+    if (Object.keys(patch).length > 0) vault.updateEntry(newId, patch);
+  }
+}
 
 function topologicalSortFolders(folders: ExportFolder[]): ExportFolder[] {
   const folderMap = new Map(folders.map(f => [f.id, f]));

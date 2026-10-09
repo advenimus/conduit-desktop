@@ -1,0 +1,97 @@
+{
+  "format": 1,
+  "module": "hidden",
+  "notes": [
+    "isHidden(config): config is a parsed JSON value or a raw JSON string (iOS stores it as text). Section 1.3."
+  ],
+  "cases": [
+    {
+      "name": "empty object",
+      "fn": "isHidden",
+      "input": {},
+      "expect": false
+    },
+    {
+      "name": "kb object",
+      "fn": "isHidden",
+      "input": {
+        "kb": {
+          "v": 1
+        }
+      },
+      "expect": true
+    },
+    {
+      "name": "embedded object",
+      "fn": "isHidden",
+      "input": {
+        "embedded": {
+          "owner_id": "11111111-2222-4333-8444-555555555555"
+        }
+      },
+      "expect": true
+    },
+    {
+      "name": "kb null",
+      "fn": "isHidden",
+      "input": {
+        "kb": null
+      },
+      "expect": false
+    },
+    {
+      "name": "kb string",
+      "fn": "isHidden",
+      "input": {
+        "kb": "x"
+      },
+      "expect": false
+    },
+    {
+      "name": "kb array",
+      "fn": "isHidden",
+      "input": {
+        "kb": []
+      },
+      "expect": false
+    },
+    {
+      "name": "document content only",
+      "fn": "isHidden",
+      "input": {
+        "content": "# hi"
+      },
+      "expect": false
+    },
+    {
+      "name": "raw string with kb",
+      "fn": "isHidden",
+      "input": "{\"kb\":{}}",
+      "expect": true
+    },
+    {
+      "name": "raw string without kb",
+      "fn": "isHidden",
+      "input": "{\"content\":\"x\"}",
+      "expect": false
+    },
+    {
+      "name": "invalid json string",
+      "fn": "isHidden",
+      "input": "not json",
+      "expect": false
+    },
+    {
+      "name": "top-level array",
+      "fn": "isHidden",
+      "input": [],
+      "expect": false
+    },
+    {
+      "name": "null config",
+      "fn": "isHidden",
+      "input": null,
+      "expect": false
+    }
+  ]
+}

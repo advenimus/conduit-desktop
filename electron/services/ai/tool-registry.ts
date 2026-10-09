@@ -8,6 +8,7 @@
  */
 
 import type { AppState } from '../state.js';
+import { KB_AND_SECRET_TOOLS } from './tool-registry-kb.js';
 
 // ── Registry types ──────────────────────────────────────────────────────────
 
@@ -214,17 +215,20 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   {
     name: 'credential_read',
     category: 'credential',
-    description: 'Retrieve a credential including secrets. REQUIRES USER APPROVAL.',
+    description:
+      'Read a credential without its secret values. Returns password_ref (and totp_ref): put the ref in a typing tool and Conduit types the value. ' +
+      'reveal: true asks the user to Allow or Deny showing the plain value.',
     parameters: {
       type: 'object',
       properties: {
         credential_id: { type: 'string', description: 'UUID of the credential' },
-        purpose: { type: 'string', description: 'Explanation for why the credential is needed (for user approval)' },
+        reveal: { type: 'boolean', description: 'Ask the user to show the plain password and private key (default false)' },
+        purpose: { type: 'string', description: 'Why you need the plain value. Required with reveal.' },
       },
-      required: ['credential_id', 'purpose'],
+      required: ['credential_id'],
     },
-    // Custom execute — approval flow then fetch
-    execute: executeCredentialRead,
+    ipcType: 'CredentialGet',
+    argRenames: { credential_id: 'id' },
   },
   {
     name: 'credential_delete',
@@ -1066,28 +1070,5 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
     },
     ipcType: 'VncGetDimensions',
   },
+  ...KB_AND_SECRET_TOOLS,
 ];
-
-// ── Custom execute functions ────────────────────────────────────────────────
-
-/**
- * Read a credential. Approval is now handled by the unified ToolApprovalService
- * gate in tool-bridge.ts before this function is called.
- */
-async function executeCredentialRead(
-  args: Record<string, unknown>,
-  state: AppState,
-): Promise<string> {
-  const { handleRequest } = await import('../../ipc-server/server.js');
-
-  const credResult = await handleRequest({
-    type: 'CredentialGet',
-    payload: { id: args.credential_id as string },
-  }, state);
-
-  if (credResult.type === 'Error') {
-    return JSON.stringify(credResult.payload);
-  }
-
-  return JSON.stringify(credResult.payload);
-}

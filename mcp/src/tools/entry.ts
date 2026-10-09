@@ -1,9 +1,9 @@
 /**
  * Entry & document MCP tools.
  *
- * Read tools show !!secret!! values as [SECRET_n] tokens.
- * Write tools (update/edit notes, create/update documents) modify the vault and put
- * tokens back as the stored secrets.
+ * Read tools show legacy !!secret!! values as [SECRET_n] tokens; encrypted secrets are refs.
+ * Write tools (update/edit notes, create/update documents) put tokens back as the stored
+ * secrets, and the app encrypts any !!value!! into a secret ref on save.
  */
 
 import type { ConduitClient } from '../ipc-client.js';
@@ -11,8 +11,10 @@ import { maskSecrets, redactSecrets, restoreSecrets } from '../mask-secrets.js';
 import { applyTextEdits, MAX_TEXT_EDITS, parseTextEdits } from '../text-edits.js';
 
 const SECRET_TOKENS_HELP =
-  'Secrets show as [SECRET_n] tokens. Keep a token where it is, or copy it into new text, to keep that secret; ' +
-  'Conduit puts the real value back. Dropping a token deletes that secret. Write a new secret as !!value!!.';
+  'Encrypted secrets show as {{secret:<id>|Label}} refs: keep or copy a ref as is, and put it in a typing tool to use the secret. ' +
+  'Older unencrypted secrets show as [SECRET_n] tokens: keep a token where it is to keep that secret. ' +
+  'To add a secret, write !!value!! (Conduit encrypts it on save and stores a ref; secrets_encrypted counts them), ' +
+  'or better, create one with secret_create so you never handle the value.';
 
 function textField(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -26,6 +28,8 @@ export function entryInfoDefinition() {
     description:
       'Get metadata for any vault entry (connection, document, command). ' +
       'Optionally include notes, with !!secret!! values shown as [SECRET_n] tokens. ' +
+      'knowledge lists the knowledge articles that apply (the asset\'s own, its folders\', matching vault playbooks) ' +
+      'with a hint on what to do next, including when to offer moving long notes into articles. ' +
       'has_conflict is true when devices saved different values and the conflict is not resolved yet; ' +
       'the values shown are the provisional ones.',
     inputSchema: {
@@ -70,6 +74,7 @@ export async function entryInfo(
     const notes = entry.notes as string | null;
     result.notes = notes ? maskSecrets(notes) : null;
   }
+  if (entry.knowledge) result.knowledge = entry.knowledge;
 
   return result;
 }
@@ -200,6 +205,7 @@ export function documentCreateDefinition() {
     name: 'document_create',
     description:
       'Create a new markdown document entry in the vault. ' +
+      SECRET_TOKENS_HELP + ' ' +
       'IMPORTANT: Always show the user the proposed document name and content, and get their approval before calling this tool.',
     inputSchema: {
       type: 'object' as const,

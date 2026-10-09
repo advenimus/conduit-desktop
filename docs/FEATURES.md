@@ -124,6 +124,37 @@
 
 ---
 
+## Knowledge Base
+
+A structured memory that agents and the user build up about every asset. Data contract (shared with iOS): `docs/KNOWLEDGE_BASE.md`.
+
+### Articles
+- Each article has a kind (Overview, Facts, Procedure, Troubleshooting, Contact, Playbook, Change log), a title, a one-line summary, tags and a Markdown body
+- Three places: an asset's own articles; folder articles that every asset in the folder and its sub-folders inherits; vault playbooks that reach assets sharing one of their tags (or every asset when pinned)
+- The first Overview on an asset is pinned and shown expanded at the top
+- Stored as document entries with `config.kb`, so they sync, back up, team-sync and export like any entry. No schema change
+- Hidden from the sidebar tree, folder lists, counts, quick search and MCP `entry_list` / `entry_search`; deleted with their asset
+
+### Asset, folder and vault views
+- Asset page: Knowledge and Notes tabs. Knowledge lists own articles by kind, then "Also applies" for folder and vault articles
+- Folder page: a Knowledge section with the folder's articles ("Shared with N assets") and recent agent learnings on assets inside it. On a wide pane the entries and the knowledge sit side by side; narrow panes stack them
+- Vault Knowledge page (sidebar footer button): search, filters by kind, place, editor and state (active, needs review, not checked in 90 days, archived), and a Needs review queue, beside the list on a wide pane
+- Home: an Agent learnings card with recent agent edits and how many wait for review
+- Sidebar: a small count badge on assets and folders with articles, with a dot when agent edits wait for review; right-click menu "Add Knowledge Article"
+
+### Article view, history and review
+- Articles open as sub-tabs inside the tab they were opened from, like browser tabs: an asset's Info tab, a folder's tab, or the Knowledge page (opened from Home or the review queue, they go to their asset's, folder's or the Knowledge tab). The dashboard stays the first sub-tab, each article tab can be closed, unsaved edits are kept while switching and confirmed before closing, and closing the dashboard tab forgets its articles
+- Each article has a header: where it lives, kind picker, last editor, Mark verified, pin, History, and Archive / Flag as needs review / Delete
+- Every content save keeps a revision (the last 20, plus the review baseline). History shows each revision with who saved it and why, a line diff against the current text, and Restore
+- Agent edits save at once and show a banner: Review opens a diff against the last reviewed version, then Keep or Undo (Archive for an agent-made article nobody reviewed)
+- Articles not verified in 90 days are marked as not checked
+
+### Notes migration
+- Notes that look like a knowledge base (400+ characters, Markdown headings, or 3+ numbered steps) on an asset with no articles get a banner: Ask the agent (copies a prompt and opens the agent panel), Split by headings (local, no AI: one article per `##` section, notes kept), or Dismiss
+- Agents see the same suggestion in `entry_info` and offer it once
+
+---
+
 ## Vault & Credentials
 
 ### Encryption
@@ -137,6 +168,14 @@
 - Standalone credential entries (reusable across connections)
 - **Categorized type selector**: New Entry dialog groups types into categories (Connections, Documents, Credentials) with descriptions for each type
 - Credential sub-types (Password, SSH Key) open dedicated credential form with vault unlock handling
+
+### Secret Chips (Encrypted Secrets in Notes and Articles)
+- Typing `!!value!!` in notes, documents or articles still works: on save it becomes an encrypted secret (a hidden credential entry nested under its owner) and the text keeps only a `{{secret:<id>|Label}}` link. Table rows get a link without a label so the cell stays intact
+- Links render as chips showing the secret's name, with reveal (hides again after 30 seconds), copy and type-into-the-active-session buttons
+- The editor's key button stores a new secret right away (a value, or Generate) and inserts its chip
+- The asset page warns when notes still hold unencrypted `!!secrets!!` (Encrypt now) and when encrypted secrets are no longer linked from any text (Clean up, with confirmation). Settings > Security has "Encrypt secrets in all notes"
+- Embedded secrets never act as inherited login credentials and are left out of credential pickers and lists
+- Duplicating an entry copies the secrets its notes link to; deleting an entry deletes them
 
 ### Credential Management
 - Username/password storage
@@ -477,10 +516,12 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 - **VNC**: screenshot (returns native dims atomically), click, type, send key (press/down/up), mouse move, drag, scroll, get dimensions
 - **Web**: screenshot (returns viewport + image dims atomically), read content, navigate (with `wait_until` = `load`/`domcontentloaded`/`networkidle`), click, type, send key (press/down/up), mouse move, drag, scroll, get dimensions, click element (CSS selector), fill input (CSS selector), get interactive elements, execute JavaScript
 - **Web Tab Management**: list tabs, create tab, close tab, switch tab, go back, go forward, reload — enables AI agents to manage multiple browser tabs per web session
-- **Credentials**: list, create, read (with approval), delete, generate SSH key pair (`ssh_key_generate` — generates ed25519/RSA/ECDSA, stores encrypted in vault, returns only the public key + fingerprint)
+- **Credentials**: list, create, read (returns refs, not values; `reveal: true` asks the user first), delete, generate SSH key pair (`ssh_key_generate` — generates ed25519/RSA/ECDSA, stores encrypted in vault, returns only the public key + fingerprint)
 - **Connections**: list (active and saved), open (SSH/RDP/VNC by manual host/port/credential params), open from vault entry (`connection_open_entry` — opens a saved ssh/rdp/vnc entry by its `entry_id`; resolves host, port, and credentials server-side from the entry, honoring stored RDP settings and SSH auth-method preference, so the agent never handles secrets), close (also drops cached coordinate scale factors so a reopen under the same id can't reuse stale scale)
 - **Entry**: get metadata for any vault entry with optional notes, update entry notes, edit part of the notes (`entry_edit_notes`: exact find-and-replace edits, applied in order, all or nothing), list entries (filter by `entry_type` / `folder_id` / `tags`), search entries (case-insensitive substring on name and host)
 - **Document**: read, create, and update markdown document entries
+- **Knowledge base**: `kb_context` (what applies to an asset or folder), `kb_search`, `kb_read`, `kb_write` (create, rewrite or exact edits; saves at once for later review), `kb_log` (change log line), `kb_verify`, `kb_archive`, `kb_import_notes`, `kb_dismiss_migration`. `entry_info` adds a `knowledge` block with the articles that apply, a stale count and the notes-migration suggestion. The MCP server's instructions tell every agent to read knowledge first and write what it learns
+- **Secrets**: `secret_create` (prefer `generate`, so the value is made in Conduit), `secret_rotate` then `secret_commit` / `secret_discard` (stage a new value as `{{secret:<id>.pending}}`, keep the old one in password history), `secret_capture` (save a value shown in a terminal or web page straight into a secret), `secret_reveal` (asks the user)
 - **Secrets in notes and documents**: reads show each `!!secret!!` as a numbered `[SECRET_n]` token, so the agent never sees the value. Writes put tokens back as the stored secrets, so an agent can reword a line or move a section and keep its password. Writes are refused when they hold the old `[REDACTED]` marker, a token that is not in the current text, or a token placed inside `!!` markers. Write results report `secrets_removed`
 - **Sync conflicts**: `entry_info` and `credential_read` return `has_conflict: true` while the item has an unresolved multi-device sync conflict; the values returned are the provisional ones. MCP writes, imports and autofill-selector saves replace only the provisional value, so an open conflict stays open for the user
 - **Tool errors**: a failed call returns `{"error", "code", "reason"}`. `code` is the app's error code (for example `VAULT_LOCKED`), and `reason` is `open_elsewhere` when another device took the vault over, so agents can tell a locked vault from one that is open elsewhere
@@ -490,9 +531,9 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 - **Local-socket isolation**: MCP server speaks over a Unix socket (or named pipe on Windows) created with `0o600` permissions — only the user that owns the Conduit process can connect. Nothing is exposed over the network.
 - **Per-tool rate limiting**: Token-bucket limits sized per tool (e.g. screenshots 30/min, click/type 60/min, ssh_key_generate 6/min). Every registered tool has an explicit limit; nothing falls through to a generic default.
 - **Tier-aware gatekeeper**: IPC server only accepts connections when `mcp_enabled` is true (or in local mode). Socket file is removed on stop; defense-in-depth tier check on every IPC request.
-- **Credential approval**: `credential_read` still requires explicit user approval with a `purpose` reason — this is the one tool that reveals raw secrets, so the approval dialog is preserved.
-- **Audit logging**: Every tool invocation (success, error, rate-limited) is logged with timing, args summary, and caller.
-- **Secret redaction**: `!!secret!!…!!secret!!` blocks in entry notes and document content are redacted to `********` before being returned by `entry_info` / `document_read`.
+- **Secrets without exposure**: agents get refs (`{{secret:<id>}}`, `{{cred:<id>[.username|.totp]}}`) instead of values. `terminal_execute`, `terminal_send_keys`, `rdp_type`, `vnc_type`, `website_type`, `website_fill_input` and `connection_open` swap refs for real values inside the app; `website_execute_js` refuses refs. Terminal screens, command output and page reads have vault secret values replaced with refs before the agent sees them (best effort: screenshots are not scrubbed, and a deliberately encoded value gets through)
+- **Reveal approval**: `credential_read` with `reveal: true` shows the user a dialog naming the agent, the secret and the agent's reason. Allow once returns the plain value; Deny, no answer within 60 seconds, or no open window returns `APPROVAL_DENIED`
+- **Audit logging**: Every tool invocation (success, error, rate-limited) is logged with timing, args summary, and caller. Secret-named arguments are logged as `[REDACTED]`, and free text (notes, document content, typed text, fill values, commands, scripts, edits) only as its length. The MCP process's own log lists argument names, never values
 - Standalone operation fallback (MCP server stays alive if the main app's connection blips — reconnects on next request)
 
 ### In-App Agent Instructions (Auto-Generated)
@@ -509,6 +550,7 @@ Standalone MCP server process exposes Conduit tools to AI agents (Claude Code, e
 ## Import
 
 ### Vault Export/Import (.conduit-export)
+- Exports carry each entry's nesting; folder exports include everything nested under the folder's entries (knowledge articles, embedded secrets, child entries). Import restores the nesting and re-points secret links and embedded-secret owners at the new ids. Command entries import too
 - Export full vault or individual folders to encrypted `.conduit-export` files
 - User-provided passphrase encryption (PBKDF2-SHA256, 600k iterations, AES-256-GCM)
 - Domain-separated key derivation (`conduit-export-v1`) to prevent key reuse

@@ -5,15 +5,23 @@ import { toolbarActions, type ToolbarAction } from "../markdown/markdownToolbar"
 import ConfirmDialog from "../common/ConfirmDialog";
 import { CloseIcon, FileTextIcon, FloppyIcon, PencilIcon } from "../../lib/icons";
 import { Button, IconButton } from "../ui";
+import AddSecretPopover from "../markdown/AddSecretPopover";
+import ArticleHeader from "../knowledge/ArticleHeader";
+import { articleOf } from "../knowledge/kbUi";
+import { kbCall } from "../knowledge/kbActions";
+import { formatSecretRef } from "../../lib/kb";
 
 interface DocumentViewProps {
   entryId: string;
   isActive: boolean;
+  /** Told whenever the editor gains or loses unsaved changes (article sub-tabs ask before closing). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
-  const entry = useEntryStore((s) => s.entries.find((e) => e.id === entryId));
+export default function DocumentView({ entryId, isActive, onDirtyChange }: DocumentViewProps) {
+  const entry = useEntryStore((s) => s.entries.find((e) => e.id === entryId) ?? s.hiddenEntries.find((e) => e.id === entryId));
   const updateEntry = useEntryStore((s) => s.updateEntry);
+  const article = articleOf(entry);
 
   const savedContent = (entry?.config as { content?: string })?.content ?? "";
 
@@ -23,6 +31,7 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isDirty = isEditing && draftContent !== savedContent;
+  useEffect(() => onDirtyChange?.(isDirty), [isDirty, onDirtyChange]);
 
   // Sync draft when saved content changes externally (e.g. after save)
   useEffect(() => {
@@ -37,11 +46,28 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
   };
 
   const handleSave = async () => {
-    await updateEntry(entryId, {
-      config: { content: draftContent },
-    });
+    if (article) {
+      // Article saves go through the knowledge store so they get a revision and encrypt secrets.
+      if ((await kbCall("kb_update", { id: entryId, content: draftContent }, "Couldn't save the article")) === null) return;
+    } else {
+      await updateEntry(entryId, {
+        config: { ...(entry?.config ?? {}), content: draftContent },
+      });
+    }
     setIsEditing(false);
   };
+
+  const insertSecretRef = useCallback(
+    ({ id, label }: { id: string; label: string }) => {
+      const ta = textareaRef.current;
+      const at = ta?.selectionStart ?? draftContent.length;
+      const lineStart = draftContent.lastIndexOf("\n", at - 1) + 1;
+      const inTable = draftContent.slice(lineStart).trimStart().startsWith("|");
+      const ref = formatSecretRef(id, inTable ? null : label);
+      setDraftContent(draftContent.slice(0, at) + ref + draftContent.slice(ta?.selectionEnd ?? at));
+    },
+    [draftContent]
+  );
 
   const handleCancel = () => {
     if (isDirty) {
@@ -101,6 +127,8 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
             Edit
           </Button>
         </div>
+
+        {article && <ArticleHeader entry={entry} kb={article.kb} />}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 allow-select">
@@ -162,6 +190,7 @@ export default function DocumentView({ entryId, isActive }: DocumentViewProps) {
                   />
                 )
               )}
+              <AddSecretPopover ownerId={entry.id} onInsert={insertSecretRef} />
             </div>
 
             {/* Textarea */}

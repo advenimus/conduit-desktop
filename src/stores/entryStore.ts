@@ -11,6 +11,7 @@ import { resolveRdpConfig, resolveWebConfig } from "../lib/resolveConfig";
 import { toast } from "../components/common/Toast";
 import { disposeTerminalEntry } from "../components/sessions/TerminalView";
 import { errorText } from "../lib/errorText";
+import { isHiddenEntry } from "../lib/kb";
 
 /**
  * Map UI quality setting to RDP performance mode.
@@ -92,8 +93,39 @@ function computeRdpDimensions(rdpCfg: RdpEntryConfig, contentEl: Element | null)
   return { width: w, height: h, desktopScaleFactor, deviceScaleFactor, effectiveHighDpi: enableHighDpi };
 }
 
+/** Entry responses after a save that turned !!value!! into encrypted secrets. */
+type SavedEntry = EntryMeta & { secrets_converted?: number };
+
+function splitHidden(all: EntryMeta[]): { entries: EntryMeta[]; hiddenEntries: EntryMeta[] } {
+  const entries: EntryMeta[] = [];
+  const hiddenEntries: EntryMeta[] = [];
+  for (const e of all) (isHiddenEntry(e) ? hiddenEntries : entries).push(e);
+  return { entries, hiddenEntries };
+}
+
+function withoutHiddenDescendants(hidden: EntryMeta[], rootId: string): EntryMeta[] {
+  const doomed = new Set([rootId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const e of hidden) {
+      if (e.parent_entry_id && doomed.has(e.parent_entry_id) && !doomed.has(e.id)) {
+        doomed.add(e.id);
+        grew = true;
+      }
+    }
+  }
+  return hidden.filter((e) => !doomed.has(e.id));
+}
+
+function announceConverted(count: number | undefined): void {
+  if (count) toast.success(count === 1 ? "1 secret encrypted" : `${count} secrets encrypted`);
+}
+
 interface EntryState {
+  /** Entries shown in lists. Knowledge articles and embedded secrets are in hiddenEntries. */
   entries: EntryMeta[];
+  hiddenEntries: EntryMeta[];
   folders: FolderData[];
   selectedEntryIds: Set<string>;
   /** Derived: returns the single ID when exactly 1 item selected, else null */
@@ -290,6 +322,7 @@ async function connectEntry(
 
 export const useEntryStore = create<EntryState>((set, get) => ({
   entries: [],
+  hiddenEntries: [],
   folders: [],
   selectedEntryIds: new Set<string>(),
   selectedEntryId: null,
@@ -297,7 +330,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
   loadAll: async () => {
     // Guard: don't call IPC if the vault isn't unlocked
     if (!useVaultStore.getState().isUnlocked) {
-      set({ entries: [], folders: [] });
+      set({ entries: [], hiddenEntries: [], folders: [] });
       return;
     }
     try {
@@ -305,7 +338,7 @@ export const useEntryStore = create<EntryState>((set, get) => ({
         invoke<EntryMeta[]>("entry_list"),
         invoke<FolderData[]>("folder_list"),
       ]);
-      set({ entries, folders });
+      set({ ...splitHidden(entries), folders });
     } catch (err) {
       console.error("Failed to load entries/folders:", err);
     }
@@ -322,8 +355,12 @@ export const useEntryStore = create<EntryState>((set, get) => ({
         }
       }
 
-      const entry = await invoke<EntryMeta>("entry_create", params);
+      const { secrets_converted, ...entry } = await invoke<SavedEntry>("entry_create", params);
       set((state) => ({ entries: [...state.entries, entry] }));
+      if (secrets_converted) {
+        announceConverted(secrets_converted);
+        void get().loadAll();
+      }
       if (params.entry_type === "credential") {
         useVaultStore.getState().loadCredentials();
       }
@@ -372,10 +409,14 @@ export const useEntryStore = create<EntryState>((set, get) => ({
 
   updateEntry: async (id, updates) => {
     try {
-      const entry = await invoke<EntryMeta>("entry_update", { id, ...updates });
+      const { secrets_converted, ...entry } = await invoke<SavedEntry>("entry_update", { id, ...updates });
       set((state) => ({
         entries: state.entries.map((e) => (e.id === id ? entry : e)),
+        hiddenEntries: state.hiddenEntries.map((e) => (e.id === id ? entry : e)),
       }));
+      announceConverted(secrets_converted);
+      // Saving text can create secrets or change which ones are in use; both live in hiddenEntries.
+      if (secrets_converted || updates.notes !== undefined || updates.config !== undefined) void get().loadAll();
       if (entry.entry_type === "credential") {
         useVaultStore.getState().loadCredentials();
       }
@@ -410,6 +451,8 @@ export const useEntryStore = create<EntryState>((set, get) => ({
 
         return {
           entries: updatedEntries,
+          // The server deletes an entry's articles and secrets with it, at any depth.
+          hiddenEntries: withoutHiddenDescendants(state.hiddenEntries, id),
           selectedEntryIds: nextIds,
           selectedEntryId: deriveSingleId(nextIds),
         };

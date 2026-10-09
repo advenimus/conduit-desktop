@@ -1,0 +1,622 @@
+{
+  "format": 1,
+  "module": "revisions",
+  "notes": [
+    "Run steps in order on an article that starts with no history and no reviewed_at. Section 5.",
+    "save appends {at, author, content} and sets last_editor = author + at. keep sets reviewed_at to the newest revision at.",
+    "undo appends the baseline content as {kind:\"user\"} with reason \"Undo agent edits\" at the given time and sets reviewed_at to it; with no baseline the step expects {error:\"no_baseline\"} and changes nothing.",
+    "after each step, expect count (history length), latest_content, unseen and baseline_content (null when there is no baseline)."
+  ],
+  "cases": [
+    {
+      "name": "undo an agent edit",
+      "fn": "revisionScript",
+      "input": [
+        {
+          "op": "save",
+          "at": "2026-10-01T00:01:00.000Z",
+          "author": {
+            "kind": "user",
+            "device": "desktop"
+          },
+          "content": "c1"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:02:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c2"
+        },
+        {
+          "op": "undo",
+          "at": "2026-10-01T00:03:00.000Z"
+        }
+      ],
+      "expect": [
+        {
+          "count": 1,
+          "latest_content": "c1",
+          "unseen": false,
+          "baseline_content": "c1"
+        },
+        {
+          "count": 2,
+          "latest_content": "c2",
+          "unseen": true,
+          "baseline_content": "c1"
+        },
+        {
+          "count": 3,
+          "latest_content": "c1",
+          "unseen": false,
+          "baseline_content": "c1"
+        }
+      ]
+    },
+    {
+      "name": "agent-created article has no baseline",
+      "fn": "revisionScript",
+      "input": [
+        {
+          "op": "save",
+          "at": "2026-10-01T00:01:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c1"
+        },
+        {
+          "op": "undo",
+          "at": "2026-10-01T00:02:00.000Z"
+        }
+      ],
+      "expect": [
+        {
+          "count": 1,
+          "latest_content": "c1",
+          "unseen": true,
+          "baseline_content": null
+        },
+        {
+          "error": "no_baseline"
+        }
+      ]
+    },
+    {
+      "name": "keep moves the baseline",
+      "fn": "revisionScript",
+      "input": [
+        {
+          "op": "save",
+          "at": "2026-10-01T00:01:00.000Z",
+          "author": {
+            "kind": "user",
+            "device": "desktop"
+          },
+          "content": "c1"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:02:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c2"
+        },
+        {
+          "op": "keep"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:03:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c3"
+        },
+        {
+          "op": "undo",
+          "at": "2026-10-01T00:04:00.000Z"
+        }
+      ],
+      "expect": [
+        {
+          "count": 1,
+          "latest_content": "c1",
+          "unseen": false,
+          "baseline_content": "c1"
+        },
+        {
+          "count": 2,
+          "latest_content": "c2",
+          "unseen": true,
+          "baseline_content": "c1"
+        },
+        {
+          "count": 2,
+          "latest_content": "c2",
+          "unseen": false,
+          "baseline_content": "c2"
+        },
+        {
+          "count": 3,
+          "latest_content": "c3",
+          "unseen": true,
+          "baseline_content": "c2"
+        },
+        {
+          "count": 4,
+          "latest_content": "c2",
+          "unseen": false,
+          "baseline_content": "c2"
+        }
+      ]
+    },
+    {
+      "name": "user edit after agent clears unseen",
+      "fn": "revisionScript",
+      "input": [
+        {
+          "op": "save",
+          "at": "2026-10-01T00:01:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c1"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:02:00.000Z",
+          "author": {
+            "kind": "user",
+            "device": "desktop"
+          },
+          "content": "c2"
+        }
+      ],
+      "expect": [
+        {
+          "count": 1,
+          "latest_content": "c1",
+          "unseen": true,
+          "baseline_content": null
+        },
+        {
+          "count": 2,
+          "latest_content": "c2",
+          "unseen": false,
+          "baseline_content": "c2"
+        }
+      ]
+    },
+    {
+      "name": "cap keeps the baseline",
+      "fn": "revisionScript",
+      "input": [
+        {
+          "op": "save",
+          "at": "2026-10-01T00:00:00.000Z",
+          "author": {
+            "kind": "user",
+            "device": "desktop"
+          },
+          "content": "c0"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:01:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c1"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:02:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c2"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:03:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c3"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:04:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c4"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:05:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c5"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:06:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c6"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:07:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c7"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:08:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c8"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:09:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c9"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:10:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c10"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:11:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c11"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:12:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c12"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:13:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c13"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:14:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c14"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:15:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c15"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:16:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c16"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:17:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c17"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:18:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c18"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:19:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c19"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:20:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c20"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:21:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c21"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:22:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c22"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:23:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c23"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:24:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c24"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:25:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c25"
+        },
+        {
+          "op": "keep"
+        },
+        {
+          "op": "save",
+          "at": "2026-10-01T00:26:00.000Z",
+          "author": {
+            "kind": "agent",
+            "name": "Claude Code"
+          },
+          "content": "c26"
+        }
+      ],
+      "expect": [
+        {
+          "count": 1,
+          "latest_content": "c0",
+          "unseen": false,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 2,
+          "latest_content": "c1",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 3,
+          "latest_content": "c2",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 4,
+          "latest_content": "c3",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 5,
+          "latest_content": "c4",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 6,
+          "latest_content": "c5",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 7,
+          "latest_content": "c6",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 8,
+          "latest_content": "c7",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 9,
+          "latest_content": "c8",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 10,
+          "latest_content": "c9",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 11,
+          "latest_content": "c10",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 12,
+          "latest_content": "c11",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 13,
+          "latest_content": "c12",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 14,
+          "latest_content": "c13",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 15,
+          "latest_content": "c14",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 16,
+          "latest_content": "c15",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 17,
+          "latest_content": "c16",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 18,
+          "latest_content": "c17",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 19,
+          "latest_content": "c18",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 20,
+          "latest_content": "c19",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 21,
+          "latest_content": "c20",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 21,
+          "latest_content": "c21",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 21,
+          "latest_content": "c22",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 21,
+          "latest_content": "c23",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 21,
+          "latest_content": "c24",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 21,
+          "latest_content": "c25",
+          "unseen": true,
+          "baseline_content": "c0"
+        },
+        {
+          "count": 21,
+          "latest_content": "c25",
+          "unseen": false,
+          "baseline_content": "c25"
+        },
+        {
+          "count": 20,
+          "latest_content": "c26",
+          "unseen": true,
+          "baseline_content": "c25"
+        }
+      ]
+    }
+  ]
+}

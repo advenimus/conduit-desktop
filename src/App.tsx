@@ -43,6 +43,7 @@ import DeviceSetupDialog from "./components/vault/DeviceSetupDialog";
 import CreateTeamVaultDialog from "./components/vault/CreateTeamVaultDialog";
 import TeamVaultUnlock from "./components/vault/TeamVaultUnlock";
 import DeviceAuthApprovalDialog from "./components/vault/DeviceAuthApprovalDialog";
+import RevealApprovalDialog from "./components/ai/RevealApprovalDialog";
 import VaultSettingsDialog from "./components/vault/VaultSettingsDialog";
 import FeedbackDialog from "./components/feedback/FeedbackDialog";
 import SyncLayer from "./components/sync/SyncLayer";
@@ -655,6 +656,7 @@ function App() {
     const handleNewAgentEvent = () => {
       handleNewAgent();
     };
+    const handleAiPrompt = () => setShowAiPanel(true);
     const handleReplayOnboarding = () => {
       onboardingChecked.current = true;
       setShowOnboarding(true);
@@ -707,6 +709,7 @@ function App() {
     document.addEventListener("conduit:new-terminal", handleNewTerminal);
     document.addEventListener("conduit:close-tab", handleCloseTab);
     document.addEventListener("conduit:home", openHome);
+    document.addEventListener("conduit:ai-prompt", handleAiPrompt);
     document.addEventListener("conduit:next-tab", handleNextTab);
     document.addEventListener("conduit:prev-tab", handlePrevTab);
     document.addEventListener("conduit:split-right", handleSplitRight);
@@ -905,6 +908,7 @@ function App() {
       document.removeEventListener("conduit:new-terminal", handleNewTerminal);
       document.removeEventListener("conduit:close-tab", handleCloseTab);
       document.removeEventListener("conduit:home", openHome);
+      document.removeEventListener("conduit:ai-prompt", handleAiPrompt);
       document.removeEventListener("conduit:next-tab", handleNextTab);
       document.removeEventListener("conduit:prev-tab", handlePrevTab);
       document.removeEventListener("conduit:split-right", handleSplitRight);
@@ -1273,6 +1277,8 @@ function App() {
             onClose={() => setPendingDeviceAuth(null)}
           />
         )}
+
+        <RevealApprovalDialog />
 
         <SyncLayer />
       </div>

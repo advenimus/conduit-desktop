@@ -273,7 +273,7 @@ describe("Sidebar body", () => {
 });
 
 describe("Sidebar footer", () => {
-  it("keeps the count, the sync button, Home and Settings, then the local-mode sign-in link", () => {
+  it("keeps the count, the sync button, Home, Knowledge and Settings, then the local-mode sign-in link", () => {
     setup();
     expect(footer().className).toContain("border-divider");
     const [row1, row2] = [...footer().children] as HTMLElement[];
@@ -282,6 +282,7 @@ describe("Sidebar footer", () => {
     expect(buttonsIn(row1).map(describeButton)).toEqual([
       { aria: "Sync: Up to date", title: expect.stringContaining("Up to date"), text: undefined, pressed: undefined },
       { title: "Home", aria: "Home", text: undefined, pressed: undefined },
+      { title: "Knowledge", aria: "Knowledge", text: undefined, pressed: undefined },
       { title: "Settings (Ctrl+,)", aria: "Settings", text: undefined, pressed: undefined },
     ]);
     expect(buttonsIn(row2).map((b) => b.textContent?.trim())).toEqual(["Sign in to start a free Pro trial"]);

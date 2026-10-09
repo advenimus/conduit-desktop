@@ -1,6 +1,6 @@
 import { useSessionStore } from "../stores/sessionStore";
 import { useEntryStore } from "../stores/entryStore";
-import { entryInfoSessionId, folderViewSessionId } from "./dashboardSessions";
+import { KNOWLEDGE_SESSION_ID, KNOWLEDGE_TITLE, entryInfoSessionId, folderViewSessionId } from "./dashboardSessions";
 import { focusSession } from "./focusSession";
 
 export function openDashboardForEntry(entryId: string): void {
@@ -42,4 +42,14 @@ export function openFolderView(folderId: string): void {
     status: "connected",
     metadata: { folderId },
   });
+}
+
+/** Opens the vault Knowledge view, or focuses it when it is open. */
+export function openKnowledgeView(): void {
+  const { sessions, addSession } = useSessionStore.getState();
+  if (sessions.some((s) => s.id === KNOWLEDGE_SESSION_ID)) {
+    focusSession(KNOWLEDGE_SESSION_ID);
+    return;
+  }
+  addSession({ id: KNOWLEDGE_SESSION_ID, type: "dashboard", title: KNOWLEDGE_TITLE, status: "connected" });
 }

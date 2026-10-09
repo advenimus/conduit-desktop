@@ -5,6 +5,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { HOME_SECTION_IDS, type HomeSectionId } from "../../types/dashboard";
 import VaultStatusCard from "./VaultStatusCard";
 import AiActivityCard from "./home/AiActivityCard";
+import AgentLearningsCard from "./home/AgentLearningsCard";
 import AttentionCard from "./home/AttentionCard";
 import CustomizeMenu from "./home/CustomizeMenu";
 import FavoritesCard from "./home/FavoritesCard";
@@ -51,6 +52,7 @@ export default function DashboardOverview({ active = true }: { active?: boolean 
           {shown("favorites") && <FavoritesCard />}
           {shown("attention") && <AttentionCard settings={settings} />}
           {shown("ai-activity") && <AiActivityCard className="@2xl:col-span-2" active={active} />}
+          {shown("agent-learnings") && <AgentLearningsCard className="@2xl:col-span-2" />}
           {shown("vault-status") && <VaultStatusCells />}
         </div>
       </div>

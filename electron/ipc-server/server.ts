@@ -32,6 +32,17 @@ import {
 import { hasConflict, lockedResponse, vaultFailure } from './vault-guard.js';
 import { isMcpHeld, mcpHeldResponse } from './mcp-hold.js';
 import { parseAgentIdentity } from './agent-requests.js';
+import { errorResponse, successResponse, type IpcResponse } from './ipc-response.js';
+import { guardSecrets } from './secret-guard.js';
+import { defaultPort, notifyRendererEntryChanged, resolveEntryId } from './entry-helpers.js';
+import { handleSecretRequest, SECRET_REQUEST_TYPES } from './handlers/secrets.js';
+import { handleKnowledgeRequest, KNOWLEDGE_REQUEST_TYPES } from './handlers/knowledge.js';
+import { knowledgeBlock } from '../services/knowledge/kb-query.js';
+import { updateArticle, type KbVault } from '../services/knowledge/kb-store.js';
+import { isHiddenEntry, isKbArticle } from '../services/knowledge/kb-model.js';
+import { agentDisplayName } from './agent-names.js';
+import { credentialGetResponse } from './credential-reveal.js';
+import { createWithSecrets, updateWithSecrets } from '../services/secrets/embedded-secrets.js';
 import type { AgentIdentity, SessionOwner } from './session-claims.js';
 import {
   openSessionsForEntry,
@@ -44,65 +55,10 @@ import {
 
 // ---------- IPC Protocol Types ----------
 
-/**
- * Must match the protocol in mcp/src/ipc-client.ts and
- * crates/conduit-mcp/src/client.rs exactly.
- */
-interface IpcResponse {
-  type: 'Success' | 'Error';
-  payload: unknown;
-}
-
-function successResponse(payload: unknown): IpcResponse {
-  return { type: 'Success', payload };
-}
-
-function errorResponse(code: string, message: string): IpcResponse {
-  return { type: 'Error', payload: { code, message } };
-}
-
 function terminalErrorResponse(e: unknown): IpcResponse {
   if (e instanceof TerminalError) return errorResponse(e.code, e.message);
   return errorResponse('TERMINAL_ERROR', String(e));
 }
-
-// ---------- Approval Manager ----------
-
-interface PendingApproval {
-  credentialId: string;
-  credentialName: string;
-  purpose: string;
-  resolve: (approved: boolean) => void;
-}
-
-export class ApprovalManager {
-  private pending = new Map<string, PendingApproval>();
-
-  addPending(requestId: string, approval: PendingApproval): void {
-    this.pending.set(requestId, approval);
-  }
-
-  resolve(requestId: string, approved: boolean): boolean {
-    const entry = this.pending.get(requestId);
-    if (!entry) return false;
-    entry.resolve(approved);
-    this.pending.delete(requestId);
-    return true;
-  }
-
-  getPendingInfo(requestId: string): { credentialId: string; credentialName: string; purpose: string } | null {
-    const entry = this.pending.get(requestId);
-    if (!entry) return null;
-    return {
-      credentialId: entry.credentialId,
-      credentialName: entry.credentialName,
-      purpose: entry.purpose,
-    };
-  }
-}
-
-// Singleton approval manager (exported for use by IPC handlers in the renderer)
-export const approvalManager = new ApprovalManager();
 
 // Re-export getSocketPath for consumers that imported from this module
 export { getSocketPath };
@@ -118,45 +74,6 @@ interface ListedConnection {
   port: number | null;
   status: string;
   owner?: SessionOwner;
-}
-
-/** Normalize null port to default for the connection type */
-function defaultPort(port: number | null | undefined, connType: string): number {
-  if (port != null) return port;
-  switch (connType) {
-    case 'ssh': return 22;
-    case 'rdp': return 3389;
-    case 'vnc': return 5900;
-    default: return 0;
-  }
-}
-
-/** Notify the renderer that a vault entry was created or modified (triggers UI refresh). */
-function notifyRendererEntryChanged(): void {
-  const mainWindow = AppState.getInstance().getMainWindow();
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('vault:entry-changed');
-  }
-}
-
-/**
- * Resolve an ID that may be a session ID (from active connections) to the
- * corresponding vault entry ID. Falls through to the original ID if no
- * matching MCP session is found — handles vault entry IDs transparently.
- */
-function resolveEntryId(id: string, state: AppState): string {
-  const session = state.mcpConnections.get(id);
-  if (!session) return id;
-
-  // Session found — look up the vault entry by host/port/type match
-  if (!state.getActiveVault().isUnlocked()) return id;
-  const entries = state.getActiveVault().listEntries();
-  const match = entries.find(
-    (e) => e.host === session.host &&
-      defaultPort(e.port, e.entry_type) === defaultPort(session.port, session.connection_type) &&
-      e.entry_type === session.connection_type,
-  );
-  return match?.id ?? id;
 }
 
 // ---------- Request handler ----------
@@ -189,7 +106,9 @@ export async function handleRequest(
   }
 
   const agent = parseAgentIdentity(request.agent);
-  return runWithAgentClaims(request, state, agent, () => dispatchRequest(request, state, agent));
+  return runWithAgentClaims(request, state, agent, () =>
+    guardSecrets(request, state, (guarded) => dispatchRequest(guarded, state, agent)),
+  );
 }
 
 async function dispatchRequest(
@@ -197,6 +116,8 @@ async function dispatchRequest(
   state: AppState,
   agent: AgentIdentity | null,
 ): Promise<IpcResponse> {
+  if (SECRET_REQUEST_TYPES.has(request.type)) return handleSecretRequest(request, state, agent);
+  if (KNOWLEDGE_REQUEST_TYPES.has(request.type)) return handleKnowledgeRequest(request, state, agent);
   try {
     switch (request.type) {
       // ---- Terminal operations ----
@@ -316,36 +237,10 @@ async function dispatchRequest(
       }
 
       case 'CredentialGet': {
-        const { id } = request.payload as { id: string };
         if (!state.getActiveVault().isUnlocked()) {
           return lockedResponse(state, 'Vault is locked');
         }
-        try {
-          const cred = state.getActiveVault().getCredential(id);
-          return successResponse({
-            id: cred.id,
-            name: cred.name,
-            username: cred.username,
-            password: cred.password,
-            private_key: cred.private_key,
-            domain: cred.domain,
-            tags: cred.tags,
-            credential_type: cred.credential_type ?? null,
-            public_key: cred.public_key ?? null,
-            fingerprint: cred.fingerprint ?? null,
-            has_totp: !!cred.totp_secret,
-            totp_issuer: cred.totp_issuer ?? null,
-            totp_label: cred.totp_label ?? null,
-            totp_algorithm: cred.totp_algorithm ?? null,
-            totp_digits: cred.totp_digits ?? null,
-            totp_period: cred.totp_period ?? null,
-            created_at: cred.created_at,
-            updated_at: cred.updated_at,
-            has_conflict: hasConflict(state, cred.id),
-          });
-        } catch (e) {
-          return vaultFailure('VAULT_ERROR', e);
-        }
+        return credentialGetResponse(request.payload ?? {}, state, agent);
       }
 
       case 'CredentialCreate': {
@@ -416,58 +311,6 @@ async function dispatchRequest(
         } catch (e) {
           return vaultFailure('VAULT_ERROR', e);
         }
-      }
-
-      case 'RequestCredentialApproval': {
-        const { credential_id, purpose } = request.payload as {
-          credential_id: string;
-          purpose: string;
-        };
-        if (!state.getActiveVault().isUnlocked()) {
-          return lockedResponse(state, 'Vault is locked');
-        }
-
-        // Get credential name for display
-        let credentialName = credential_id;
-        try {
-          const cred = state.getActiveVault().getCredential(credential_id);
-          credentialName = cred.name;
-        } catch {
-          // Use ID as fallback
-        }
-
-        // Create promise for approval response
-        const requestId = randomUUID();
-        const approvalPromise = new Promise<boolean>((resolve) => {
-          approvalManager.addPending(requestId, {
-            credentialId: credential_id,
-            credentialName,
-            purpose,
-            resolve,
-          });
-        });
-
-        // Emit event to renderer to show approval dialog
-        const mainWindow = AppState.getInstance().getMainWindow();
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('mcp:approval_request', {
-            request_id: requestId,
-            credential_id,
-            credential_name: credentialName,
-            purpose,
-          });
-        }
-
-        // Wait with 60s timeout
-        const timeoutPromise = new Promise<boolean>((resolve) => {
-          setTimeout(() => {
-            approvalManager.resolve(requestId, false);
-            resolve(false);
-          }, 60_000);
-        });
-
-        const approved = await Promise.race([approvalPromise, timeoutPromise]);
-        return successResponse({ approved });
       }
 
       // ---- Connection operations ----
@@ -544,7 +387,7 @@ async function dispatchRequest(
 
           // Also include vault entries as saved (not active) connections
           for (const e of vaultEntries) {
-            if (e.entry_type === 'credential') continue;
+            if (e.entry_type === 'credential' || isHiddenEntry(e)) continue;
             // Skip if already tracked as an active connection (normalize default ports)
             const entryPort = defaultPort(e.port, e.entry_type);
             const alreadyActive = connections.some(
@@ -1690,6 +1533,7 @@ async function dispatchRequest(
           if (include_notes) {
             result.notes = entry.notes ?? '';
           }
+          if (!isHiddenEntry(entry)) result.knowledge = knowledgeBlock(vault as unknown as KbVault, entry);
           return successResponse(result);
         } catch (e) {
           return vaultFailure('ENTRY_ERROR', e);
@@ -1733,12 +1577,13 @@ async function dispatchRequest(
 
         try {
           const resolvedId = resolveEntryId(id, state);
-          const updated = vault.runNonInteractive(() => vault.updateEntry(resolvedId, { notes }));
+          const { entry: updated, converted } = vault.runNonInteractive(() => updateWithSecrets(vault, resolvedId, { notes }));
           notifyRendererEntryChanged();
           return successResponse({
             id: updated.id,
             name: updated.name,
             updated_at: updated.updated_at,
+            secrets_encrypted: converted,
           });
         } catch (e) {
           return vaultFailure('ENTRY_ERROR', e);
@@ -1758,7 +1603,7 @@ async function dispatchRequest(
         }
 
         try {
-          const entry = vault.runNonInteractive(() => vault.createEntry({
+          const { entry, converted } = vault.runNonInteractive(() => createWithSecrets(vault, {
             name,
             entry_type: 'document',
             folder_id: folder_id ?? undefined,
@@ -1770,6 +1615,7 @@ async function dispatchRequest(
             id: entry.id,
             name: entry.name,
             created_at: entry.created_at,
+            secrets_encrypted: converted,
           });
         } catch (e) {
           return vaultFailure('ENTRY_ERROR', e);
@@ -1793,6 +1639,17 @@ async function dispatchRequest(
           if (existing.entry_type !== 'document') {
             return errorResponse('INVALID_TYPE', 'Entry is not a document type');
           }
+          if (isKbArticle(existing)) {
+            // Articles keep a revision for every agent edit so the user can review and undo it.
+            const editor = { kind: 'agent' as const, name: agentDisplayName(agent) };
+            const article = vault.runNonInteractive(() => updateArticle(vault as unknown as KbVault, resolvedId, {
+              content,
+              ...(newName ? { title: newName } : {}),
+              reason: 'Edited with document_update',
+            }, editor));
+            notifyRendererEntryChanged();
+            return successResponse({ id: article.id, name: article.name, updated_at: article.updated_at });
+          }
 
           const existingConfig = (existing.config ?? {}) as Record<string, unknown>;
           const updatedConfig = { ...existingConfig, content };
@@ -1801,12 +1658,13 @@ async function dispatchRequest(
             updateInput.name = newName;
           }
 
-          const updated = vault.runNonInteractive(() => vault.updateEntry(resolvedId, updateInput));
+          const { entry: updated, converted } = vault.runNonInteractive(() => updateWithSecrets(vault, resolvedId, updateInput));
           notifyRendererEntryChanged();
           return successResponse({
             id: updated.id,
             name: updated.name,
             updated_at: updated.updated_at,
+            secrets_encrypted: converted,
           });
         } catch (e) {
           return vaultFailure('ENTRY_ERROR', e);
@@ -1826,7 +1684,8 @@ async function dispatchRequest(
         }
 
         try {
-          let entries = vault.listEntries();
+          // Knowledge articles and embedded secrets have their own tools.
+          let entries = vault.listEntries().filter((e) => !isHiddenEntry(e));
           if (entry_type) {
             entries = entries.filter((e) => e.entry_type === entry_type);
           }
@@ -1879,7 +1738,8 @@ async function dispatchRequest(
             return successResponse({ entries: [] });
           }
 
-          let entries = vault.listEntries();
+          // Knowledge articles and embedded secrets have their own tools.
+          let entries = vault.listEntries().filter((e) => !isHiddenEntry(e));
           if (entry_type) {
             entries = entries.filter((e) => e.entry_type === entry_type);
           }

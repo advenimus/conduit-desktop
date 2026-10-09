@@ -37,7 +37,7 @@ function parse(text) {
  * launcher/mcp link, so no Conduit build's stale-MCP reaper matches it.
  * Returns {listTools, callTool, callToolRaw, close}.
  */
-export async function connectMcp(device) {
+export async function connectMcp(device, { clientName = 'conduit-verify' } = {}) {
   const entry = path.join(device.root, 'launcher', 'mcp', 'dist', 'index.js');
   if (!fs.existsSync(entry)) throw new Error(`MCP server not built: ${entry} is missing (run buildForRun first)`);
   const { Client } = mcpRequire('@modelcontextprotocol/sdk/client/index.js');
@@ -56,7 +56,8 @@ export async function connectMcp(device) {
     stderr: 'pipe',
   });
   transport.stderr?.on('data', (chunk) => fs.appendFileSync(logFile, redact(chunk.toString())));
-  const client = new Client({ name: 'conduit-verify', version: '1.0.0' });
+  // The app names agents after the MCP client, so promo footage can show "claude-code" as Claude Code.
+  const client = new Client({ name: clientName, version: '1.0.0' });
   await withTimeout(client.connect(transport), 30_000, `${device.name}: MCP connect`);
   const unregister = device.run.onCleanup(`close MCP client for ${device.name}`, () => client.close());
 

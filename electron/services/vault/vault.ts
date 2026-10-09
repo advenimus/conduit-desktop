@@ -14,6 +14,7 @@ import type Database from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from './crypto.js';
 import { ConduitDatabase, type EntryRow, type FolderRow } from './database.js';
+import { isHiddenConfig } from '../knowledge/kb-model.js';
 import type { VaultSyncHooks, WorkingCopyOpenInput } from '../sync/host.js';
 import type { RowKey } from '../sync/types.js';
 import type { LockedReason } from '../vault-session/host.js';
@@ -85,6 +86,8 @@ export interface ResolvedCredential {
 }
 
 export interface CreateEntryInput {
+  /** Callers that must reference the entry before it exists (secret refs) pick the id. */
+  id?: string;
   name: string;
   entry_type: EntryType;
   folder_id?: string | null;
@@ -468,7 +471,7 @@ export class ConduitVault {
   createEntry(input: CreateEntryInput): EntryMeta {
     const { key, db } = this.requireUnlocked();
 
-    const id = uuidv4();
+    const id = input.id ?? uuidv4();
     const now = new Date().toISOString();
 
     const passwordEnc = input.password
@@ -696,9 +699,11 @@ export class ConduitVault {
     }
 
     this.mutate({ type: 'entry', action: 'delete', id, name: existing.name }, () => {
-      // Find direct children nested under this entry.
       const allEntries = db.listEntries();
-      const directChildren = allEntries.filter((row) => row.parent_entry_id === id);
+      // Knowledge articles and embedded secrets belong to their parent and go with it.
+      const hidden = hiddenDescendants(allEntries, id);
+      const hiddenIds = new Set(hidden.map((row) => row.id));
+      const directChildren = allEntries.filter((row) => row.parent_entry_id === id && !hiddenIds.has(row.id));
 
       if (directChildren.length > 0) {
         const promotedFolderId = existing.parent_entry_id ? null : existing.folder_id;
@@ -716,9 +721,14 @@ export class ConduitVault {
       }
 
       // Collected before the delete: the FK cascade removes them with the entry.
-      const historyIds = db.listPasswordHistory(id).map((h) => h.id);
-      db.deleteEntry(id);
-      const rows: RowKey[] = [entryRow(id), ...directChildren.map((c) => entryRow(c.id)), ...historyIds.map(historyRow)];
+      const doomed = [...hidden.map((row) => row.id), id];
+      const historyIds = doomed.flatMap((entryId) => db.listPasswordHistory(entryId).map((h) => h.id));
+      for (const entryId of doomed) db.deleteEntry(entryId);
+      const rows: RowKey[] = [
+        ...doomed.map(entryRow),
+        ...directChildren.map((c) => entryRow(c.id)),
+        ...historyIds.map(historyRow),
+      ];
       return { value: undefined, rows };
     });
   }
@@ -893,7 +903,7 @@ export class ConduitVault {
       visitedEntries.add(currentEntryId);
 
       const credSibling = getAllEntries().find(
-        (e) => e.parent_entry_id === currentEntryId && e.entry_type === 'credential'
+        (e) => e.parent_entry_id === currentEntryId && e.entry_type === 'credential' && !isHiddenConfig(e.config)
       );
       if (credSibling) {
         const full = this.rowToEntryFull(credSibling, key);
@@ -981,7 +991,7 @@ export class ConduitVault {
   /** List all credential-type entries (metadata only). */
   listCredentials(): { id: string; name: string; username: string | null; domain: string | null; tags: string[]; credential_type: string | null; created_at: string }[] {
     const { db } = this.requireUnlocked();
-    return db.listEntriesByType('credential').map((row) => ({
+    return db.listEntriesByType('credential').filter((row) => !isHiddenConfig(row.config)).map((row) => ({
       id: row.id,
       name: row.name,
       username: row.username,
@@ -1528,4 +1538,24 @@ export class ConduitVault {
       totp_secret: totpSecret,
     };
   }
+}
+
+/** Hidden entries nested under `rootId` at any depth, deepest first so deletes never orphan a child. */
+function hiddenDescendants(rows: readonly EntryRow[], rootId: string): EntryRow[] {
+  const byParent = new Map<string, EntryRow[]>();
+  for (const row of rows) {
+    if (!row.parent_entry_id) continue;
+    byParent.set(row.parent_entry_id, [...(byParent.get(row.parent_entry_id) ?? []), row]);
+  }
+  const out: EntryRow[] = [];
+  const visit = (parentId: string, seen: Set<string>) => {
+    for (const child of byParent.get(parentId) ?? []) {
+      if (seen.has(child.id) || !isHiddenConfig(child.config)) continue;
+      seen.add(child.id);
+      visit(child.id, seen);
+      out.push(child);
+    }
+  };
+  visit(rootId, new Set([rootId]));
+  return out;
 }

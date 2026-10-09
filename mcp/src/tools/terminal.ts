@@ -7,6 +7,7 @@
  */
 
 import type { ConduitClient } from '../ipc-client.js';
+import { SECRET_REF_INPUT_HELP } from './secret-help.js';
 import { textResult } from '../tool-result.js';
 import { isUnknownRequest, legacyExecute, legacyReadPane, legacySendKeys } from './terminal-legacy.js';
 import { parseKeySequences } from './terminal-text.js';
@@ -70,7 +71,7 @@ export function terminalExecuteDefinition() {
       type: 'object' as const,
       properties: {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
-        command: { type: 'string', description: 'Command or multi-line script to run' },
+        command: { type: 'string', description: `Command or multi-line script to run. ${SECRET_REF_INPUT_HELP}` },
         timeout_ms: {
           type: 'number',
           description:
@@ -204,7 +205,7 @@ export function terminalSendKeysDefinition() {
         connection_id: { type: 'string', description: 'UUID of the connection/session' },
         keys: {
           type: 'string',
-          description: 'Keys to send (supports the escapes above, e.g. "yes\\r" or "\\x03")',
+          description: `Keys to send (supports the escapes above, e.g. "yes\\r" or "\\x03"). ${SECRET_REF_INPUT_HELP}`,
         },
         wait_ms: {
           type: 'number',

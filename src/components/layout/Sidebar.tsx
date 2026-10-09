@@ -15,6 +15,7 @@ import { useTeamStore, type TeamVaultSummary } from "../../stores/teamStore";
 import { useTierStore } from "../../stores/tierStore";
 import { invoke } from "../../lib/electron";
 import { openHome } from "../../lib/openHome";
+import { openKnowledgeView } from "../../lib/openDashboard";
 import CloudSyncIndicator from "../vault/CloudSyncIndicator";
 import TeamSyncIndicator from "../vault/TeamSyncIndicator";
 import PersonalSyncIndicator from "../sync/PersonalSyncIndicator";
@@ -456,6 +457,7 @@ export default function Sidebar() {
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <IconButton icon="home" label="Home" onClick={openHome} />
+            <IconButton icon="notes" label="Knowledge" onClick={openKnowledgeView} />
             <IconButton icon="settings" label="Settings" title="Settings (Ctrl+,)" onClick={handleSettings} />
           </div>
         </div>

@@ -98,10 +98,12 @@ describe("EntryDashboard (restyle)", () => {
 
   it("keeps every detail row, label and action title", async () => {
     await setup();
-    for (const label of ["Host", "Username", "Password", "Tags", "Created", "Modified", "Notes"]) {
+    for (const label of ["Host", "Username", "Password", "Tags", "Created", "Modified"]) {
       const node = screen.getByText(label);
       expect(node).toHaveClass("text-meta", "font-semibold", "text-ink-muted");
     }
+    expect(screen.getByRole("tab", { name: "Notes" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Knowledge" })).toBeInTheDocument();
     expect(screen.getByText("10.0.0.5:22")).toBeInTheDocument();
     for (const title of ["Copy host", "Copy username", "Reveal password", "Copy password", "Password history"]) {
       expect(screen.getByTitle(title)).toHaveClass("size-5");

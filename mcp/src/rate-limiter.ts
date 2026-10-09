@@ -82,6 +82,23 @@ export function defaultRateLimits(): Map<string, ToolRateLimit> {
   limits.set('credential_create', { requestsPerMinute: 30, burst: 5 });
   limits.set('credential_list', { requestsPerMinute: 60, burst: 10 });
   limits.set('credential_delete', { requestsPerMinute: 30, burst: 5 });
+  limits.set('secret_create', { requestsPerMinute: 30, burst: 5 });
+  limits.set('secret_rotate', { requestsPerMinute: 20, burst: 5 });
+  limits.set('secret_commit', { requestsPerMinute: 20, burst: 5 });
+  limits.set('secret_discard', { requestsPerMinute: 20, burst: 5 });
+  limits.set('secret_capture', { requestsPerMinute: 20, burst: 5 });
+  limits.set('secret_reveal', { requestsPerMinute: 10, burst: 2 });
+
+  // Knowledge base
+  limits.set('kb_context', { requestsPerMinute: 120, burst: 20 });
+  limits.set('kb_search', { requestsPerMinute: 60, burst: 10 });
+  limits.set('kb_read', { requestsPerMinute: 120, burst: 20 });
+  limits.set('kb_write', { requestsPerMinute: 30, burst: 5 });
+  limits.set('kb_log', { requestsPerMinute: 30, burst: 5 });
+  limits.set('kb_verify', { requestsPerMinute: 30, burst: 5 });
+  limits.set('kb_archive', { requestsPerMinute: 30, burst: 5 });
+  limits.set('kb_import_notes', { requestsPerMinute: 10, burst: 2 });
+  limits.set('kb_dismiss_migration', { requestsPerMinute: 30, burst: 5 });
 
   // Connection tools
   limits.set('connection_list', { requestsPerMinute: 60, burst: 10 });

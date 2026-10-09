@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import VaultKnowledgeView from "../knowledge/VaultKnowledgeView";
+import DashboardSubTabs from "../knowledge/DashboardSubTabs";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useLayoutStore, findLeaf } from "../../stores/layoutStore";
 import {
@@ -129,8 +132,14 @@ export default function PaneContent({ paneId, isFocused }: PaneContentProps) {
         );
       case "dashboard": {
         const view = dashboardViewOf(session);
-        if (view.kind === "folder") return <FolderDashboard folderId={view.folderId} />;
-        if (view.kind === "entry") return <EntryDashboard entryId={view.entryId} />;
+        const withArticles = (homeLabel: string, body: ReactNode) => (
+          <DashboardSubTabs host={session.id} homeLabel={homeLabel} visible={isPaneActive}>
+            {body}
+          </DashboardSubTabs>
+        );
+        if (view.kind === "folder") return withArticles("Folder", <FolderDashboard folderId={view.folderId} />);
+        if (view.kind === "entry") return withArticles("Info", <EntryDashboard entryId={view.entryId} />);
+        if (view.kind === "knowledge") return withArticles("All knowledge", <VaultKnowledgeView />);
         return <DashboardOverview active={isPaneActive} />;
       }
       default:
