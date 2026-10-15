@@ -4,6 +4,8 @@ Status: final spec, 2026-09-25. It merges the synthesized design with the red-te
 
 **See also:** `docs/PLAN_ENFORCEMENT.md` (2026-09-29) adds vault ownership, the per-account device cap, the in-file owner tag `_sync/owner/account`, the minimum app version and new lease answers (`not_owner`, `device_cap`, `update_required`). Where the two differ, that spec wins for those topics.
 
+**Backend note (October 2026).** The SQL in `supabase/migrations/` that this spec describes was ported to TypeScript in `appwrite/src/api/` (`rpc/sessions.ts`, `policies.ts`, `triggers.ts`, `storage.ts`), and the Supabase project is retired after the cutover. Read the SQL and Supabase details below as history; how the server works and deploys now is in `docs/APPWRITE.md`.
+
 **Scope.** Personal `.conduit` vaults on desktop (Electron, better-sqlite3) and iOS (GRDB). Team vaults keep their Supabase team sync and do not change. Removing the MCP quota is a separate change (section 8.3).
 
 **Path roots used in citations.**
@@ -1036,6 +1038,8 @@ Set `mcp_daily_quota = -1` for every tier (this also uncaps old clients, which f
 
 ## 9. Supabase migrations
 
+History: these rules now live in `appwrite/src/api/rpc/sessions.ts` and are deployed with `node appwrite/scripts/deploy.ts` (`docs/APPWRITE.md`). The steps below describe the original Supabase rollout.
+
 Files go in `DESK/supabase/migrations/`. Apply to the local stack first, then `supabase db push --project-ref khuyzxadaszwxirwykms`. They follow the advisor pattern: RLS on, `(select auth.uid())`, EXECUTE revoked from `anon` (`20260527000000_advisor_cleanup.sql`) [V]. `vault_locks` is not reused and not touched.
 
 ### 9.1 Files and order
@@ -1703,7 +1707,7 @@ Keep every new file under about 400 lines. Existing large files (`vault.ts`, `da
 - **Legacy writer drivers:** the vendored 0.17 `ConduitDatabase`/`ConduitVault` editing S in place (including idle with an open connection); an iOS 1.0.5 emulator reproducing stage (with companion folding), the stale editor save, rebuilt config, and in-place `writeBack` with `removeCompanions`. T-LEG-1: iOS 1.0.5 editing continuously against desktop for 5 minutes; assert no loss outside the documented CAS-to-rename gap and convergence once idle.
 - **Race tests:** a capture committed between merge compute and commit (T-RACE-1, desktop and iOS); two devices importing the same candidate.
 - **Cross-platform exchange in CI:** desktop writes fixture files; iOS XCTest opens them with the real GRDB code and edits them as 1.1 and as 1.0.5 (code at tag 1.0.5); desktop absorbs them back. Gate in both repos on any change under `sync/`.
-- **Supabase SQL tests** (local stack, two user JWTs): acquire, deny, take-over, heartbeat, late heartbeat after release, expiry, superseded nonce, `plan_limit` with busy preference, upgrade, markers, abandon, `too_many_sessions`, parallel acquires (advisory lock), oversize JSON rejection, RLS (no reads of other users' rows, no direct writes), Realtime delivering only own rows, and the guard trigger (as run in 9.7, plus the service role and the SECURITY DEFINER team trigger unaffected).
+- **Server tests** (now unit tests in `appwrite/tests/unit/`, run with `npm run test:server`; originally Supabase SQL tests on the local stack with two user JWTs): acquire, deny, take-over, heartbeat, late heartbeat after release, expiry, superseded nonce, `plan_limit` with busy preference, upgrade, markers, abandon, `too_many_sessions`, parallel acquires (advisory lock), oversize JSON rejection, RLS (no reads of other users' rows, no direct writes), Realtime delivering only own rows, and the guard trigger (as run in 9.7, plus the service role and the SECURITY DEFINER team trigger unaffected).
 - **Client enforcement tests:** effective limit with a future-dated cache, an expired cache, a Pro cache, and server errors; `CONDUIT_ENV` ignored when packaged; claims honored when unconfirmed, including same-account; soft lock keeps a terminal session and an RDP session running while vault IPC and MCP calls fail with `open_elsewhere`.
 - **Platform tests:** `syncRoot` resolution on each OS; Linux machine-id; a network `syncRoot` switching W to DELETE mode.
 - **Fault injection:** `kill -9` during a W transaction and during publish; `ENOSPC`; `EACCES`; a network drop mid-heartbeat; a clock jumped backward.

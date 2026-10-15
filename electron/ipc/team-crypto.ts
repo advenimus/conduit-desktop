@@ -2,7 +2,7 @@
  * IPC handlers for identity key management and device authorization.
  *
  * Manages the X25519 identity key pair lifecycle:
- * - Generation, local storage (safeStorage), and Supabase public key upload
+ * - Generation, local storage (safeStorage), and server public key upload
  * - Recovery passphrase backup and restore
  * - Device authorization (key transfer between devices)
  */
@@ -67,7 +67,7 @@ export function registerTeamCryptoHandlers(): void {
 
   /**
    * Generate a new identity key pair, store locally, upload public key,
-   * and create a recovery backup in Supabase.
+   * and create a recovery backup on the server.
    *
    * Returns the recovery passphrase for the user to write down.
    */
@@ -77,7 +77,7 @@ export function registerTeamCryptoHandlers(): void {
       throw new Error('Not authenticated');
     }
 
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
     const userId = authState.user.id;
     const deviceId = getOrCreateDeviceId(userId);
     const deviceName = os.hostname();
@@ -88,8 +88,8 @@ export function registerTeamCryptoHandlers(): void {
     // Store private key locally (encrypted with OS keychain)
     storePrivateKey(privateDer, userId);
 
-    // Upload public key to Supabase
-    const { error: pubKeyError } = await supabase
+    // Upload public key to the server
+    const { error: pubKeyError } = await db
       .from('user_public_keys')
       .upsert({
         user_id: userId,
@@ -110,8 +110,8 @@ export function registerTeamCryptoHandlers(): void {
     const passphrase = generateRecoveryPassphrase();
     const { encryptedB64, saltB64 } = encryptPrivateKeyForRecovery(privateDer, passphrase);
 
-    // Store recovery backup in Supabase
-    const { error: backupError } = await supabase
+    // Store recovery backup on the server
+    const { error: backupError } = await db
       .from('user_key_backups')
       .upsert({
         user_id: userId,
@@ -146,7 +146,7 @@ export function registerTeamCryptoHandlers(): void {
   });
 
   /**
-   * Check if the user has a recovery backup in Supabase.
+   * Check if the user has a recovery backup on the server.
    * Returns true if they've previously generated an identity key (on any device).
    * Used to distinguish first-time setup (generate key) from returning user (recover key).
    */
@@ -156,8 +156,8 @@ export function registerTeamCryptoHandlers(): void {
       return false;
     }
 
-    const supabase = state.authService.getSupabaseClient();
-    const { count, error } = await supabase
+    const db = state.authService.getDb();
+    const { count, error } = await db
       .from('user_key_backups')
       .select('user_id', { count: 'exact', head: true })
       .eq('user_id', authState.user.id);
@@ -185,7 +185,7 @@ export function registerTeamCryptoHandlers(): void {
 
   /**
    * Recover identity key from recovery passphrase.
-   * Downloads the encrypted backup from Supabase, decrypts it,
+   * Downloads the encrypted backup from the server, decrypts it,
    * stores the private key locally, and registers this device's public key.
    */
   ipcMain.handle('identity_key_recover', async (_e, args) => {
@@ -196,13 +196,13 @@ export function registerTeamCryptoHandlers(): void {
       throw new Error('Not authenticated');
     }
 
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
     const userId = authState.user.id;
     const deviceId = getOrCreateDeviceId(userId);
     const deviceName = os.hostname();
 
     // Fetch recovery backup
-    const { data: backup, error: fetchError } = await supabase
+    const { data: backup, error: fetchError } = await db
       .from('user_key_backups')
       .select('encrypted_private_key_b64, kdf_salt_b64')
       .eq('user_id', userId)
@@ -229,7 +229,7 @@ export function registerTeamCryptoHandlers(): void {
 
     // Register this device's public key
     const publicDer = derivePublicKey(privateDer);
-    const { error: pubKeyError } = await supabase
+    const { error: pubKeyError } = await db
       .from('user_public_keys')
       .upsert({
         user_id: userId,
@@ -260,7 +260,7 @@ export function registerTeamCryptoHandlers(): void {
       throw new Error('Not authenticated');
     }
 
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
     const userId = authState.user.id;
     const deviceId = getOrCreateDeviceId(userId);
     const deviceName = os.hostname();
@@ -271,7 +271,7 @@ export function registerTeamCryptoHandlers(): void {
     const tempPrivateKeyB64 = privateDer.toString('base64');
     privateDer.fill(0);
 
-    const { data: request, error } = await supabase
+    const { data: request, error } = await db
       .from('device_auth_requests')
       .insert({
         user_id: userId,
@@ -307,7 +307,7 @@ export function registerTeamCryptoHandlers(): void {
       throw new Error('Not authenticated');
     }
 
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
 
     // Load our private key
     const privateDer = loadPrivateKey(authState.user.id);
@@ -317,7 +317,7 @@ export function registerTeamCryptoHandlers(): void {
 
     try {
       // Fetch the request to get the requesting device's public key
-      const { data: request, error: fetchError } = await supabase
+      const { data: request, error: fetchError } = await db
         .from('device_auth_requests')
         .select('*')
         .eq('id', requestId)
@@ -334,7 +334,7 @@ export function registerTeamCryptoHandlers(): void {
       const wrapped = wrapVEK(privateDer, requestingPubDer);
 
       // Update the request with the wrapped key
-      const { error: updateError } = await supabase
+      const { error: updateError } = await db
         .from('device_auth_requests')
         .update({
           status: 'approved',
@@ -365,9 +365,9 @@ export function registerTeamCryptoHandlers(): void {
       throw new Error('Not authenticated');
     }
 
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
 
-    const { data: request, error } = await supabase
+    const { data: request, error } = await db
       .from('device_auth_requests')
       .select('*')
       .eq('id', requestId)
@@ -421,7 +421,7 @@ export function registerTeamCryptoHandlers(): void {
       const deviceName = os.hostname();
       const publicDer = derivePublicKey(identityPrivateDer);
 
-      await supabase
+      await db
         .from('user_public_keys')
         .upsert({
           user_id: authState.user.id,
@@ -454,10 +454,10 @@ export function registerTeamCryptoHandlers(): void {
     // Only list requests if we have a key (can actually approve)
     if (!hasPrivateKey(authState.user.id)) return [];
 
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
     const deviceId = getOrCreateDeviceId(authState.user.id);
 
-    const { data } = await supabase
+    const { data } = await db
       .from('device_auth_requests')
       .select('id, requesting_device_name, created_at')
       .eq('user_id', authState.user.id)
@@ -479,9 +479,9 @@ export function registerTeamCryptoHandlers(): void {
       throw new Error('Not authenticated');
     }
 
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
 
-    const { error } = await supabase
+    const { error } = await db
       .from('device_auth_requests')
       .update({ status: 'denied' })
       .eq('id', requestId)

@@ -1,6 +1,6 @@
 // The restyle scenarios that need more than one app state per mode: the signed-in side bar (a Free
 // user with the trial card, the account row and its sign-out confirm, the Pro trial strip, a team
-// vault, cached mode behind a cut Supabase link) and the six-pack sheets of owner gate 1.
+// vault, cached mode behind a cut Appwrite link) and the six-pack sheets of owner gate 1.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -36,12 +36,11 @@ const MODES = ['dark', 'light'];
 const SIDEBAR = '[data-sidebar-panel]';
 
 /** Sets the signed-in user's plan to a 14-day Pro trial, the way billing would. */
-function startProTrial(ctx, user) {
-  return ctx.sql(
-    `update public.user_profiles set tier_id = (select id from public.tiers where name = 'pro'), subscription_status = 'trialing',
-       trial_ends_at = now() + interval '14 days', has_used_trial = true where id = :'uid' returning id`,
-    { uid: user.id },
-  );
+async function startProTrial(ctx, user) {
+  const [pro] = await ctx.rows('tiers', { name: 'pro' }, { columns: 'id' });
+  return ctx.updateRows('user_profiles', {
+    tier_id: pro.id, subscription_status: 'trialing', trial_ends_at: new Date(Date.now() + 14 * 86_400_000).toISOString(), has_used_trial: true,
+  }, { id: user.id });
 }
 
 async function refreshProfile(device) {
@@ -60,7 +59,7 @@ function reloadTeam(device) {
 
 async function signedInMode(ctx, mode, rs, { testSite }) {
   const user = await ctx.createUser('free');
-  const proxy = await ctx.supabaseProxy();
+  const proxy = await ctx.backendProxy();
   const name = `rss-${mode[0]}`;
   let d = await launchInMode(ctx, 'rss', mode, { env: proxy.env });
   const dirs = () => [vaultDir(d)];

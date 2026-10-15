@@ -297,7 +297,7 @@ export function generateRecoveryPassphrase(): string {
  * Encrypt a private key (DER) for recovery storage using a passphrase.
  * Uses PBKDF2-SHA256 (600k iterations) + AES-256-GCM.
  *
- * Returns the encrypted blob + salt for storage in Supabase.
+ * Returns the encrypted blob + salt for storage on the server.
  */
 export function encryptPrivateKeyForRecovery(
   privateDer: Buffer,

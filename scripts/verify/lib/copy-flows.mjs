@@ -125,11 +125,6 @@ export function presenceDevicesIn(file, scratchDir) {
 }
 
 /** The user's session rows with their file hints: [{device_id, status, file_id, file_name, location}]. */
-export function sessionFileHints(ctx, email) {
-  return ctx.sqlJson(
-    `select s.device_id, s.status, s.file_id, s.file_name, s.location
-       from public.personal_vault_sessions s join auth.users u on u.id = s.user_id
-      where u.email = :'email' order by s.acquired_at`,
-    { email },
-  );
+export async function sessionFileHints(ctx, email) {
+  return (await ctx.leaseRows(email)).map(({ device_id, status, file_id, file_name, location }) => ({ device_id, status, file_id, file_name, location }));
 }

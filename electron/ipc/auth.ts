@@ -1,5 +1,5 @@
 /**
- * IPC handlers for Supabase authentication.
+ * IPC handlers for authentication.
  */
 
 import { ipcMain, shell, app, net } from 'electron';
@@ -18,12 +18,12 @@ export function registerAuthHandlers(): void {
   // Electron's net.isOnline() and renderer's navigator.onLine only check OS
   // network interfaces — they return true when WiFi is off (loopback is up).
   // A dns.lookup uses getaddrinfo (the same syscall that fails with ENOTFOUND
-  // in the Supabase errors) so it reliably detects actual internet loss.
-  // We probe both Supabase and the website — only report offline if BOTH fail,
+  // in network errors) so it reliably detects actual internet loss.
+  // We probe both Appwrite and the website — only report offline if BOTH fail,
   // so a single service outage doesn't falsely trigger offline mode.
   const envConfig = getEnvConfig();
   const probeHosts = [
-    new URL(envConfig.supabaseUrl).hostname,
+    new URL(envConfig.appwriteEndpoint).hostname,
     new URL(envConfig.websiteUrl).hostname,
   ];
   let lastOnline: boolean | null = null;
@@ -133,10 +133,6 @@ export function registerAuthHandlers(): void {
   ipcMain.handle('auth_resend_confirmation', async (_e, args) => {
     const { email } = args as { email: string };
     return state.authService.resendConfirmation(email);
-  });
-
-  ipcMain.handle('auth_get_usage', async () => {
-    return state.authService.getUsage();
   });
 
   // MFA status check (read-only — enrollment and verification happen on the website)

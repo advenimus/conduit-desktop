@@ -38,7 +38,8 @@ describe('getEnvConfig (spec 6.8)', () => {
     vi.stubEnv('CONDUIT_ENV', 'preview');
     const config = await loadConfig();
     expect(config.environment).toBe('production');
-    expect(config.supabaseUrl).not.toContain('127.0.0.1');
+    expect(config.appwriteEndpoint).toBe('https://appwrite.cloudwise.ca/v1');
+    expect(config.appwriteProjectId).toBe('6acf9d610020fad67ba9');
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('ignored in packaged builds'));
   });
 });
@@ -80,56 +81,64 @@ describe('devServerUrl', () => {
   });
 });
 
-describe('CONDUIT_DEV_SUPABASE_URL', () => {
-  const PREVIEW_SUPABASE = 'http://127.0.0.1:54321';
+describe('CONDUIT_DEV_APPWRITE_ENDPOINT', () => {
+  const PREVIEW_ENDPOINT = 'http://localhost:8085/v1';
 
   beforeEach(() => {
     vi.mocked(console.warn).mockClear();
   });
 
-  it('dev preview builds use the override (a local proxy) and keep the preview anon key', async () => {
+  it('dev preview builds use the override (a local proxy) and keep the preview project', async () => {
     vi.stubEnv('CONDUIT_ENV', 'preview');
-    vi.stubEnv('CONDUIT_DEV_SUPABASE_URL', 'http://127.0.0.1:61234/');
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_ENDPOINT', 'http://127.0.0.1:61234/v1/');
     const config = await loadConfig();
-    expect(config.supabaseUrl).toBe('http://127.0.0.1:61234');
+    expect(config.appwriteEndpoint).toBe('http://127.0.0.1:61234/v1');
     expect(config.environment).toBe('preview');
-    vi.stubEnv('CONDUIT_DEV_SUPABASE_URL', '');
-    expect((await loadConfig()).supabaseAnonKey).toBe(config.supabaseAnonKey);
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_ENDPOINT', '');
+    expect((await loadConfig()).appwriteProjectId).toBe(config.appwriteProjectId);
   });
 
-  it('accepts localhost and keeps only the origin', async () => {
+  it('adds /v1 to a bare origin', async () => {
     vi.stubEnv('CONDUIT_ENV', 'preview');
-    vi.stubEnv('CONDUIT_DEV_SUPABASE_URL', 'http://localhost:61235/some/path');
-    expect((await loadConfig()).supabaseUrl).toBe('http://localhost:61235');
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_ENDPOINT', 'http://localhost:61235');
+    expect((await loadConfig()).appwriteEndpoint).toBe('http://localhost:61235/v1');
   });
 
   it('is unset by default', async () => {
     vi.stubEnv('CONDUIT_ENV', 'preview');
-    vi.stubEnv('CONDUIT_DEV_SUPABASE_URL', '');
-    expect((await loadConfig()).supabaseUrl).toBe(PREVIEW_SUPABASE);
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_ENDPOINT', '');
+    expect((await loadConfig()).appwriteEndpoint).toBe(PREVIEW_ENDPOINT);
+  });
+
+  it('dev preview builds can pick another local project', async () => {
+    vi.stubEnv('CONDUIT_ENV', 'preview');
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_PROJECT', 'verify-run');
+    expect((await loadConfig()).appwriteProjectId).toBe('verify-run');
   });
 
   it('packaged builds ignore it', async () => {
     electronState.isPackaged = true;
-    vi.stubEnv('CONDUIT_DEV_SUPABASE_URL', 'http://127.0.0.1:61234');
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_ENDPOINT', 'http://127.0.0.1:61234');
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_PROJECT', 'verify-run');
     const config = await loadConfig();
     expect(config.environment).toBe('production');
-    expect(config.supabaseUrl).not.toContain('127.0.0.1');
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('CONDUIT_DEV_SUPABASE_URL is ignored'));
+    expect(config.appwriteEndpoint).not.toContain('127.0.0.1');
+    expect(config.appwriteProjectId).toBe('6acf9d610020fad67ba9');
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('CONDUIT_DEV_APPWRITE_ENDPOINT is ignored'));
   });
 
   it('dev builds on production ignore it', async () => {
     vi.stubEnv('CONDUIT_ENV', 'production');
-    vi.stubEnv('CONDUIT_DEV_SUPABASE_URL', 'http://127.0.0.1:61234');
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_ENDPOINT', 'http://127.0.0.1:61234');
     const config = await loadConfig();
-    expect(config.supabaseUrl).not.toContain('127.0.0.1');
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('CONDUIT_DEV_SUPABASE_URL is ignored'));
+    expect(config.appwriteEndpoint).not.toContain('127.0.0.1');
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('CONDUIT_DEV_APPWRITE_ENDPOINT is ignored'));
   });
 
-  it.each(['not a url', 'file:///etc/passwd', 'https://example.com', 'http://10.0.0.5:54321'])('ignores %s', async (raw) => {
+  it.each(['not a url', 'file:///etc/passwd', 'https://example.com', 'http://10.0.0.5:8085/v1'])('ignores %s', async (raw) => {
     vi.stubEnv('CONDUIT_ENV', 'preview');
-    vi.stubEnv('CONDUIT_DEV_SUPABASE_URL', raw);
-    expect((await loadConfig()).supabaseUrl).toBe(PREVIEW_SUPABASE);
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('CONDUIT_DEV_SUPABASE_URL'));
+    vi.stubEnv('CONDUIT_DEV_APPWRITE_ENDPOINT', raw);
+    expect((await loadConfig()).appwriteEndpoint).toBe(PREVIEW_ENDPOINT);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('CONDUIT_DEV_APPWRITE_ENDPOINT'));
   });
 });

@@ -1,7 +1,7 @@
 /**
  * Cloud-based vault locking service.
  *
- * Provides exclusive-access locking for Pro plan users via Supabase.
+ * Provides exclusive-access locking for Pro plan users via the server.
  * Team plan users skip locking entirely (concurrent access allowed).
  *
  * Lock lifecycle:
@@ -11,8 +11,8 @@
  * If the app crashes, the lock auto-expires and others can acquire it.
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AuthService } from '../auth/supabase.js';
+import type { ConduitDb } from '../backend/conduit-db.js';
+import type { AuthService } from '../auth/auth-service.js';
 import { getOrCreateDeviceId } from './team-crypto.js';
 
 /** How long a lock is valid before it expires (ms). */
@@ -55,7 +55,7 @@ export class VaultLockService {
    * - Starts heartbeat on success.
    */
   async acquireCloudLock(vaultId: string): Promise<AcquireLockResult> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const userId = this.requireUserId();
     const userEmail = this.authService.getAuthState().user?.email ?? 'unknown';
     const deviceId = getOrCreateDeviceId(userId);
@@ -72,19 +72,19 @@ export class VaultLockService {
     };
 
     // Attempt atomic INSERT first — succeeds if no lock row exists
-    const { error: insertError } = await supabase
+    const { error: insertError } = await db
       .from('vault_locks')
       .insert(lockRow);
 
     if (!insertError) {
       // No existing lock — we acquired it
       this.lockedVaultId = vaultId;
-      this.startHeartbeat(supabase, vaultId, userId);
+      this.startHeartbeat(db, vaultId, userId);
       return { success: true };
     }
 
     // INSERT failed (unique constraint) — a lock row exists. Fetch it.
-    const { data: existing } = await supabase
+    const { data: existing } = await db
       .from('vault_locks')
       .select('*')
       .eq('vault_id', vaultId)
@@ -92,7 +92,7 @@ export class VaultLockService {
 
     if (!existing) {
       // Row disappeared between INSERT failure and SELECT — retry once
-      const { error: retryError } = await supabase
+      const { error: retryError } = await db
         .from('vault_locks')
         .insert(lockRow);
 
@@ -101,7 +101,7 @@ export class VaultLockService {
       }
 
       this.lockedVaultId = vaultId;
-      this.startHeartbeat(supabase, vaultId, userId);
+      this.startHeartbeat(db, vaultId, userId);
       return { success: true };
     }
 
@@ -121,7 +121,7 @@ export class VaultLockService {
 
     if (isOwnLock) {
       // Our own lock — update expiry
-      const { error: updateError } = await supabase
+      const { error: updateError } = await db
         .from('vault_locks')
         .update({
           locked_at: now.toISOString(),
@@ -136,7 +136,7 @@ export class VaultLockService {
       }
     } else {
       // Expired lock held by someone else — delete then insert
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await db
         .from('vault_locks')
         .delete()
         .eq('vault_id', vaultId)
@@ -146,7 +146,7 @@ export class VaultLockService {
         return { success: false };
       }
 
-      const { error: reinsertError } = await supabase
+      const { error: reinsertError } = await db
         .from('vault_locks')
         .insert(lockRow);
 
@@ -158,7 +158,7 @@ export class VaultLockService {
 
     // Success — start heartbeat
     this.lockedVaultId = vaultId;
-    this.startHeartbeat(supabase, vaultId, userId);
+    this.startHeartbeat(db, vaultId, userId);
 
     return { success: true };
   }
@@ -173,10 +173,10 @@ export class VaultLockService {
     this.stopHeartbeat();
 
     try {
-      const supabase = this.authService.getSupabaseClient();
+      const db = this.authService.getDb();
       const userId = this.requireUserId();
 
-      await supabase
+      await db
         .from('vault_locks')
         .delete()
         .eq('vault_id', id)
@@ -192,10 +192,10 @@ export class VaultLockService {
    * Check the lock status for a vault without acquiring.
    */
   async checkLock(vaultId: string): Promise<LockStatus> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const userId = this.getUserId();
 
-    const { data } = await supabase
+    const { data } = await db
       .from('vault_locks')
       .select('*')
       .eq('vault_id', vaultId)
@@ -249,13 +249,13 @@ export class VaultLockService {
 
   // ---------- Internal ----------
 
-  private startHeartbeat(supabase: SupabaseClient, vaultId: string, userId: string): void {
+  private startHeartbeat(db: ConduitDb, vaultId: string, userId: string): void {
     this.stopHeartbeat();
 
     this.heartbeatTimer = setInterval(async () => {
       try {
         const newExpiry = new Date(Date.now() + LOCK_TTL_MS).toISOString();
-        await supabase
+        await db
           .from('vault_locks')
           .update({ expires_at: newExpiry })
           .eq('vault_id', vaultId)

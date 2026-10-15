@@ -1,8 +1,8 @@
 /**
  * Environment configuration for the Electron main process.
  *
- * Resolves Supabase, website, and backend URLs. Dev builds follow the CONDUIT_ENV
- * environment variable (default 'preview'); packaged builds are always 'production'.
+ * Resolves the Appwrite endpoint and project, and the website URL. Dev builds follow the
+ * CONDUIT_ENV environment variable (default 'preview'); packaged builds are always 'production'.
  */
 
 import { app } from 'electron';
@@ -11,74 +11,65 @@ import os from 'node:os';
 import { resolveEnvironment } from './vault-session/effective-limit.js';
 
 export interface EnvConfig {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
+  appwriteEndpoint: string;
+  appwriteProjectId: string;
   websiteUrl: string;
-  backendUrl: string;
   environment: 'preview' | 'production';
-  /** Vercel deployment protection bypass key (preview only). */
-  vercelBypassKey?: string;
 }
 
-// Preview runs fully against localhost (WS3). Start the stack with:
-//   `supabase start`  (from the conduit repo root) — local Postgres/Auth
-//   `npm run dev`     (in ../conduit-website) — local website for sign-in flow
-//   `npm run dev`     (in ../conduit-backend) — optional, only for chat sync / fingerprint
-// See docs/LOCAL_SUPABASE.md for full setup.
-//
-// The anon key below is the well-known local development key — not a secret,
-// safe to commit. Rotates only if `supabase start` is rerun with new keys.
+// Preview runs fully against localhost: the local Appwrite stack (docs/LOCAL_APPWRITE.md) and the
+// website dev server (`npm run dev` in ../conduit-website) for the sign-in flow.
 const PREVIEW_CONFIG: EnvConfig = {
-  supabaseUrl: 'http://127.0.0.1:54321',
-  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+  appwriteEndpoint: 'http://localhost:8085/v1',
+  appwriteProjectId: 'conduit-dev',
   websiteUrl: 'http://localhost:3000',
-  backendUrl: 'http://localhost:3001',
   environment: 'preview',
 };
 
 const PRODUCTION_CONFIG: EnvConfig = {
-  supabaseUrl: 'https://khuyzxadaszwxirwykms.supabase.co',
-  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtodXl6eGFkYXN6d3hpcnd5a21zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4Mjc4MjksImV4cCI6MjA4NjQwMzgyOX0.haS0tgktlHkiiG_tTHvw9orxOc-_Bb-GXwJLoAIWtcg',
+  appwriteEndpoint: 'https://appwrite.cloudwise.ca/v1',
+  appwriteProjectId: '6acf9d610020fad67ba9',
   websiteUrl: 'https://conduitdesktop.com',
-  backendUrl: 'https://conduit-backend.vercel.app',
   environment: 'production',
 };
 
 let cachedConfig: EnvConfig | null = null;
 
-export const DEV_SUPABASE_URL_ENV = 'CONDUIT_DEV_SUPABASE_URL';
+export const DEV_APPWRITE_ENDPOINT_ENV = 'CONDUIT_DEV_APPWRITE_ENDPOINT';
+export const DEV_APPWRITE_PROJECT_ENV = 'CONDUIT_DEV_APPWRITE_PROJECT';
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost', '[::1]']);
 
 /**
- * Loopback origin from CONDUIT_DEV_SUPABASE_URL for dev preview builds, else null. Test runs point
- * one instance at a local proxy so it can be taken offline without stopping the shared stack.
+ * Loopback endpoint from CONDUIT_DEV_APPWRITE_ENDPOINT for dev preview builds, else null. Test runs
+ * point one instance at a local proxy so it can be taken offline without stopping the shared stack.
  */
-function devSupabaseUrl(environment: EnvConfig['environment']): string | null {
-  const raw = process.env[DEV_SUPABASE_URL_ENV]?.trim();
+function devAppwriteEndpoint(environment: EnvConfig['environment']): string | null {
+  const raw = process.env[DEV_APPWRITE_ENDPOINT_ENV]?.trim();
   if (!raw) return null;
   if (app.isPackaged || environment !== 'preview') {
-    console.warn(`[env] ${DEV_SUPABASE_URL_ENV} is ignored ${app.isPackaged ? 'in packaged builds' : 'outside preview'}`);
+    console.warn(`[env] ${DEV_APPWRITE_ENDPOINT_ENV} is ignored ${app.isPackaged ? 'in packaged builds' : 'outside preview'}`);
     return null;
   }
   let parsed: URL;
   try {
     parsed = new URL(raw);
   } catch {
-    console.warn(`[env] ${DEV_SUPABASE_URL_ENV} is not a valid URL, using the preview Supabase`);
+    console.warn(`[env] ${DEV_APPWRITE_ENDPOINT_ENV} is not a valid URL, using the preview Appwrite`);
     return null;
   }
   if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !LOOPBACK_HOSTS.has(parsed.hostname)) {
-    console.warn(`[env] ${DEV_SUPABASE_URL_ENV} must be an http(s) loopback URL, using the preview Supabase`);
+    console.warn(`[env] ${DEV_APPWRITE_ENDPOINT_ENV} must be an http(s) loopback URL, using the preview Appwrite`);
     return null;
   }
-  return parsed.origin;
+  const pathname = parsed.pathname.replace(/\/+$/, '');
+  return `${parsed.origin}${pathname || '/v1'}`;
 }
 
 /**
  * Get the current environment configuration.
  *
- * Packaged builds always use production and ignore CONDUIT_ENV, so a local Supabase cannot
- * answer for the real plan limits (spec 6.8). Dev builds honor CONDUIT_ENV and default to preview.
+ * Packaged builds always use production and ignore CONDUIT_ENV, so a local stack cannot answer for
+ * the real plan limits (spec 6.8). Dev builds honor CONDUIT_ENV and default to preview.
  */
 export function getEnvConfig(): EnvConfig {
   if (cachedConfig) return cachedConfig;
@@ -90,11 +81,22 @@ export function getEnvConfig(): EnvConfig {
   const environment = resolveEnvironment(app.isPackaged, envVar);
 
   const base = environment === 'preview' ? PREVIEW_CONFIG : PRODUCTION_CONFIG;
-  const supabaseOverride = devSupabaseUrl(environment);
-  cachedConfig = supabaseOverride ? { ...base, supabaseUrl: supabaseOverride } : base;
+  const endpointOverride = devAppwriteEndpoint(environment);
+  const projectOverride = environment === 'preview' && !app.isPackaged ? process.env[DEV_APPWRITE_PROJECT_ENV]?.trim() : undefined;
+  cachedConfig = {
+    ...base,
+    ...(endpointOverride ? { appwriteEndpoint: endpointOverride } : {}),
+    ...(projectOverride ? { appwriteProjectId: projectOverride } : {}),
+  };
   const dirName = cachedConfig.environment === 'production' ? 'conduit' : 'conduit-dev';
-  console.log(`[env] Environment: ${cachedConfig.environment}, Data dir: ${dirName}, Supabase: ${cachedConfig.supabaseUrl}`);
+  console.log(`[env] Environment: ${cachedConfig.environment}, Data dir: ${dirName}, Appwrite: ${cachedConfig.appwriteEndpoint} (${cachedConfig.appwriteProjectId})`);
   return cachedConfig;
+}
+
+/** True for a local Appwrite stack (dev only), where the production MFA rule is not enforced. */
+export function isLocalBackend(config: EnvConfig = getEnvConfig()): boolean {
+  const host = new URL(config.appwriteEndpoint).hostname;
+  return LOOPBACK_HOSTS.has(host) || host.endsWith('.local');
 }
 
 // ---------- Vite dev server ----------

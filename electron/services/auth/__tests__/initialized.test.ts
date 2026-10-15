@@ -1,16 +1,14 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
+import { envConfig, nodeAppwrite } from './appwrite-mocks.js';
 
-vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ auth: { onAuthStateChange: vi.fn() } }) }));
+vi.mock('node-appwrite', () => nodeAppwrite());
 vi.mock('electron', () => ({ app: {}, net: {}, safeStorage: {} }));
 vi.mock('../../../ipc/settings.js', () => ({ readSettings: () => ({}) }));
-vi.mock('../../env-config.js', () => ({
-  getEnvConfig: () => ({ supabaseUrl: 'http://127.0.0.1:54321', supabaseAnonKey: 'anon' }),
-  getDataDir: () => '/nonexistent',
-}));
+vi.mock('../../env-config.js', () => envConfig());
 vi.mock('../../state.js', () => ({ AppState: { getInstance: () => ({ getMainWindow: () => null }) } }));
 
-const { AuthService } = await import('../supabase.js');
+const { AuthService } = await import('../auth-service.js');
 
 describe('AuthService initialized flag (docs/AUTO_UNLOCK.md 4.1)', () => {
   it('is false until the first initialize finishes, then runs listeners once', async () => {

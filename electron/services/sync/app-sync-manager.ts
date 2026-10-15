@@ -26,7 +26,7 @@ import {
   createFocusTracker,
   type BusySources,
   type FocusTracker,
-  type SupabaseSource,
+  type BackendSource,
 } from '../vault-session/host-electron.js';
 import type { SessionHost, VaultAccessHost } from '../vault-session/host.js';
 import { createConsoleLogger, nodeRandom } from './host-node.js';
@@ -74,7 +74,7 @@ export interface AppSyncManagerDeps {
   /** AppState.vault at call time (the personal ConduitVault). */
   readonly vault: () => SyncableVault;
   /** AppState.authService. */
-  readonly auth: AuthSource & SupabaseSource;
+  readonly auth: AuthSource & BackendSource;
   readonly settings: SettingsStore;
   readonly busy: BusySources;
   /** Soft lock and in-place opens (main-process vault IPC module). */
@@ -149,7 +149,7 @@ export class AppSyncManager {
     });
     const syncHost = createElectronSyncHost({ ...deps, firstLaunchMs: () => identity.firstLaunchMs, logger });
     const focus = createFocusTracker(syncHost.clock, logger);
-    const sessionHost = createElectronSessionHost(syncHost, { supabase: deps.auth, settings: deps.settings, busy: deps.busy, access: deps.access, focus, windows: deps.windows });
+    const sessionHost = createElectronSessionHost(syncHost, { backend: deps.auth, settings: deps.settings, busy: deps.busy, access: deps.access, focus, windows: deps.windows });
     focus.onFocus(() => this.triggerFocus());
     sessionHost.power.onResume(() => this.triggerFocus());
     const lookup: LineageLookupDeps = {

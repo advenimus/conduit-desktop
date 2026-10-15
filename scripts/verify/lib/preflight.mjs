@@ -5,7 +5,6 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { REPO } from './run-context.mjs';
 import { runCommand } from './proc.mjs';
-import { findPsql } from './supabase-stack.mjs';
 import { electronBinary } from './launcher.mjs';
 
 const MIN_NODE_MAJOR = 20;
@@ -13,7 +12,7 @@ const MIN_NODE_MAJOR = 20;
 async function dockerRunning() {
   const res = await runCommand('docker', ['info', '--format', '{{.ServerVersion}}'], { allowFailure: true, timeoutMs: 30_000, label: 'docker info' })
     .catch((err) => ({ code: 1, stderr: err.message }));
-  if (res.code !== 0) throw new Error('Docker is not running (local Supabase needs it). Start Docker Desktop and rerun.');
+  if (res.code !== 0) throw new Error('Docker is not running (local Appwrite needs it). Start Docker Desktop and rerun.');
   return res.stdout.trim();
 }
 
@@ -27,20 +26,19 @@ function resolvable(fromFile, specifier) {
 }
 
 /**
- * Returns a list of "name: detail" lines; throws on the first hard problem. Docker and psql are
- * checked only when a selected scenario needs the local Supabase stack.
+ * Returns a list of "name: detail" lines; throws on the first hard problem. Docker is checked only
+ * when a selected scenario needs the local Appwrite stack.
  */
-export async function preflight({ supabase = true } = {}) {
+export async function preflight({ backend = true } = {}) {
   const notes = [];
   if (process.platform === 'win32') throw new Error('The verify harness runs on macOS and Linux only (Unix sockets under /tmp)');
   const major = Number(process.versions.node.split('.')[0]);
   if (major < MIN_NODE_MAJOR) throw new Error(`Node ${MIN_NODE_MAJOR}+ is required (found ${process.versions.node})`);
   notes.push(`node: ${process.versions.node}`);
-  if (supabase) {
+  if (backend) {
     notes.push(`docker: ${await dockerRunning()}`);
-    notes.push(`psql: ${await findPsql()}`);
   } else {
-    notes.push('docker, psql: not needed (no selected scenario uses Supabase)');
+    notes.push('docker: not needed (no selected scenario uses Appwrite)');
   }
   const electron = electronBinary();
   if (!fs.existsSync(electron)) throw new Error(`Electron binary missing at ${electron}. Run npm install.`);

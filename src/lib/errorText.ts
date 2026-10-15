@@ -1,6 +1,6 @@
 /**
  * The readable text of a caught error, or `fallback` when it has none. invoke() rejects with an Error,
- * other code may throw a string, and serialized IPC or Supabase errors arrive as objects with a message.
+ * other code may throw a string, and serialized IPC or server errors arrive as objects with a message.
  */
 export function errorText(err: unknown, fallback: string): string {
   const text = messageOf(err)?.trim();

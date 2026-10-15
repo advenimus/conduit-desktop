@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // One-off app run for the NAV package of docs/DASHBOARD.md: the pinned Home tab and the ways back to
-// it. One local-mode device in dark mode, no Supabase user. Writes .verify/dashboard/nav/<nn>-<name>.png
+// it. One local-mode device in dark mode, no server user. Writes .verify/dashboard/nav/<nn>-<name>.png
 // and INDEX.md with the checks it made. Usage: node scripts/verify/capture-dashboard-nav.mjs
 
 import fs from 'node:fs';

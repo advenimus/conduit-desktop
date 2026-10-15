@@ -1,0 +1,25 @@
+{
+  "name": "conduit-appwrite",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run tests/unit",
+    "test:live": "vitest run tests/live",
+    "deploy": "node scripts/deploy.ts"
+  },
+  "dependencies": {
+    "jszip": "3.10.1",
+    "node-appwrite": "29.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "appwrite": "28.3.0",
+    "bcryptjs": "3.0.3",
+    "esbuild": "0.28.1",
+    "pg": "^8.13.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

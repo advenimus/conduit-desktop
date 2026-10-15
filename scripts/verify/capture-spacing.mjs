@@ -8,7 +8,7 @@ import path from 'node:path';
 import { buildForRun, startVite } from './lib/app.mjs';
 import { scenarioContext } from './lib/context.mjs';
 import { createRunContext, freePort, installSignalHandlers, VERIFY_DIR } from './lib/run-context.mjs';
-import { deleteTestUsers, ensureLocalSupabase } from './lib/supabase.mjs';
+import { deleteTestUsers, ensureLocalAppwrite } from './lib/backend.mjs';
 import { startTestSite } from './lib/restyle-data.mjs';
 import { captureMode } from './lib/spacing-screens.mjs';
 
@@ -51,7 +51,7 @@ async function main() {
   const shots = [];
   const failures = [];
   try {
-    await ensureLocalSupabase(log);
+    await ensureLocalAppwrite(log);
     const mainJs = await buildForRun(run);
     const vite = await startVite(run, await freePort());
     const site = await startTestSite(run);

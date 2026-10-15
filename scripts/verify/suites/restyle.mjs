@@ -399,7 +399,7 @@ async function toastsBody(ctx, d, mode, rs) {
   await clearToasts(d);
 }
 
-const scenario = (id, title, run, needsSupabase = false) => ({ id, title, needsSupabase, run });
+const scenario = (id, title, run, needsBackend = false) => ({ id, title, needsBackend, run });
 
 export default {
   id: 'restyle',

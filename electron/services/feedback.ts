@@ -1,5 +1,5 @@
 /**
- * Feedback service — collects system info, reads logs, uploads to Supabase.
+ * Feedback service — collects system info, reads logs, uploads to the server.
  */
 
 import { app, dialog } from 'electron';
@@ -139,7 +139,7 @@ export class FeedbackService {
       return { success: false, error: 'You must be signed in to submit feedback.' };
     }
 
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
     const userId = authState.user.id;
     const userEmail = authState.user.email;
     const systemInfo = this.getSystemInfo();
@@ -154,7 +154,7 @@ export class FeedbackService {
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           const storagePath = `${userId}/${timestamp}-logs.txt`;
 
-          const { error: uploadError } = await supabase.storage
+          const { error: uploadError } = await db.storage
             .from('feedback-logs')
             .upload(storagePath, logContent, {
               contentType: 'text/plain',
@@ -194,7 +194,7 @@ export class FeedbackService {
           const buffer = fs.readFileSync(filePath);
           const storagePath = `${userId}/${timestamp}-screenshot-${i}.${ext}`;
 
-          const { error: uploadError } = await supabase.storage
+          const { error: uploadError } = await db.storage
             .from('feedback-logs')
             .upload(storagePath, buffer, {
               contentType: mime,
@@ -217,7 +217,7 @@ export class FeedbackService {
     }
 
     // Insert feedback row
-    const { error: insertError } = await supabase
+    const { error: insertError } = await db
       .from('feedback_submissions')
       .insert({
         user_id: userId,

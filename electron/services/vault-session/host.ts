@@ -1,15 +1,15 @@
 /**
  * Host interfaces of the device-session layer (docs/MULTI_DEVICE_SYNC.md 6.x, 9.4, 9.5):
- * the Supabase RPC caller and Realtime subscriber, power/idle/focus/busy providers, the tier
+ * the server RPC caller and Realtime subscriber, power/idle/focus/busy providers, the tier
  * cache, vault access control for the soft lock, and the session events to the renderer.
  * Shared host pieces (clock, timers, logger, fs, random, kdf, account) come from
- * ../sync/host.ts. The integration workflow provides the Electron and supabase-js adapters.
+ * ../sync/host.ts. The integration workflow provides the Electron and Appwrite adapters.
  * Types and constants only.
  */
 
 import type { RendererEmitter, SyncHost } from '../sync/host.js';
 
-// ---------- Supabase RPC (9.5) ----------
+// ---------- Server RPC (9.5) ----------
 
 export type SessionRpcName =
   | 'vault_session_peek'
@@ -38,7 +38,7 @@ export interface RpcFailure {
 export type RpcResult = { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly failure: RpcFailure };
 
 /**
- * supabase.rpc(fn, args) with the signed-in user's JWT. Never rejects: adapters turn thrown
+ * db.rpc(fn, args) as the signed-in user. Never rejects: adapters turn thrown
  * errors into { ok: false }. Argument names are the SQL parameter names (p_vault_key, ...).
  */
 export interface RpcCaller {

@@ -1,13 +1,13 @@
 ---
 name: verify-data
-description: Run the live vault data suites (password changes, vault lifecycle, copies of a vault, local and cloud backups, offline and team resilience) against the real Conduit app and a local Supabase. Use after changing master-password or key epochs, Recently deleted or redaction, rename and file binding, the separate-vault fork, damaged-copy recovery, the idle lock, the Sync settings tab, conflict or user copies, side files, snapshots and undo, local or cloud backup and restore, offline leases, the cached tier, team vaults beside personal sync, or export and import, the startup vault and automatic unlock (startup suite), or when asked to verify any of these live. Each suite also runs alone. Fully isolated; about 10 minutes for all five.
+description: Run the live vault data suites (password changes, vault lifecycle, copies of a vault, local and cloud backups, offline and team resilience) against the real Conduit app and a local Appwrite. Use after changing master-password or key epochs, Recently deleted or redaction, rename and file binding, the separate-vault fork, damaged-copy recovery, the idle lock, the Sync settings tab, conflict or user copies, side files, snapshots and undo, local or cloud backup and restore, offline leases, the cached tier, team vaults beside personal sync, or export and import, the startup vault and automatic unlock (startup suite), or when asked to verify any of these live. Each suite also runs alone. Fully isolated; about 10 minutes for all five.
 ---
 
 # /verify-data: vault data suites
 
 Runs `npm run verify:data` (`node scripts/verify/run.mjs backup copies lifecycle password resilience`).
 Real Electron devices share the run's "cloud" folder, sign in as generated test users on a local
-Supabase and are driven like a user. The spec under test is `docs/MULTI_DEVICE_SYNC.md`; the harness
+Appwrite and are driven like a user. The spec under test is `docs/MULTI_DEVICE_SYNC.md`; the harness
 reference is `scripts/verify/README.md`. Every suite at once is the `verify` skill; the sync engine's
 core loop (take-over, merge, conflicts, plan changes) is the `verify-sync` skill.
 
@@ -74,27 +74,25 @@ Each password scenario also checks the shared file: WAL header 2/2, the iOS 1.0.
 
 | Scenario | In plain words |
 |---|---|
-| `offline-open` | On Free, with the device's Supabase link cut after sign-in, a vault is created, locked and opened again; Settings > Sync shows "Offline: device check paused", the limit stays 1, edits reach the shared file and the server has no lease row. When the link returns an active lease row appears with no user action (about 60 s, the offline retry) and the badge clears. |
+| `offline-open` | On Free, with the device's backend link cut after sign-in, a vault is created, locked and opened again; Settings > Sync shows "Offline: device check paused", the limit stays 1, edits reach the shared file and the server has no lease row. When the link returns an active lease row appears with no user action (about 60 s, the offline retry) and the badge clears. |
 | `offline-takeover-reconnect` | On Free, A's link is cut after its offline edits publish; B (its own drive folder, fed A's file) takes over because the server still sees A, and has A's edits. A keeps working until its link returns; about 30 s later it shows "Opened on ..." with "Your changes from this device were saved.", soft-locks, and its file keeps every edit, including one made after the take-over. |
-| `cached-pro-offline` | Pro devices sign in once online, then relaunch with Supabase cut (cached auth mode) while a signed-out device holds the owner claim. An 8-day-old cache and one dated a day ahead get the one-device take-over dialog (limit 1, source `default`); the normal cache opens with no prompt (limit -1, source `tier-cache`) and its edit reaches the online device, the only one with a server lease. |
+| `cached-pro-offline` | Pro devices sign in once online, then relaunch with the backend cut (cached auth mode) while a signed-out device holds the owner claim. An 8-day-old cache and one dated a day ahead get the one-device take-over dialog (limit 1, source `default`); the normal cache opens with no prompt (limit -1, source `tier-cache`) and its edit reaches the online device, the only one with a server lease. |
 | `team-vault-regression` | A Team user's team vault syncs from A to B (identity key recovered with the passphrase) through `vault_entries`, with no personal-sync lineage folder, sync lineage, running personal sync or `personal_vault_sessions` row for it; after "Lock Current Vault" the personal vault's edits sync both ways. |
 | `import-export` | An export of a folder and 3 entries is read by the preview (a wrong passphrase fails). Imported into a vault with an open same-field conflict on both devices, the entries arrive with new ids, the folder, the remapped credential and their secrets, sync to the other device, and the conflict stays open with both values. |
 
 ## Prerequisites (the harness checks or fixes these itself)
 
-- macOS or Linux, Node 20+, Docker running, psql (preflight fails fast with the fix otherwise).
-- Local Supabase on 127.0.0.1:54321 (API) and :54322 (DB). A running stack with project_id `conduit`
-  is reused; otherwise the harness starts one with the pinned CLI
-  `npx -y supabase@2.109.1 start --workdir ~/.cache/conduit-verify/supabase` (`SUPABASE_CLI`
-  overrides; a Homebrew `supabase` binary can be broken, so it is not used).
-- If `public.tiers` is missing it restores the newest `~/conduit-backups/conduit-preview-*.sql`. It
-  applies `20260501000000_add_parent_entry_id.sql` and every migration dated `20260926000000` or later on every run, then
-  `scripts/verify/sql/local-parity.sql`, which these suites need: the private `vaults` storage bucket
-  and its four `storage.objects` policies (backup), the 23-argument `upsert_vault_entry_versioned`
-  and the team RLS helper and `get_team_members_with_email` grants (resilience's team vault). The
-  supabase phase fails with the missing object if any check does not hold.
-- Offline scenarios use the per-device TCP proxy in `lib/net-proxy.mjs` (`ctx.supabaseProxy()`), fed
-  to the device as `CONDUIT_DEV_SUPABASE_URL`. The app honors it only in unpackaged preview builds
+- macOS or Linux, Node 20+, Docker running (preflight fails fast with the fix otherwise).
+- Local Appwrite at localhost:8085, project `conduit-dev`, made once with `npm run appwrite:setup`
+  (`docs/LOCAL_APPWRITE.md`). The harness reads `conduit-dev.env` in the stack folder, refuses any
+  endpoint that is not localhost, and starts the stack (`docker compose up -d`) when it is down.
+- When anything under `appwrite/` changed since the last deploy (stamp file `.deployed-conduit-dev`),
+  it redeploys the schema, the seed rows (tiers, `app_config`) and the `api` function. There is no
+  SQL, no dump and no schema check: the rules come from `appwrite/src/api/` in this checkout.
+  These suites rely on the `vaults` bucket rules in `storage.ts` (backup) and on
+  `upsert_vault_entry_versioned` and `get_team_members_with_email` (resilience's team vault).
+- Offline scenarios use the per-device TCP proxy in `lib/net-proxy.mjs` (`ctx.backendProxy()`), fed
+  to the device as `CONDUIT_DEV_APPWRITE_ENDPOINT`. The app honors it only in unpackaged preview builds
   and only for a loopback URL, so the shared stack keeps serving every other device and run.
 - The backup suite's local restore opens the app's own "Restore from backup" dialog through a
   dynamic `import()` from the run's Vite dev server (the app has no local-restore screen), so it
@@ -137,7 +135,7 @@ In `.verify/<runId>/`:
   within 0.5 s", `error`, `failure[]` with per device screenshot and log tails), `cleanup`.
 - `shots/`: numbered PNGs of each step; `<n>-<device>-FAIL-<suite>-<scenario>.png` on failure.
 - `logs/`: `run.log`, `<device>.main.log` (sync engine, file binding, lease, backup messages),
-  `<device>.renderer.log`, `supabase-*.log`, `cleanup.log`.
+  `<device>.renderer.log`, `cleanup.log`.
 - `/tmp/cv-<id>`: `<id>` is the last six characters of the run id; after `--keep`, `results.json`
   `cleanup.keptRoots` holds the exact path.
 
@@ -174,6 +172,7 @@ Suite-specific hints:
 | copies: the preview sections are empty | `candidatePreview` in `lib/sync-panels.mjs` matches section titles by prefix; a title with a note in brackets still counts. |
 | backup: a second cloud upload has no snapshot of its own | "The resource already exists" in the main log means two snapshots got one name: `snapshotFileName` in `electron/services/vault/cloud-backup-name.ts` must add milliseconds and a random tag. |
 | backup: a downgraded account still uploads | Cloud backup must re-read the plan (`authService.reloadProfile()`) before each upload, on enable, on restore and after unlock (`electron/services/vault/cloud-sync.ts`, `electron/ipc/cloud-sync.ts`). |
+| resilience: `import-export` fails because imported entries are not visible | Known and not caused by the Appwrite move: it fails the same way on main with Supabase. The imported entries land in a collapsed folder, so the UI check does not see them. Report it as pre-existing; do not count it against your change. |
 | resilience: the offline badge takes up to 30 s | Expected: a running device turns unconfirmed at its next failed heartbeat (30 s), or within about 3 s when an edit publishes. A device that opened offline gets its lease at the next 60 s retry. |
 | resilience: the offline device is displaced before its link returns | Both devices were in one folder: the other device's owner claim displaces a Free device whose lease is unconfirmed (6.7). Give each device its own `Drive` folder and hand files over with `deliverFile` (`lib/offline-flows.mjs`). |
 | Any: "1 AI task" in a take-over or displaced dialog of an idle device | An agent terminal counts only after input and while input or output came in the last 2 minutes (`agentTerminalActive` in `electron/services/terminal/manager.ts`), and a chat session only while a turn runs (`EngineManager.runningTurns`); the sum feeds `busy.agentJobs` in `electron/services/state.ts`. |
@@ -181,12 +180,12 @@ Suite-specific hints:
 ## Cleanup guarantees
 
 On pass, fail or Ctrl+C (once; twice aborts cleanup) the run quits every device, closes every
-Supabase proxy, stops its Vite, deletes its test users (their leases go with them), their cloud
+backend proxy, stops its Vite, deletes its test users (their leases go with them), their cloud
 backups in the `vaults` bucket and the teams they own, removes `/tmp/cv-<id>/` and
 `.verify/<runId>/dist-electron/`, then kills and reports any process still mentioning the run; any
 leftover makes the run FAIL. Stale `verify-*` users older than 6 hours are deleted at the start, and
 `.verify/` is pruned to the 20 newest run folders before the new one is made (21 after a run). Local
-Supabase keeps running. `--keep` keeps only the device roots and `dist-electron/` (test users are
+Appwrite keeps running. `--keep` keeps only the device roots and `dist-electron/` (test users are
 still deleted); afterwards delete `/tmp/cv-<id>` and `.verify/<runId>/dist-electron` yourself.
 
 Quick check afterwards: `find /tmp/ -maxdepth 1 -name 'cv-*'` (the trailing slash matters on macOS,
@@ -198,25 +197,25 @@ another run is going.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Docker is not running` | Docker Desktop is off | Start it, wait for `docker info`, rerun. |
-| supabase phase fails or the API does not answer | Broken Homebrew CLI or a half-started stack | Keep the pinned `npx` CLI. Check `curl -s http://127.0.0.1:54321/auth/v1/health` and `docker ps --filter name=supabase_`; if unhealthy, `npx -y supabase@2.109.1 stop --workdir ~/.cache/conduit-verify/supabase` and rerun. See `logs/supabase-start.log`. |
-| `Local Supabase schema check failed` naming the bucket, a policy, the 23-argument RPC or a team helper | `local-parity.sql` did not apply | Read `logs/supabase-migrate.log`; fix `scripts/verify/sql/local-parity.sql` or the migration, not the check. |
-| `public.tiers is missing and no ~/conduit-backups/conduit-preview-*.sql backup exists` | Fresh database, no dump | Ask the user for a preview backup in `~/conduit-backups/` (`docs/LOCAL_SUPABASE.md`). Never create one from production. |
-| Ports 54321 or 54322 busy | Another Supabase project | `lsof -nP -iTCP:54321 -sTCP:LISTEN`; ask the user before stopping it. |
+| appwrite phase fails or the API does not answer | Stack never set up, half-started, or short of memory | If the message names a missing `conduit-dev.env`, run `npm run appwrite:setup`. Check `curl -s http://localhost:8085/v1/health/version` and `docker ps --filter name=appwrite`; run `npm run appwrite:stop` and rerun (the harness starts it again). Give Docker Desktop at least 4 GB of memory. |
+| `appwrite deploy` fails in the appwrite phase | Build or schema error in `appwrite/` | `npm run test:server`, then `npm run appwrite:deploy` to see the error; fix the code, not the check. Deployment and execution logs are in the console (http://localhost:8085). |
+| Port 8085 busy | Another Appwrite stack | `lsof -nP -iTCP:8085 -sTCP:LISTEN`; ask the user before stopping it. |
 | Page call timeout or a macOS keychain prompt | A code path reached the real keychain | Never answer it. Let cleanup kill the device or SIGKILL only that device's pid; fix the isolation in `scripts/verify/lib/launcher.mjs`. |
 | `Device name "<name>" was already used by <suite>/<scenario>` | Two scenarios, often in different suites, launch the same name; a device root lasts the whole run | Rename the newer scenario's devices with its suite's prefix (backup `b`, copies `c`, lifecycle `l`, mcp `m`, password `p`, resilience `r`, sync `s`). |
 | `createVault: <path> already exists` | Two scenarios use the same `<cloud>/<folder>/` | Name the folder with the suite's prefix, like its devices. |
 | Test windows reload mid-run | Someone edited `src/` while the run's Vite served it (hot reload) | Rerun with nobody editing the renderer. |
-| Dependencies or `psql` missing | Install step skipped | `npm install`, `(cd mcp && npm install)`, `brew install libpq` or `PSQL=/path/to/psql`. |
+| Dependencies missing | Install step skipped | `npm install`, `(cd mcp && npm install)`. |
 | `[cleanup] FAIL` or `leftover process killed` | A device did not quit | Read `logs/cleanup.log`; fix the quit path. |
 
 ## Safety rules
 
-- Only the local stack on 127.0.0.1; never production Supabase or any cloud project; never
-  `CONDUIT_ENV=production`. The offline proxy only forwards to 127.0.0.1:54321.
+- Only the local stack on localhost; never production Appwrite (`appwrite.cloudwise.ca`) or any cloud
+  project; never `CONDUIT_ENV=production`. The offline proxy only forwards to localhost:8085.
 - Never touch the user's dev profile (`~/Library/Application Support/conduit/conduit-dev`, "Conduit
   Dev"), their running dev app or port 1420, or `~/.claude.json`.
 - Never answer a macOS keychain prompt; only kill processes that belong to the run.
-- Never run `supabase db reset`; never print the service-role key or tokens.
+- Never run `docker compose down -v` on the local stack or delete its env file unless the user asks;
+  never print the API key, the service secret or tokens.
 
 ## Report back
 

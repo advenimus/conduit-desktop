@@ -35,7 +35,7 @@ function fakeAuth(server: Server) {
   const auth = {
     getAuthState: () => ({ user: { id: 'u1' }, profile: profile() }),
     reloadProfile: vi.fn(async () => profile()),
-    getSupabaseClient: () => ({ storage: { from: () => bucket } }),
+    getDb: () => ({ storage: { from: () => bucket } }),
   };
   return { auth, upload, remove };
 }

@@ -196,7 +196,7 @@ export interface DeviceInfoProvider {
 }
 
 export interface AccountProvider {
-  /** Supabase user id when signed in, else null (signed out or local mode). */
+  /** Account user id when signed in, else null (signed out or local mode). */
   userId(): string | null;
 }
 

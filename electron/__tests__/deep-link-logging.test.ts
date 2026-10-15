@@ -1,27 +1,18 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { account, envConfig, nodeAppwrite } from '../services/auth/__tests__/appwrite-mocks.js';
 
-const ACCESS = 'eyJhbGciOiJIUzI1NiJ9.access-payload-secret.signature';
-const REFRESH = 'refresh-token-secret-value';
+const SECRET = 'session-secret-value-that-must-not-be-logged';
+const USER = 'f9e01f36-cca0-4f2d-95bf-f51675511988';
 
-const client = {
-  auth: {
-    onAuthStateChange: vi.fn(),
-    setSession: vi.fn(async () => ({ data: { session: null }, error: { message: 'bad session' } })),
-  },
-};
-
-vi.mock('@supabase/supabase-js', () => ({ createClient: () => client }));
+vi.mock('node-appwrite', () => nodeAppwrite());
 vi.mock('electron', () => ({ app: {}, net: {}, safeStorage: {} }));
 vi.mock('../ipc/settings.js', () => ({ readSettings: () => ({}) }));
-vi.mock('../services/env-config.js', () => ({
-  getEnvConfig: () => ({ supabaseUrl: 'http://127.0.0.1:54321', supabaseAnonKey: 'anon' }),
-  getDataDir: () => '/nonexistent',
-}));
+vi.mock('../services/env-config.js', () => envConfig());
 vi.mock('../services/state.js', () => ({ AppState: { getInstance: () => ({ getMainWindow: () => null }) } }));
 
 const { describeDeepLink } = await import('../services/deep-link-log.js');
-const { AuthService } = await import('../services/auth/supabase.js');
+const { AuthService } = await import('../services/auth/auth-service.js');
 
 function logged(spies: ReturnType<typeof vi.spyOn>[]): string {
   return spies.flatMap((s) => s.mock.calls.map((c: unknown[]) => c.map(String).join(' '))).join('\n');
@@ -31,20 +22,22 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('deep-link logging (docs/AUTO_UNLOCK.md 6.0)', () => {
   it('the main-process log line keeps only scheme, host and path', () => {
-    const url = `conduit://auth/callback#access_token=${ACCESS}&refresh_token=${REFRESH}`;
+    const url = `conduit://auth/callback#user_id=${USER}&session=${SECRET}`;
     const line = describeDeepLink(url);
     expect(line).toBe('conduit://auth/callback (parameters not logged)');
-    expect(line).not.toContain(REFRESH);
-    expect(line).not.toContain('access_token');
+    expect(line).not.toContain(SECRET);
+    expect(line).not.toContain('session=');
     expect(describeDeepLink('not a url')).toBe('(unparseable link)');
   });
 
-  it('handleDeepLinkTokens logs no token values', async () => {
+  it('handleDeepLinkSession logs no secret', async () => {
+    account.get.mockImplementationOnce(async () => {
+      throw new Error('bad session');
+    });
     const spies = [vi.spyOn(console, 'log').mockImplementation(() => {}), vi.spyOn(console, 'error').mockImplementation(() => {}), vi.spyOn(console, 'warn').mockImplementation(() => {})];
-    await new AuthService().handleDeepLinkTokens(ACCESS, REFRESH);
+    await new AuthService().handleDeepLinkSession(USER, SECRET);
     const text = logged(spies);
-    expect(text).toContain('handleDeepLinkTokens');
-    expect(text).not.toContain(REFRESH);
-    expect(text).not.toContain(ACCESS);
+    expect(text).toContain('Session handoff received');
+    expect(text).not.toContain(SECRET);
   });
 });

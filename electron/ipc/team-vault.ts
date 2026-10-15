@@ -152,11 +152,11 @@ export function registerTeamVaultHandlers(): void {
   // ---------- Folder permissions ----------
 
   ipcMain.handle('team_vault_folder_permissions', async (_e, args: { vaultId: string }) => {
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
     const authState = state.authService.getAuthState();
     if (!authState.user) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('vault_folder_permissions')
       .select('*')
       .eq('vault_id', args.vaultId)
@@ -167,10 +167,10 @@ export function registerTeamVaultHandlers(): void {
   });
 
   ipcMain.handle('team_vault_list_folder_permissions', async (_e, args: { vaultId: string; folderId: string }) => {
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
 
     // Fetch permissions (no FK join — schema cache doesn't have the relationship)
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('vault_folder_permissions')
       .select('*')
       .eq('vault_id', args.vaultId)
@@ -181,7 +181,7 @@ export function registerTeamVaultHandlers(): void {
     if (!data || data.length === 0) return [];
 
     // Resolve display names via team RPC (direct user_profiles blocked by RLS)
-    const { data: vault } = await supabase
+    const { data: vault } = await db
       .from('team_vaults')
       .select('team_id')
       .eq('id', args.vaultId)
@@ -189,7 +189,7 @@ export function registerTeamVaultHandlers(): void {
 
     const nameMap = new Map<string, string>();
     if (vault?.team_id) {
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await db
         .rpc('get_team_members_with_email', { p_team_id: vault.team_id });
       if (teamMembers) {
         for (const tm of teamMembers as Record<string, unknown>[]) {
@@ -212,11 +212,11 @@ export function registerTeamVaultHandlers(): void {
     userId: string;
     role: 'admin' | 'editor' | 'viewer';
   }) => {
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
     const authState = state.authService.getAuthState();
     if (!authState.user) throw new Error('Not authenticated');
 
-    const { error } = await supabase
+    const { error } = await db
       .from('vault_folder_permissions')
       .upsert({
         vault_id: args.vaultId,
@@ -241,9 +241,9 @@ export function registerTeamVaultHandlers(): void {
     folderId: string;
     userId: string;
   }) => {
-    const supabase = state.authService.getSupabaseClient();
+    const db = state.authService.getDb();
 
-    const { error } = await supabase
+    const { error } = await db
       .from('vault_folder_permissions')
       .delete()
       .eq('vault_id', args.vaultId)

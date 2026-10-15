@@ -1501,7 +1501,7 @@ Unchanged from wave 1: `openDialogs()` and `dialogDetails()` list `[role=dialog]
 
 ### 8.5 Harness runs and owner gates
 
-`npm run verify` (all 41 scenarios, about 12 minutes, needs the local Supabase stack: `supabase start`, `docs/LOCAL_SUPABASE.md`) runs in the four integrator steps. The restyle suite is lighter and runs in every package that changes what it checks; wave-3 packages that change markup the live flows read also run the matching suites, so a broken flow shows up in the package that broke it, not after twelve merges.
+`npm run verify` (all 41 scenarios, about 12 minutes, needs the local Appwrite stack: `npm run appwrite:start`, `docs/LOCAL_APPWRITE.md`) runs in the four integrator steps. The restyle suite is lighter and runs in every package that changes what it checks; wave-3 packages that change markup the live flows read also run the matching suites, so a broken flow shows up in the package that broke it, not after twelve merges.
 
 | When | Command | Notes |
 |---|---|---|
@@ -1523,7 +1523,7 @@ A failure found by an integrator goes back to the file's owner in that wave, or 
 
 ### 8.6 The restyle suite
 
-`scripts/verify/suites/restyle.mjs` (R1-HARNESS) is an opt-in suite (`optIn: true`, skipped by `all`). Its scenarios declare `needsSupabase` one by one: only `sidebar-signed-in` needs the local Supabase stack, and the runner starts the stack only when a selected scenario needs it. The suite launches one isolated device per scenario, 1280 × 800, with the reference data of 3.1 (vault "Acme Infrastructure" and its entries, the "Scratch" vault, a local test page for the web entry, `web-01` pointed at `127.0.0.1:1`), reaches each reference screen, and for each screen in dark and light runs the steps below.
+`scripts/verify/suites/restyle.mjs` (R1-HARNESS) is an opt-in suite (`optIn: true`, skipped by `all`). Its scenarios declare `needsBackend` one by one (`needsSupabase` before the Appwrite move): only `sidebar-signed-in` needs the local Appwrite stack, and the runner starts the stack only when a selected scenario needs it. The suite launches one isolated device per scenario, 1280 × 800, with the reference data of 3.1 (vault "Acme Infrastructure" and its entries, the "Scratch" vault, a local test page for the web entry, `web-01` pointed at `127.0.0.1:1`), reaches each reference screen, and for each screen in dark and light runs the steps below.
 
 **8.6.1 The reference folder.** The 124 PNGs of 3.1 (37 MB [V `du -sh`]) exist only in the scratchpad, which is temporary. R1-HARNESS's first step copies `<scratchpad>/restyle/before/` (the PNGs, `INVENTORY.txt`, `INVENTORY-raw.json`) to `$HOME/.conduit-verify/restyle-before/`, which every worktree on the machine reaches, adds shots 44 to 49 there, and commits `scripts/verify/fixtures/restyle/before-manifest.json`: `{ "files": { "<name>": "<sha256>" } }` for every file of the folder. `--before <dir>` defaults to `CONDUIT_RESTYLE_BEFORE`, else that folder. A file the manifest lists that is missing, or whose hash differs, fails the suite: a composite never silently disappears.
 

@@ -366,7 +366,7 @@ function App() {
   }, [authMode]);
 
   // Transition auth mode on network status changes. Main process detects connectivity
-  // loss passively (from failed Supabase calls) and recovery via polling.
+  // loss passively (from failed server calls) and recovery via polling.
   useEffect(() => {
     const unlisten = window.electron.on('network:status-changed', (online: unknown) => {
       if (!online) {

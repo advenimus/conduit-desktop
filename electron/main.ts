@@ -99,7 +99,7 @@ let pendingDeepLinkUrl: string | null = null;
 let pendingFilePath: string | null = null;
 let appReady = false;
 
-/** Handle incoming deep link URL (conduit://auth/callback#access_token=...) */
+/** Handle incoming deep link URL (conduit://auth/callback#user_id=...&session=...) */
 function handleDeepLink(url: string) {
   console.log('[main] Deep link received:', describeDeepLink(url));
 
@@ -120,18 +120,16 @@ function processDeepLink(url: string) {
     return;
   }
 
-  const hash = url.substring(hashIndex + 1);
-  const params = new URLSearchParams(hash);
+  const params = new URLSearchParams(url.substring(hashIndex + 1));
+  const userId = params.get('user_id');
+  const session = params.get('session');
 
-  const accessToken = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
+  console.log('[main] Parsed deep link — has user_id:', !!userId, 'has session:', !!session);
 
-  console.log('[main] Parsed deep link — has access_token:', !!accessToken, 'has refresh_token:', !!refreshToken);
-
-  if (accessToken && refreshToken) {
+  if (userId && session) {
     const state = AppState.getInstance();
-    state.authService.handleDeepLinkTokens(accessToken, refreshToken).catch((err) => {
-      console.error('[main] Failed to handle deep link tokens:', err);
+    state.authService.handleDeepLinkSession(userId, session).catch((err) => {
+      console.error('[main] Failed to handle the session handoff:', err);
     });
   }
 

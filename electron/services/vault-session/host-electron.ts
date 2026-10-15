@@ -2,15 +2,15 @@
  * Electron adapters of the device-session host (host.ts, spec 6.2, 6.6, 6.8): powerMonitor
  * suspend/resume and idle time, window focus, busy counts from the open sessions and running
  * agent jobs, the cached tier limit from settings.json, the vault access callbacks for the soft
- * lock, the session events to every window, and the supabase-js RPC and Realtime adapters
- * (host-electron-supabase.ts). Built once per launch by the app sync manager.
+ * lock, the session events to every window, and the Appwrite RPC and Realtime adapters
+ * (host-electron-appwrite.ts). Built once per launch by the app sync manager.
  */
 
 import { app, BrowserWindow, powerMonitor } from 'electron';
 import { createRendererEmitter, allWindows, type WindowList } from '../sync/host-electron.js';
 import { cachedTierCapabilities, cachedTierTimestampMs, type SettingsSource } from '../sync/host-electron-settings.js';
 import { SESSION_LOG_PREFIX, type Clock, type SyncHost, type SyncLogger } from '../sync/host.js';
-import { createSupabaseRealtime, createSupabaseRpcCaller, type SupabaseSource } from './host-electron-supabase.js';
+import { createAppwriteRealtime, createAppwriteRpcCaller, type BackendSource } from './host-electron-appwrite.js';
 import type {
   ActivityHost,
   BusyHost,
@@ -23,7 +23,7 @@ import type {
   VaultAccessHost,
 } from './host.js';
 
-export type { SupabaseSource } from './host-electron-supabase.js';
+export type { BackendSource } from './host-electron-appwrite.js';
 
 const P = SESSION_LOG_PREFIX;
 export const VAULT_LIMIT_FEATURE = 'vault_max_open_devices';
@@ -153,7 +153,7 @@ export function createTierCacheHost(settings: SettingsSource): TierCacheHost {
 // ---------- Bundle ----------
 
 export interface ElectronSessionHostDeps {
-  readonly supabase: SupabaseSource;
+  readonly backend: BackendSource;
   readonly settings: SettingsSource;
   readonly busy: BusySources;
   /** Soft lock and in-place opens (implemented by the main-process vault IPC module). */
@@ -166,8 +166,8 @@ export function createElectronSessionHost(sync: SyncHost, deps: ElectronSessionH
   const windows = deps.windows ?? allWindows;
   return {
     ...sync,
-    rpc: createSupabaseRpcCaller(deps.supabase, sync.logger),
-    realtime: createSupabaseRealtime(deps.supabase, sync.timers, sync.logger),
+    rpc: createAppwriteRpcCaller(deps.backend, sync.logger),
+    realtime: createAppwriteRealtime(deps.backend, sync.timers, sync.logger),
     power: createPowerHost(),
     activity: deps.focus,
     busy: createBusyHost(deps.busy, sync.logger),
