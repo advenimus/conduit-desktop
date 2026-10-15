@@ -55,18 +55,20 @@ Done 2026-10-15: API keys (`cutover-deploy` expires 2026-11-15, `website` for Ve
 3. Import a copy of prod: `node appwrite/scripts/import-supabase.ts` with `SUPABASE_DB_URL` (prod connection string, **Owner**), `SUPABASE_URL=https://khuyzxadaszwxirwykms.supabase.co` and `SUPABASE_SERVICE_ROLE_KEY` (**Owner**). Run `--dry-run` first.
 4. Point a release-candidate desktop build and a TestFlight iOS build at staging, run the checklist in the plan, then delete the staging project.
 
-## 4. Cutover evening
+## 4. Cutover (after Apple approves iOS 1.2.0)
 
-Before: the iOS build pointing at prod Appwrite is approved with manual release (1.2.0 build 114 uploaded 2026-10-15; owner decided to cut over only after approval); the desktop tag and the website PR are ready; prod project deployed (step 2) and empty.
+Helper: `"/Volumes/SSD Storage/.conduit-dev/cutover/cutover.sh"` (outside the repo; holds no secrets itself, reads the private env files next to it).
 
-1. Freeze Supabase: set `app_config.min_app_version` to the new versions (old apps show "update required"), and turn off sign-ups in Supabase Auth.
-2. Import into prod: `node appwrite/scripts/import-supabase.ts --archive-dir <archive folder>` with `SUPABASE_DB_ROLE=postgres` and a fresh 5-minute CLI login (the round 2 and 3 runs used the Supabase CLI's `cli/login-role` endpoint). The project already holds the plan rows and the App Review account; neither clashes with imported rows. Expect: about 260 users, 93 on the email-code MFA bridge, about 100 files. The script ends with a count check.
-3. Add `RESEND_CONTACTS_API_KEY` and `RESEND_SEGMENT_ID` with `deploy.ts --function-only`.
-4. Vercel: set `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_API_KEY`, `CONDUIT_SERVICE_SECRET` on the website, merge the website PR.
-5. Release iOS, push the desktop tag.
-6. Check end to end: sign in on the website (an imported TOTP user gets an email code, then sets up a new authenticator), desktop sign-in handoff, iOS sign-in, a Pro user's plan, a team owner's team and seats, a Stripe test webhook, a cloud backup upload and restore, a feedback report email.
+1. `cutover.sh freeze`: Supabase `min_app_version` to iOS 1.2.0 and desktop 0.19.0 (old apps show "update required"), sign-ups off. Writes the time to `frozen-at`.
+2. `cutover.sh import`: copies Supabase into prod Appwrite with the legacy archive; ends with the count check. The import also carries the new `min_app_version`.
+3. `cutover.sh contacts`: turns on the Resend contact sync (segment "Conduit Desktop Users") now that the imported accounts are in.
+4. Website PR #6: mark ready, merge, wait for the Vercel production deploy; open the sign-in page.
+5. Desktop PR #32: mark ready, merge, tag `v0.19.0` on the merge commit, push the tag, watch the release workflow until the installers are published.
+6. App Store Connect: release iOS 1.2.0 (manual release). Merge iOS PR #10.
+7. Check: the App Review account signs in on prod; function executions show no failures; Stripe events since `frozen-at` that hit the old site are re-sent from the Stripe dashboard (they wrote to Supabase after the import).
+8. Delete the `conduit-staging` project and its keys.
 
-Rollback: before step 4, turn Supabase sign-ups and the old minimum version back. After the apps ship, fix forward.
+Rollback: before step 4, `cutover.sh unfreeze`. After the apps ship, fix forward.
 
 ## 5. After 30 days (plan Phase 10)
 
