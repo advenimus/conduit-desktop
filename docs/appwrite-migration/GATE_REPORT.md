@@ -79,8 +79,19 @@ Run by separate workers in their own worktrees; full results in each repo's `doc
   - MongoDB refuses a second index over the same columns (`cloud_files` had a plain and a unique index on `bucket, path`); deploy now keeps only the unique one.
   - Uploads from the function fail through the server's default internal endpoint; with `CONDUIT_API_ENDPOINT=https://appwrite.cloudwise.ca/v1` they work.
 - Server live tests (`npx vitest run tests/live` with `CONDUIT_APPWRITE_ENV` pointing at a staging env file): 10 of 10 pass, including the O9 and T4 races, unique pairs, a 9 MB backup and team Realtime. 100 function calls with no errors, median 0.16 s, 90th percentile 0.7 s.
-- **Blocker, server side:** every email-and-password call returns HTTP 500 on this server, in every project (also KHM Tracker): sign-up, sign-in (even with a wrong password), creating a user with a password, and changing a password. Creating a user from a bcrypt hash, server-made sessions and token sessions work. Needs the Appwrite container logs to find the cause.
+- Server fix: every email-and-password call returned HTTP 500 in every project (also KHM Tracker). Cause: the 2.3.0 upgrade set `_APP_PWNED_PASSWORDS_DSN=mock://`, which Appwrite refuses in production. Now `hibp://`; sign-up, sign-in, wrong password (401) and password change all work.
+- Hand test by a test agent over the internet (website on localhost against staging, isolated desktop app through a loopback forwarder), 11 of 12 pass:
+  - New sign-up (verification email about 1 s), TOTP bridge (email code 5.6 s, then new authenticator, then authenticator only), Pro plan, team page, forgot password (1.9 s), signed-in password change, team invite and accept up to the seat limit (third invite refused). Emails went to Resend test addresses only.
+  - Desktop: hand-off sign-in 1.3 to 2.0 s, plan Pro, 50 backups listed with a vault open, backup upload 1.3 to 1.5 s and restore, Free one-device take-over (other device told in 1.0 s, take-back 0.6 s), feedback with a screenshot to support (logs are off in unpackaged builds).
+  - 570 function calls, no failures, median 43 ms, p90 217 ms, none over 2 s.
+  - Not run: team vault live update between two desktop devices. The abuse check (more than three accounts on one Mac) suspended the test accounts, as designed. Covered instead by the live test (team Realtime reaches members only) and by the desktop's own Realtime client run straight against staging: 10 of 10 events delivered, no errors. The agent's Realtime errors came from its forwarder.
+- Server note: a Realtime `subscribe` sent after the `authentication` reply returns "Server Error" on this server; sent right after `authentication` (what the desktop and Appwrite's SDK do) it works.
 - The live tests now create users from a bcrypt hash plus a server-made session, the same path imported accounts take.
+
+## Server operations (2026-10-15)
+
+- ClickHouse quieted (108% CPU to about 5%).
+- Nightly backup at 03:30 server time: `/root/docker/appwrite/backup.sh` (MongoDB dump, storage, functions, builds, config; 14 days kept in `/root/backups/nightly`). First run 84 MB in 13 s; a test restore into a fresh MongoDB took 39 s. Still on the same server: an off-server copy is not set up.
 
 ## Sign-off
 
