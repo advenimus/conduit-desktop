@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import EntryDialog from "../EntryDialog";
 import { useEntryStore } from "../../../stores/entryStore";
 import { useTeamStore } from "../../../stores/teamStore";
@@ -147,6 +147,58 @@ describe("EntryDialog form step", () => {
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.click(within(panel()).getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("EntryDialog opened on a type from a menu", () => {
+  it.each([["ssh", "22", "New SSH Entry"], ["rdp", "3389", "New RDP Entry"], ["vnc", "5900", "New VNC Entry"]] as const)(
+    "starts a %s entry on its default port",
+    (type, port, title) => {
+      render(<EntryDialog onClose={vi.fn()} presetType={type} />);
+      expect(heading().textContent).toBe(title);
+      expect((labelWithText("Port").querySelector("input") as HTMLInputElement).value).toBe(port);
+    },
+  );
+
+  it("starts an SSH key credential as an SSH key, not a password", () => {
+    render(<EntryDialog onClose={vi.fn()} presetType="credential" presetCredentialType="ssh_key" />);
+    expect(heading().textContent).toBe("New SSH Key Entry");
+  });
+
+  it("starts a credential with no sub-type the same as picking Password", () => {
+    const formLabels = () => [heading().textContent, ...[...panel().querySelectorAll("label")].map((l) => l.textContent)];
+    const picked = render(<EntryDialog onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Password" }));
+    const expected = formLabels();
+    picked.unmount();
+    render(<EntryDialog onClose={vi.fn()} presetType="credential" />);
+    expect(formLabels()).toEqual(expected);
+  });
+
+  it("keeps Back so the type can still be changed", () => {
+    render(<EntryDialog onClose={vi.fn()} presetType="web" />);
+    const footer = panel().querySelector("[data-cv-dialog-footer]") as HTMLElement;
+    expect(buttonTexts(footer)).toEqual(["Back", "Cancel", "Create"]);
+    fireEvent.click(within(footer).getByRole("button", { name: "Back" }));
+    expect(heading().textContent).toBe("New Entry");
+    fireEvent.click(screen.getByRole("button", { name: "SSH" }));
+    expect(heading().textContent).toBe("New SSH Entry");
+  });
+
+  it("drops the default port when Back is used to pick a type without one", async () => {
+    render(<EntryDialog onClose={vi.fn()} presetType="ssh" />);
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Document" }));
+    fireEvent.change(labelWithText("Name*").querySelector("input")!, { target: { value: "Runbook" } });
+    fireEvent.submit(panel().querySelector("form")!);
+    await waitFor(() => expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ entry_type: "document", port: null })));
+  });
+
+  it("drops the SSH key sub-type when Back is used to pick a connection", () => {
+    render(<EntryDialog onClose={vi.fn()} presetType="credential" presetCredentialType="ssh_key" />);
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "SSH" }));
+    expect(heading().textContent).toBe("New SSH Entry");
   });
 });
 

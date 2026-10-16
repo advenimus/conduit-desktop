@@ -14,6 +14,9 @@ import { openHome } from "../../../lib/openHome";
 
 vi.mock("../../../lib/openHome", () => ({ openHome: vi.fn() }));
 
+const showContextMenu = vi.hoisted(() => vi.fn(async (..._args: unknown[]): Promise<string | null> => null));
+vi.mock("../../../utils/contextMenu", () => ({ showContextMenu }));
+
 // Stores read settings through window.electron while these modules load.
 vi.hoisted(() => {
   Object.assign(globalThis, { electron: { invoke: async () => null, on: () => () => undefined } });
@@ -140,6 +143,8 @@ const describeButton = (b: HTMLButtonElement) => ({
 
 beforeEach(() => {
   localStorage.clear();
+  showContextMenu.mockReset();
+  showContextMenu.mockResolvedValue(null);
   vi.stubGlobal("electron", {
     invoke: vi.fn(async () => null),
     on: vi.fn(() => () => undefined),
@@ -195,7 +200,8 @@ describe("Sidebar header", () => {
     fireEvent.click(switcher);
     fireEvent.click(screen.getByRole("button", { name: "Unpin sidebar" }));
 
-    expect(events).toEqual(["conduit:new-entry", "conduit:new-folder"]);
+    expect(events).toEqual(["conduit:new-folder"]);
+    expect(showContextMenu).toHaveBeenCalledTimes(1);
     expect(togglePin).toHaveBeenCalledTimes(1);
     document.removeEventListener("conduit:new-entry", record);
     document.removeEventListener("conduit:new-folder", record);
@@ -217,6 +223,111 @@ describe("Sidebar header", () => {
     expect(entry.disabled && folder.disabled).toBe(true);
     expect(entry.title).toBe("View-only access");
     expect(folder.title).toBe("View-only access");
+  });
+});
+
+type MenuItem = { id: string; label: string; type?: string; children?: MenuItem[] };
+
+function recordCreateEvents() {
+  const events: Array<{ type: string; detail: unknown }> = [];
+  const record = (e: Event) => events.push({ type: e.type, detail: (e as CustomEvent).detail });
+  document.addEventListener("conduit:new-entry", record);
+  document.addEventListener("conduit:new-folder", record);
+  return {
+    events,
+    stop: () => {
+      document.removeEventListener("conduit:new-entry", record);
+      document.removeEventListener("conduit:new-folder", record);
+    },
+  };
+}
+
+const treeArea = () => document.querySelector("[data-cv-sidebar-tree]") as HTMLElement;
+const lastMenu = () => showContextMenu.mock.calls[showContextMenu.mock.calls.length - 1] as unknown[];
+const ids = (items: unknown) => (items as MenuItem[]).map((i) => (i.type === "separator" ? "sep" : i.id));
+
+describe("Sidebar create menus", () => {
+  it("opens the + menu under the button with every type, the type picker and New Folder", async () => {
+    setup();
+    const plus = screen.getByRole("button", { name: "New Entry" });
+    expect(plus.getAttribute("aria-haspopup")).toBe("menu");
+    await act(async () => {
+      fireEvent.click(plus);
+    });
+    const [x, y, items, options] = lastMenu();
+    const rect = plus.getBoundingClientRect();
+    expect([x, y, options]).toEqual([rect.right, rect.bottom, { anchorRight: true }]);
+    expect(ids(items)).toEqual([
+      "new_entry:ssh", "new_entry:rdp", "new_entry:vnc", "new_entry:web", "sep",
+      "new_entry:document", "sep", "new_entry:command", "sep",
+      "new_entry:credential:generic", "new_entry:credential:ssh_key", "sep",
+      "new_entry:pick", "new_folder",
+    ]);
+  });
+
+  it("creates at the top level from the + menu, or opens the type picker", async () => {
+    setup();
+    const { events, stop } = recordCreateEvents();
+    for (const choice of ["new_entry:ssh", "new_entry:pick", "new_folder"]) {
+      showContextMenu.mockResolvedValueOnce(choice);
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "New Entry" }));
+      });
+    }
+    stop();
+    expect(events).toEqual([
+      { type: "conduit:new-entry", detail: { folderId: null, type: "ssh" } },
+      { type: "conduit:new-entry", detail: { folderId: null } },
+      { type: "conduit:new-folder", detail: { parentId: null } },
+    ]);
+  });
+
+  it("opens New Entry and New Folder on the tree's blank space and creates at the top level", async () => {
+    setup();
+    const { events, stop } = recordCreateEvents();
+    showContextMenu.mockResolvedValueOnce("new_entry:vnc");
+    await act(async () => {
+      fireEvent.contextMenu(treeArea(), { clientX: 40, clientY: 300 });
+    });
+    const [x, y, items] = lastMenu();
+    expect([x, y]).toEqual([40, 300]);
+    expect(ids(items)).toEqual(["new_entry", "new_folder"]);
+    expect((items as MenuItem[])[0].children!.length).toBeGreaterThan(0);
+    showContextMenu.mockResolvedValueOnce("new_folder");
+    await act(async () => {
+      fireEvent.contextMenu(treeArea());
+    });
+    stop();
+    expect(events).toEqual([
+      { type: "conduit:new-entry", detail: { folderId: null, type: "vnc" } },
+      { type: "conduit:new-folder", detail: { parentId: null } },
+    ]);
+  });
+
+  it("works on an empty vault, where the tree draws only its hint", async () => {
+    setup();
+    act(() => useEntryStore.setState({ entries: [], folders: [] } as never));
+    await act(async () => {
+      fireEvent.contextMenu(screen.getByText(/No entries yet/));
+    });
+    expect(ids(lastMenu()[2])).toEqual(["new_entry", "new_folder"]);
+  });
+
+  it("leaves a row's own menu alone", async () => {
+    setup();
+    await act(async () => {
+      fireEvent.contextMenu(screen.getByText("Runbook"));
+    });
+    expect(showContextMenu).toHaveBeenCalledTimes(1);
+    expect(ids(lastMenu()[2])).not.toEqual(["new_entry", "new_folder"]);
+  });
+
+  it("shows a team viewer only a view-only note on blank space", async () => {
+    setup({ team: "viewer", signedIn: "authenticated" });
+    await act(async () => {
+      fireEvent.contextMenu(treeArea());
+    });
+    expect(lastMenu()[2]).toEqual([{ id: "view_only", label: "View-only access", type: "header" }]);
   });
 });
 

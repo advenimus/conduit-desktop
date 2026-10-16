@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { invoke, listen, type UnlistenFn } from "../../lib/electron";
 import { getTerminalTheme } from "../../lib/terminalTheme";
 import { useSessionStore } from "../../stores/sessionStore";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { buildTerminalFontStack } from "../../lib/terminalFont";
+import { useTerminalFontFamily } from "../../hooks/useTerminalFontFamily";
 import "@xterm/xterm/css/xterm.css";
 import {
   CheckIcon, CircleFilledIcon, ClockIcon, CloseIcon, PlayerPlayIcon, PlayerStopIcon, RefreshIcon
@@ -44,6 +47,7 @@ export default function CommandView({
 }: CommandViewProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
+  const [terminal, setTerminal] = useState<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const startedRef = useRef(false);
   const [status, setStatus] = useState<CommandStatus>("running");
@@ -61,6 +65,7 @@ export default function CommandView({
       fitAddonRef.current = existing.fitAddon;
       startedRef.current = existing.started;
       termRef.current = existing.terminal;
+      setTerminal(existing.terminal);
       requestAnimationFrame(() => {
         existing.fitAddon.fit();
       });
@@ -80,7 +85,8 @@ export default function CommandView({
     const term = new Terminal({
       cursorBlink: false,
       fontSize: 14,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontFamily: buildTerminalFontStack(useSettingsStore.getState().sessionDefaultsTerminal.fontFamily),
+      rescaleOverlappingGlyphs: true,
       theme: getTerminalTheme(),
       scrollback: 10000,
       convertEol: true,
@@ -116,6 +122,7 @@ export default function CommandView({
 
     fitAddon.fit();
     termRef.current = term;
+    setTerminal(term);
 
     // Store in registry for preservation
     commandRegistry.set(sessionId, {
@@ -132,6 +139,9 @@ export default function CommandView({
       }
     };
   }, [sessionId]);
+
+  const refit = useCallback(() => fitAddonRef.current?.fit(), []);
+  useTerminalFontFamily(terminal, refit);
 
   // Handle resize
   useEffect(() => {

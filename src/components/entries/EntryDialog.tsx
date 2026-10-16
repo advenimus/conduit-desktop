@@ -29,6 +29,8 @@ import { changedEditorFields } from "./entry-update-diff";
 interface EntryDialogProps {
   onClose: () => void;
   presetType?: EntryType;
+  /** With presetType "credential": which kind. Defaults to a password, as on the type picker. */
+  presetCredentialType?: CredentialType;
   folderId?: string | null;
   editingEntryId?: string | null;
 }
@@ -39,7 +41,7 @@ const DEFAULT_PORTS: Record<string, number> = {
   vnc: 5900,
 };
 
-export default function EntryDialog({ onClose, presetType, folderId, editingEntryId }: EntryDialogProps) {
+export default function EntryDialog({ onClose, presetType, presetCredentialType, folderId, editingEntryId }: EntryDialogProps) {
   const { createEntry, getEntry, updateEntry } = useEntryStore();
   const { credentials, loadCredentials } = useVaultStore();
   const vaultType = useVaultStore((s) => s.vaultType);
@@ -61,7 +63,7 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
   // Form fields
   const [name, setName] = useState("");
   const [host, setHost] = useState("");
-  const [port, setPort] = useState("");
+  const [port, setPort] = useState(presetType && presetType in DEFAULT_PORTS ? String(DEFAULT_PORTS[presetType]) : "");
   const [credentialId, setCredentialId] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -80,7 +82,9 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Credential sub-type fields (for entry_type === "credential")
-  const [credentialType, setCredentialType] = useState<CredentialType | null>(null);
+  const [credentialType, setCredentialType] = useState<CredentialType | null>(
+    presetType === "credential" ? (presetCredentialType ?? "generic") : null,
+  );
   const [publicKey, setPublicKey] = useState("");
   const [fingerprint, setFingerprint] = useState("");
 
@@ -176,12 +180,8 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
 
   const selectType = (option: TypeOption) => {
     setEntryType(option.type);
-    if (option.credentialType) {
-      setCredentialType(option.credentialType);
-    }
-    if (option.type in DEFAULT_PORTS) {
-      setPort(String(DEFAULT_PORTS[option.type]));
-    }
+    setCredentialType(option.credentialType ?? null);
+    setPort(option.type in DEFAULT_PORTS ? String(DEFAULT_PORTS[option.type]) : "");
     setActiveTab(getDefaultTabId());
     setStep("form");
   };
@@ -528,7 +528,7 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
 
         {showForm && (
           <DialogFooter className="items-center border-t border-divider">
-            {!presetType && !isEditing && (
+            {!isEditing && (
               <Button onClick={() => setStep("type")} className="mr-auto">
                 Back
               </Button>
