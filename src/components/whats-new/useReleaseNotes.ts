@@ -77,6 +77,13 @@ async function fetchManifest(): Promise<void> {
   }
 }
 
+/** The manifest's releases, or null when it could not load. Shares the session cache with the dialog. */
+export async function loadReleaseNotes(): Promise<ReleaseEntry[] | null> {
+  if (!cachedReleases && !fetchPromise) fetchPromise = fetchManifest();
+  if (fetchPromise) await fetchPromise;
+  return cachedReleases;
+}
+
 export function useReleaseNotes(): ReleaseNotesResult {
   const [releases, setReleases] = useState<ReleaseEntry[]>(cachedReleases ?? []);
   const [loading, setLoading] = useState(cachedReleases === null && cachedError === null);

@@ -110,6 +110,8 @@ export interface AppSettings {
   vault_idle_lock_minutes: number;
   // What opens at startup (docs/AUTO_UNLOCK.md 3.5); null = the last team vault used, else the Vault Hub
   startup_vault: StartupVault | null;
+  // Beta update channel (docs/BETA_CHANNEL.md); undefined = follow the running version
+  beta_updates?: boolean;
 }
 
 const defaultSettings: AppSettings = {

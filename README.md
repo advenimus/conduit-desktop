@@ -216,6 +216,8 @@ Dark + light modes, plus Ocean, Ember, Forest, Amethyst, Rose, Midnight, and OS-
 
 Download the latest release from [GitHub Releases](https://github.com/advenimus/conduit-desktop/releases/latest) or [conduitdesktop.com/download](https://conduitdesktop.com/download).
 
+Want new features early? Install the newest pre-release from [GitHub Releases](https://github.com/advenimus/conduit-desktop/releases), or turn on **Get beta updates** in Settings > General. See [the beta channel](docs/BETA_CHANNEL.md).
+
 - **macOS** — `.dmg`, Apple Silicon and Intel
 - **Windows** — `.exe`, Windows 10/11 (x64 and ARM64)
 - **Linux** — `.AppImage` or `.deb`, x64 and ARM64

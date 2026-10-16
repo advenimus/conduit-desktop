@@ -11,6 +11,15 @@ The release workflow (`.github/workflows/release.yml`) reads `docs/releases/<tag
 
 To fix notes after release, edit the file and the GitHub release (`gh release edit vX.Y.Z --notes-file ...`).
 
+## Betas
+
+A beta is tagged `vX.Y.Z-beta.N` and needs its own notes file, `docs/releases/vX.Y.Z-beta.N.md`. The workflow marks any tag with `beta`, `alpha` or `rc` as a GitHub pre-release. It also stops if the tag does not match the `package.json` version exactly. See `docs/BETA_CHANNEL.md` for the whole process.
+
+- Title it `## Conduit vX.Y.Z-beta.N`.
+- Say in the first line that it is a beta and what to try.
+- Add a `### Feedback` section that points to the Beta pill or Help > Submit Feedback.
+- The regular `vX.Y.Z` notes cover everything again for users who skipped the betas.
+
 ## Format
 
 ```markdown
