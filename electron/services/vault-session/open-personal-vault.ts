@@ -105,6 +105,8 @@ export interface OpenDeps {
   readonly tickets?: OwnCopyTickets;
   /** Tests: the replica reloads W after every commit and checks the digest. */
   readonly verifyCommits?: boolean;
+  /** Dev owner tag bypass: no unlock-time owner tag check, no owner tag or owner check writes. */
+  readonly ignoreOwnerTag?: boolean;
   /** Test seams: any subset of the collaborators; the rest are the real modules. */
   readonly collaborators?: Partial<OpenCollaborators>;
 }

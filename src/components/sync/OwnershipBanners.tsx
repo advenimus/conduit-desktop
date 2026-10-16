@@ -120,3 +120,12 @@ export function OwnershipBanner() {
   }
   return null;
 }
+
+/** Dev only (CONDUIT_DEV_IGNORE_OWNER_TAG): the owner tag check is off for the open personal vault. */
+export function DevOwnerCheckBanner() {
+  const skipped = useSyncStore((s) => s.state?.ownerCheckSkipped === true && s.state.vault?.shared === true);
+  const isUnlocked = useVaultStore((s) => s.isUnlocked);
+  const vaultType = useVaultStore((s) => s.vaultType);
+  if (!skipped || !isUnlocked || vaultType !== "personal") return null;
+  return <SyncBanner tone="warn" text="Owner check skipped (dev). This vault's owner tag is left as it is." actions={[]} />;
+}

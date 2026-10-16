@@ -62,6 +62,8 @@ export interface RuntimeDeps {
   readonly lease: LeaseTracker;
   /** null for private vaults. */
   readonly replica: ReplicaPort | null;
+  /** Dev owner tag bypass: the owner tag and the owner check are never written. */
+  readonly ignoreOwnerTag?: boolean;
 }
 
 export interface ReleaseOutcome {
@@ -158,7 +160,7 @@ export class PersonalVaultRuntime {
     if (acquire !== null) lease.onAcquire(acquire, host.clock.now());
     if (acquire?.kind === 'granted') {
       recordLastLimit(replica, host, acquire.limit);
-      recordOwnerCheck(replica, host, acquire.ownership, this.hint());
+      if (this.deps.ignoreOwnerTag !== true) recordOwnerCheck(replica, host, acquire.ownership, this.hint());
       this.reportedOwnership = JSON.stringify(acquire.ownership);
     }
     this.serverFlagSeen = this.serverSideFilesFlag(host.clock.now());
@@ -246,7 +248,7 @@ export class PersonalVaultRuntime {
     if (!result.released) return result;
     lease.ownershipReleased();
     clearOwnerCheck(replica, host);
-    await writeReleasedTag(host, replica, this.engine);
+    if (this.deps.ignoreOwnerTag !== true) await writeReleasedTag(host, replica, this.engine);
     this.reportOwnership(lease.ownership());
     return result;
   }
@@ -331,8 +333,10 @@ export class PersonalVaultRuntime {
   /** Every confirmed answer: ownerCheck (3.3) and, for the owner, the tag (3.2). */
   private async onOwnership(ownership: Ownership | null): Promise<void> {
     if (!this.deps.shared || this.inactive()) return;
-    recordOwnerCheck(this.deps.replica, this.deps.host, ownership, this.hint());
+    const ignoreOwnerTag = this.deps.ignoreOwnerTag === true;
+    if (!ignoreOwnerTag) recordOwnerCheck(this.deps.replica, this.deps.host, ownership, this.hint());
     this.reportOwnership(ownership);
+    if (ignoreOwnerTag) return;
     await writeOwnerTag(this.deps.host, this.deps.replica, this.engine, ownership);
   }
 
