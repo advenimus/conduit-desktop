@@ -2,6 +2,31 @@
   "schema_version": 1,
   "releases": [
     {
+      "version": "0.18.3",
+      "date": "2026-10-16",
+      "title": "Try New Features Early",
+      "summary": "Turn on beta updates to try new features before they reach everyone, using your normal account and data.",
+      "highlights": [
+        {
+          "text": "**Get beta updates**: turn it on in [Settings > General](conduit://settings/general) to try new features early. Betas use your normal account and data.",
+          "category": "feature"
+        },
+        {
+          "text": "**Leave anytime**: turn the option off and you move to the next regular release when it comes out.",
+          "category": "feature"
+        },
+        {
+          "text": "**Beta label**: beta builds show a small Beta label in the title bar and the About dialog. Click it to send feedback.",
+          "category": "improvement"
+        },
+        {
+          "text": "Small bug fixes and improvements.",
+          "category": "fix"
+        }
+      ],
+      "hasMedia": false
+    },
+    {
       "version": "0.18.1",
       "date": "2026-10-07",
       "title": "A Knowledge Base for Every Asset",

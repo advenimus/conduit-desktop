@@ -495,5 +495,10 @@ jobs:
           script: |
             const releaseId = parseInt('${{ needs.create-release.outputs.release_id }}', 10);
             const { owner, repo } = context.repo;
-            await github.rest.repos.updateRelease({ owner, repo, release_id: releaseId, draft: false });
-            console.log(`Release published!`);
+            const { data: release } = await github.rest.repos.getRelease({ owner, repo, release_id: releaseId });
+            // A beta must never become the "latest" release that stable users update from.
+            await github.rest.repos.updateRelease({
+              owner, repo, release_id: releaseId, draft: false,
+              make_latest: release.prerelease ? 'false' : 'true',
+            });
+            console.log(`Release published (prerelease: ${release.prerelease})`);

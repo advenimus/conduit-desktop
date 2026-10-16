@@ -1,6 +1,8 @@
 # Beta channel
 
-Betas let real users try new features before a regular release. A beta is the same Conduit app with a version like `0.19.0-beta.1`. There is no separate beta app.
+Betas let real users try new features before a regular release. A beta is the same Conduit app with a version like `0.18.4-beta.1`. There is no separate beta app.
+
+The switch first ships in the regular `0.18.3` release. The first beta is `0.18.4-beta.1`.
 
 Beta builds use **production**: the normal sign-in, plan, vaults, sync and team data. Ship a beta only when its backend changes are live in production.
 
@@ -41,7 +43,8 @@ If a newer beta is downloading or waiting to install when you turn the switch of
 - We never set the updater's `channel`. Setting it also allows downgrades and makes the updater look for `beta-*.yml` files.
 - With `allowPrerelease` on, electron-updater reads the GitHub releases feed and takes the newest release, beta or regular. With it off, it takes the latest regular release.
 - Beta builds publish the usual `latest*.yml` files (the GitHub publisher does not split channels). The updater first asks for `beta*.yml`, gets a 404, then falls back to `latest*.yml`.
-- Version order follows semver: `0.19.0-beta.1` < `0.19.0-beta.2` < `0.19.0`. So beta users get the regular `0.19.0` automatically.
+- Version order follows semver: `0.18.4-beta.1` < `0.18.4-beta.2` < `0.18.4`. So beta users get the regular `0.18.4` automatically.
+- A beta must be numbered above the current regular release. After `0.18.3`, a `0.18.3-beta.N` sorts below `0.18.3`, so nobody would get it. Use the next version, `0.18.4-beta.N`.
 - Turning the switch saves the setting, applies it, clears the cached result and runs a fresh check. It is not part of the Settings Save button.
 
 ### Turning betas off with a beta pending
@@ -59,7 +62,7 @@ electron-updater downloads on its own (`autoDownload`) and installs on quit (`au
 
 ## Cutting a beta
 
-1. Bump `package.json` to `X.Y.Z-beta.N` (for example `0.19.0-beta.1`).
+1. Bump `package.json` to `X.Y.Z-beta.N`, where `X.Y.Z` is higher than the current regular release (for example `0.18.4-beta.1` after `0.18.3`).
 2. Write `docs/releases/vX.Y.Z-beta.N.md` (format in `docs/releases/README.md`).
 3. Optional: add a `release-notes/manifest.json` entry with the exact beta version if What's New should open for it.
 4. Merge to `main`.
