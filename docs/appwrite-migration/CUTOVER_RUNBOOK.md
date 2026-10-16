@@ -59,11 +59,11 @@ Done 2026-10-15: API keys (`cutover-deploy` expires 2026-11-15, `website` for Ve
 
 Helper: `"/Volumes/SSD Storage/.conduit-dev/cutover/cutover.sh"` (outside the repo; holds no secrets itself, reads the private env files next to it).
 
-1. `cutover.sh freeze`: Supabase `min_app_version` to iOS 1.2.0 and desktop 0.19.0 (old apps show "update required"), sign-ups off. Writes the time to `frozen-at`.
+1. `cutover.sh freeze`: Supabase `min_app_version` to iOS 1.2.0 and desktop 0.18.2 (old apps show "update required"), sign-ups off. Writes the time to `frozen-at`.
 2. `cutover.sh import`: copies Supabase into prod Appwrite with the legacy archive; ends with the count check. The import also carries the new `min_app_version`.
 3. `cutover.sh contacts`: turns on the Resend contact sync (segment "Conduit Desktop Users") now that the imported accounts are in.
 4. Website PR #6: mark ready, merge, wait for the Vercel production deploy; open the sign-in page.
-5. Desktop PR #32: mark ready, merge, tag `v0.19.0` on the merge commit, push the tag, watch the release workflow until the installers are published.
+5. Desktop PR #32: mark ready, merge, tag `v0.18.2` on the merge commit, push the tag, watch the release workflow until the installers are published.
 6. App Store Connect: release iOS 1.2.0 (manual release). Merge iOS PR #10.
 7. Check: the App Review account signs in on prod; function executions show no failures; Stripe events since `frozen-at` that hit the old site are re-sent from the Stripe dashboard (they wrote to Supabase after the import).
 8. Delete the `conduit-staging` project and its keys.
