@@ -14,6 +14,7 @@
 #include "disp.h"
 #include "output.h"
 #include "pointer.h"
+#include "json_out.h"
 #include <freerdp/freerdp.h>
 #include <freerdp/gdi/gdi.h>
 #include <freerdp/gdi/gfx.h>
@@ -25,6 +26,7 @@
 #include <freerdp/client.h>
 #include <freerdp/client/cmdline.h>
 #include <freerdp/client/channels.h>
+#include <freerdp/transport_io.h>
 #include <freerdp/channels/rdpgfx.h>
 #include <freerdp/channels/disp.h>
 #include <freerdp/channels/cliprdr.h>
@@ -317,6 +319,28 @@ static BOOL apply_gateway_settings(rdpSettings *settings, const GatewayConfig *g
     return TRUE;
 }
 
+/* Gateway code writes to its own TLS sockets, so the first transport write is RDP data to the target. */
+static pTransportRWFkt s_default_write_pdu = NULL;
+static volatile BOOL s_target_reached = FALSE;
+
+static int write_pdu_noting_target(rdpTransport *transport, wStream *s) {
+    s_target_reached = TRUE;
+    return s_default_write_pdu ? s_default_write_pdu(transport, s) : -1;
+}
+
+static void track_target_reached(rdpContext *context) {
+    s_target_reached = FALSE;
+    const rdpTransportIo *current = freerdp_get_io_callbacks(context);
+    if (!current || current->WritePdu == write_pdu_noting_target) return;
+    rdpTransportIo io = *current;
+    s_default_write_pdu = io.WritePdu;
+    io.WritePdu = write_pdu_noting_target;
+    if (!freerdp_set_io_callbacks(context, &io)) {
+        fprintf(stderr, "[conduit-freerdp] Could not track the gateway phase; errors will not name the failed hop\n");
+        s_default_write_pdu = NULL;
+    }
+}
+
 /* ── Public API ─────────────────────────────────────────────────────── */
 
 freerdp *connection_init(const ConnectConfig *config) {
@@ -453,20 +477,26 @@ freerdp *connection_init(const ConnectConfig *config) {
 bool connection_connect(freerdp *instance) {
     if (!instance) return false;
 
+    const BOOL gateway_enabled =
+        freerdp_settings_get_bool(instance->context->settings, FreeRDP_GatewayEnabled);
+    if (gateway_enabled) track_target_reached(instance->context);
+
     if (!freerdp_connect(instance)) {
         UINT32 error = freerdp_get_last_error(instance->context);
         const char *error_str = error != FREERDP_ERROR_SUCCESS
             ? freerdp_get_last_error_string(error) : NULL;
         if (!error_str || !error_str[0]) {
             /* Some gateway failure paths reset the last error to SUCCESS. */
-            error_str = freerdp_settings_get_bool(instance->context->settings, FreeRDP_GatewayEnabled)
+            error_str = gateway_enabled
                 ? "Could not connect through the RD Gateway."
                 : "Connection failed";
         }
         const char *error_name = freerdp_get_last_error_name(error);
-        fprintf(stderr, "[conduit-freerdp] Connection failed: %s (0x%08X %s)\n",
-                error_str, error, error_name ? error_name : "?");
-        output_send_error_code(error_str, error);
+        const char *phase = s_default_write_pdu
+            ? connect_error_phase(gateway_enabled, s_target_reached) : NULL;
+        fprintf(stderr, "[conduit-freerdp] Connection failed: %s (0x%08X %s) phase=%s\n",
+                error_str, error, error_name ? error_name : "?", phase ? phase : "none");
+        output_send_error_phase(error_str, error, phase);
         return false;
     }
 

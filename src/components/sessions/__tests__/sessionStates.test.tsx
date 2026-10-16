@@ -122,8 +122,20 @@ describe("RdpView states (restyle)", () => {
     useSessionStore.setState({
       sessions: [{ id: "r1", type: "rdp", title: "app", status: "disconnected", metadata: { gatewayId: "g1", gatewayName: "Office gateway", gatewayHost: "gw.example.com" } }],
     });
-    render(<RdpView {...base} status="disconnected" connectionError="Access denied." />);
+    render(<RdpView {...base} status="disconnected" connectionError="Access denied. [rdp-error code=0x00020016 phase=gateway]" />);
     expect(screen.getByText(/The gateway did not accept the login/)).toBeInTheDocument();
+    expect(screen.getByText("Access denied.")).toBeInTheDocument();
+    expect(screen.queryByText(/rdp-error/)).toBeNull();
+    useSessionStore.setState({ sessions: [] });
+  });
+
+  it("does not blame the gateway when the computer behind it denied access", () => {
+    useSessionStore.setState({
+      sessions: [{ id: "r1", type: "rdp", title: "app", status: "disconnected", metadata: { gatewayId: "g1", gatewayName: "Office gateway", gatewayHost: "gw.example.com" } }],
+    });
+    render(<RdpView {...base} status="disconnected" connectionError="Access denied. [rdp-error code=0x00020016 phase=target]" />);
+    expect(screen.queryByText(/gateway/i)).toBeNull();
+    expect(screen.getByText("Access denied.")).toBeInTheDocument();
     useSessionStore.setState({ sessions: [] });
   });
 

@@ -1,7 +1,4 @@
-/**
- * Unit tests for the helper's pure logic (JSON output builders and the
- * stdin command parser). No FreeRDP needed; run with tests/run-tests.sh.
- */
+/* Unit tests for the helper's pure logic (JSON builders, stdin parser); no FreeRDP needed. Run tests/run-tests.sh. */
 
 #include "json_out.h"
 #include "protocol.h"
@@ -42,6 +39,27 @@ static void test_error_json_with_code(void) {
     char *json = json_build_error("ERRCONNECT_CONNECT_TRANSPORT_FAILED", 0x0002000D);
     CHECK_STR(json, "{\"message\":\"ERRCONNECT_CONNECT_TRANSPORT_FAILED\",\"code\":131085}");
     json_out_free(json);
+}
+
+static void test_error_json_with_phase(void) {
+    char *json = json_build_error_phase("Access denied.", 0x00020016, "gateway");
+    CHECK_STR(json, "{\"message\":\"Access denied.\",\"code\":131094,\"phase\":\"gateway\"}");
+    json_out_free(json);
+
+    json = json_build_error_phase("Access denied.", 0x00020016, "target");
+    CHECK_STR(json, "{\"message\":\"Access denied.\",\"code\":131094,\"phase\":\"target\"}");
+    json_out_free(json);
+
+    json = json_build_error_phase("Connection failed", 0, NULL);
+    CHECK_STR(json, "{\"message\":\"Connection failed\"}");
+    json_out_free(json);
+}
+
+static void test_connect_error_phase(void) {
+    CHECK(connect_error_phase(false, false) == NULL);
+    CHECK(connect_error_phase(false, true) == NULL);
+    CHECK_STR(connect_error_phase(true, false), "gateway");
+    CHECK_STR(connect_error_phase(true, true), "target");
 }
 
 static void test_error_json_large_code(void) {
@@ -189,6 +207,8 @@ static void test_validate_gateway(void) {
 int main(void) {
     test_error_json_plain();
     test_error_json_with_code();
+    test_error_json_with_phase();
+    test_connect_error_phase();
     test_error_json_large_code();
     test_error_json_escapes();
     test_error_json_null_message();

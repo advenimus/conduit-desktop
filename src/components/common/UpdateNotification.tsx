@@ -103,6 +103,13 @@ export default function UpdateNotificationBridge() {
       }
     );
 
+    // Main process dropped a beta after beta updates were turned off
+    const unlistenCleared = listen("update:cleared", () => {
+      setUpdate(null);
+      setState("downloading");
+      setProgress(0);
+    });
+
     // Listen for manual "Check for Updates" from Help menu
     const handleCheckForUpdates = async () => {
       setDismissed(false);
@@ -131,6 +138,7 @@ export default function UpdateNotificationBridge() {
       unlistenProgress.then((fn) => fn());
       unlistenDownloaded.then((fn) => fn());
       unlistenError.then((fn) => fn());
+      unlistenCleared.then((fn) => fn());
       document.removeEventListener("conduit:check-for-updates", handleCheckForUpdates);
     };
   }, []);

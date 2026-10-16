@@ -13,7 +13,7 @@
  *     0x02 BITMAP_UPDATE → [x:u16-LE][y:u16-LE][w:u16-LE][h:u16-LE][rgba_data...]
  *     0x03 DISCONNECTED → JSON {"error":null|"..."}
  *     0x04 RESIZED      → JSON {"width":N,"height":N}
- *     0xFF ERROR        → JSON {"message":"...","code"?:N}
+ *     0xFF ERROR        → JSON {"message":"...","code"?:N,"phase"?:"gateway"|"target"}
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -38,7 +38,8 @@ import type {
   OnCursorDefaultCallback,
 } from '../engine.js';
 import { getFreeRdpBinaryPath } from './factory.js';
-import { buildHelperConnectConfig, helperErrorMessage, parseHelperJson } from './helper-protocol.js';
+import { buildHelperConnectConfig, parseHelperError, parseHelperJson } from './helper-protocol.js';
+import { formatRdpConnectError } from '../connect-error.js';
 
 /* Binary protocol message types */
 const MSG_CONNECTED = 0x01;
@@ -524,9 +525,9 @@ export class FreeRdpEngine implements RdpEngine {
       }
 
       case MSG_ERROR: {
-        const message = helperErrorMessage(payload);
-        const code = parseHelperJson(payload)?.code;
-        console.error(`[FreeRDP] Error: ${message}${code !== undefined ? ` (code ${String(code)})` : ''}`);
+        const info = parseHelperError(payload);
+        const message = formatRdpConnectError(info);
+        console.error(`[FreeRDP] Error: ${message}`);
 
         if (this.connectReject) {
           this.connectReject(new Error(message));

@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import BetaPill, { OPEN_FEEDBACK_EVENT } from "../BetaPill";
+
+type BetaPillModule = typeof import("../BetaPill");
+let BetaPill: BetaPillModule["default"];
+let OPEN_FEEDBACK_EVENT: BetaPillModule["OPEN_FEEDBACK_EVENT"];
 
 const invoke = vi.fn<(channel: string, args?: unknown) => Promise<unknown>>();
 
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  ({ default: BetaPill, OPEN_FEEDBACK_EVENT } = await import("../BetaPill"));
   window.electron = { platform: "darwin", invoke, send: vi.fn(), on: vi.fn(() => () => {}), removeListener: vi.fn() };
 });
 
@@ -35,6 +40,27 @@ describe("BetaPill", () => {
     render(<BetaPill />);
     await act(async () => {});
     expect(invoke).toHaveBeenCalledWith("app_get_version", undefined);
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+  });
+
+  it("reads the version once for every pill in the window", async () => {
+    invoke.mockResolvedValue("0.19.0-beta.2");
+    render(<BetaPill />);
+    render(<BetaPill />);
+    await act(async () => {});
+    render(<BetaPill />);
+    await act(async () => {});
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText("Beta")).toHaveLength(3);
+  });
+
+  it("tries again on the next mount after a failed read", async () => {
+    invoke.mockRejectedValueOnce(new Error("no")).mockResolvedValue("0.19.0-beta.2");
+    render(<BetaPill />);
+    await act(async () => {});
+    render(<BetaPill />);
+    await act(async () => {});
+    expect(invoke).toHaveBeenCalledTimes(2);
     expect(screen.getByText("Beta")).toBeInTheDocument();
   });
 

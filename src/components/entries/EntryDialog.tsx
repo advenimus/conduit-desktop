@@ -29,6 +29,7 @@ import GatewayLoginTab from "./tabs/GatewayLoginTab";
 import {
   gatewayEntryConfigForSave,
   gatewayEntryValidationError,
+  gatewayLinkedCredentialId,
   gatewayLoginChoiceOf,
   gatewayLoginColumns,
   gatewayUsageCount,
@@ -132,6 +133,8 @@ export default function EntryDialog({
   onCloseRef.current = onClose;
   // What the editor showed after loading: a save sends only the fields that differ from it.
   const loadedFieldsRef = useRef<ReturnType<typeof editorFields> | null>(null);
+  // Older gateways linked their credential in the credential_id column; diff against the stored values so a save moves it to config.
+  const legacyGatewayLinkRef = useRef<{ credential_id: string; config: Record<string, unknown> } | null>(null);
   const captureLoadedRef = useRef(false);
 
   // Load entry data when editing
@@ -163,6 +166,10 @@ export default function EntryDialog({
       if (entry.entry_type === "credential" && entry.credential_type === RD_GATEWAY_CREDENTIAL_TYPE) {
         setGatewayConfig((entry.config ?? {}) as Partial<RdGatewayConfig>);
         setGatewayLogin(gatewayLoginChoiceOf(entry.config, entry.credential_id));
+        setCredentialId(gatewayLinkedCredentialId(entry.config, entry.credential_id));
+        legacyGatewayLinkRef.current = entry.credential_id
+          ? { credential_id: entry.credential_id, config: (entry.config ?? {}) as Record<string, unknown> }
+          : null;
       }
       // Load SSH auth method from config
       if (entry.config) {
@@ -254,7 +261,7 @@ export default function EntryDialog({
       return { ...stripUndefined(rdpGatewayConfigForSave(rdpConfig) as unknown as Record<string, unknown>), ...totpMeta };
     }
     if (isGateway) {
-      return { ...gatewayEntryConfigForSave(gatewayConfig, gatewayLogin) };
+      return { ...gatewayEntryConfigForSave(gatewayConfig, gatewayLogin, credentialId) };
     }
     if (entryType === "web") {
       // Include autofill only if any field was explicitly set
@@ -321,7 +328,7 @@ export default function EntryDialog({
   useEffect(() => {
     if (!captureLoadedRef.current || isLoadingEntry) return;
     captureLoadedRef.current = false;
-    loadedFieldsRef.current = editorFields();
+    loadedFieldsRef.current = { ...editorFields(), ...legacyGatewayLinkRef.current };
   });
 
   const handleSubmit = async () => {

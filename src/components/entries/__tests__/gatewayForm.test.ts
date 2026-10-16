@@ -5,6 +5,7 @@ import {
   gatewayDeleteMessage,
   gatewayEntryConfigForSave,
   gatewayEntryValidationError,
+  gatewayLinkedCredentialId,
   gatewayLoginChoiceOf,
   gatewayLoginColumns,
   gatewayOptions,
@@ -32,7 +33,21 @@ describe("gatewayEntryConfigForSave", () => {
 
   it("drops defaults and stray keys", () => {
     const config = { gatewayHostname: "gw", gatewayTransport: "auto", gatewayBypassLocal: false, resolution: "1920x1080" } as never;
-    expect(gatewayEntryConfigForSave(config, "saved")).toEqual({ gatewayHostname: "gw", gatewayLoginSource: "own" });
+    expect(gatewayEntryConfigForSave(config, "typed")).toEqual({ gatewayHostname: "gw", gatewayLoginSource: "own" });
+  });
+
+  it("links a saved credential in the config, where team vaults sync it", () => {
+    expect(gatewayEntryConfigForSave({ gatewayHostname: "gw" }, "saved", "c1")).toEqual({
+      gatewayHostname: "gw",
+      gatewayLoginSource: "credential",
+      gatewayCredentialId: "c1",
+    });
+  });
+
+  it("drops a stale link for the other logins", () => {
+    const config = { gatewayHostname: "gw", gatewayLoginSource: "credential", gatewayCredentialId: "c1" } as const;
+    expect(gatewayEntryConfigForSave(config, "typed", "c1")).toEqual({ gatewayHostname: "gw", gatewayLoginSource: "own" });
+    expect(gatewayEntryConfigForSave(config, "connection", "c1")).toEqual({ gatewayHostname: "gw", gatewayLoginSource: "connection" });
   });
 
   it("moves a port typed into the server box into the port key", () => {
@@ -53,8 +68,19 @@ describe("gatewayLoginChoiceOf", () => {
     expect(gatewayLoginChoiceOf({ gatewayLoginSource: "connection" }, "c1")).toBe("connection");
   });
 
-  it("reads a linked credential as saved", () => {
+  it("reads a credential linked in the config as saved", () => {
+    expect(gatewayLoginChoiceOf({ gatewayLoginSource: "credential", gatewayCredentialId: "c1" }, null)).toBe("saved");
+    expect(gatewayLinkedCredentialId({ gatewayLoginSource: "credential", gatewayCredentialId: "c1" }, null)).toBe("c1");
+  });
+
+  it("reads an older gateway linked in the credential_id column as saved", () => {
     expect(gatewayLoginChoiceOf({ gatewayLoginSource: "own" }, "c1")).toBe("saved");
+    expect(gatewayLinkedCredentialId({ gatewayLoginSource: "own" }, "c1")).toBe("c1");
+  });
+
+  it("has no linked credential for the other logins", () => {
+    expect(gatewayLinkedCredentialId({ gatewayLoginSource: "connection" }, "c1")).toBeNull();
+    expect(gatewayLinkedCredentialId({}, null)).toBeNull();
   });
 
   it("falls back to a typed login", () => {
@@ -69,8 +95,8 @@ describe("gatewayLoginColumns", () => {
     expect(gatewayLoginColumns("typed", fields)).toEqual({ credential_id: null, username: "alice", password: "pw", domain: "CORP" });
   });
 
-  it("keeps the link and clears the typed login", () => {
-    expect(gatewayLoginColumns("saved", fields)).toEqual({ credential_id: "c1", username: null, password: null, domain: null });
+  it("clears the column link and the typed login for a saved credential, which lives in the config", () => {
+    expect(gatewayLoginColumns("saved", fields)).toEqual({ credential_id: null, username: null, password: null, domain: null });
   });
 
   it("clears both when the RDP entry's login is used", () => {

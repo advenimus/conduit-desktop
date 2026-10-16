@@ -52,6 +52,70 @@ describe('loadRdGatewayRecord', () => {
     });
   });
 
+  it('uses the credential linked in the config, which team vaults sync', () => {
+    const config = { ...gwConfig, gatewayLoginSource: 'credential', gatewayCredentialId: 'cred' };
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config, username: 'stale', password: 'stale' }),
+      entry({ id: 'cred', username: 'linked', password: 'linked-pw', domain: 'CORP' }),
+    );
+    expect(loadRdGatewayRecord(vault, 'gw')?.ownLogin).toEqual({ username: 'linked', password: 'linked-pw', domain: 'CORP' });
+  });
+
+  it('has no own login when the credential linked in the config is gone or not set', () => {
+    const gone = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: { ...gwConfig, gatewayLoginSource: 'credential', gatewayCredentialId: 'gone' }, username: 'stale', password: 'stale' }),
+    );
+    expect(loadRdGatewayRecord(gone, 'gw')?.ownLogin).toBeNull();
+    const unset = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: { ...gwConfig, gatewayLoginSource: 'credential' }, username: 'stale', password: 'stale' }),
+    );
+    expect(loadRdGatewayRecord(unset, 'gw')?.ownLogin).toBeNull();
+  });
+
+  it('prefers the credential linked in the config over a credential_id column', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: { ...gwConfig, gatewayLoginSource: 'credential', gatewayCredentialId: 'cred' }, credential_id: 'other' }),
+      entry({ id: 'cred', username: 'linked', password: 'linked-pw' }),
+      entry({ id: 'other', username: 'wrong', password: 'wrong' }),
+    );
+    expect(loadRdGatewayRecord(vault, 'gw')?.ownLogin?.username).toBe('linked');
+  });
+
+  it('still reads an older gateway that linked its credential in the credential_id column', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: { ...gwConfig, gatewayLoginSource: 'own' }, credential_id: 'cred' }),
+      entry({ id: 'cred', username: 'linked', password: 'linked-pw' }),
+    );
+    expect(loadRdGatewayRecord(vault, 'gw')?.ownLogin?.username).toBe('linked');
+  });
+
+  it('reports a vault that cannot be read instead of calling the gateway deleted', () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const locked: GatewayVault = {
+      getEntry: () => {
+        throw new Error('Vault is not unlocked');
+      },
+    };
+    expect(() => loadRdGatewayRecord(locked, 'gw')).toThrow(GatewayConfigError);
+    expect(() => connectGateway('gw', hostLogin, locked)).toThrow('Could not read the gateway from the vault: Vault is not unlocked');
+    expect(() => connectGateway('gw', hostLogin, locked)).not.toThrow(/deleted/);
+    expect(errorLog).toHaveBeenCalled();
+    errorLog.mockRestore();
+  });
+
+  it('reports a linked credential that cannot be read instead of a missing login', () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const gw = entry({ id: 'gw', credential_type: 'rd_gateway', config: { ...gwConfig, gatewayLoginSource: 'credential', gatewayCredentialId: 'cred' } });
+    const broken: GatewayVault = {
+      getEntry: (id) => {
+        if (id === 'gw') return gw;
+        throw new Error('decrypt failed');
+      },
+    };
+    expect(() => connectGateway('gw', hostLogin, broken)).toThrow('Could not read the gateway from the vault: decrypt failed');
+    errorLog.mockRestore();
+  });
+
   it('uses the linked credential over typed-in fields', () => {
     const vault = vaultOf(
       entry({ id: 'gw', credential_type: 'rd_gateway', config: gwConfig, credential_id: 'cred', username: 'stale', password: 'stale' }),
@@ -104,6 +168,17 @@ describe('findRdGatewayEntry', () => {
     expect(findRdGatewayEntry(vault, 'cred')).toBeNull();
     expect(findRdGatewayEntry(vault, 'missing')).toBeNull();
   });
+
+  it('reports a vault error instead of treating it as a missing gateway', () => {
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const locked: GatewayVault = {
+      getEntry: () => {
+        throw new Error('Vault is not unlocked');
+      },
+    };
+    expect(() => findRdGatewayEntry(locked, 'gw')).toThrow('Could not read the gateway from the vault: Vault is not unlocked');
+    errorLog.mockRestore();
+  });
 });
 
 describe('connectGateway', () => {
@@ -148,6 +223,13 @@ describe('connectGateway', () => {
   it('fails with a clear error when the gateway was deleted', () => {
     expect(() => connectGateway('gone', hostLogin, vaultOf())).toThrow(GatewayConfigError);
     expect(() => connectGateway('gone', hostLogin, vaultOf())).toThrow(/was deleted/);
+  });
+
+  it('fails with a clear error when the credential linked in the config was deleted', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', name: 'Corp GW', credential_type: 'rd_gateway', config: { ...gwConfig, gatewayLoginSource: 'credential', gatewayCredentialId: 'gone' } }),
+    );
+    expect(() => connectGateway('gw', hostLogin, vault)).toThrow('The gateway "Corp GW" has no login.');
   });
 
   it('fails when the id points at an entry that is not a gateway', () => {

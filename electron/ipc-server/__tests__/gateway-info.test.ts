@@ -53,4 +53,27 @@ describe('gatewayInfo', () => {
       gateway_settings: { address: 'gw', port: 443, login_source: 'gateway' },
     });
   });
+
+  it('names the saved credential a gateway signs in with, by id only', () => {
+    const linked = { ...gw, config: { gatewayHostname: 'gw', gatewayLoginSource: 'credential', gatewayCredentialId: 'cred-1' } };
+    expect(gatewayInfo(vault, linked)).toMatchObject({
+      gateway_settings: { login_source: 'saved_credential', credential_id: 'cred-1' },
+    });
+  });
+
+  it('reads an older gateway that linked its credential in the credential_id column', () => {
+    const older = { ...gw, config: { gatewayHostname: 'gw', gatewayLoginSource: 'own' }, credential_id: 'cred-1' };
+    expect(gatewayInfo(vault, older)).toMatchObject({
+      gateway_settings: { login_source: 'saved_credential', credential_id: 'cred-1' },
+    });
+  });
+
+  it('reports a vault that cannot be read instead of a deleted gateway', () => {
+    const locked: GatewayInfoVault = {
+      getEntryMeta: () => {
+        throw new Error('Vault is not unlocked');
+      },
+    };
+    expect(() => gatewayInfo(locked, rdp({ gatewayId: 'gw-1' }))).toThrow('Vault is not unlocked');
+  });
 });

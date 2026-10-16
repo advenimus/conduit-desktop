@@ -11,6 +11,7 @@ vi.hoisted(() => {
 
 const createEntry = vi.fn(async () => ({ id: "new" }));
 const getEntry = vi.fn();
+const updateEntry = vi.fn(async (_id: string, _fields: Record<string, unknown>) => true);
 
 function setup() {
   useVaultStore.setState({
@@ -20,7 +21,7 @@ function setup() {
     credentials: [],
     loadCredentials: vi.fn(async () => undefined),
   } as never);
-  useEntryStore.setState({ entries: [], createEntry, getEntry, updateEntry: vi.fn(async () => true) } as never);
+  useEntryStore.setState({ entries: [], createEntry, getEntry, updateEntry } as never);
   useTeamStore.setState({ teamVaults: [], getEffectiveRole: () => null } as never);
 }
 
@@ -34,6 +35,7 @@ const labelWithText = (text: string) =>
 beforeEach(() => {
   setup();
   createEntry.mockClear();
+  updateEntry.mockClear();
   getEntry.mockReset();
 });
 
@@ -263,7 +265,13 @@ describe("EntryDialog RD Gateway object", () => {
     fireEvent.click(screen.getByText("Gateway Admin"));
     fireEvent.submit(panel().querySelector("form")!);
     await vi.waitFor(() => expect(createEntry).toHaveBeenCalledTimes(1));
-    expect(created()[0]).toMatchObject({ credential_id: "c1", username: null, password: null, domain: null });
+    expect(created()[0]).toMatchObject({
+      credential_id: null,
+      username: null,
+      password: null,
+      domain: null,
+      config: { gatewayHostname: "gw", gatewayLoginSource: "credential", gatewayCredentialId: "c1" },
+    });
   });
 
   it("asks for a saved credential when that option has none picked", () => {
@@ -318,6 +326,45 @@ describe("EntryDialog RD Gateway object", () => {
     expect(screen.getByText("Used by 2 RDP entries.")).toBeTruthy();
     tab("Login");
     expect((screen.getByRole("radio", { name: "Use a saved credential" }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("moves an older gateway's column link into the config when it is saved again", async () => {
+    useVaultStore.setState({
+      credentials: [{ id: "c1", name: "Gateway Admin", username: "gwadmin", domain: null, tags: [], credential_type: null, created_at: "" }],
+    } as never);
+    getEntry.mockResolvedValue({
+      id: "g1", name: "Office gateway", entry_type: "credential", credential_type: "rd_gateway", credential_id: "c1",
+      username: null, password: null, domain: null, private_key: null, totp_secret: null, icon: null, color: null,
+      tags: [], notes: null, host: null, port: null, folder_id: null,
+      config: { gatewayHostname: "gw.example.com", gatewayLoginSource: "own" },
+    });
+    render(<EntryDialog onClose={vi.fn()} editingEntryId="g1" />);
+    await vi.waitFor(() => expect(heading().textContent).toBe("Edit RD Gateway Entry"));
+    tab("Login");
+    expect(screen.getByRole("button", { name: "Saved credential" }).textContent).toBe("Gateway Admin");
+    fireEvent.submit(panel().querySelector("form")!);
+    await vi.waitFor(() => expect(updateEntry).toHaveBeenCalledTimes(1));
+    expect(updateEntry.mock.calls[0][1]).toMatchObject({
+      credential_id: null,
+      config: { gatewayLoginSource: "credential", gatewayCredentialId: "c1" },
+    });
+  });
+
+  it("loads a gateway whose saved credential is linked in the config", async () => {
+    useVaultStore.setState({
+      credentials: [{ id: "c1", name: "Gateway Admin", username: "gwadmin", domain: null, tags: [], credential_type: null, created_at: "" }],
+    } as never);
+    getEntry.mockResolvedValue({
+      id: "g1", name: "Office gateway", entry_type: "credential", credential_type: "rd_gateway", credential_id: null,
+      username: null, password: null, domain: null, private_key: null, totp_secret: null, icon: null, color: null,
+      tags: [], notes: null, host: null, port: null, folder_id: null,
+      config: { gatewayHostname: "gw.example.com", gatewayLoginSource: "credential", gatewayCredentialId: "c1" },
+    });
+    render(<EntryDialog onClose={vi.fn()} editingEntryId="g1" />);
+    await vi.waitFor(() => expect(heading().textContent).toBe("Edit RD Gateway Entry"));
+    tab("Login");
+    expect((screen.getByRole("radio", { name: "Use a saved credential" }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole("button", { name: "Saved credential" }).textContent).toBe("Gateway Admin");
   });
 });
 

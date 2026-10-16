@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { RdpEngineConfig } from '../engine.js';
-import { buildHelperConnectConfig, helperErrorMessage, parseHelperJson } from '../engines/helper-protocol.js';
+import { buildHelperConnectConfig, helperErrorMessage, parseHelperError, parseHelperJson } from '../engines/helper-protocol.js';
 
 const base: RdpEngineConfig = {
   host: '10.0.0.5',
@@ -71,5 +71,21 @@ describe('helperErrorMessage', () => {
 
   it('gives a generic message for an empty payload', () => {
     expect(helperErrorMessage(Buffer.from(''))).toBe('The RDP helper reported an error.');
+  });
+});
+
+describe('parseHelperError', () => {
+  it('reads the message, code and phase of an ERROR frame', () => {
+    const payload = Buffer.from('{"message":"Access denied.","code":131094,"phase":"gateway"}');
+    expect(parseHelperError(payload)).toEqual({ message: 'Access denied.', code: 131094, phase: 'gateway' });
+  });
+
+  it('drops a phase or code it does not know', () => {
+    const payload = Buffer.from('{"message":"x","code":"nope","phase":"moon"}');
+    expect(parseHelperError(payload)).toEqual({ message: 'x' });
+  });
+
+  it('falls back to the raw text for a malformed frame', () => {
+    expect(parseHelperError(Buffer.from('boom'))).toEqual({ message: 'boom' });
   });
 });

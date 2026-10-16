@@ -17,6 +17,8 @@ Either of these works:
 
 Turn off **Get beta updates**. Conduit never moves you to an older version. You stay on the beta you have and move to the next regular release when it comes out. Settings says so under the switch.
 
+If a newer beta is downloading or waiting to install when you turn the switch off, Conduit drops it. It does not install on quit, and the restart prompt and the Help menu's **Restart to Update** go away. On macOS, a beta that had already finished downloading can still install on the next quit (see the gap below).
+
 ### Telling a beta apart
 
 - The version ends in `-beta.N` in Settings and the About dialog.
@@ -30,6 +32,7 @@ Turn off **Get beta updates**. Conduit never moves you to an older version. You 
 | Setting `beta_updates` (`undefined` = follow the running version) | `electron/ipc/settings.ts` |
 | Channel logic (`isPrereleaseVersion`, `getEffectiveBetaUpdates`, `applyUpdateChannel`) | `electron/services/update-channel.ts` |
 | IPC `updater_get_channel`, `updater_set_beta_updates` | `electron/ipc/updater.ts` |
+| Dropping a pending beta when betas turn off (`createPendingUpdateGate`) | `electron/services/pending-update.ts` |
 | Settings UI | `src/components/settings/tabs/UpdatesSetting.tsx` |
 | Beta pill | `src/components/common/BetaPill.tsx` |
 
@@ -40,7 +43,19 @@ Turn off **Get beta updates**. Conduit never moves you to an older version. You 
 - Beta builds publish the usual `latest*.yml` files (the GitHub publisher does not split channels). The updater first asks for `beta*.yml`, gets a 404, then falls back to `latest*.yml`.
 - Version order follows semver: `0.19.0-beta.1` < `0.19.0-beta.2` < `0.19.0`. So beta users get the regular `0.19.0` automatically.
 - Turning the switch saves the setting, applies it, clears the cached result and runs a fresh check. It is not part of the Settings Save button.
-- Known gap: if a beta already downloaded and the user then turns betas off, that download can still install on quit.
+
+### Turning betas off with a beta pending
+
+electron-updater downloads on its own (`autoDownload`) and installs on quit (`autoInstallOnAppQuit`). The pending update gate stops a beta once the switch is off. It reads the setting fresh at every step, so it also catches a switch turned on and then off while a check is still running.
+
+- **Check finds a beta after the switch went off**: the download is cancelled through the check's cancellation token and nothing is shown.
+- **Beta still downloading when the switch goes off**: same, the download is cancelled.
+- **Beta finishes downloading after the switch went off**: `autoInstallOnAppQuit` is set to `false` inside the `update-downloaded` event, before electron-updater reads it. On Windows and Linux the quit handler reads it at quit. On macOS the file is never handed to Squirrel.Mac.
+- **Beta already downloaded**: `autoInstallOnAppQuit` goes to `false` and the downloaded version is forgotten.
+- In every case the main process sends `update:cleared` (the update overlay hides) and rebuilds the Help menu. `install_update` and `download_and_install_update` refuse a beta while betas are off.
+- The next regular update that downloads sets `autoInstallOnAppQuit` back to `true`.
+- A cancelled download also empties electron-updater's pending folder, so the follow-up check downloads any regular update again.
+- Remaining gap, macOS only: once a beta has fully downloaded with betas on, electron-updater hands it to Squirrel.Mac. Squirrel installs a staged update on the next quit and has no way to take it back, so turning betas off after that point does not stop it.
 
 ## Cutting a beta
 

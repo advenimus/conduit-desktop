@@ -72,10 +72,6 @@ export function resolutionToDimensions(cfg: RdpEntryConfigFields): { width: numb
  * fields the entry persists (resolution, NLA, color depth, quality, clipboard,
  * shared folders). Fields that depend on a live window (DPI scale factors) are
  * left unset, matching the manual tool.
- *
- * The gateway the entry points at (config.gatewayId) is read from
- * `gatewayVault`, the same way rdp_connect reads it. Throws GatewayConfigError
- * when that gateway is gone or has no usable login.
  */
 export function buildRdpEngineConfigFromEntry(opts: {
   host: string;
@@ -84,6 +80,7 @@ export function buildRdpEngineConfigFromEntry(opts: {
   password: string;
   domain?: string;
   entryConfig: Record<string, unknown> | undefined;
+  // config.gatewayId is read from here like rdp_connect does; throws GatewayConfigError when it is gone or has no login.
   gatewayVault?: GatewayVault;
 }): RdpEngineConfig {
   const cfg = (opts.entryConfig ?? {}) as RdpEntryConfigFields;

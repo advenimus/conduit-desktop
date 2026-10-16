@@ -1,8 +1,14 @@
-/**
- * Builds the text of a .rdp file for opening an entry in the system's RDP client.
- */
+// Builds the text of a .rdp file for opening an entry in the system's RDP client.
 
-import { describeGatewayAddress, readGatewayConfig, type RdGatewayConfig } from './gateway-config.js';
+import {
+  GATEWAY_DELETED_MESSAGE,
+  describeGatewayAddress,
+  gatewayIdOf,
+  gatewayNoAddressMessage,
+  readGatewayConfig,
+  type RdGatewayConfig,
+} from './gateway-config.js';
+import { findRdGatewayEntry, type GatewayVault } from './gateway-connect.js';
 
 const SOUND_MODES: Record<string, number> = { local: 0, remote: 1, none: 2 };
 
@@ -48,4 +54,20 @@ export function buildRdpFileText(opts: {
   }
   lines.push(...gatewayLines(opts.gateway));
   return lines.join('\r\n') + '\r\n';
+}
+
+/** The config of the gateway an RDP entry uses, for a .rdp file; the system client asks for the gateway password itself. */
+export function rdpFileGatewayConfig(vault: GatewayVault, entryConfig: unknown): Record<string, unknown> | null {
+  const gatewayId = gatewayIdOf(entryConfig);
+  if (!gatewayId) return null;
+  let gateway: ReturnType<typeof findRdGatewayEntry>;
+  try {
+    gateway = findRdGatewayEntry(vault, gatewayId);
+  } catch (e) {
+    // A plain Error so the renderer shows the message without the class-name prefix.
+    throw new Error(e instanceof Error ? e.message : String(e));
+  }
+  if (!gateway) throw new Error(GATEWAY_DELETED_MESSAGE);
+  if (!describeGatewayAddress(gateway.config)) throw new Error(gatewayNoAddressMessage(gateway.name));
+  return gateway.config ?? {};
 }

@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ConduitVault } from '../../vault/vault.js';
 import { connectGateway } from '../gateway-connect.js';
 
@@ -44,6 +44,22 @@ describe('connectGateway with a real vault', () => {
     vault.deleteEntry(cred.id);
     expect(vault.getEntry(gw.id).credential_id).toBeNull();
     expect(() => connectGateway(gw.id, hostLogin, vault)).toThrow('The gateway "Corp GW" has no login.');
+  });
+
+  it('reads a credential linked in the config and gives a clear error once it is deleted', () => {
+    const cred = vault.createEntry({ name: 'GW login', entry_type: 'credential', username: 'linked2', password: 'linked2-pw' });
+    const gw = createGateway({ config: { gatewayHostname: 'gw.corp.example', gatewayLoginSource: 'credential', gatewayCredentialId: cred.id } });
+    expect(connectGateway(gw.id, hostLogin, vault)).toMatchObject({ username: 'linked2', password: 'linked2-pw' });
+
+    vault.deleteEntry(cred.id);
+    expect(() => connectGateway(gw.id, hostLogin, vault)).toThrow('The gateway "Corp GW" has no login.');
+  });
+
+  it('says the vault could not be read when it is locked, not that the gateway was deleted', () => {
+    const locked = new ConduitVault(path.join(dir, 'locked.conduit'));
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => connectGateway('any-id', hostLogin, locked)).toThrow(/^Could not read the gateway from the vault: /);
+    errorLog.mockRestore();
   });
 
   it('gives a clear error for an RDP entry whose gateway was deleted', () => {

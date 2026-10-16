@@ -99,15 +99,10 @@ bool protocol_read_command(Command *cmd);
  */
 void protocol_free_command(Command *cmd);
 
-/**
- * Map "auto" | "http" | "rpc" to a transport. Anything else is AUTO.
- */
+/* Map "auto" | "http" | "rpc" to a transport. Anything else is AUTO. */
 GatewayTransport gateway_transport_from_string(const char *s);
 
-/**
- * Check a parsed connect config. Returns NULL when valid, otherwise a
- * short user-facing error message (static string).
- */
+/* NULL when a parsed connect config is valid, else a short user-facing message (static string). */
 const char *connect_config_validate(const ConnectConfig *config);
 
 #endif /* PROTOCOL_H */

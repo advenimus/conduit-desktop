@@ -1,5 +1,6 @@
 import type { EntryMeta, RdpEntryConfig } from "../../types/entry";
 import {
+  GATEWAY_PORT_MESSAGE,
   describeGatewayAddress,
   gatewayIdOf,
   isRdGateway,
@@ -7,6 +8,7 @@ import {
   readGatewayConfig,
   type RdGatewayConfig,
   type RdpGatewayTransport,
+  validPort,
 } from "../../lib/rdpGateway";
 
 export const GATEWAY_TRANSPORT_OPTIONS: { value: RdpGatewayTransport; label: string }[] = [
@@ -29,12 +31,14 @@ const LEGACY_RDP_GATEWAY_KEYS = [
   "gatewayCredentialId",
 ] as const;
 
-function validPort(port: unknown): boolean {
-  return typeof port === "number" && Number.isInteger(port) && port >= 1 && port <= 65535;
-}
+const LOGIN_SOURCES = { typed: "own", saved: "credential", connection: "connection" } as const;
 
-/** The config to save on a gateway entry: only the RdGatewayConfig keys, defaults left out. */
-export function gatewayEntryConfigForSave(config: Partial<RdGatewayConfig>, login: GatewayLoginChoice): RdGatewayConfig {
+/** The config to save on a gateway entry: only the RdGatewayConfig keys, defaults left out, a saved credential linked here. */
+export function gatewayEntryConfigForSave(
+  config: Partial<RdGatewayConfig>,
+  login: GatewayLoginChoice,
+  credentialId?: string | null,
+): RdGatewayConfig {
   const parsed = normalizeGatewayHost(config.gatewayHostname ?? "");
   const port = config.gatewayPort ?? parsed.port;
   return {
@@ -42,13 +46,19 @@ export function gatewayEntryConfigForSave(config: Partial<RdGatewayConfig>, logi
     ...(port !== undefined ? { gatewayPort: port } : {}),
     ...(config.gatewayTransport && config.gatewayTransport !== "auto" ? { gatewayTransport: config.gatewayTransport } : {}),
     ...(config.gatewayBypassLocal === true ? { gatewayBypassLocal: true } : {}),
-    gatewayLoginSource: login === "connection" ? "connection" : "own",
+    gatewayLoginSource: LOGIN_SOURCES[login],
+    ...(login === "saved" && credentialId ? { gatewayCredentialId: credentialId } : {}),
   };
 }
 
-export function gatewayLoginChoiceOf(config: unknown, credentialId: string | null | undefined): GatewayLoginChoice {
-  if (readGatewayConfig(config).gatewayLoginSource === "connection") return "connection";
-  return credentialId ? "saved" : "typed";
+/** `legacyCredentialId` is the entry's credential_id column, where older builds linked the credential. */
+export function gatewayLoginChoiceOf(config: unknown, legacyCredentialId: string | null | undefined): GatewayLoginChoice {
+  const source = readGatewayConfig(config, legacyCredentialId).gatewayLoginSource;
+  return source === "connection" ? "connection" : source === "credential" ? "saved" : "typed";
+}
+
+export function gatewayLinkedCredentialId(config: unknown, legacyCredentialId: string | null | undefined): string | null {
+  return readGatewayConfig(config, legacyCredentialId).gatewayCredentialId ?? null;
 }
 
 interface GatewayLoginFields {
@@ -58,7 +68,7 @@ interface GatewayLoginFields {
   domain: string;
 }
 
-/** The login columns to save: only what the chosen login uses, so no stale secret stays behind. */
+/** The login columns to save: only a typed login uses them (a saved credential is linked in config), so no stale secret stays. */
 export function gatewayLoginColumns(login: GatewayLoginChoice, fields: GatewayLoginFields) {
   if (login === "typed") {
     return {
@@ -68,7 +78,7 @@ export function gatewayLoginColumns(login: GatewayLoginChoice, fields: GatewayLo
       domain: fields.domain.trim() || null,
     };
   }
-  return { credential_id: login === "saved" ? fields.credentialId : null, username: null, password: null, domain: null };
+  return { credential_id: null, username: null, password: null, domain: null };
 }
 
 /** Why a gateway entry cannot be saved, or null. */
@@ -78,8 +88,8 @@ export function gatewayEntryValidationError(
   credentialId: string | null,
 ): string | null {
   if (!config.gatewayHostname?.trim()) return "Enter a gateway server.";
-  if (config.gatewayPort !== undefined && !validPort(config.gatewayPort)) {
-    return "The gateway port must be a number from 1 to 65535.";
+  if (config.gatewayPort !== undefined && validPort(config.gatewayPort) === undefined) {
+    return GATEWAY_PORT_MESSAGE;
   }
   if (login === "saved" && !credentialId) {
     return "Pick a saved credential for the gateway login, or choose another login option.";

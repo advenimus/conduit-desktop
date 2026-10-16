@@ -1,9 +1,7 @@
-/**
- * Pure pieces of the conduit-freerdp helper protocol: the connect command's
- * config object and tolerant parsing of the helper's JSON payloads.
- */
+// Pure pieces of the conduit-freerdp helper protocol: the connect command's config and tolerant parsing of its JSON payloads.
 
 import type { RdpEngineConfig } from '../engine.js';
+import { isRdpErrorPhase, type RdpConnectErrorInfo } from '../connect-error.js';
 
 export interface HelperGatewayConfig {
   host: string;
@@ -68,4 +66,16 @@ export function helperErrorMessage(payload: Buffer): string {
   if (json && typeof json.message === 'string' && json.message) return json.message;
   const raw = payload.toString().trim();
   return raw || 'The RDP helper reported an error.';
+}
+
+/** An ERROR frame's message plus the FreeRDP code and failed hop when the helper sent them. */
+export function parseHelperError(payload: Buffer): RdpConnectErrorInfo {
+  const json = parseHelperJson(payload);
+  const code = json?.code;
+  const phase = json?.phase;
+  return {
+    message: helperErrorMessage(payload),
+    ...(typeof code === 'number' && Number.isInteger(code) && code >= 0 ? { code } : {}),
+    ...(isRdpErrorPhase(phase) ? { phase } : {}),
+  };
 }

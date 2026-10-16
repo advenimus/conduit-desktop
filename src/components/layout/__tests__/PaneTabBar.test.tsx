@@ -12,6 +12,9 @@ import { useTierStore } from "../../../stores/tierStore";
 import { showContextMenu, type PopupMenuItem } from "../../../utils/contextMenu";
 import { HOME_SESSION_ID, folderViewSessionId } from "../../../lib/dashboardSessions";
 
+// The real one caches the version per window; these tests change it between renders.
+vi.mock("../../../lib/appVersion", () => ({ getAppVersion: async () => window.electron.invoke("app_get_version") }));
+
 vi.mock("../../../utils/contextMenu", () => ({ showContextMenu: vi.fn() }));
 vi.mock("../../common/Toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 

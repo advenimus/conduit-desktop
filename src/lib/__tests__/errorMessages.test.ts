@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { friendlyConnectionError, localNetworkPermissionMessage, mayBeLocalNetworkBlock } from "../errorMessages";
+import { connectionErrorText, friendlyConnectionError, localNetworkPermissionMessage, mayBeLocalNetworkBlock } from "../errorMessages";
+import { formatRdpConnectError } from "../rdpConnectError";
 
 describe("friendlyConnectionError", () => {
   describe("RDP (FreeRDP) errors", () => {
@@ -89,11 +90,62 @@ describe("friendlyConnectionError", () => {
   describe("RD Gateway errors", () => {
     const viaGateway = { gateway: true };
 
-    it("maps the gateway's HTTP 401 (FreeRDP 'Access denied.') to a gateway login hint", () => {
-      const friendly = friendlyConnectionError("Access denied.", "rdp", viaGateway);
+    const ACCESS_DENIED = 0x00020016;
+    const TLS_CONNECT_FAILED = 0x00020008;
+    const DNS_NAME_NOT_FOUND = 0x00020005;
+    const TRANSPORT_FAILED = 0x0002000d;
+    const atGateway = (message: string, code?: number) => formatRdpConnectError({ message, code, phase: "gateway" });
+    const atTarget = (message: string, code?: number) => formatRdpConnectError({ message, code, phase: "target" });
+
+    it("maps the gateway's HTTP 401 (FreeRDP 'Access denied.') to a gateway login hint when the gateway refused", () => {
+      const friendly = friendlyConnectionError(atGateway("Access denied.", ACCESS_DENIED), "rdp", viaGateway);
       expect(friendly).toMatch(/gateway/i);
       expect(friendly).toMatch(/login|password/i);
       expect(friendly).not.toMatch(/Remote Desktop Users/);
+    });
+
+    it("does not blame the gateway for 'Access denied.' from the computer behind it", () => {
+      expect(friendlyConnectionError(atTarget("Access denied.", ACCESS_DENIED), "rdp", viaGateway)).toMatch(/server rejected the sign in/);
+    });
+
+    it("treats a direct 'Access denied.' as a rejected sign in", () => {
+      expect(friendlyConnectionError("Access denied.", "rdp")).toMatch(/server rejected the sign in/);
+    });
+
+    it("does not blame the gateway for 'Access denied.' without evidence of the failed hop", () => {
+      expect(friendlyConnectionError("Access denied.", "rdp", viaGateway)).not.toMatch(/gateway/i);
+    });
+
+    it("uses the FreeRDP code over the text when the gateway refused", () => {
+      expect(friendlyConnectionError(atGateway("Something odd", ACCESS_DENIED), "rdp", viaGateway)).toMatch(
+        /gateway did not accept the login/i,
+      );
+      expect(friendlyConnectionError(atGateway("Something odd", DNS_NAME_NOT_FOUND), "rdp", viaGateway)).toMatch(
+        /gateway's address could not be found/i,
+      );
+      expect(friendlyConnectionError(atGateway("Something odd", TLS_CONNECT_FAILED), "rdp", viaGateway)).toMatch(
+        /secure connection to the gateway/i,
+      );
+      expect(friendlyConnectionError(atGateway("Something odd", TRANSPORT_FAILED), "rdp", viaGateway)).toMatch(
+        /Could not reach the gateway/i,
+      );
+    });
+
+    it("gives the computer's TLS, DNS and transport guidance once the gateway tunnel was up", () => {
+      const tls = friendlyConnectionError(atTarget("The connection failed at TLS connect.", TLS_CONNECT_FAILED), "rdp", viaGateway);
+      expect(tls).not.toMatch(/gateway/i);
+      expect(tls).toMatch(/certificate/i);
+      const dns = friendlyConnectionError(atTarget("The DNS host name was not found.", DNS_NAME_NOT_FOUND), "rdp", viaGateway);
+      expect(dns).toMatch(/server's hostname/i);
+      const transport = friendlyConnectionError(atTarget("The connection transport layer failed.", TRANSPORT_FAILED), "rdp", viaGateway);
+      expect(transport).toMatch(/Could not reach the server/i);
+    });
+
+    it("shows the message without the marker when nothing matches", () => {
+      const raw = atGateway("Could not connect through the RD Gateway.", 0);
+      expect(friendlyConnectionError(raw, "rdp", viaGateway)).toBe("Could not connect through the RD Gateway.");
+      expect(connectionErrorText(raw)).toBe("Could not connect through the RD Gateway.");
+      expect(connectionErrorText("plain")).toBe("plain");
     });
 
     it("keeps today's access denied guidance when no gateway is in use", () => {
@@ -123,19 +175,19 @@ describe("friendlyConnectionError", () => {
       expect(friendly).toMatch(/gateway could not reach/i);
     });
 
-    it("maps a failed transport to an unreachable gateway when a gateway is in use", () => {
-      const friendly = friendlyConnectionError("The connection transport layer failed.", "rdp", viaGateway);
+    it("maps a failed transport to an unreachable gateway when the gateway hop failed", () => {
+      const friendly = friendlyConnectionError(atGateway("The connection transport layer failed.", TRANSPORT_FAILED), "rdp", viaGateway);
       expect(friendly).toMatch(/Could not reach the gateway/i);
     });
 
-    it("maps a DNS failure to the gateway's address when a gateway is in use", () => {
-      const friendly = friendlyConnectionError("The DNS host name was not found.", "rdp", viaGateway);
+    it("maps a DNS failure to the gateway's address when the gateway hop failed", () => {
+      const friendly = friendlyConnectionError(atGateway("The DNS host name was not found.", DNS_NAME_NOT_FOUND), "rdp", viaGateway);
       expect(friendly).toMatch(/gateway/i);
       expect(friendly).toMatch(/address|hostname/i);
     });
 
-    it("maps a TLS failure to a gateway certificate hint when a gateway is in use", () => {
-      const friendly = friendlyConnectionError("The connection failed at TLS connect.", "rdp", viaGateway);
+    it("maps a TLS failure to a gateway certificate hint when the gateway hop failed", () => {
+      const friendly = friendlyConnectionError(atGateway("The connection failed at TLS connect.", TLS_CONNECT_FAILED), "rdp", viaGateway);
       expect(friendly).toMatch(/gateway/i);
       expect(friendly).toMatch(/certificate/i);
     });
@@ -162,7 +214,7 @@ describe("friendlyConnectionError", () => {
     });
 
     it("contains no em dashes in gateway guidance", () => {
-      for (const raw of ["Access denied.", "E_PROXY_RAP_ACCESSDENIED", "E_PROXY_TS_CONNECTFAILED", "The connection failed at TLS connect."]) {
+      for (const raw of [atGateway("Access denied.", ACCESS_DENIED), "E_PROXY_RAP_ACCESSDENIED", "E_PROXY_TS_CONNECTFAILED", atGateway("The connection failed at TLS connect.")]) {
         expect(friendlyConnectionError(raw, "rdp", viaGateway)).not.toContain("—");
       }
     });

@@ -5,7 +5,7 @@ import { useSessionStore, type ConnectionStatus } from "../../stores/sessionStor
 import { useSettingsStore } from "../../stores/settingsStore";
 import { toast } from "../common/Toast";
 import { formatFileSize } from "../../lib/format";
-import { friendlyConnectionError } from "../../lib/errorMessages";
+import { connectionErrorText, friendlyConnectionError } from "../../lib/errorMessages";
 import { Button } from "../ui";
 import { SessionConnecting, SessionError, SessionStatePanel } from "./SessionStates";
 import { errorText } from "../../lib/errorText";
@@ -845,10 +845,11 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
 
   if (error || status === "disconnected") {
     const friendly = error ? friendlyConnectionError(error, "rdp", { gateway: !!gatewayId }) : "Disconnected";
+    const rawText = error ? connectionErrorText(error) : null;
     return (
       <SessionError
         message={friendly}
-        raw={error && friendly !== error ? error : null}
+        raw={rawText && friendly !== rawText ? rawText : null}
         actions={onClose && <Button onClick={onClose}>Close</Button>}
       />
     );

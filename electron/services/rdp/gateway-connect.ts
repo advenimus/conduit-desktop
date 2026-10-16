@@ -1,9 +1,4 @@
-/**
- * Main-process side of the RD Gateway contract: looks up the gateway entry an
- * RDP entry points at, resolves its login from the vault, and builds the
- * engine config. Shared by rdp_connect and MCP connection_open_entry.
- * Electron-free so it can be tested.
- */
+// Main-process side of the RD Gateway contract, shared by rdp_connect and MCP connection_open_entry; Electron-free for tests.
 
 import {
   GatewayConfigError,
@@ -31,16 +26,22 @@ export interface GatewayVaultEntry extends StoredLogin {
   credential_id: string | null;
 }
 
-/** The vault's entry getter. It throws when the id is unknown. */
+/** The vault's entry getter. It throws "Entry not found: <id>" when the id is unknown. */
 export interface GatewayVault {
   getEntry(id: string): GatewayVaultEntry;
 }
 
+// ConduitVault.getEntry and getEntryMeta throw this for an unknown id; anything else is a vault fault.
+const NOT_FOUND_RE = /^Entry not found\b/;
+
 function tryGetEntry(vault: GatewayVault, id: string): GatewayVaultEntry | null {
   try {
     return vault.getEntry(id) ?? null;
-  } catch {
-    return null;
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    if (NOT_FOUND_RE.test(reason)) return null;
+    console.error(`[RDP] Could not read gateway entry ${id} from the vault:`, e);
+    throw new GatewayConfigError(`Could not read the gateway from the vault: ${reason}`);
   }
 }
 
@@ -49,23 +50,20 @@ function loginFrom(stored: StoredLogin): GatewayLogin | null {
   return { username: stored.username ?? '', password: stored.password ?? '', domain: stored.domain ?? undefined };
 }
 
-/** The gateway entry with this id, or null when it is gone or not a gateway. */
+/** The gateway entry with this id, or null when it is gone or not a gateway. Throws GatewayConfigError when the vault fails. */
 export function findRdGatewayEntry(vault: GatewayVault, gatewayId: string): GatewayVaultEntry | null {
   const entry = tryGetEntry(vault, gatewayId);
   return entry && isRdGateway(entry) ? entry : null;
 }
 
-/**
- * A gateway's own login: the linked credential when one is set, else the
- * typed-in fields. A link to a missing credential gives no login rather than
- * stale typed-in values. Folder inheritance never applies to a gateway.
- */
+// A link to a missing credential gives no login rather than stale typed-in values; folder inheritance never applies.
 function ownLoginOf(vault: GatewayVault, gateway: GatewayVaultEntry): GatewayLogin | null {
-  if (gateway.credential_id) {
-    const cred = tryGetEntry(vault, gateway.credential_id);
-    return cred && cred.entry_type === 'credential' ? loginFrom(cred) : null;
-  }
-  return loginFrom(gateway);
+  const g = readGatewayConfig(gateway.config, gateway.credential_id);
+  if (g.gatewayLoginSource === 'connection') return null;
+  if (g.gatewayLoginSource === 'own') return loginFrom(gateway);
+  if (!g.gatewayCredentialId) return null;
+  const cred = tryGetEntry(vault, g.gatewayCredentialId);
+  return cred && cred.entry_type === 'credential' && !isRdGateway(cred) ? loginFrom(cred) : null;
 }
 
 /** Reads any entry by id as a gateway record; resolveGatewayEngineConfig checks that it is one. */
@@ -73,14 +71,13 @@ export function loadRdGatewayRecord(vault: GatewayVault, gatewayId: string): RdG
   const entry = tryGetEntry(vault, gatewayId);
   if (!entry) return null;
   const config = entry.config ?? {};
-  const usesOwnLogin = isRdGateway(entry) && readGatewayConfig(config).gatewayLoginSource === 'own';
   return {
     id: entry.id,
     name: entry.name,
     entryType: entry.entry_type,
     credentialType: entry.credential_type,
     config,
-    ownLogin: usesOwnLogin ? ownLoginOf(vault, entry) : null,
+    ownLogin: isRdGateway(entry) ? ownLoginOf(vault, entry) : null,
   };
 }
 
@@ -91,10 +88,7 @@ export function parseGatewayIdArg(raw: unknown): string | undefined {
   return raw.trim() || undefined;
 }
 
-/**
- * The engine gateway config for an RDP entry, or undefined for a direct
- * connection. Throws GatewayConfigError with a message for the user.
- */
+/** The engine gateway config for an RDP entry, or undefined for a direct connection. Throws GatewayConfigError for the user. */
 export function connectGateway(
   gatewayId: string | undefined,
   hostLogin: StoredLogin,

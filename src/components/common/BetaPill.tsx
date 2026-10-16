@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invoke } from "../../lib/electron";
+import { getAppVersion } from "../../lib/appVersion";
 import { isPrereleaseVersion } from "../../lib/updateChannel";
 import { cx } from "../ui";
 
@@ -19,7 +19,7 @@ export default function BetaPill({ version, className }: BetaPillProps) {
   useEffect(() => {
     if (version !== undefined) return;
     let alive = true;
-    invoke<string>("app_get_version")
+    getAppVersion()
       .then((v) => {
         if (alive) setFetched(v);
       })

@@ -86,10 +86,7 @@ export function sessionInUseResponse(holder: AgentIdentity, connectionType: stri
   };
 }
 
-/**
- * Open sessions of a saved RDP or VNC entry: UI tabs use the entry id, others match host, port and
- * RD Gateway (the same host name behind another gateway, or none, can be another machine).
- */
+/** Open sessions of an RDP or VNC entry: UI tabs by entry id, others by host, port and gateway (one host name can be two machines). */
 export function openSessionsForEntry(
   state: SessionLookup,
   entry: {

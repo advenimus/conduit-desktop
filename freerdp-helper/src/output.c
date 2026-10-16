@@ -242,6 +242,10 @@ void output_send_error(const char *message) {
 }
 
 void output_send_error_code(const char *message, uint32_t code) {
-    send_json(MSG_TYPE_ERROR, json_build_error(message, code),
+    output_send_error_phase(message, code, NULL);
+}
+
+void output_send_error_phase(const char *message, uint32_t code, const char *phase) {
+    send_json(MSG_TYPE_ERROR, json_build_error_phase(message, code, phase),
               "{\"message\":\"Unknown error\"}");
 }

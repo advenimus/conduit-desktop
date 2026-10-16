@@ -33,7 +33,8 @@ export function entryInfoDefinition() {
       'has_conflict is true when devices saved different values and the conflict is not resolved yet; ' +
       'the values shown are the provisional ones. ' +
       'gateway names the RD Gateway an RDP entry connects through (missing is true when it was deleted). ' +
-      'gateway_settings shows an RD Gateway entry\'s address, port and whose login it uses (gateway or rdp_entry).',
+      'gateway_settings shows an RD Gateway entry\'s address, port and whose login it uses ' +
+      '(gateway, saved_credential with its credential_id, or rdp_entry).',
     inputSchema: {
       type: 'object' as const,
       properties: {

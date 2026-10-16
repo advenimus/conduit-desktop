@@ -11,9 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import * as fs from 'fs';
 import { cloneBorrowedSecrets, createWithSecrets, updateWithSecrets } from '../services/secrets/embedded-secrets.js';
-import { buildRdpFileText } from '../services/rdp/rdp-file.js';
-import { describeGatewayAddress, gatewayIdOf } from '../services/rdp/gateway-config.js';
-import { findRdGatewayEntry } from '../services/rdp/gateway-connect.js';
+import { buildRdpFileText, rdpFileGatewayConfig } from '../services/rdp/rdp-file.js';
 
 export function registerEntryHandlers(): void {
   const state = AppState.getInstance();
@@ -451,7 +449,8 @@ export function registerEntryHandlers(): void {
       }
       case 'rdp': {
         const rdpPort = port ?? 3389;
-        const gateway = rdpFileGateway(state.getActiveVault(), entry.config);
+        const vault = state.getActiveVault();
+        const gateway = rdpFileGatewayConfig({ getEntry: (id) => vault.getEntryMeta(id) }, entry.config);
         const text = buildRdpFileText({
           host,
           port: rdpPort,
@@ -477,21 +476,4 @@ export function registerEntryHandlers(): void {
       details: { entry_type: entry.entry_type },
     });
   });
-}
-
-/** The gateway settings for a .rdp file. The system client asks for the gateway password itself. */
-function rdpFileGateway(
-  vault: ReturnType<AppState['getActiveVault']>,
-  config: unknown,
-): Record<string, unknown> | null {
-  const gatewayId = gatewayIdOf(config);
-  if (!gatewayId) return null;
-  const gateway = findRdGatewayEntry({ getEntry: (id) => vault.getEntryMeta(id) }, gatewayId);
-  if (!gateway) {
-    throw new Error('The gateway this entry uses was deleted. Pick a gateway again in the entry\'s Gateway settings.');
-  }
-  if (!describeGatewayAddress(gateway.config)) {
-    throw new Error(`The gateway "${gateway.name}" has no server address. Add one in the gateway's settings.`);
-  }
-  return gateway.config;
 }

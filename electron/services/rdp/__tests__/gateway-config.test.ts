@@ -9,6 +9,7 @@ import {
   readGatewayConfig,
   resolveGatewayEngineConfig,
   splitDomainUser,
+  validPort,
   type RdGatewayRecord,
 } from '../gateway-config.js';
 
@@ -43,6 +44,38 @@ describe('normalizeGatewayHost', () => {
 
   it('returns an empty hostname for blank input', () => {
     expect(normalizeGatewayHost('   ')).toEqual({ hostname: '' });
+  });
+
+  it('takes a bracketed IPv6 address with a port apart, leaving the bare address for FreeRDP', () => {
+    expect(normalizeGatewayHost('[2001:db8::1]:8443')).toEqual({ hostname: '2001:db8::1', port: 8443 });
+    expect(normalizeGatewayHost('https://[2001:db8::1]:8443/remoteDesktopGateway/')).toEqual({
+      hostname: '2001:db8::1',
+      port: 8443,
+    });
+  });
+
+  it('unwraps a bracketed IPv6 address without a port', () => {
+    expect(normalizeGatewayHost('[2001:db8::1]')).toEqual({ hostname: '2001:db8::1' });
+  });
+
+  it('keeps a bare IPv6 address whole instead of reading its last group as a port', () => {
+    expect(normalizeGatewayHost('2001:db8::1')).toEqual({ hostname: '2001:db8::1' });
+    expect(normalizeGatewayHost('fe80::1:443')).toEqual({ hostname: 'fe80::1:443' });
+  });
+
+  it('drops a bad port after a bracketed IPv6 address', () => {
+    expect(normalizeGatewayHost('[2001:db8::1]:99999')).toEqual({ hostname: '2001:db8::1' });
+  });
+});
+
+describe('validPort', () => {
+  it('accepts whole numbers from 1 to 65535 only', () => {
+    expect(validPort(443)).toBe(443);
+    expect(validPort(65535)).toBe(65535);
+    expect(validPort(0)).toBeUndefined();
+    expect(validPort(65536)).toBeUndefined();
+    expect(validPort(44.3)).toBeUndefined();
+    expect(validPort('443')).toBeUndefined();
   });
 });
 
@@ -106,6 +139,47 @@ describe('readGatewayConfig / describeGatewayAddress', () => {
     expect(describeGatewayAddress({ gatewayHostname: 'gw', gatewayPort: 8443 })).toBe('gw:8443');
     expect(describeGatewayAddress({})).toBe('');
   });
+
+  it('brackets an IPv6 address so a port can follow it', () => {
+    expect(describeGatewayAddress({ gatewayHostname: '2001:db8::1', gatewayPort: 8443 })).toBe('[2001:db8::1]:8443');
+    expect(describeGatewayAddress({ gatewayHostname: '[2001:db8::1]' })).toBe('[2001:db8::1]');
+  });
+
+  it('reads a linked credential from the config', () => {
+    expect(readGatewayConfig({ gatewayLoginSource: 'credential', gatewayCredentialId: ' cred-1 ' })).toMatchObject({
+      gatewayLoginSource: 'credential',
+      gatewayCredentialId: 'cred-1',
+    });
+  });
+
+  it('keeps the credential source when the linked id is missing, so connecting can say there is no login', () => {
+    const g = readGatewayConfig({ gatewayLoginSource: 'credential' });
+    expect(g.gatewayLoginSource).toBe('credential');
+    expect(g.gatewayCredentialId).toBeUndefined();
+  });
+
+  it('reads an older gateway that linked its credential in the credential_id column', () => {
+    expect(readGatewayConfig({ gatewayHostname: 'gw' }, 'cred-old')).toMatchObject({
+      gatewayLoginSource: 'credential',
+      gatewayCredentialId: 'cred-old',
+    });
+    expect(readGatewayConfig({ gatewayLoginSource: 'own' }, 'cred-old')).toMatchObject({
+      gatewayLoginSource: 'credential',
+      gatewayCredentialId: 'cred-old',
+    });
+  });
+
+  it('prefers the config link and the connection login over the old column', () => {
+    expect(readGatewayConfig({ gatewayLoginSource: 'credential', gatewayCredentialId: 'new' }, 'old').gatewayCredentialId).toBe('new');
+    expect(readGatewayConfig({ gatewayLoginSource: 'connection' }, 'old')).toMatchObject({
+      gatewayLoginSource: 'connection',
+      gatewayCredentialId: undefined,
+    });
+  });
+
+  it('ignores a stray linked id when the gateway uses the RDP entry login', () => {
+    expect(readGatewayConfig({ gatewayLoginSource: 'connection', gatewayCredentialId: 'c' }).gatewayCredentialId).toBeUndefined();
+  });
 });
 
 describe('resolveGatewayEngineConfig', () => {
@@ -142,6 +216,16 @@ describe('resolveGatewayEngineConfig', () => {
 
   it('throws when the gateway has no server address', () => {
     expect(() => resolveGatewayEngineConfig('gw-1', gateway({ config: {} }), host)).toThrow(/no server address/);
+  });
+
+  it('uses the linked credential\'s login', () => {
+    const gw = gateway({ config: { gatewayHostname: 'gw', gatewayLoginSource: 'credential', gatewayCredentialId: 'c' } });
+    expect(resolveGatewayEngineConfig('gw-1', gw, host)).toMatchObject({ username: 'gwuser', password: 'gwpw' });
+  });
+
+  it('throws the no-login error when the linked credential is gone', () => {
+    const gw = gateway({ config: { gatewayHostname: 'gw', gatewayLoginSource: 'credential', gatewayCredentialId: 'c' }, ownLogin: null });
+    expect(() => resolveGatewayEngineConfig('gw-1', gw, host)).toThrow(/has no login/);
   });
 
   it('throws when the gateway has no login of its own', () => {
