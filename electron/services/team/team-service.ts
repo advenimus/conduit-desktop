@@ -5,8 +5,8 @@
  * and audit logging. Follows the AuthService pattern.
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AuthService } from '../auth/supabase.js';
+import type { ConduitDb } from '../backend/conduit-db.js';
+import type { AuthService } from '../auth/auth-service.js';
 import { getEnvConfig } from '../env-config.js';
 import { postInviteAccept } from './invite-accept.js';
 
@@ -83,8 +83,8 @@ export class TeamService {
     this.fetchImpl = fetchImpl;
   }
 
-  private getSupabase(): SupabaseClient {
-    return this.authService.getSupabaseClient();
+  private getDb(): ConduitDb {
+    return this.authService.getDb();
   }
 
   private getUserId(): string {
@@ -100,10 +100,10 @@ export class TeamService {
   /** Get the user's team (from primary_team_id on profile). */
   async getTeam(): Promise<Team | null> {
     const userId = this.getUserId();
-    const supabase = this.getSupabase();
+    const db = this.getDb();
 
     // Get primary team ID from profile
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await db
       .from('user_profiles')
       .select('primary_team_id')
       .eq('id', userId)
@@ -115,7 +115,7 @@ export class TeamService {
 
     if (!profile?.primary_team_id) {
       // Fallback: find first team via membership
-      const { data: membership, error: memberError } = await supabase
+      const { data: membership, error: memberError } = await db
         .from('team_members')
         .select('team_id')
         .eq('user_id', userId)
@@ -128,7 +128,7 @@ export class TeamService {
 
       if (!membership) return null;
 
-      const { data: team, error: teamError } = await supabase
+      const { data: team, error: teamError } = await db
         .from('teams')
         .select('*')
         .eq('id', membership.team_id)
@@ -141,7 +141,7 @@ export class TeamService {
       return team ?? null;
     }
 
-    const { data: team, error: teamError } = await supabase
+    const { data: team, error: teamError } = await db
       .from('teams')
       .select('*')
       .eq('id', profile.primary_team_id)
@@ -159,8 +159,8 @@ export class TeamService {
     const team = await this.getTeam();
     if (!team) return [];
 
-    const supabase = this.getSupabase();
-    const { data: members, error } = await supabase
+    const db = this.getDb();
+    const { data: members, error } = await db
       .rpc('get_team_members_with_email', { p_team_id: team.id });
 
     if (error) {
@@ -186,9 +186,9 @@ export class TeamService {
     if (!team) return null;
 
     const userId = this.getUserId();
-    const supabase = this.getSupabase();
+    const db = this.getDb();
 
-    const { data } = await supabase
+    const { data } = await db
       .from('team_members')
       .select('role')
       .eq('team_id', team.id)
@@ -205,8 +205,8 @@ export class TeamService {
     const state = this.authService.getAuthState();
     if (!state.isAuthenticated || !state.user) return [];
 
-    const supabase = this.getSupabase();
-    const { data, error } = await supabase
+    const db = this.getDb();
+    const { data, error } = await db
       .from('team_invitations')
       .select(`
         *,
@@ -230,10 +230,10 @@ export class TeamService {
    * app only checks the invitation is pending and addressed to this account.
    */
   async acceptInvitation(invitationId: string): Promise<void> {
-    const supabase = this.getSupabase();
+    const db = this.getDb();
     this.getUserId();
 
-    const { data: invitation, error: fetchError } = await supabase
+    const { data: invitation, error: fetchError } = await db
       .from('team_invitations')
       .select('token, status, email')
       .eq('id', invitationId)
@@ -266,9 +266,9 @@ export class TeamService {
 
   /** Decline a team invitation. */
   async declineInvitation(invitationId: string): Promise<void> {
-    const supabase = this.getSupabase();
+    const db = this.getDb();
 
-    await supabase
+    await db
       .from('team_invitations')
       .update({
         status: 'declined',
@@ -284,8 +284,8 @@ export class TeamService {
     const team = await this.getTeam();
     if (!team) return [];
 
-    const supabase = this.getSupabase();
-    const { data, error } = await supabase
+    const db = this.getDb();
+    const { data, error } = await db
       .from('team_vaults')
       .select('*')
       .eq('team_id', team.id)
@@ -297,7 +297,7 @@ export class TeamService {
     const vaultIds = data.map((v: Record<string, unknown>) => v.id as string);
     const memberCounts = new Map<string, number>();
     if (vaultIds.length > 0) {
-      const { data: members } = await supabase
+      const { data: members } = await db
         .from('team_vault_members')
         .select('team_vault_id')
         .in('team_vault_id', vaultIds);
@@ -335,8 +335,8 @@ export class TeamService {
     const state = this.authService.getAuthState();
     if (!state.isAuthenticated || !state.user) return;
 
-    const supabase = this.getSupabase();
-    await supabase
+    const db = this.getDb();
+    await db
       .from('vault_audit_log')
       .insert({
         team_id: event.teamId,
@@ -359,9 +359,9 @@ export class TeamService {
     limit?: number;
     offset?: number;
   }): Promise<AuditLogEntry[]> {
-    const supabase = this.getSupabase();
+    const db = this.getDb();
 
-    let query = supabase
+    let query = db
       .from('vault_audit_log')
       .select('*')
       .eq('team_id', params.teamId)
@@ -382,7 +382,7 @@ export class TeamService {
     const entries = data as AuditLogEntry[];
 
     // Enrich entries with display names via team RPC (direct user_profiles blocked by RLS)
-    const { data: teamMembers } = await supabase
+    const { data: teamMembers } = await db
       .rpc('get_team_members_with_email', { p_team_id: params.teamId });
 
     if (teamMembers) {

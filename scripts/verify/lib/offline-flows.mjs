@@ -6,7 +6,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { leaseRows } from './supabase.mjs';
+import { leaseRows } from './backend.mjs';
 import { withPrivateCopy } from './sync-files.mjs';
 import { cancelSettings, readSyncTab } from './settings-flows.mjs';
 import { readSyncState, waitFor } from './ui.mjs';

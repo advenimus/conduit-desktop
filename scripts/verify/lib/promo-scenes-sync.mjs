@@ -1,9 +1,10 @@
 // Promo scene S2: two devices on one vault with three changes to review, Settings > Sync, and the
-// Free plan's "Use here instead" dialogs. Needs Docker and the local Supabase.
+// Free plan's "Use here instead" dialogs. Needs Docker and the local Appwrite.
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { ensureLocalSupabase, sql } from './supabase.mjs';
+import { Users } from 'node-appwrite';
+import { adminClient, ensureLocalAppwrite, updateRows } from './backend.mjs';
 import { launchPromoDevice } from './promo-capture.mjs';
 import { fillPromo, homeFixtures, installFakeHandlers } from './promo-data.mjs';
 import { expandFolders, showHome } from './promo-setup.mjs';
@@ -25,10 +26,12 @@ function vaultFile(ctx, dir) {
 
 async function newUser(ctx, role) {
   const user = await ctx.createUser(role);
-  await sql("update auth.users set raw_user_meta_data = jsonb_set(coalesce(raw_user_meta_data, '{}'::jsonb), '{display_name}', to_jsonb(:'name'::text)) where id = :'uid'", { name: DISPLAY_NAME, uid: user.id });
+  const users = new Users(adminClient());
+  await users.updateName({ userId: user.id, name: DISPLAY_NAME });
   const email = role === 'pro' ? 'alex.rivera@acme.example' : 'alex.r@acme.example';
-  await sql("update auth.users set email = :'e' where id = :'uid'", { e: email, uid: user.id });
-  await sql("update public.user_profiles set display_name = :'name' where id = :'uid'", { name: DISPLAY_NAME, uid: user.id });
+  await users.updateEmail({ userId: user.id, email });
+  await users.updateEmailVerification({ userId: user.id, emailVerification: true });
+  await updateRows('user_profiles', { display_name: DISPLAY_NAME }, { id: user.id });
   return { ...user, email };
 }
 
@@ -91,7 +94,7 @@ async function freeTakeover(ctx, rec) {
 }
 
 async function s2(ctx, rec) {
-  await ensureLocalSupabase(ctx.step);
+  await ensureLocalAppwrite(ctx.step);
   await proConflicts(ctx, rec);
   await freeTakeover(ctx, rec).catch((err) => console.log(`[promo] free take-over shots skipped: ${err.message}`));
 }

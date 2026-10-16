@@ -198,7 +198,7 @@ async function escapeHatch(ctx) {
 // ---------- S4 ----------
 
 async function goToHub(ctx) {
-  const proxy = await ctx.supabaseProxy();
+  const proxy = await ctx.backendProxy();
   const { user, d } = await autoUnlockedVault(ctx, 'u4', { env: proxy.env });
   await ctx.quitDevice(d);
   proxy.stall();

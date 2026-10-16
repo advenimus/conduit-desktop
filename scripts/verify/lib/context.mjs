@@ -5,7 +5,7 @@ import { isLive, killDevice, launchDevice, quitDevice } from './app.mjs';
 import * as flows from './flows.mjs';
 import { connectMcp } from './mcp.mjs';
 import { startNetProxy } from './net-proxy.mjs';
-import { createTestUser, leaseRows, setTier, sql, sqlJson } from './supabase.mjs';
+import { createTestUser, db, insertRows, leaseRows, rows, setTier, shiftBack, updateRows, userDb } from './backend.mjs';
 import { createTeam } from './team.mjs';
 import * as ui from './ui.mjs';
 
@@ -16,7 +16,7 @@ export class CheckError extends Error {
   }
 }
 
-const SUPABASE_PORT = 54321;
+const APPWRITE_PORT = Number(new URL(process.env.CONDUIT_VERIFY_APPWRITE_ENDPOINT ?? 'http://localhost:8085/v1').port || 8085);
 
 /**
  * Devices and MCP clients opened through ctx are closed when the scenario ends (devices quit
@@ -59,19 +59,24 @@ export function scenarioContext({ run, env, step, scenario = null, options = {} 
     onClose,
 
     /**
-     * A TCP proxy to the local Supabase for one device: launchDevice(name, {env: proxy.env}), then
+     * A TCP proxy to the local Appwrite for one device: launchDevice(name, {env: proxy.env}), then
      * proxy.cut() / proxy.restore(). Closed when the scenario ends (after its devices quit).
      */
-    async supabaseProxy() {
-      const proxy = await startNetProxy(SUPABASE_PORT);
-      const stopAtRunEnd = run.onCleanup(`close Supabase proxy :${proxy.port}`, () => proxy.close());
-      onClose(`Supabase proxy :${proxy.port}`, stopAtRunEnd);
-      step(`Supabase proxy on ${proxy.url}`);
+    async backendProxy() {
+      const proxy = await startNetProxy(APPWRITE_PORT);
+      const stopAtRunEnd = run.onCleanup(`close Appwrite proxy :${proxy.port}`, () => proxy.close());
+      onClose(`Appwrite proxy :${proxy.port}`, stopAtRunEnd);
+      step(`Appwrite proxy on ${proxy.url}`);
       return proxy;
     },
     setTier,
-    sql,
-    sqlJson,
+    /** The api function as the trusted service (row rules off, triggers on). */
+    db,
+    rows,
+    updateRows,
+    insertRows,
+    shiftBack,
+    userDb,
     leaseRows,
 
     async connectMcp(device, opts) {

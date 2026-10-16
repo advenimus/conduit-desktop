@@ -1,0 +1,1 @@
+{ "name": "fn-heartbeat", "type": "module", "main": "src/main.js", "dependencies": { "node-appwrite": "29.4.0" } }

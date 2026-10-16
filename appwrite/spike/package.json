@@ -1,0 +1,10 @@
+{
+  "name": "conduit-appwrite-spike",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "appwrite": "28.3.0",
+    "bcryptjs": "3.0.3",
+    "node-appwrite": "29.4.0"
+  }
+}

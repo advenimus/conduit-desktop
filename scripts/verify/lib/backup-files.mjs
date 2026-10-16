@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { listLocalBackups } from './backup-flows.mjs';
 import { withPrivateCopy } from './sync-files.mjs';
-import { sqlJson } from './supabase.mjs';
+import { listObjects } from './backend.mjs';
 import { waitFor } from './ui.mjs';
 
 const LOCAL_VERSION = 0x01;
@@ -90,13 +90,9 @@ export function sha256File(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
-/** storage.objects of `userId` in the "vaults" bucket: [{name, created_at, updated_at, size}], oldest first. */
+/** Cloud objects of `userId` in the "vaults" bucket: [{name, created_at, updated_at, size}], oldest first. */
 export function cloudObjects(userId) {
-  return sqlJson(
-    `select name, created_at, updated_at, (metadata->>'size')::bigint as size
-       from storage.objects where bucket_id = :'bucket' and name like :'prefix' order by created_at, name`,
-    { bucket: CLOUD_BUCKET, prefix: `${userId}/%` },
-  );
+  return listObjects(userId, CLOUD_BUCKET);
 }
 
 // The backup KDF runs 600,000 rounds, so each version of a backup file is decrypted once.

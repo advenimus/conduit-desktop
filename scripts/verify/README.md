@@ -1,6 +1,6 @@
 # Live verify harness
 
-Runs the real Conduit app (Electron main process, Vite renderer, MCP server) against local Supabase,
+Runs the real Conduit app (Electron main process, Vite renderer, MCP server) against local Appwrite,
 drives it with playwright-core, and reports pass or fail. An agent can run it end to end with no help.
 
 ```bash
@@ -43,18 +43,18 @@ in all); each suite alone adds about 8 s of setup.
 A suite with `optIn: true` runs only when it is named; `all` (the default) leaves it out. `--help` lists
 the opt-in suites.
 
-`ownership` needs the plan enforcement migrations (`20260929161642` to `20260929161756`) on the local stack; it moves the grace and cooldown clocks by updating `personal_vault_owners` and `personal_vault_guest_grace`, inserts fake lease rows for the device cap, and sets `app_config.min_app_version` for one scenario (reset to `0.0.0` when the scenario ends and again at cleanup). Devices are `o1a` to `o9a`, folders `<cloud>/o1` to `<cloud>/o9`.
+`ownership` needs the plan enforcement rules in the deployed `api` function (`appwrite/src/api/rpc/sessions.ts`, `storage.ts`); it moves the grace and cooldown clocks by shifting timestamps in `personal_vault_owners` and `personal_vault_guest_grace` (`ctx.shiftBack`), inserts fake lease rows for the device cap, and sets `app_config.min_app_version` for one scenario (reset to `0.0.0` when the scenario ends and again at cleanup). Devices are `o1a` to `o9a`, folders `<cloud>/o1` to `<cloud>/o9`.
 
 `sync`'s `file-safety` watches the whole cloud folder from the sync suite's first scenario on, so in a
 full run it also covers the files the earlier suites left there.
 
 ## What a run does
 
-1. **preflight**: macOS or Linux, Node 20+, Docker running, psql found, Electron binary, playwright-core
-   and the MCP SDK resolvable. Docker and psql are checked only when a selected scenario needs Supabase.
-2. **supabase**: `ensureLocalSupabase()` (see below), then removes `verify-*` users older than 6 hours.
+1. **preflight**: macOS or Linux, Node 20+, Docker running, Electron binary, playwright-core and the MCP
+   SDK resolvable. Docker is checked only when a selected scenario needs the backend.
+2. **appwrite**: `ensureLocalAppwrite()` (see below), then removes `verify-*` users older than 6 hours.
    Skipped when no selected scenario needs it: scenarios need the stack unless they declare
-   `needsSupabase: false` (every restyle scenario but `sidebar-signed-in` does).
+   `needsBackend: false` (every restyle scenario but `sidebar-signed-in` does).
 3. **build**: `tsc -p electron/tsconfig.json --outDir .verify/<runId>/dist-electron` (compiled tests are
    removed) and `cd mcp && npx tsc` (writes `mcp/dist`).
 4. **vite**: a private Vite on a free port (never 1420) with its own cache in `.verify/vite-cache`.
@@ -63,7 +63,7 @@ full run it also covers the files the earlier suites left there.
 6. **cleanup** (always, also on Ctrl+C): quit devices, stop Vite, delete this run's test users and
    their cloud backups in the `vaults` bucket (also with `--keep`), remove `/tmp/cv-<id>` and the
    compiled `dist-electron/` unless `--keep`, then kill and report any process still mentioning the
-   run. Local Supabase is left running, and the gitignored `mcp/dist` from the build step stays.
+   run. Local Appwrite is left running, and the gitignored `mcp/dist` from the build step stays.
 
 `<id>` is the last six characters of the run id (run `20260926-163755-1596d7` uses `/tmp/cv-1596d7`).
 After `--keep`, `results.json` `cleanup.keptRoots` holds that path. Check for leftovers with
@@ -71,7 +71,7 @@ After `--keep`, `results.json` `cleanup.keptRoots` holds that path. Check for le
 `ls -d /tmp/cv-*` errors in zsh when nothing matches).
 
 Artifacts land in `.verify/<runId>/` (gitignored): `results.json`, `logs/` (`run.log`, `<device>.main.log`,
-`<device>.renderer.log`, `<device>.mcp.log`, `build.log`, `vite.log`, `supabase-*.log`, `cleanup.log`)
+`<device>.renderer.log`, `<device>.mcp.log`, `build.log`, `vite.log`, `cleanup.log`)
 and `shots/` (numbered PNGs; `FAIL-*` shots plus log tails are captured for every open device on failure).
 Tokens and keys are redacted in every log. Before a run starts, `.verify/` is pruned to the 20 newest run
 directories, so 21 exist after it.
@@ -92,48 +92,46 @@ startup stale-MCP reaper so a test app never signals processes outside its sandb
 harmlessly (RDP cannot be tested this way). Test windows do appear on screen.
 
 Nothing touches the user's dev profile (`~/Library/Application Support/conduit/conduit-dev`,
-`Conduit Dev`), their running dev app, `~/.claude.json`, or production Supabase.
+`Conduit Dev`), their running dev app, `~/.claude.json`, or production Appwrite.
 
-## Local Supabase
+## Local Appwrite
 
-`ensureLocalSupabase()` uses `SUPABASE_CLI` or `npx -y supabase@2.109.1` with the workdir
-`~/.cache/conduit-verify/supabase` (repo `config.toml` and `templates/`, empty `migrations/`):
+`ensureLocalAppwrite()` (`lib/appwrite-stack.mjs`) works with the stack that `npm run appwrite:setup`
+made (`docs/LOCAL_APPWRITE.md`). It reads `conduit-dev.env` in the stack folder (`CONDUIT_APPWRITE_DIR`,
+or `/Volumes/SSD Storage/.conduit-dev/appwrite` when it exists, else `~/.conduit-dev/appwrite`;
+`CONDUIT_APPWRITE_ENV` names another env file) and refuses any endpoint that is not localhost. Then it:
 
-- starts the stack if `http://127.0.0.1:54321/auth/v1/health` or the DB does not answer; a stack started
-  from another workdir with project_id `conduit` is reused as is;
-- if `public.tiers` is missing, restores the newest `~/conduit-backups/conduit-preview-*.sql`
-  (auth schema errors during the restore are expected);
-- grants the classic Supabase table privileges to `anon` / `authenticated` (the backup has none and
-  current images no longer add them; without this, sign-in cannot read `user_profiles`);
-- applies `20260501000000_add_parent_entry_id.sql` and every migration dated `20260926000000` or later on every run, so repo
-  changes are picked up (they are idempotent);
-- then applies `scripts/verify/sql/local-parity.sql` (`lib/supabase-parity.mjs`), in one transaction
-  behind an advisory lock so parallel runs never replace the same function at once. It adds what no
-  migration creates: the private `vaults` storage bucket and the `get_team_members_with_email` grant.
-  The migrations create the guarded team-sync RPC `upsert_vault_entry_versioned` (23 arguments,
-  `20260929161642`) and the bucket's four `storage.objects` policies (`20260929161756`);
-- checks tiers (free `vault_max_open_devices=1`, pro and team `-1`, `account_max_active_devices=5` on all
-  three, `max_cloud_backup_vaults` free `0`, pro `10`, team `-1`, `mcp_daily_quota=-1`), the
-  `vault_session_*` functions, the bucket, all four policies, the 23-argument RPC, and that
-  `authenticated` can execute the team RLS helpers (`is_team_member`, `is_team_admin`,
-  `is_team_vault_member`, `is_team_vault_admin`, `team_vault_has_members`, `shares_team_as_admin`,
-  granted by `20260927020444_team_rls_helper_execute.sql`) and `get_team_members_with_email`;
-- `createTeam` gives each team a dummy `stripe_subscription_id`: the seat trigger of `20260929161642`
-  refuses members of a team without one;
-- the stale-user sweep first deletes teams owned by stale `verify-*` users (a team blocks its owner's
-  deletion).
+- starts the stack with `docker compose up -d` (and the Mailpit container) when
+  `http://localhost:8085/v1/health/version` does not answer, and waits up to 3 minutes;
+- runs `npm ci` in `appwrite/` when its `node_modules` is missing;
+- redeploys the schema, the seed rows and the `api` function (`node appwrite/scripts/deploy.ts --seed`)
+  when anything in `appwrite/src`, `appwrite/scripts` or its package files changed since the last deploy.
+  The fingerprint of the last deploy is the stamp file `.deployed-conduit-dev` in the stack folder.
 
-## Database tests (`npm run test:sql`)
+There are no SQL migrations, parity scripts or schema checks any more: the schema, rules and seed rows
+all come from `appwrite/` in the checkout under test.
 
-`run-sql-tests.mjs` runs the plan enforcement tests of `docs/PLAN_ENFORCEMENT.md` 7.1 without the app
-(about 20 seconds): `ensureLocalSupabase()`, then every `supabase/pending/<version>_*.sql` (migrations that
-wait for a client release), then `supabase/tests/plan_enforcement_team.sql` and `plan_enforcement.sql` (sharing
-`_plan_enforcement_helpers.sql`; one `begin ... rollback` per case,
-`ok <id>` per passed case, stops at the first failed assert), `supabase/tests/plan_enforcement_rollback.sql`
-(the rollback files applied and checked inside a rolled-back transaction), the two-connection races
-T4 and O9 (`lib/sql-test-races.mjs`) and the PostgREST cases H1 and H2 with a real user's JWT. Logs go
-to `.verify/sql-tests/<time>/`. Applying `supabase/pending/` leaves those migrations on the local stack
-until the next `/verify` run re-applies `20260929161756`.
+Table access in the harness (`lib/backend.mjs`) goes through the `api` function as the trusted service:
+row rules are off, triggers stay on (the same path the website uses).
+
+- `createUser` makes a confirmed Appwrite user with a fresh UUID, waits for the `user_profiles` row the
+  `users.*.create` event writes, then sets the plan.
+- `createTeam` gives each team a dummy `stripe_subscription_id`: the seat trigger refuses members of a
+  team without one.
+- Cleanup deletes the run's users and their cloud backups. The stale-user sweep first deletes teams
+  owned by stale `verify-*` users (a team blocks its owner's deletion).
+
+## Server tests (`npm run test:server`)
+
+The plan enforcement and team rules of `docs/PLAN_ENFORCEMENT.md` 7.1 are unit tests of the `api`
+function in `appwrite/tests/unit/` (in-memory store, no stack, a few seconds):
+
+```bash
+npm run test:server                      # cd appwrite && npm test
+cd appwrite && npx vitest run tests/live # against the local stack (needs the env file)
+```
+
+They replace the old `npm run test:sql` SQL tests and two-connection race scripts.
 
 ## Writing a suite
 
@@ -165,21 +163,25 @@ export default {
 ```
 
 A scenario fails by throwing. Keep device names short (`a`, `b`, `m`; 1-12 of `[a-z0-9-]`). A scenario
-that runs without the local Supabase stack says `needsSupabase: false`; a suite that must never run in
+that runs without the local Appwrite stack says `needsBackend: false`; a suite that must never run in
 `all` says `optIn: true`.
 
 ### ctx
 
 | Member | What it does |
 |---|---|
-| `launchDevice(name, {env, settings, args, colorScheme})` | Launch an isolated device (a name another scenario of the run used is refused). `env` adds variables (for example `CONDUIT_DEV_VAULT_DEVICE_LIMIT: '-1'`, or a Supabase proxy's `proxy.env`), `settings` overrides `settings.json` keys (onboarding, What's New, engine picker and telemetry are pre-dismissed; on a relaunch of the same name the keys the app saved before are kept and `settings` is merged over them), `args` adds Electron switches, `colorScheme` sets the emulated system mode (`'light'` when left out, `'dark'`, `'no-preference'`, or `null` for the machine's own). Returns `{name, app, page, root, home, dataDir, socketPath, mainLog, rendererLog, pid}`. A relaunch returns a new object; the old one no longer counts as live. |
+| `launchDevice(name, {env, settings, args, colorScheme})` | Launch an isolated device (a name another scenario of the run used is refused). `env` adds variables (for example `CONDUIT_DEV_VAULT_DEVICE_LIMIT: '-1'`, or a backend proxy's `proxy.env`), `settings` overrides `settings.json` keys (onboarding, What's New, engine picker and telemetry are pre-dismissed; on a relaunch of the same name the keys the app saved before are kept and `settings` is merged over them), `args` adds Electron switches, `colorScheme` sets the emulated system mode (`'light'` when left out, `'dark'`, `'no-preference'`, or `null` for the machine's own). Returns `{name, app, page, root, home, dataDir, socketPath, mainLog, rendererLog, pid}`. A relaunch returns a new object; the old one no longer counts as live. |
 | `quitDevice(d)` / `killDevice(d)` | Normal quit (quit flush, lease release), SIGKILL after 25 s. `killDevice` simulates a crash. |
 | `createUser('free'\|'pro'\|'team')` | Confirmed user `verify-<runId>-<n>@conduit.local`, random password, plan set in `user_profiles`. Returns `{id, email, password, role}`. Deleted at cleanup. |
 | `setTier(userId, role)` | Change a user's plan mid-scenario. |
 | `createTeam(owner, {name, seats, members})` | Team owned by `owner` (admin), `members` `[{user, role}]`, `primary_team_id` set; see Teams below. Removed at cleanup before the users. |
-| `supabaseProxy()` | A TCP proxy to the local Supabase for one device (see Offline below). Closed when the scenario ends, after its devices quit. |
+| `backendProxy()` | A TCP proxy to the local Appwrite for one device (see Offline below). Closed when the scenario ends, after its devices quit. |
 | `onClose(label, fn)` | Runs `fn` when the scenario ends, after its devices quit (newest first; a failure is logged, not thrown). |
-| `sql(query, vars)` / `sqlJson(query, vars)` | psql as `postgres`; use `:'name'` placeholders with `vars`. |
+| `db` | `ConduitDb` on the `api` function as the trusted service (row rules off, triggers on): `ctx.db().from(table).select()...`, `rpc()`, `storage.from()`. |
+| `rows(table, eq, {columns, order})` | Rows whose columns equal `eq` (`{column: value}`), as the service. |
+| `updateRows(table, values, eq)` / `insertRows(table, values)` | Write rows as the service; returns the written rows. |
+| `shiftBack(table, column, eq, seconds)` | Moves a timestamp of the matching rows `seconds` into the past (grace, cooldown and lease clocks). |
+| `userDb(user)` | `ConduitDb` as that user (row rules on), for checks of what the server refuses. |
 | `leaseRows(email)` | That user's `personal_vault_sessions` rows (status, device, displacement, markers). |
 | `connectMcp(device)` | Stdio MCP client on the device socket: `listTools()`, `callTool(name, args)` (parsed JSON, throws `McpToolError`), `callToolRaw(...)` (`{isError, text, data}`). |
 | `shot(device, label)` | Screenshot into `shots/`. |
@@ -238,20 +240,20 @@ Import them directly in a suite (they are not on `ctx`). `suites/sync.mjs` uses 
 
 ### Offline (`lib/net-proxy.mjs`)
 
-Makes one device lose Supabase while the shared stack keeps serving every other run:
+Makes one device lose the backend while the shared stack keeps serving every other run:
 
 ```js
-const proxy = await ctx.supabaseProxy();              // 127.0.0.1:<free port> -> 127.0.0.1:54321
-const d = await ctx.launchDevice('o1', { env: proxy.env });  // CONDUIT_DEV_SUPABASE_URL
+const proxy = await ctx.backendProxy();               // 127.0.0.1:<free port> -> localhost:8085
+const d = await ctx.launchDevice('o1', { env: proxy.env });  // CONDUIT_DEV_APPWRITE_ENDPOINT
 proxy.cut();      // resets open connections (HTTP keep-alive and the Realtime websocket) and new ones
 proxy.stall();    // resets open connections; new ones are accepted and never answered (an open that hangs)
 proxy.restore();  // lets connections through again
 proxy.stats();    // {accepted, refused, reset, open}
 ```
 
-`CONDUIT_DEV_SUPABASE_URL` is honored only by unpackaged builds on the preview environment and only
-for an http(s) loopback URL (`electron/services/env-config.ts`); packaged builds ignore it. Measured:
-after `cut()` the main log shows `[vault-session] realtime error` at once, but the lease turns
+`CONDUIT_DEV_APPWRITE_ENDPOINT` is honored only by unpackaged builds on the preview environment and only
+for an http(s) loopback URL (`electron/services/env-config.ts`); packaged builds ignore it. Measured on
+the Supabase stack before the move: after `cut()` the Realtime link drops at once, but the lease turns
 unconfirmed (`status.sessionBadge` `'offline-device-check'`) only at the next failed heartbeat: up to
 30 s later, or within about 3 s when an edit publishes (a publish triggers a heartbeat). A device that
 opens while cut shows the badge at once. After `restore()` a device with a lease clears the badge at its
@@ -575,7 +577,7 @@ so the unscoped lookups would find it first.
 and checks that the visual restyle keeps today's layout (8.6). Run it by name:
 `node scripts/verify/run.mjs restyle [--only <scenario>] [--strict] [--before <dir>]`.
 
-| Scenario | Supabase | Reference shots | Inventory screens |
+| Scenario | Backend | Reference shots | Inventory screens |
 |---|---|---|---|
 | `screens` | no | 00, 01, 02, 03, 41, 42 | sign-in, hub (empty, one and two recent vaults), unlock dialog, empty vault welcome and its side bar |
 | `sidebar` | no | 04, 06, 07, 08, 09, 21, 38, 39 | side bar docked, vault menu open, search, favorites only |
@@ -699,7 +701,7 @@ gives the same names, so a before and an after set line up file for file.
 the 0.18 promo video: 1440x900 windows at device scale 2 (PNG 2880x1800), Modern scheme, dark unless a
 shot says light, in local mode with the fictional "Acme Infrastructure" vault (`lib/promo-data.mjs`; its
 SSH tabs connect to a local mock server, `lib/promo-ssh.mjs`). Scenes: s1 Home and search typing, s2 sync
-(conflict review, Settings > Sync, Use here instead; needs Docker and local Supabase, and renames the two
+(conflict review, Settings > Sync, Use here instead; needs Docker and local Appwrite, and renames the two
 devices through `CV_HOSTNAME`), s3 the six icon packs and light mode, s4 side bar pinned, floating and
 hidden plus the pill tabs, s5 a terminal script and the AI activity card, s6 the startup settings. Each
 run also merges a `shots.json` into the output folder: per file, a description and the pixel rects of the
@@ -709,7 +711,7 @@ buttons are drawn on, as in `capture-titlebar.mjs`.
 ## Knowledge base checks
 
 `node scripts/verify/capture-knowledge-interact.mjs [outDir]` drives the knowledge and secret chip screens like a
-user (local mode, no Supabase) and prints a pass or fail per check.
+user (local mode, no backend) and prints a pass or fail per check.
 
 `node scripts/verify/capture-knowledge-agent.mjs [outDir] [--model <m>] [--only <task>]` runs the real `claude` CLI
 (your own login, so it costs tokens) against one isolated device. It seeds an asset, folder and vault articles,

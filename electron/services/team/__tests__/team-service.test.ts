@@ -32,7 +32,7 @@ function fakeAuth(invitation: Invitation | null, email = 'me@example.com') {
     getAuthState: () => ({ isAuthenticated: true, user: { id: 'u1', email } }),
     getAccessToken: vi.fn(async () => 'access-token'),
     refreshSession: vi.fn(async () => ({})),
-    getSupabaseClient: () => ({ from: vi.fn(() => query) }),
+    getDb: () => ({ from: vi.fn(() => query) }),
   };
   return { auth, query, inserts };
 }

@@ -6,7 +6,6 @@ import path from 'node:path';
 import { evaluateIn } from '../lib/selectors.mjs';
 import { setSidebar } from '../lib/restyle-data.mjs';
 import { createTeamVault, ensureIdentityKey, openTeamVault } from '../lib/team.mjs';
-import { psql } from '../lib/supabase-stack.mjs';
 
 const PASSWORD = 'verify-mcp-password-1';
 const REQUIRED_TOOLS = ['entry_list', 'entry_info', 'entry_search', 'entry_update_notes', 'entry_edit_notes', 'document_create', 'document_update', 'credential_list'];
@@ -794,10 +793,10 @@ async function knowledgeTeam(ctx) {
   await ui.invoke(a, 'team_vault_add_member', { teamVaultId: vault.id, userId: member.id, role: 'editor' }, { timeoutMs: 60_000 });
   ctx.step('k2a created an asset with a secret chip and an article in the team vault, then added k2b');
 
-  const serverRows = () => psql(
-    "select count(*) || '|' || count(*) filter (where row_to_json(v)::text like '%' || :'secret' || '%') from public.vault_entries v where vault_id = :'vault' and deleted_at is null",
-    { vars: { vault: vault.id, secret: KB_TEAM_SECRET } },
-  ).then((out) => out.split('|').map(Number));
+  const serverRows = async () => {
+    const live = (await ctx.rows('vault_entries', { vault_id: vault.id })).filter((v) => v.deleted_at === null);
+    return [live.length, live.filter((v) => JSON.stringify(v).includes(KB_TEAM_SECRET)).length];
+  };
   const [count, leaking] = await ctx.waitFor(async () => {
     const r = await serverRows();
     return r[0] >= 3 ? r : null;
@@ -825,7 +824,7 @@ export default {
     { id: 'writes-sync', title: 'Pro user: MCP notes and document writes show on the device and reach a second device', run: writesSync },
     { id: 'has-conflict', title: 'Pro user: a same-field conflict sets has_conflict until it is resolved in the review panel', run: hasConflictFlag },
     { id: 'locked-and-elsewhere', title: 'Locked vault error, then open_elsewhere after a Free take-over', run: lockedAndElsewhere },
-    { id: 'two-agents', title: 'Two MCP agents: each keeps its own shell, the other is refused but can read, freed when one exits', needsSupabase: false, run: twoAgents },
+    { id: 'two-agents', title: 'Two MCP agents: each keeps its own shell, the other is refused but can read, freed when one exits', needsBackend: false, run: twoAgents },
     { id: 'notes-secrets', title: 'Free user: partial notes edits and full rewrites keep hidden secrets; bad writes change nothing', run: notesSecrets },
     { id: 'knowledge', title: 'Free user: an agent imports notes, writes, logs, verifies and searches knowledge; articles stay out of lists', run: knowledgeBase },
     { id: 'knowledge-sync', title: 'Pro user: an article and its secret reach a second device; concurrent edits resolve to one article', run: knowledgeSync },

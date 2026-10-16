@@ -8,7 +8,7 @@ import path from 'node:path';
 import { buildForRun, startVite } from './lib/app.mjs';
 import { scenarioContext } from './lib/context.mjs';
 import { createRunContext, freePort, installSignalHandlers } from './lib/run-context.mjs';
-import { deleteTestUsers } from './lib/supabase.mjs';
+import { deleteTestUsers } from './lib/backend.mjs';
 import { createRecorder } from './lib/promo-capture.mjs';
 import { SCENES } from './lib/promo-scenes.mjs';
 

@@ -2,6 +2,8 @@
 
 Status: implementation spec, 2026-09-29. Builds on `docs/MULTI_DEVICE_SYNC.md` (sections 3.5, 6.x, 8, 9). Four builders work from this file in parallel: **DB** (migrations in this repo), **Desktop** (this repo), **iOS**, **Web+BE** (website and backend). Each section says who owns it.
 
+**Backend note (October 2026).** The SQL in `supabase/migrations/` that this spec describes was ported to TypeScript in `appwrite/src/api/` (`rpc/sessions.ts`, `policies.ts`, `triggers.ts`, `storage.ts`), and the Supabase project is retired after the cutover. Read the SQL and Supabase details below as history; how the server works and deploys now is in `docs/APPWRITE.md`.
+
 **Path roots used in citations.**
 - `DESK` = this repository (conduit-desktop, branch `advenimus/plan-enforcement`)
 - `IOS` = `/Volumes/SSD Storage/Github/Repos/conduit-iOS-multi-device-sync` (branch `feat/multi-device-sync`, iOS 1.1.0, unreleased)
@@ -1342,6 +1344,8 @@ Quantity fix (c) reasoning: the invite route already reserves a seat within `max
 
 ### 7.1 SQL tests against local Supabase (owner: DB builder)
 
+Now: these cases are unit tests of the `api` function in `appwrite/tests/unit/plan-enforcement.test.ts` and `team-rules.test.ts`, run with `npm run test:server`. The SQL runner and `npm run test:sql` below are gone. The text below is the original plan.
+
 New `DESK/supabase/tests/plan_enforcement.sql`, run by NEW `DESK/scripts/verify/run-sql-tests.mjs` (reuses `ensureLocalSupabase` from `lib/supabase-stack.mjs:229` [V], applies `supabase/pending/*.sql` after the migrations, then `psql -v ON_ERROR_STOP=1 -f`), exposed as `npm run test:sql`. The same runner also runs the HTTP cases (H1-H2) against the local PostgREST at `http://127.0.0.1:54321/rest/v1/rpc/...` with a test user's JWT, because `psql` cannot test PostgREST function resolution. Each case runs in `begin; ... rollback;`, creates users in `auth.users`, and acts as a user with `set local role authenticated; select set_config('request.jwt.claims', '{"sub":"<uuid>","role":"authenticated","email":"<email>"}', true);` [A: `auth.uid()` reads `request.jwt.claims` on the local stack]. Failures use `assert`.
 
 | Id | Case | Expect |
@@ -1436,6 +1440,8 @@ HTTP cases (same runner, PostgREST):
 `npx tsc --noEmit`, `npx vitest run` and `npm run build` must pass (CLAUDE.md).
 
 ### 7.3 Live `/verify` (owner: Desktop builder)
+
+Now: the harness talks to the local Appwrite stack; `ctx.sql` became `ctx.shiftBack`, `ctx.rows`, `ctx.updateRows` and `ctx.insertRows` (`scripts/verify/README.md`). The text below is the original plan.
 
 New suite `scripts/verify/suites/ownership.mjs` (two accounts via `ctx.createUser` twice [V: `lib/supabase.mjs:41-66`]; backdating through `ctx.sql`):
 

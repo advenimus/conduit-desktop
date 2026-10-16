@@ -2,8 +2,9 @@
 
 Thanks for your interest in Conduit. This repo is the Apache 2.0 client — the
 Electron desktop app, protocol handlers (SSH/RDP/VNC/Web), FreeRDP helper, and
-the MCP server that AI agents connect to. Cloud sync, team vaults, billing, and
-the backend API live in a separate proprietary repo.
+the MCP server that AI agents connect to. The server rules and schema live in
+`appwrite/` (as the SQL in `supabase/` did before); billing and the website live in
+a separate proprietary repo.
 
 ## What we accept
 
@@ -22,7 +23,7 @@ proposal before starting work.
 
 Prerequisites:
 - Node 22.12+
-- Docker Desktop (for local Supabase)
+- Docker Desktop (for the local Appwrite backend)
 - macOS: Xcode Command Line Tools. Windows: Visual Studio Build Tools 2022. Linux: build-essential + GTK3.
 - Apple Developer ID if you want to produce signed macOS builds (optional; ad-hoc signing works for local development)
 
@@ -31,14 +32,17 @@ git clone https://github.com/advenimus/conduit-desktop.git
 cd conduit-desktop
 npm install
 
-# Start local Supabase for auth/tier data:
-supabase start
+# First time only: install the local Appwrite stack for auth and tier data
+npm run appwrite:setup
+
+# Start it (later runs):
+npm run appwrite:start
 
 # Run the desktop app:
 npm run dev:electron
 ```
 
-See `docs/LOCAL_SUPABASE.md` for the full local-backend setup.
+See `docs/LOCAL_APPWRITE.md` for the full local-backend setup.
 
 ## Repo layout
 
@@ -53,7 +57,8 @@ src/                 React renderer (Vite)
   components/        UI
   stores/            Zustand state
 freerdp-helper/      FreeRDP C helper binary + build scripts
-supabase/            Local Supabase schema + migrations
+appwrite/            Backend: Appwrite `api` function, schema as code, deploy scripts
+supabase/            Old Supabase migrations (history only)
 ```
 
 ## Pull request checklist
@@ -63,6 +68,7 @@ Before opening a PR:
 - [ ] `npx tsc --noEmit -p electron/tsconfig.json` passes
 - [ ] `npx tsc --noEmit` (renderer) passes
 - [ ] `cd mcp && npx tsc --noEmit` passes
+- [ ] `npm run test:server` passes if you changed `appwrite/`
 - [ ] `npm run lint` has no new errors
 - [ ] Feature or fix is described in the PR body
 - [ ] Added or updated tests if the change is non-trivial

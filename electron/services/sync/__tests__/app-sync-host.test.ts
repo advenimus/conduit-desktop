@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { classifyPostgrestError } from '../../vault-session/host-electron-supabase.js';
+import { classifyApiError } from '../../vault-session/host-electron-appwrite.js';
 import { DEV_DEVICE_LIMIT_ENV, devDeviceLimitOverride, devLimitCollaborators } from '../app-sync-dev.js';
 import { InvalidSyncRequest, toFieldChoice, toRegKey, toRowKeys } from '../app-sync-dto-map.js';
 import { BUILDS_FILE, envNameOf, recordFirstLaunch } from '../app-sync-identity.js';
@@ -64,9 +64,9 @@ describe('paths and platform', () => {
 
 describe('rpc failure classification', () => {
   it('splits network, postgres and http failures', () => {
-    expect(classifyPostgrestError({ message: 'fetch failed', code: '' }, 0)).toMatchObject({ ok: false, failure: { kind: 'network' } });
-    expect(classifyPostgrestError({ message: 'bad', code: '23514' }, 400)).toMatchObject({ failure: { kind: 'postgres', code: '23514' } });
-    expect(classifyPostgrestError({ message: 'no fn', code: 'PGRST202' }, 404)).toMatchObject({ failure: { kind: 'http', status: 404 } });
+    expect(classifyApiError({ message: 'fetch failed', code: '' }, 0)).toMatchObject({ ok: false, failure: { kind: 'network' } });
+    expect(classifyApiError({ message: 'bad', code: '23514' }, 400)).toMatchObject({ failure: { kind: 'postgres', code: '23514' } });
+    expect(classifyApiError({ message: 'no fn', code: 'PGRST202' }, 404)).toMatchObject({ failure: { kind: 'http', status: 404 } });
   });
 });
 

@@ -1,5 +1,5 @@
-// A TCP proxy the harness controls, so one device can lose Supabase while the shared local stack
-// keeps running for everyone else. Point a device at it with CONDUIT_DEV_SUPABASE_URL (proxy.env).
+// A TCP proxy the harness controls, so one device can lose Appwrite while the shared local stack
+// keeps running for everyone else. Point a device at it with CONDUIT_DEV_APPWRITE_ENDPOINT (proxy.env).
 // cut() resets every open connection (HTTP keep-alive and Realtime websockets alike) and resets new
 // ones on accept; restore() lets connections through again.
 
@@ -108,14 +108,14 @@ export async function startNetProxy(targetPort, { targetHost = '127.0.0.1', host
   return {
     port,
     url,
-    /** Environment for launchDevice: the device's Supabase goes through this proxy. */
-    env: { CONDUIT_DEV_SUPABASE_URL: url },
-    /** Supabase unreachable: open connections are reset, new ones reset on accept. */
+    /** Environment for launchDevice: the device's Appwrite goes through this proxy. */
+    env: { CONDUIT_DEV_APPWRITE_ENDPOINT: `${url}/v1` },
+    /** Appwrite unreachable: open connections are reset, new ones reset on accept. */
     cut() {
       cutNow = true;
       resetAll();
     },
-    /** Supabase hangs: open connections are reset, new ones are accepted and never answered. */
+    /** Appwrite hangs: open connections are reset, new ones are accepted and never answered. */
     stall() {
       stallNow = true;
       resetAll();

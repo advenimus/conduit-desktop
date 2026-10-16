@@ -15,7 +15,7 @@ interface RunContext {
   runCleanup(): Promise<unknown>;
 }
 
-interface Scenario { id: string; title: string; needsSupabase?: boolean; run(): void }
+interface Scenario { id: string; title: string; needsBackend?: boolean; run(): void }
 interface Suite { id: string; title: string; optIn?: boolean; scenarios: Scenario[] }
 interface Opts { suites: string[]; only: string[]; keep: boolean; strict: boolean; before: string | null; help: boolean }
 
@@ -23,7 +23,7 @@ interface Opts { suites: string[]; only: string[]; keep: boolean; strict: boolea
 const runner = (await import('../verify/run.mjs' as string)) as {
   parseArgs(argv: string[]): Opts;
   selectSuites(available: Suite[], opts: Opts): Suite[];
-  needsSupabase(suites: Suite[]): boolean;
+  needsBackend(suites: Suite[]): boolean;
   usage(suites: Suite[]): string;
   loadSuites(dir?: string): Promise<Suite[]>;
 };
@@ -56,7 +56,7 @@ describe('verify run.mjs parseArgs', () => {
   });
 });
 
-const scenario = (id: string, needsSupabase?: boolean): Scenario => ({ id, title: id, run() {}, ...(needsSupabase === undefined ? {} : { needsSupabase }) });
+const scenario = (id: string, needsBackend?: boolean): Scenario => ({ id, title: id, run() {}, ...(needsBackend === undefined ? {} : { needsBackend }) });
 const SUITES: Suite[] = [
   { id: 'mcp', title: 'MCP', scenarios: [scenario('m1')] },
   { id: 'restyle', title: 'Layout reference', optIn: true, scenarios: [scenario('screens', false), scenario('sidebar-signed-in', true)] },
@@ -81,10 +81,10 @@ describe('verify run.mjs suite selection', () => {
     expect(() => runner.selectSuites(SUITES, opts(['nope']))).toThrow('No suite named nope');
   });
 
-  it('starts Supabase only when a selected scenario needs it', () => {
-    expect(runner.needsSupabase(runner.selectSuites(SUITES, opts(['restyle', '--only', 'screens'])))).toBe(false);
-    expect(runner.needsSupabase(runner.selectSuites(SUITES, opts(['restyle'])))).toBe(true);
-    expect(runner.needsSupabase(runner.selectSuites(SUITES, opts(['smoke'])))).toBe(true);
+  it('starts Appwrite only when a selected scenario needs it', () => {
+    expect(runner.needsBackend(runner.selectSuites(SUITES, opts(['restyle', '--only', 'screens'])))).toBe(false);
+    expect(runner.needsBackend(runner.selectSuites(SUITES, opts(['restyle'])))).toBe(true);
+    expect(runner.needsBackend(runner.selectSuites(SUITES, opts(['smoke'])))).toBe(true);
   });
 
   it('lists the opt-in suites and --strict in --help', () => {
@@ -100,8 +100,8 @@ describe('verify run.mjs suite selection', () => {
     expect(real.find((s) => s.id === 'restyle')?.optIn).toBe(true);
     expect(runner.selectSuites(real, opts([])).map((s) => s.id)).not.toContain('restyle');
     const restyle = runner.selectSuites(real, opts(['restyle']))[0];
-    expect(restyle.scenarios.filter((sc) => sc.needsSupabase).map((sc) => sc.id)).toEqual(['sidebar-signed-in']);
-    expect(restyle.scenarios.every((sc) => typeof sc.needsSupabase === 'boolean')).toBe(true);
+    expect(restyle.scenarios.filter((sc) => sc.needsBackend).map((sc) => sc.id)).toEqual(['sidebar-signed-in']);
+    expect(restyle.scenarios.every((sc) => typeof sc.needsBackend === 'boolean')).toBe(true);
   });
 
   it('hands --strict and --before to the scenario context', () => {
@@ -133,12 +133,14 @@ describe('verify launcher', () => {
 });
 
 describe('verify redact', () => {
-  it('masks JWTs, named tokens and Supabase keys', () => {
+  it('masks JWTs, session secrets and Appwrite keys', () => {
     const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.c2lnbmF0dXJlLXZhbHVl';
-    const out = redact(`conduit://auth/callback#access_token=${jwt}&refresh_token=abcdefgh1234 sb_secret_0123456789abcdef`);
+    const key = `standard_${'ab12'.repeat(32)}`;
+    const out = redact(`conduit://auth/callback#user_id=u1&session=abcdefgh1234 ${jwt} ${key} x-conduit-service: s3cr3tvalue99`);
     expect(out).not.toContain(jwt);
     expect(out).not.toContain('abcdefgh1234');
-    expect(out).not.toContain('sb_secret_0123456789abcdef');
+    expect(out).not.toContain(key);
+    expect(out).not.toContain('s3cr3tvalue99');
   });
 
   it('keeps short flag values readable', () => {

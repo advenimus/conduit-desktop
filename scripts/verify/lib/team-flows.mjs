@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { waitForScreen } from './flows.mjs';
-import { sqlJson } from './supabase.mjs';
+import { rows } from './backend.mjs';
 import { syncRootOf } from './vault-files.mjs';
 import { clickText, dispatchDocumentEvent, invoke, waitFor } from './ui.mjs';
 import { SELECTORS, clickIn, existsIn } from './selectors.mjs';
@@ -55,11 +55,9 @@ export function teamVaultFile(device, teamVaultId) {
 }
 
 /** Live vault_entries rows of a team vault on the server: [{id, name, host}]. */
-export function serverTeamEntries(teamVaultId) {
-  return sqlJson(
-    "select id, name, host from public.vault_entries where vault_id = :'vid' and deleted_at is null order by name",
-    { vid: teamVaultId },
-  );
+export async function serverTeamEntries(teamVaultId) {
+  const live = (await rows('vault_entries', { vault_id: teamVaultId }, { columns: 'id, name, host, deleted_at', order: { column: 'name' } })).filter((r) => r.deleted_at === null);
+  return live.map(({ id, name, host }) => ({ id, name, host }));
 }
 
 /** Lineage folders under the device's syncRoot (<syncRoot>/m-<hw>/<lineage>), sorted. */

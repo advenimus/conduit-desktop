@@ -1,26 +1,28 @@
 ---
 name: verify-ownership
-description: Run only the live vault ownership suite (owner and grace, grace ending and Make my own copy, release and hand-over, release surviving a background re-acquire, owner tag signed out and offline, the account device cap, the minimum app version, the cloud backup plan gate) against the real Conduit app and a local Supabase. Use after changing electron/services/vault-session/ (owner-tag, own-copy tickets, the open gate, the session client), src/components/sync/ ownership dialogs and banners, cloud backup limits, or the plan enforcement migrations, or when asked to verify ownership or plan limits live. Fully isolated; takes about 3 minutes.
+description: Run only the live vault ownership suite (owner and grace, grace ending and Make my own copy, release and hand-over, release surviving a background re-acquire, owner tag signed out and offline, the account device cap, the minimum app version, the cloud backup plan gate) against the real Conduit app and a local Appwrite. Use after changing electron/services/vault-session/ (owner-tag, own-copy tickets, the open gate, the session client), src/components/sync/ ownership dialogs and banners, cloud backup limits, or the plan enforcement rules in appwrite/src/api/ (rpc/sessions.ts, storage.ts), or when asked to verify ownership or plan limits live. Fully isolated; takes about 3 minutes.
 ---
 
 # /verify-ownership: vault ownership and plan limits suite
 
 Runs `npm run verify:ownership` (`node scripts/verify/run.mjs ownership`). Real Electron devices of
-two accounts share one "cloud" folder, sign in as generated test users on a local Supabase, and are
+two accounts share one "cloud" folder, sign in as generated test users on a local Appwrite, and are
 driven like a user. The spec under test is `docs/PLAN_ENFORCEMENT.md` (sections 1, 3, 4 and 7.3);
 the harness reference is `scripts/verify/README.md`. Every suite at once is the `verify` skill; the
 device-lease basics (take-over, plan changes, owner claims) are the `verify-sync` skill.
 
 ## Needs
 
-The plan enforcement migrations on the local stack (`supabase/migrations/20260929161642` to
-`20260929161756`); the harness applies every migration of the checkout on every run, so run it from a
-checkout that has them. Everything else is as in `verify-sync` (Docker, the pinned Supabase CLI, psql).
+The plan enforcement rules in the deployed `api` function (`appwrite/src/api/rpc/sessions.ts` for
+ownership, grace, device cap and minimum version; `appwrite/src/api/storage.ts` for the backup gate).
+The harness redeploys `appwrite/` from the checkout under test whenever it changed, so run it from the
+checkout you want to test. Everything else is as in `verify-sync` (Docker and the local Appwrite stack
+from `npm run appwrite:setup`).
 
 ## What it proves
 
 Each scenario uses its own devices (`o1a`, `o1b`, ...) and its own `<cloud>/o<n>/Vault.conduit`.
-Clocks move by backdating `personal_vault_owners`, `personal_vault_guest_grace` and lease rows.
+Clocks move by backdating `personal_vault_owners`, `personal_vault_guest_grace` and lease rows (`ctx.shiftBack`).
 
 | Scenario | In plain words |
 |---|---|
@@ -29,7 +31,7 @@ Clocks move by backdating `personal_vault_owners`, `personal_vault_guest_grace` 
 | `release-hand-over` | The owner (moved past the 7-day cooldown) releases in Settings > Sync ("Vault released."); the owner row is empty with `released_by` set and the file carries `{"a": null}`; the next account to open it owns it; the ex-owner may use it during grace and afterwards sees "You released this vault and another account now owns it." |
 | `release-survives-reacquire` | After a release on one of two devices of the owner, the other device's lease is expired by hand; its background re-acquire (p_claim false) leaves the vault unowned. |
 | `signed-out-tag` | A signed-out device of another account gets "Sign in to open this vault"; the owner device, signed out, still opens (its cached owner check). |
-| `offline-owner` | With Supabase cut, the owner opens its vault; another account's device gets "Connect to the internet so Conduit can check who owns this vault". |
+| `offline-owner` | With the backend cut, the owner opens its vault; another account's device gets "Connect to the internet so Conduit can check who owns this vault". |
 | `device-cap` | With five other devices holding leases, unlocking shows "Too many devices" naming the least recently used one; [Use here instead] opens and displaces it with `device_cap`. |
 | `update-required` | With `min_app_version.desktop` at 99.0.0 the open vault locks ("Update Conduit to keep using this vault.") and unlocking shows "Update required" with the version. The setting is put back to `0.0.0` at the end of the scenario and at cleanup. |
 | `cloud-backup-free` | A Free account's direct upload to the `vaults` bucket is refused by the server; after a downgrade [Back Up Now] leaves "Cloud backup needs Pro or Team. Your earlier backups are still here." with [Upgrade]. |
@@ -47,13 +49,19 @@ windows appear on screen: leave them alone. About 164 s of scenarios plus about 
 
 ## Read the results
 
-As in `verify-sync`: `.verify/<runId>/results.json`, `shots/`, `logs/<device>.main.log`. Owner rows:
-`"$PSQL" postgresql://postgres:postgres@127.0.0.1:54322/postgres -c "select vault_key, owner_id, owner_since, grace_started_at, released_by from personal_vault_owners"`.
+As in `verify-sync`: `.verify/<runId>/results.json`, `shots/`, `logs/<device>.main.log`. Owner rows
+(from the repo root, read-only, as the service):
+
+```bash
+node --input-type=module -e "import {rows} from './scripts/verify/lib/backend.mjs'; console.table(await rows('personal_vault_owners', {}, {columns: 'vault_key, owner_id, owner_since, grace_started_at, released_by'}))"
+```
+
+Or open table `personal_vault_owners` in the console (http://localhost:8085, login in `conduit-dev.env`).
 
 ## When something fails
 
 1. Read the failing scenario's `steps`, `error`, screenshot and `<device>.main.log`. Decide: app bug,
-   harness bug, missing migrations, or environment.
+   harness bug, an old `api` deployment, or environment.
 2. Re-run only it with `--only`.
 3. Fix the root cause and add a unit test where the code allows. Never weaken an assertion, skip a
    scenario or raise a timeout without a measured reason. If a check disagrees with
@@ -61,10 +69,12 @@ As in `verify-sync`: `.verify/<runId>/results.json`, `shots/`, `logs/<device>.ma
 
 ## Safety rules
 
-- Only the local stack on 127.0.0.1; never production Supabase; never `CONDUIT_ENV=production`.
+- Only the local stack on localhost; never production Appwrite (`appwrite.cloudwise.ca`) or any cloud
+  project; never `CONDUIT_ENV=production`.
 - `update-required` changes a global setting of the local stack for a minute; do not run it beside
   another run that opens vaults.
-- Never run `supabase db reset`; never print the service-role key or tokens.
+- Never run `docker compose down -v` on the local stack or delete its env file unless the user asks;
+  never print the API key, the service secret or tokens.
 
 ## Report back
 

@@ -1,0 +1,8 @@
+services:
+  appwrite:
+    networks:
+      runtimes:
+        aliases: [appwrite-api]
+networks:
+  runtimes:
+    external: true

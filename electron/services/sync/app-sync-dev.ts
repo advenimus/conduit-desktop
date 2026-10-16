@@ -2,7 +2,7 @@
  * Dev-only device limit override: CONDUIT_DEV_VAULT_DEVICE_LIMIT (for example -1) forces the
  * effective device limit wherever the client computes it (signed out, local mode, unconfirmed
  * lease), so two signed-out dev builds on two machines can exercise Pro-style concurrent sync
- * without Supabase. Packaged builds ignore it. A confirmed server answer (peek, acquire,
+ * without a server. Packaged builds ignore it. A confirmed server answer (peek, acquire,
  * heartbeat) still decides for signed-in devices.
  */
 

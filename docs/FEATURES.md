@@ -279,7 +279,7 @@ A structured memory that agents and the user build up about every asset. Data co
 - Packaged builds turn off the Electron debugger and `NODE_OPTIONS` fuses and require an integrity-checked `app.asar`, so another program cannot run Conduit's signed binary to read the secret store
 
 ### Vault Management
-- **Rename Vault**: Rename personal or team vaults from File > Rename Vault while unlocked; personal vaults rename the `.conduit` file on disk, team vaults update the name in Supabase (vault admin or team admin required)
+- **Rename Vault**: Rename personal or team vaults from File > Rename Vault while unlocked; personal vaults rename the `.conduit` file on disk, team vaults update the name on the server (vault admin or team admin required)
 - **Manual Save**: File > Vault Management > Save Vault (Ctrl+S / Cmd+S) forces a WAL checkpoint, flushing all data into the `.conduit` file for portable backup; shows informational toast for team vaults (saved to cloud automatically)
 
 ### Local Backup
@@ -341,8 +341,8 @@ Full design: `docs/MULTI_DEVICE_SYNC.md`. Code: `electron/services/sync/` (merge
 - **Session conflict on reconnect**: a dialog with a 60 s countdown; with no answer this device soft-locks. If the server cannot be reached, the device keeps working
 - The lease is released on lock, window close, quit (also before an update installs, since the Windows installer does not wait) and sign-out (released before the account signs out, while the server can still be reached)
   - A lock or quit during an unlock cancels its waits and closes what it opened, so the vault never ends up unlocked after a lock. A lock during a displaced save waits for that save
-- **Dev testing**: `CONDUIT_DEV_VAULT_DEVICE_LIMIT` (for example `-1`) forces the device limit in unpackaged builds when no confirmed server answer applies, so two signed-out dev builds can test concurrent sync without Supabase. Packaged builds ignore it
-- **Dev testing offline**: `CONDUIT_DEV_SUPABASE_URL` (an http(s) loopback URL such as a local proxy) replaces the preview Supabase URL in unpackaged builds, so one test instance can lose Supabase while others keep it (`scripts/verify` uses it). Packaged builds and the production environment ignore it
+- **Dev testing**: `CONDUIT_DEV_VAULT_DEVICE_LIMIT` (for example `-1`) forces the device limit in unpackaged builds when no confirmed server answer applies, so two signed-out dev builds can test concurrent sync without the backend. Packaged builds ignore it
+- **Dev testing offline**: `CONDUIT_DEV_APPWRITE_ENDPOINT` (an http(s) loopback URL such as a local proxy) replaces the preview Appwrite endpoint in unpackaged builds, so one test instance can lose the backend while others keep it (`scripts/verify` uses it). Packaged builds and the production environment ignore it
 
 ### Vault Ownership and Plan Limits (Personal Vaults)
 Full design: `docs/PLAN_ENFORCEMENT.md`. The server decides every limit; the app shows the answer.
@@ -364,7 +364,7 @@ Full design: `docs/PLAN_ENFORCEMENT.md`. The server decides every limit; the app
 - **Device authorization**: Approve new devices from existing ones via device-to-device key transfer
 - **Team entity management**: Teams with admin/member roles, invitation system with accept/decline
 - **Team vaults**: Create and share encrypted vaults within a team (no shared password)
-- **Entry-level cloud sync**: Supabase Realtime for live entry/folder updates across devices
+- **Entry-level cloud sync**: Appwrite Realtime for live entry/folder updates across devices (rows reach only members of that team vault)
 - **Offline mutation queue**: Queues changes when offline, flushes on reconnect (1000 op cap)
 - **Optimistic concurrency**: Version-checked writes with last-write-wins conflict resolution
 - **Full reconciliation**: Periodic 5-minute sync to catch missed Realtime events
@@ -388,7 +388,7 @@ Full design: `docs/PLAN_ENFORCEMENT.md`. The server decides every limit; the app
 - **Vault settings dialog**: Centralized tabbed dialog (Members + Folder Permissions) accessible from context bar, replaces separate member/permission dialogs
 - **Auto-enrollment of team admins**: Team admins are automatically enrolled in new vaults at creation time; promoted members are enrolled in all existing vaults; late-joining admins (who set up identity keys after vault creation) are auto-enrolled when any existing admin opens the vault
 - **Client-side permission enforcement**: Viewers see disabled create buttons, filtered context menus (no edit/delete), read-only warning banners in dialogs, and lock icons on restricted folders
-- **Effective role computation**: `min(vault_role, folder_override)` with restrict-only semantics — folder permissions can only downgrade access, enforced both client-side and via Supabase trigger
+- **Effective role computation**: `min(vault_role, folder_override)` with restrict-only semantics: folder permissions can only downgrade access, enforced both client-side and by the server (`api` function trigger)
 - **Cascading role downgrade**: When a vault member's role is reduced, folder permissions exceeding the new ceiling are automatically pruned
 - **Pro vault lock dialog**: When a Pro-tier user tries to open a vault locked by another user, shows lock holder info with retry/upgrade options
 - **Admin onboarding card**: Dismissible sidebar prompt for team admins with no vaults, guiding first vault creation
@@ -400,9 +400,9 @@ Full design: `docs/PLAN_ENFORCEMENT.md`. The server decides every limit; the app
 - **Team vault tier skip**: Team vault entries are exempt from personal tier connection limits
 
 ### Cloud Backup
-Whole-file encrypted backups to Supabase Storage. This is a backup, not the sync transport (see Multi-Device Sync).
+Whole-file encrypted backups to the server's `vaults` storage bucket. This is a backup, not the sync transport (see Multi-Device Sync).
 - Pro and Team only (`cloud_sync_enabled` plan key); the Backup tab shows a "Pro and Team" badge
-- Plan checked on enable, on every restore, when the service starts at unlock, and before each upload, so a downgraded account stops uploading. Each check reads the plan from Supabase again (the profile loaded at sign-in can be an hour old), so a downgrade while the app is open stops uploads at the next upload or unlock and a press of the toggle is refused with "Cloud backup needs the Pro or Team plan."
+- Plan checked on enable, on every restore, when the service starts at unlock, and before each upload, so a downgraded account stops uploading. Each check reads the plan from the server again (the profile loaded at sign-in can be an hour old), so a downgrade while the app is open stops uploads at the next upload or unlock and a press of the toggle is refused with "Cloud backup needs the Pro or Team plan."
 - Periodic automatic backup and manual trigger
 - Mutation tracking for incremental backups
 - Restore from cloud backup with master password validation
@@ -597,7 +597,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 
 ### Team Lifecycle
 - **Creation**: Team setup form with name, slug (auto-generated, editable), seat count (1-100), billing interval (monthly/annual)
-- **Stripe checkout**: Per-seat subscription (pricing managed in production Supabase `tiers` table — run `SELECT name, price_monthly, price_annual FROM tiers ORDER BY sort_order;` for current values)
+- **Stripe checkout**: Per-seat subscription (pricing managed in the production `tiers` table: Appwrite console, database `conduit`, columns `name`, `price_monthly`, `price_annual`)
 - **Webhook provisioning**: On successful checkout, webhook creates the team, adds owner as admin, sets tier to Team
 - **Pro upgrade path**: Users upgrading from Pro receive prorated credit; old subscription auto-canceled
 - **Dissolution**: Canceling team subscription downgrades all members to Free, removes memberships
@@ -651,11 +651,11 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 
 - Browser-based authentication via conduitdesktop.com
   - Sign-in and registration open system browser (no in-app auth forms)
-  - Deep link callback (`conduit://auth/callback`) receives tokens after browser auth
+  - Deep link callback (`conduit://auth/callback#user_id=...&session=...`) receives the verified Appwrite session after browser auth
   - MFA verification and enrollment handled on website
   - Interstitial "Opening Conduit..." page with fallback manual button
 - Email confirmation flow via website
-- Session management with refresh tokens
+- Session secret stored encrypted with Electron `safeStorage`; calls to the website API use a short-lived Appwrite JWT
 - Deep linking for OAuth callbacks (conduit:// protocol)
 - Sign-out with session cleanup
 - User profile retrieval
@@ -665,14 +665,20 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - TOTP multi-factor authentication (MFA) via website
   - MFA enrollment on website account security page
   - TOTP verification on website during login flow
-  - AAL2 session restore skips MFA prompt on app restart
+  - MFA is required in production; a restored session has already passed it, so restart skips the prompt
+  - A local Appwrite stack (dev) skips the MFA requirement
   - Local mode unaffected by MFA requirements
 - Environment configuration (preview/production)
-  - `CONDUIT_ENV` flag selects Supabase branch, website URL, and local data directory
+  - `CONDUIT_ENV` flag selects the Appwrite endpoint and project, website URL, and local data directory
   - Dev defaults to preview, builds default to production
   - Separate local storage paths per environment: `conduit/` (production) vs `conduit-dev/` (preview)
   - Independent vault, settings, auth session, chat DB, and IPC socket per environment
   - Dev and production instances can run simultaneously without conflicts
+- **Backend: self-hosted Appwrite** (moved from Supabase in October 2026; `docs/APPWRITE.md`)
+  - One Appwrite Function, `api`, takes the same table, RPC and storage requests the apps sent to Supabase and enforces the old rules, now in TypeScript
+  - Production at `appwrite.cloudwise.ca`; dev runs a local stack in Docker (`npm run appwrite:setup`, `docs/LOCAL_APPWRITE.md`)
+  - Device fingerprint and abuse check moved from the retired conduit-backend to the `submit_fingerprint` RPC
+  - Daily server job purges old audit log entries, stale lease rows and orphaned backup files
 
 ---
 
@@ -941,7 +947,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 
 ### Help
 - Conduit Help
-- Submit a Bug — pre-filled system info, optional log file attachment, up to 5 screenshot attachments (5 MB each, png/jpg/gif/webp), sent to Supabase
+- Submit a Bug: pre-filled system info, optional log file attachment, up to 5 screenshot attachments (5 MB each, png/jpg/gif/webp), sent to the server and emailed to support
 - Submit Feedback — lightweight suggestion/feature request form
 
 ### System Tray

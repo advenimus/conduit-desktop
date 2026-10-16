@@ -116,13 +116,17 @@ In `EntryDialog.tsx`:
 | `src/components/vault/CredentialPicker.tsx` | Add type badge if new credential type |
 | `src/components/vault/CredentialForm.tsx` | Update type selector and add type-specific fields (used by CredentialManager) |
 
-### Supabase (if new DB column)
+### Server (team vaults; new entry type or new column)
 
 | File | What to change |
 |------|---------------|
-| `docs/migrations/NNN_description.sql` | Create Supabase migration (ALTER TABLE + update RPC functions) |
+| `appwrite/src/schema/tables.ts` | Add the new value to `vault_entries.entry_type` (its `oneOf` list; the server refuses unknown types), and any new column |
+| `appwrite/src/api/rpc/team.ts` | Pass any new column through `upsert_vault_entry_versioned` |
+| `appwrite/tests/unit/` | Add a test for the new type or column |
 
-Deploy to preview branch first, verify, then merge to production.
+Run `npm run test:server`, deploy to the local stack with `npm run appwrite:deploy` and verify there
+first, then deploy to production (`docs/APPWRITE.md`, Deploy). The deploy adds new columns; it never
+drops or renames one.
 
 ### Documentation
 

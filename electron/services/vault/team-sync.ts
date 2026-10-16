@@ -1,7 +1,7 @@
 /**
  * Entry-level cloud sync service for team vaults.
  *
- * Subscribes to Supabase Realtime for live updates and debounces
+ * Subscribes to Appwrite Realtime for live updates and debounces
  * local mutations for upload. Handles offline queuing, conflict
  * detection (last-write-wins), and reconnection with exponential backoff.
  *
@@ -10,12 +10,12 @@
  */
 
 import { BrowserWindow } from 'electron';
-import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
+import type { ConduitDb } from '../backend/conduit-db.js';
+import { asPostgresPayload, type Subscription, watchRows } from '../backend/realtime.js';
 import { encrypt, decrypt } from './crypto.js';
 import { OfflineQueue } from './offline-queue.js';
-import { orderParentsFirst } from './team-sync-order.js';
 import type { ConduitVault, VaultMutation } from './vault.js';
-import type { AuthService } from '../auth/supabase.js';
+import type { AuthService } from '../auth/auth-service.js';
 
 /** Debounce delay after last mutation before uploading (ms). */
 const UPLOAD_DEBOUNCE_MS = 2_000;
@@ -43,6 +43,24 @@ export interface TeamSyncState {
  */
 const decryptFailedEntries = new Set<string>();
 
+/** Entries ordered so every parent_entry_id that is in the list comes before the entry using it. */
+export function parentsFirst<T extends Record<string, unknown>>(entries: readonly T[]): T[] {
+  const byId = new Map(entries.map((e) => [e.id as string, e]));
+  const out: T[] = [];
+  const placed = new Set<string>();
+  const visit = (e: T, seen: Set<string>) => {
+    const id = e.id as string;
+    if (placed.has(id) || seen.has(id)) return;
+    seen.add(id);
+    const parent = typeof e.parent_entry_id === 'string' ? byId.get(e.parent_entry_id) : undefined;
+    if (parent) visit(parent, seen);
+    placed.add(id);
+    out.push(e);
+  };
+  for (const e of entries) visit(e, new Set());
+  return out;
+}
+
 export class TeamSyncService {
   private authService: AuthService;
   private vault: ConduitVault | null = null;
@@ -50,8 +68,9 @@ export class TeamSyncService {
   private teamVaultId: string | null = null;
   private userId: string | null = null;
 
-  private supabase: SupabaseClient | null = null;
-  private channel: RealtimeChannel | null = null;
+  private db: ConduitDb | null = null;
+  private channel: Subscription | null = null;
+  private subscribeAttempt = 0;
   private offlineQueue = new OfflineQueue();
   private dirtySet = new Set<string>();
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -94,7 +113,7 @@ export class TeamSyncService {
 
     const authState = this.authService.getAuthState();
     this.userId = authState.user?.id ?? null;
-    this.supabase = this.authService.getSupabaseClient();
+    this.db = this.authService.getDb();
 
     this.subscribe();
     this.startReconcileTimer();
@@ -112,10 +131,7 @@ export class TeamSyncService {
   stop(): void {
     this.destroyed = true;
 
-    if (this.channel) {
-      this.supabase?.removeChannel(this.channel);
-      this.channel = null;
-    }
+    this.closeChannel();
     this.lastSubscribeLogAt = 0;
 
     if (this.debounceTimer) {
@@ -186,7 +202,7 @@ export class TeamSyncService {
    * upserts it to the cloud encrypted with the current VEK.
    */
   async forceUploadAll(): Promise<void> {
-    if (!this.vault || !this.vek || !this.supabase || !this.teamVaultId) {
+    if (!this.vault || !this.vek || !this.db || !this.teamVaultId) {
       throw new Error('Cannot force upload: sync service is not initialized');
     }
     if (this.reconciling) {
@@ -250,7 +266,7 @@ export class TeamSyncService {
   }
 
   private async flushDirtySet(): Promise<void> {
-    if (this.uploading || this.reconciling || this.destroyed || !this.vault || !this.vek || !this.supabase) return;
+    if (this.uploading || this.reconciling || this.destroyed || !this.vault || !this.vek || !this.db) return;
     this.uploading = true;
     this.setState({ status: 'syncing' });
 
@@ -329,14 +345,14 @@ export class TeamSyncService {
   }
 
   private async uploadEntry(entryId: string): Promise<void> {
-    if (!this.vault || !this.vek || !this.supabase || !this.teamVaultId) return;
+    if (!this.vault || !this.vek || !this.db || !this.teamVaultId) return;
 
     let entry;
     try {
       entry = this.vault.getEntry(entryId);
     } catch {
       // Entry was deleted — mark as soft-deleted in cloud
-      await this.supabase
+      await this.db
         .from('vault_entries')
         .update({ deleted_at: new Date().toISOString(), updated_by: this.userId })
         .eq('id', entryId)
@@ -362,7 +378,7 @@ export class TeamSyncService {
       : null;
 
     // Use the versioned upsert RPC for optimistic concurrency
-    const { data, error } = await this.supabase.rpc('upsert_vault_entry_versioned', {
+    const { data, error } = await this.db.rpc('upsert_vault_entry_versioned', {
       p_id: entry.id,
       p_vault_id: this.teamVaultId,
       p_name: entry.name,
@@ -404,14 +420,14 @@ export class TeamSyncService {
   }
 
   private async uploadFolder(folderId: string): Promise<void> {
-    if (!this.vault || !this.supabase || !this.teamVaultId) return;
+    if (!this.vault || !this.db || !this.teamVaultId) return;
 
     const folders = this.vault.listFolders();
     const folder = folders.find(f => f.id === folderId);
 
     if (!folder) {
       // Folder was deleted — soft-delete in cloud
-      await this.supabase
+      await this.db
         .from('vault_folders')
         .update({ deleted_at: new Date().toISOString(), updated_by: this.userId })
         .eq('id', folderId)
@@ -419,7 +435,7 @@ export class TeamSyncService {
       return;
     }
 
-    await this.supabase
+    await this.db
       .from('vault_folders')
       .upsert({
         id: folder.id,
@@ -435,14 +451,14 @@ export class TeamSyncService {
   }
 
   private async uploadPasswordHistory(historyId: string): Promise<void> {
-    if (!this.vault || !this.vek || !this.supabase || !this.teamVaultId) return;
+    if (!this.vault || !this.vek || !this.db || !this.teamVaultId) return;
 
     let historyEntry;
     try {
       historyEntry = this.vault.getPasswordHistoryEntry(historyId);
     } catch {
       // Entry was deleted — soft-delete in cloud
-      await this.supabase
+      await this.db
         .from('vault_password_history')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', historyId)
@@ -452,7 +468,7 @@ export class TeamSyncService {
 
     if (!historyEntry) {
       // Deleted locally — soft-delete in cloud
-      await this.supabase
+      await this.db
         .from('vault_password_history')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', historyId)
@@ -464,7 +480,7 @@ export class TeamSyncService {
       ? encrypt(Buffer.from(historyEntry.password, 'utf-8'), this.vek).toString('base64')
       : null;
 
-    const { error } = await this.supabase
+    const { error } = await this.db
       .from('vault_password_history')
       .upsert({
         id: historyEntry.id,
@@ -484,72 +500,65 @@ export class TeamSyncService {
 
   // ---------- Download path (Realtime) ----------
 
+  private closeChannel(): void {
+    this.subscribeAttempt++;
+    const channel = this.channel;
+    this.channel = null;
+    channel?.close().catch(() => undefined);
+  }
+
   private subscribe(): void {
-    if (!this.supabase || !this.teamVaultId) return;
+    const realtime = this.authService.getRealtimeOptions();
+    if (!realtime || !this.teamVaultId) return;
 
-    const channelName = `vault:${this.teamVaultId}`;
+    const vaultId = this.teamVaultId;
+    const attempt = ++this.subscribeAttempt;
+    const handlers: Record<string, (payload: Record<string, unknown>) => Promise<void>> = {
+      vault_entries: (p) => this.handleEntryChange(p),
+      vault_folders: (p) => this.handleFolderChange(p),
+      vault_password_history: (p) => this.handlePasswordHistoryChange(p),
+    };
 
-    this.channel = this.supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vault_entries',
-          filter: `vault_id=eq.${this.teamVaultId}`,
-        },
-        (payload) => {
-          this.handleEntryChange(payload).catch((err) => {
-            const entryId = ((payload as { new?: { id?: string } }).new)?.id;
+    watchRows(
+      realtime,
+      Object.keys(handlers),
+      { column: 'vault_id', value: vaultId },
+      (change) => {
+        const payload = asPostgresPayload(change);
+        handlers[change.table]!(payload).catch((err) => {
+          if (change.table === 'vault_entries') {
+            const entryId = payload.new.id as string | undefined;
             if (entryId && decryptFailedEntries.has(entryId)) return;
             if (entryId) decryptFailedEntries.add(entryId);
             console.warn('[team-sync] Failed to handle entry change:', err);
-          });
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vault_folders',
-          filter: `vault_id=eq.${this.teamVaultId}`,
-        },
-        (payload) => {
-          this.handleFolderChange(payload).catch((err) => {
-            console.error('[team-sync] Failed to handle folder change:', err);
-          });
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'vault_password_history',
-          filter: `vault_id=eq.${this.teamVaultId}`,
-        },
-        (payload) => {
-          this.handlePasswordHistoryChange(payload).catch((err) => {
-            console.warn('[team-sync] Failed to handle password history change:', err);
-          });
-        },
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
+          } else {
+            console.warn(`[team-sync] Failed to handle ${change.table} change:`, err);
+          }
+        });
+      },
+      (status) => {
+        if (status === 'open') {
           this.backoffMs = 1000;
           const now = Date.now();
           if (now - this.lastSubscribeLogAt > 60_000) {
             this.lastSubscribeLogAt = now;
-            console.log('[team-sync] Subscribed to Realtime channel:', channelName);
-          }
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          if (!this.destroyed) {
-            this.scheduleReconnect();
+            console.log('[team-sync] Subscribed to Realtime for vault:', vaultId);
           }
         }
-      });
+      },
+    ).then(
+      (sub) => {
+        if (attempt !== this.subscribeAttempt || this.destroyed) {
+          sub.close().catch(() => undefined);
+          return;
+        }
+        this.channel = sub;
+      },
+      (err) => {
+        console.warn('[team-sync] Realtime subscribe failed:', err instanceof Error ? err.message : err);
+        if (!this.destroyed && attempt === this.subscribeAttempt) this.scheduleReconnect();
+      },
+    );
   }
 
   private async handleEntryChange(payload: Record<string, unknown>): Promise<void> {
@@ -599,7 +608,7 @@ export class TeamSyncService {
           name: record.name as string,
           entry_type: record.entry_type as 'ssh' | 'rdp' | 'vnc' | 'web' | 'credential',
           folder_id: (record.folder_id as string) ?? null,
-          parent_entry_id: this.localParentId(record.parent_entry_id),
+          parent_entry_id: (record.parent_entry_id as string) ?? null,
           sort_order: (record.sort_order as number) ?? 0,
           host: (record.host as string) ?? null,
           port: (record.port as number) ?? null,
@@ -631,7 +640,7 @@ export class TeamSyncService {
           name: record.name as string,
           entry_type: record.entry_type as string,
           folder_id: (record.folder_id as string) ?? null,
-          parent_entry_id: this.localParentId(record.parent_entry_id),
+          parent_entry_id: (record.parent_entry_id as string) ?? null,
           sort_order: (record.sort_order as number) ?? 0,
           host: (record.host as string) ?? null,
           port: (record.port as number) ?? null,
@@ -789,13 +798,13 @@ export class TeamSyncService {
 
   /** Full reconciliation: download all cloud entries and merge. */
   private async reconcile(): Promise<void> {
-    if (this.reconciling || this.uploading || !this.vault || !this.vek || !this.supabase || !this.teamVaultId) return;
+    if (this.reconciling || this.uploading || !this.vault || !this.vek || !this.db || !this.teamVaultId) return;
     this.reconciling = true;
     this.setState({ status: 'syncing' });
 
     try {
       // Download all cloud entries
-      const { data: cloudEntries, error: entriesError } = await this.supabase
+      const { data: cloudEntries, error: entriesError } = await this.db
         .from('vault_entries')
         .select('*')
         .eq('vault_id', this.teamVaultId)
@@ -804,7 +813,7 @@ export class TeamSyncService {
       if (entriesError) throw entriesError;
 
       // Download all cloud folders
-      const { data: cloudFolders, error: foldersError } = await this.supabase
+      const { data: cloudFolders, error: foldersError } = await this.db
         .from('vault_folders')
         .select('*')
         .eq('vault_id', this.teamVaultId)
@@ -858,7 +867,7 @@ export class TeamSyncService {
       }
 
       // Download and merge password history
-      const { data: cloudHistory, error: historyError } = await this.supabase
+      const { data: cloudHistory, error: historyError } = await this.db
         .from('vault_password_history')
         .select('*')
         .eq('vault_id', this.teamVaultId)
@@ -901,9 +910,9 @@ export class TeamSyncService {
         }
       }
 
-      // Merge entries
+      // Merge entries, parents before the entries that point at them (the local parent_entry_id is a foreign key).
       if (cloudEntries) {
-        for (const ce of orderParentsFirst(cloudEntries as Array<Record<string, unknown> & { id: string }>)) {
+        for (const ce of parentsFirst<Record<string, any>>(cloudEntries)) {
           if (this.destroyed || !this.vault) break;
           try {
             await this.mergeCloudEntry(ce);
@@ -931,7 +940,7 @@ export class TeamSyncService {
         const deletedEntryIds = new Set<string>();
         const deletedFolderIds = new Set<string>();
         try {
-          const { data: deletedEntries } = await this.supabase
+          const { data: deletedEntries } = await this.db
             .from('vault_entries')
             .select('id')
             .eq('vault_id', this.teamVaultId)
@@ -940,7 +949,7 @@ export class TeamSyncService {
             for (const de of deletedEntries) deletedEntryIds.add(de.id as string);
           }
 
-          const { data: deletedFolders } = await this.supabase
+          const { data: deletedFolders } = await this.db
             .from('vault_folders')
             .select('id')
             .eq('vault_id', this.teamVaultId)
@@ -1050,7 +1059,7 @@ export class TeamSyncService {
             name: cloudEntry.name as string,
             entry_type: cloudEntry.entry_type as 'ssh' | 'rdp' | 'vnc' | 'web' | 'credential',
             folder_id: (cloudEntry.folder_id as string) ?? null,
-            parent_entry_id: this.localParentId(cloudEntry.parent_entry_id),
+            parent_entry_id: (cloudEntry.parent_entry_id as string) ?? null,
             sort_order: (cloudEntry.sort_order as number) ?? 0,
             host: (cloudEntry.host as string) ?? null,
             port: (cloudEntry.port as number) ?? null,
@@ -1081,7 +1090,7 @@ export class TeamSyncService {
           name: cloudEntry.name as string,
           entry_type: cloudEntry.entry_type as string,
           folder_id: (cloudEntry.folder_id as string) ?? null,
-          parent_entry_id: this.localParentId(cloudEntry.parent_entry_id),
+          parent_entry_id: (cloudEntry.parent_entry_id as string) ?? null,
           sort_order: (cloudEntry.sort_order as number) ?? 0,
           host: (cloudEntry.host as string) ?? null,
           port: (cloudEntry.port as number) ?? null,
@@ -1104,17 +1113,6 @@ export class TeamSyncService {
       }
     } finally {
       this.applyingRemoteChange = false;
-    }
-  }
-
-  /** A parent the local vault does not hold would fail the foreign key, so the entry lands at the top level. */
-  private localParentId(parentId: unknown): string | null {
-    if (typeof parentId !== 'string' || !parentId || !this.vault) return null;
-    try {
-      this.vault.getEntryMeta(parentId);
-      return parentId;
-    } catch {
-      return null;
     }
   }
 
@@ -1142,10 +1140,7 @@ export class TeamSyncService {
     if (this.destroyed) return;
 
     // Re-subscribe to Realtime
-    if (this.channel) {
-      this.supabase?.removeChannel(this.channel);
-      this.channel = null;
-    }
+    this.closeChannel();
     this.subscribe();
 
     // Attempt reconciliation

@@ -6,7 +6,7 @@
 
 import { ipcMain } from 'electron';
 import { AppState } from '../services/state.js';
-import type { AuthState } from '../services/auth/supabase.js';
+import type { AuthState } from '../services/auth/auth-service.js';
 import {
   CLOUD_BACKUP_PLAN_MESSAGE,
   CLOUD_RESTORE_PLAN_MESSAGE,

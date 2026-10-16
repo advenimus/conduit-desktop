@@ -1,5 +1,5 @@
 // Resilience of personal vault sync (docs/MULTI_DEVICE_SYNC.md 4.2, 6.5-6.8), live: opening and
-// editing while Supabase is unreachable, a take-over that an offline device learns about when its
+// editing while Appwrite is unreachable, a take-over that an offline device learns about when its
 // link comes back, the cached Pro tier offline, team vaults beside personal sync, and export and
 // import. Each scenario uses its own device names and its own folder under <cloud>/<scenario>/.
 
@@ -56,12 +56,12 @@ async function expectNoDialogs(ctx, device, why) {
 async function offlineOpen(ctx) {
   const { flows } = ctx;
   const user = await ctx.createUser('free');
-  const proxy = await ctx.supabaseProxy();
+  const proxy = await ctx.backendProxy();
   const a = await ctx.launchDevice('r1a', { env: proxy.env });
   await flows.signIn(a, user);
   const vault = vaultAt(ctx, 'r1');
   proxy.cut();
-  ctx.step('r1a: Supabase link cut after sign-in');
+  ctx.step('r1a: Appwrite link cut after sign-in');
 
   await flows.createVault(a, vault, PW);
   const entry = await flows.addEntry(a, { name: 'r1 server', host: '10.21.0.1', port: 22 });
@@ -81,7 +81,7 @@ async function offlineOpen(ctx) {
   ctx.step('offline edits are in the shared file');
   const ua = deviceUuid(a);
   ctx.checkEqual(await leaseRowsOf(user.email, ua), [], 'the server has no lease row while r1a is offline');
-  ctx.check(proxy.stats().refused > 0, `r1a tried to reach Supabase while cut (${JSON.stringify(proxy.stats())})`);
+  ctx.check(proxy.stats().refused > 0, `r1a tried to reach Appwrite while cut (${JSON.stringify(proxy.stats())})`);
 
   proxy.restore();
   const t0 = Date.now();
@@ -101,7 +101,7 @@ async function offlineOpen(ctx) {
 async function offlineTakeoverReconnect(ctx) {
   const { flows, ui } = ctx;
   const user = await ctx.createUser('free');
-  const proxy = await ctx.supabaseProxy();
+  const proxy = await ctx.backendProxy();
   const [a, b] = await Promise.all([ctx.launchDevice('r2a', { env: proxy.env }), ctx.launchDevice('r2b')]);
   await Promise.all([flows.signIn(a, user), flows.signIn(b, user)]);
   // Each device has its own copy of the drive folder, so B's publishes (and its owner claim) do
@@ -184,7 +184,7 @@ async function expectFreeTakeover(ctx, device, vault, why) {
 async function cachedProOffline(ctx) {
   const { flows } = ctx;
   const user = await ctx.createUser('pro');
-  const proxy = await ctx.supabaseProxy();
+  const proxy = await ctx.backendProxy();
   const [a, b0, c0] = await Promise.all([ctx.launchDevice('r3a'), ctx.launchDevice('r3b', { env: proxy.env }), ctx.launchDevice('r3c', { env: proxy.env })]);
   await Promise.all([flows.signIn(a, user), onlineOnce(ctx, [b0, c0], user)]);
   ctx.step('r3b and r3c signed in once online (tier cached: vault_max_open_devices -1) and quit');
@@ -213,7 +213,7 @@ async function cachedProOffline(ctx) {
   const stale = new Date(Date.now() - 8 * DAY_MS).toISOString();
   writeDeviceSettings(c0, { cached_tier_timestamp: stale });
   const [b, cStale] = await Promise.all([relaunchCached(ctx, 'r3b', proxy, user), relaunchCached(ctx, 'r3c', proxy, user)]);
-  ctx.step(`r3b and r3c relaunched with Supabase cut; r3c's cached_tier_timestamp set to ${stale} (8 days old)`);
+  ctx.step(`r3b and r3c relaunched with Appwrite cut; r3c's cached_tier_timestamp set to ${stale} (8 days old)`);
   await expectFreeTakeover(ctx, cStale, vault, 'an 8-day-old cache');
   await clickInDialog(cStale, TAKEOVER_TITLE, 'Cancel');
   await ctx.waitFor(async () => (await dialogDetails(cStale)).length === 0, { timeoutMs: 10_000, label: 'r3c: take-over dialog closed' });
@@ -371,7 +371,7 @@ export default {
   id: 'resilience',
   title: 'Offline use, reconnect, cached tier, team vaults and export/import',
   scenarios: [
-    { id: 'offline-open', title: 'Free, Supabase cut: the vault opens and edits publish; the lease is confirmed once the link returns', run: offlineOpen },
+    { id: 'offline-open', title: 'Free, Appwrite cut: the vault opens and edits publish; the lease is confirmed once the link returns', run: offlineOpen },
     { id: 'offline-takeover-reconnect', title: 'Free: B takes over while A is offline; A learns it on reconnect, locks, and loses nothing', run: offlineTakeoverReconnect },
     { id: 'cached-pro-offline', title: 'Pro offline: the cached tier keeps multi-device use; an 8-day-old or future-dated cache falls back to limit 1', run: cachedProOffline },
     { id: 'team-vault-regression', title: 'Team vault syncs between two devices with no personal-sync state; personal sync still works', run: teamVaultRegression },

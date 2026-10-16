@@ -3,7 +3,7 @@
 // release surviving a background re-acquire, the owner tag signed out and offline, the account
 // device cap, the minimum app version, and the server refusing cloud backup on Free.
 // Two accounts share one Vault.conduit per scenario in <cloud>/<scenario>/. Clocks are moved by
-// backdating rows with ctx.sql, the same way the SQL tests do.
+// backdating rows through the api as the service, the same way the server tests do.
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -14,7 +14,6 @@ import { dialogDetails, waitForDialog, waitForDisplaced, useHereFromTakeover } f
 import { openSettings, readSyncTab, cancelSettings } from '../lib/settings-flows.mjs';
 import { clickInDialog, stubDialogs, waitForBanner, waitForToast } from '../lib/ui-forms.mjs';
 import { cloudBackupSection, enableCloudBackup } from '../lib/backup-flows.mjs';
-import { API_URL, getAnonKey, passwordSession } from '../lib/supabase.mjs';
 import { SELECTORS } from '../lib/selectors.mjs';
 
 const PW = 'verify-owner-password-1';
@@ -50,11 +49,10 @@ async function lineageOf(ctx, device) {
 }
 
 function ownerRow(ctx, lineage) {
-  return ctx.sqlJson(
-    'select owner_id, owner_since, grace_started_at, released_by from public.personal_vault_owners where vault_key = :\'k\'',
-    { k: lineage },
-  ).then((rows) => rows[0] ?? null);
+  return ctx.rows('personal_vault_owners', { vault_key: lineage }, { columns: 'owner_id, owner_since, grace_started_at, released_by' }).then((rows) => rows[0] ?? null);
 }
+
+const DAY_S = 86_400;
 
 function waitOwnership(ctx, device, kind, timeoutMs = HEARTBEAT_MS) {
   return ctx.waitFor(async () => {
@@ -65,11 +63,9 @@ function waitOwnership(ctx, device, kind, timeoutMs = HEARTBEAT_MS) {
 
 /** Ends the vault and pair grace clocks (15 days back), as the SQL tests do. */
 async function endGrace(ctx, lineage, a, b) {
-  await ctx.sql("update public.personal_vault_owners set grace_started_at = grace_started_at - interval '15 days' where vault_key = :'k'", { k: lineage });
-  await ctx.sql(
-    "update public.personal_vault_guest_grace set started_at = started_at - interval '15 days' where account_lo = least(:'a'::uuid, :'b'::uuid) and account_hi = greatest(:'a'::uuid, :'b'::uuid)",
-    { a: a.id, b: b.id },
-  );
+  await ctx.shiftBack('personal_vault_owners', 'grace_started_at', { vault_key: lineage }, 15 * DAY_S);
+  const [lo, hi] = [a.id, b.id].sort();
+  await ctx.shiftBack('personal_vault_guest_grace', 'started_at', { account_lo: lo, account_hi: hi }, 15 * DAY_S);
   ctx.step('grace clocks moved back 15 days');
 }
 
@@ -175,7 +171,7 @@ async function releaseHandOver(ctx) {
   const vault = vaultIn(ctx, 'o3');
   await flows.createVault(a, vault, PW);
   const lineage = await lineageOf(ctx, a);
-  await ctx.sql("update public.personal_vault_owners set owner_since = owner_since - interval '8 days' where vault_key = :'k'", { k: lineage });
+  await ctx.shiftBack('personal_vault_owners', 'owner_since', { vault_key: lineage }, 8 * DAY_S);
   await releaseFromSettings(ctx, a);
   const released = await ownerRow(ctx, lineage);
   ctx.check(released.owner_id === null && released.released_by === ua.id, `released (${JSON.stringify(released)})`);
@@ -206,17 +202,14 @@ async function releaseSurvivesReacquire(ctx) {
   await flows.createVault(a1, vault, PW);
   await flows.openVault(a2, vault, PW, { expect: 'unlocked' });
   const lineage = await lineageOf(ctx, a1);
-  await ctx.sql("update public.personal_vault_owners set owner_since = owner_since - interval '8 days' where vault_key = :'k'", { k: lineage });
+  await ctx.shiftBack('personal_vault_owners', 'owner_since', { vault_key: lineage }, 8 * DAY_S);
   await releaseFromSettings(ctx, a1);
   const u2 = deviceUuid(a2);
-  await ctx.sql(
-    "update public.personal_vault_sessions set expires_at = now() - interval '1 second' where vault_key = :'k' and device_id = :'d'",
-    { k: lineage, d: u2 },
-  );
+  await ctx.updateRows('personal_vault_sessions', { expires_at: new Date(Date.now() - 1_000).toISOString() }, { vault_key: lineage, device_id: u2 });
   ctx.step('a2 lease expired by hand; its next heartbeat is lost and it re-acquires in the background');
   await ctx.waitFor(async () => {
-    const rows = await ctx.sqlJson("select status, expires_at > now() as live from public.personal_vault_sessions where vault_key = :'k' and device_id = :'d'", { k: lineage, d: u2 });
-    return rows[0]?.status === 'active' && rows[0]?.live ? rows[0] : null;
+    const rows = await ctx.rows('personal_vault_sessions', { vault_key: lineage, device_id: u2 }, { columns: 'status, expires_at' });
+    return rows[0]?.status === 'active' && Date.parse(rows[0].expires_at) > Date.now() ? rows[0] : null;
   }, { timeoutMs: HEARTBEAT_MS, intervalMs: 1_000, label: 'a2 re-acquired' });
   ctx.checkEqual((await ownerRow(ctx, lineage)).owner_id, null, 'a background re-acquire never claims the released vault');
   await waitOwnership(ctx, a2, 'unowned', HEARTBEAT_MS);
@@ -249,7 +242,7 @@ async function signedOutTag(ctx) {
 
 async function offlineOwner(ctx) {
   const { flows } = ctx;
-  const proxyA = await ctx.supabaseProxy();
+  const proxyA = await ctx.backendProxy();
   const ua = await ctx.createUser('pro');
   const a = await ctx.launchDevice('o6a', { env: proxyA.env });
   await flows.signIn(a, ua);
@@ -261,7 +254,7 @@ async function offlineOwner(ctx) {
   await flows.openVault(a, vault, PW, { expect: 'unlocked' });
   ctx.step('the owner opened its vault offline');
 
-  const proxyB = await ctx.supabaseProxy();
+  const proxyB = await ctx.backendProxy();
   const ub = await ctx.createUser('pro');
   const b = await ctx.launchDevice('o6b', { env: proxyB.env });
   await flows.signIn(b, ub);
@@ -286,11 +279,11 @@ async function deviceCap(ctx) {
   for (let i = 1; i <= 5; i++) {
     const id = crypto.randomUUID();
     fakes.push(id);
-    await ctx.sql(
-      `insert into public.personal_vault_sessions (user_id, vault_key, device_id, lease_id, session_nonce, device_name, platform, app_version, expires_at, last_active_at)
-       values (:'uid', gen_random_uuid(), :'dev', gen_random_uuid(), gen_random_uuid(), :'name', 'windows', '0.18.0', now() + interval '10 minutes', now() - make_interval(mins => :'age'::int))`,
-      { uid: user.id, dev: id, name: `Fake PC ${i}`, age: String(60 - i) },
-    );
+    await ctx.insertRows('personal_vault_sessions', {
+      user_id: user.id, vault_key: crypto.randomUUID(), device_id: id, lease_id: crypto.randomUUID(), session_nonce: crypto.randomUUID(),
+      device_name: `Fake PC ${i}`, platform: 'windows', app_version: '0.18.0', expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
+      last_active_at: new Date(Date.now() - (60 - i) * 60_000).toISOString(),
+    });
   }
   ctx.step('five other devices of this account hold live leases');
   const res = await flows.openVault(a, vault, PW);
@@ -299,7 +292,7 @@ async function deviceCap(ctx) {
   ctx.check(res.text.includes('Conduit will lock your vaults on Fake PC 1, the one you used least recently.'), 'S1 names the least recent device');
   await ctx.shot(a, 'too-many-devices');
   await useHereFromTakeover(a);
-  const rows = await ctx.sqlJson("select status, displaced_reason from public.personal_vault_sessions where device_id = :'d'", { d: fakes[0] });
+  const rows = await ctx.rows('personal_vault_sessions', { device_id: fakes[0] }, { columns: 'status, displaced_reason' });
   ctx.checkEqual(rows, [{ status: 'displaced', displaced_reason: 'device_cap' }], 'the least recent device was displaced by the cap');
 }
 
@@ -307,13 +300,14 @@ async function deviceCap(ctx) {
 
 async function updateRequired(ctx) {
   const { flows } = ctx;
-  const restore = () => ctx.sql("update public.app_config set value = :'v'::jsonb, updated_at = now() where key = 'min_app_version'", { v: MIN_VERSION_OFF });
+  const restore = () => ctx.updateRows('app_config', { value: JSON.parse(MIN_VERSION_OFF), updated_at: new Date().toISOString() }, { key: 'min_app_version' });
   const stopAtRunEnd = ctx.run.onCleanup('reset min_app_version', restore);
   ctx.onClose('reset min_app_version', stopAtRunEnd);
   const { devices: [a] } = await signedIn(ctx, 'pro', ['o8a']);
   const vault = vaultIn(ctx, 'o8');
   await flows.createVault(a, vault, PW);
-  await ctx.sql("update public.app_config set value = jsonb_set(value, '{desktop}', '\"99.0.0\"'), updated_at = now() where key = 'min_app_version'");
+  const [min] = await ctx.rows('app_config', { key: 'min_app_version' });
+  await ctx.updateRows('app_config', { value: { ...min.value, desktop: '99.0.0' }, updated_at: new Date().toISOString() }, { key: 'min_app_version' });
   ctx.step('min_app_version.desktop set to 99.0.0');
   try {
     const displaced = await waitForDisplaced(a, { timeoutMs: DISPLACED_MS });
@@ -340,14 +334,9 @@ async function cloudBackupFree(ctx) {
   await ctx.setTier(user.id, 'free');
   ctx.step('plan set to free with cloud backup on');
 
-  const { accessToken } = await passwordSession(user);
-  const res = await fetch(`${API_URL}/storage/v1/object/vaults/${user.id}/${crypto.randomUUID()}/vault.enc`, {
-    method: 'POST',
-    headers: { apikey: await getAnonKey(), Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/octet-stream' },
-    body: Buffer.from('x'),
-    signal: AbortSignal.timeout(15_000),
-  });
-  ctx.check(!res.ok, `the server refuses a Free upload (HTTP ${res.status})`);
+  const asUser = await ctx.userDb(user);
+  const res = await asUser.storage.from('vaults').upload(`${user.id}/${crypto.randomUUID()}/vault.enc`, Buffer.from('x'));
+  ctx.check(res.error !== null, `the server refuses a Free upload (${res.error?.statusCode} ${res.error?.message})`);
 
   await cloudBackupSection(a);
   await ctx.ui.clickText(a, 'Back Up Now', { exact: true, selector: `${SELECTORS.settingsRoot.hook} button` });

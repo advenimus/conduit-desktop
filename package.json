@@ -1,7 +1,7 @@
 {
   "name": "conduit",
   "private": true,
-  "version": "0.18.1",
+  "version": "0.18.2",
   "description": "AI-powered remote connection manager with MCP server support",
   "author": {
     "name": "Advenimus",
@@ -31,17 +31,16 @@
     "verify:ownership": "node scripts/verify/run.mjs ownership",
     "verify:startup": "node scripts/verify/run.mjs startup",
     "verify:data": "node scripts/verify/run.mjs backup copies lifecycle password resilience",
-    "test:sql": "node scripts/verify/run-sql-tests.mjs",
+    "test:server": "cd appwrite && npm test",
     "postinstall": "patch-package && node -e \"require('fs').rmSync('node_modules/.vite',{recursive:true,force:true})\" && install-electron && npx @electron/rebuild --only better-sqlite3,node-pty,koffi,sharp && node scripts/stamp-electron-dev.cjs",
-    "supabase:start": "cd ../conduit && supabase start",
-    "supabase:stop": "cd ../conduit && supabase stop",
-    "supabase:restart": "cd ../conduit && supabase stop && supabase start",
-    "supabase:status": "cd ../conduit && supabase status"
+    "appwrite:setup": "cd appwrite && npm ci --no-audit --no-fund && node scripts/setup-local.ts",
+    "appwrite:deploy": "node scripts/appwrite-local.mjs deploy",
+    "appwrite:start": "node scripts/appwrite-local.mjs start",
+    "appwrite:stop": "node scripts/appwrite-local.mjs stop"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.45",
     "@novnc/novnc": "^1.6.0",
-    "@supabase/supabase-js": "^2.95.3",
     "@tailwindcss/typography": "^0.5.19",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-webgl": "^0.19.0",
@@ -54,6 +53,7 @@
     "fix-path": "^5.0.0",
     "jsqr": "^1.4.0",
     "koffi": "^2.15.2",
+    "node-appwrite": "29.4.0",
     "node-pty": "^1.1.0",
     "otpauth": "^9.5.0",
     "react": "^19.2.4",
