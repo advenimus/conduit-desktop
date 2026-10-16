@@ -244,6 +244,42 @@ describe("EntryTree View Info", () => {
   });
 });
 
+describe("EntryTree RD Gateway objects", () => {
+  const GATEWAY = {
+    id: "g1", name: "Office gateway", entry_type: "credential", credential_type: "rd_gateway",
+    folder_id: null, sort_order: 2, is_favorite: false, config: { gatewayHostname: "gw" },
+  } as unknown as EntryMeta;
+
+  function withGateway(rdpConfigs: Record<string, unknown>[]) {
+    const rdp = rdpConfigs.map((config, i) => ({
+      id: `r${i}`, name: `app-0${i}`, entry_type: "rdp", folder_id: null, sort_order: 3 + i, is_favorite: false, config,
+    })) as unknown as EntryMeta[];
+    useEntryStore.setState({ entries: [...ENTRIES, GATEWAY, ...rdp], selectedEntryIds: new Set(["g1"]), selectedEntryId: "g1" } as never);
+  }
+
+  it("shows a gateway in the tree with the gateway color, not the credential color", async () => {
+    setup();
+    withGateway([]);
+    render(<EntryTree />);
+    const row = rowOf(await screen.findByText("Office gateway").then((el) => el.textContent!));
+    expect(row.querySelector(".text-entry-rdp")).not.toBeNull();
+    expect(row.querySelector(".text-entry-credential")).toBeNull();
+  });
+
+  it("says how many RDP entries use a gateway before deleting it", async () => {
+    setup();
+    withGateway([{ gatewayId: "g1" }, { gatewayId: "g1" }, {}]);
+    render(<EntryTree />);
+    await screen.findByText("Office gateway");
+    act(() => {
+      document.dispatchEvent(new CustomEvent("conduit:delete-selected"));
+    });
+    expect(
+      await screen.findByText('Delete the gateway "Office gateway"? 2 RDP entries use it. They will not connect until you pick another gateway for them.'),
+    ).toBeTruthy();
+  });
+});
+
 type MenuTree = MenuItem & { children?: MenuItem[] };
 
 function recordCreateEvents() {
@@ -268,7 +304,7 @@ describe("EntryTree create items", () => {
     const items = (await menuFor("Production")) as MenuTree[];
     expect(items.slice(2, 5).map((i) => i.id)).toEqual(["new_entry", "new_folder", "new_article"]);
     const children = items[2].children!.filter((c) => !c.type).map((c) => c.label);
-    expect(children).toEqual(["SSH", "RDP", "VNC", "Web", "Document", "Command", "Password", "SSH Key"]);
+    expect(children).toEqual(["SSH", "RDP", "VNC", "Web", "RD Gateway", "Document", "Command", "Password", "SSH Key"]);
   });
 
   it("creates a typed entry or a subfolder inside the right-clicked folder", async () => {

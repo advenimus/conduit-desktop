@@ -1,0 +1,54 @@
+name: conduit-gw-test
+
+# Local RD Gateway test rig. Test-only credentials; never reuse them anywhere.
+# The desktop sits on an internal network with no published port, so the only
+# way to reach it from the Mac is through the gateway.
+
+services:
+  rdpgw:
+    image: bolkedebruin/rdpgw@sha256:fd82a8616db4ad65cb8d8f2aab4ea582d447a8ace562cd3d1358e0c2aa1c3abd
+    entrypoint: ["/bin/sh", "/etc/rdpgw/entrypoint.sh"]
+    environment:
+      RDPGW_SERVER__GATEWAY_ADDRESS: "localhost:${GW_PORT:-18443}"
+    volumes:
+      - ./rdpgw/rdpgw.yaml:/etc/rdpgw/rdpgw.yaml:ro
+      - ./rdpgw/rdpgw-auth.yaml:/etc/rdpgw/rdpgw-auth.yaml:ro
+      - ./rdpgw/entrypoint.sh:/etc/rdpgw/entrypoint.sh:ro
+      - ./certs:/etc/rdpgw/certs:ro
+    ports:
+      - "127.0.0.1:${GW_PORT:-18443}:8443"
+    networks:
+      - edge
+      - backend
+    depends_on:
+      desktop:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -S /tmp/rdpgw-auth.sock && wget -q --no-check-certificate -O /dev/null https://127.0.0.1:8443/metrics"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  desktop:
+    build: ./desktop
+    image: conduit-gw-test-desktop:local
+    hostname: desktop
+    environment:
+      DESK_USER: deskuser
+      DESK_PASS: "DeskTest-Pass1!"
+      SHARED_USER: shareduser
+      SHARED_PASS: "SharedTest-Pass1!"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/3389' && pgrep -x xrdp-sesman >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    restart: unless-stopped
+
+networks:
+  edge: {}
+  backend:
+    internal: true

@@ -1,14 +1,27 @@
-export type CredentialType = 'generic' | 'ssh_key';
+import { RD_GATEWAY_CREDENTIAL_TYPE } from '../lib/rdpGateway';
+
+export type CredentialType = 'generic' | 'ssh_key' | 'rd_gateway';
 
 export const CREDENTIAL_TYPES: Record<CredentialType, { label: string; description: string }> = {
   generic: { label: 'Generic', description: 'Username, password, domain, private key' },
   ssh_key: { label: 'SSH Key', description: 'SSH key pair with public key and fingerprint' },
+  rd_gateway: { label: 'RD Gateway', description: 'Remote Desktop Gateway that RDP entries connect through' },
 };
 
 /** Resolve a raw credential_type string to a known type. Falls back to 'generic'. */
 export function resolveCredentialType(raw: string | null | undefined): CredentialType {
   if (raw === 'ssh_key') return 'ssh_key';
+  if (raw === RD_GATEWAY_CREDENTIAL_TYPE) return 'rd_gateway';
   return 'generic';
+}
+
+/** A gateway is its own vault object, not a login, so login pickers leave it out. */
+export function isLoginCredentialType(raw: string | null | undefined): boolean {
+  return raw !== RD_GATEWAY_CREDENTIAL_TYPE;
+}
+
+export function loginCredentials<T extends { credential_type: string | null }>(credentials: readonly T[]): T[] {
+  return credentials.filter((c) => isLoginCredentialType(c.credential_type));
 }
 
 export interface CredentialMeta {

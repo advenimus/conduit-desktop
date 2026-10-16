@@ -104,6 +104,41 @@ describe("RdpView states (restyle)", () => {
     expect(container.querySelector(LEGACY)).toBeNull();
   });
 
+  it("names the gateway while connecting through one", () => {
+    useSessionStore.setState({
+      sessions: [{
+        id: "r1", type: "rdp", title: "app", status: "connecting",
+        metadata: { gatewayId: "g1", gatewayName: "Office gateway", gatewayHost: "gw.example.com" },
+      }],
+    });
+    const { container, rerender } = render(<RdpView {...base} status="connecting" />);
+    expect(container.textContent).toBe("Connecting through gateway Office gatewaygw.example.com");
+    rerender(<RdpView {...base} status="connecting" reconnecting />);
+    expect(container.textContent).toBe("Reconnecting...Waiting for server to release previous session");
+    useSessionStore.setState({ sessions: [] });
+  });
+
+  it("explains a gateway login failure for a session that used a gateway", () => {
+    useSessionStore.setState({
+      sessions: [{ id: "r1", type: "rdp", title: "app", status: "disconnected", metadata: { gatewayId: "g1", gatewayName: "Office gateway", gatewayHost: "gw.example.com" } }],
+    });
+    render(<RdpView {...base} status="disconnected" connectionError="Access denied. [rdp-error code=0x00020016 phase=gateway]" />);
+    expect(screen.getByText(/The gateway did not accept the login/)).toBeInTheDocument();
+    expect(screen.getByText("Access denied.")).toBeInTheDocument();
+    expect(screen.queryByText(/rdp-error/)).toBeNull();
+    useSessionStore.setState({ sessions: [] });
+  });
+
+  it("does not blame the gateway when the computer behind it denied access", () => {
+    useSessionStore.setState({
+      sessions: [{ id: "r1", type: "rdp", title: "app", status: "disconnected", metadata: { gatewayId: "g1", gatewayName: "Office gateway", gatewayHost: "gw.example.com" } }],
+    });
+    render(<RdpView {...base} status="disconnected" connectionError="Access denied. [rdp-error code=0x00020016 phase=target]" />);
+    expect(screen.queryByText(/gateway/i)).toBeNull();
+    expect(screen.getByText("Access denied.")).toBeInTheDocument();
+    useSessionStore.setState({ sessions: [] });
+  });
+
   it("the error state keeps its texts and Close", () => {
     const onClose = vi.fn();
     const { container } = render(<RdpView {...base} status="disconnected" connectionError="raw failure" onClose={onClose} />);

@@ -8,6 +8,8 @@ import { useTeamStore } from "../../stores/teamStore";
 import { useAuthStore } from "../../stores/authStore";
 import { invoke } from "../../lib/electron";
 import { getEntryIcon, getEntryColor } from "./entryIcons";
+import { gatewayDeleteMessage, gatewayUsageCount } from "./gatewayForm";
+import { RD_GATEWAY_CREDENTIAL_TYPE } from "../../lib/rdpGateway";
 import ConfirmDialog from "../common/ConfirmDialog";
 import ConflictDot from "../sync/ConflictDot";
 import { showContextMenu, type PopupMenuItem } from "../../utils/contextMenu";
@@ -30,6 +32,7 @@ interface TreeNode {
   name: string;
   kind: "folder" | "entry";
   entryType?: EntryType;
+  credentialType?: string | null;
   customIcon?: string | null;
   customColor?: string | null;
   children?: TreeNode[];
@@ -243,7 +246,10 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
       const entry = state.entries.find((e) => e.id === currentId);
       if (entry) {
         setDeleteConfirm({
-          node: { id: entry.id, name: entry.name, kind: "entry", entryType: entry.entry_type, sortOrder: entry.sort_order },
+          node: {
+            id: entry.id, name: entry.name, kind: "entry", entryType: entry.entry_type,
+            credentialType: entry.credential_type, sortOrder: entry.sort_order,
+          },
         });
       }
     };
@@ -818,6 +824,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           name: e.name,
           kind: "entry",
           entryType: e.entry_type,
+          credentialType: e.credential_type,
           customIcon: e.icon,
           customColor: e.color,
           sortOrder: e.sort_order,
@@ -860,6 +867,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         name: entry.name,
         kind: "entry",
         entryType: entry.entry_type,
+        credentialType: entry.credential_type,
         customIcon: entry.icon,
         customColor: entry.color,
         children: [],
@@ -936,8 +944,8 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
     // Both folders and entries accept drops (entries become parents of nested entries).
     const isDragOver = dragOverFolderId === node.id;
     const iconType = isFolder ? "folder" : node.entryType!;
-    const Icon = getEntryIcon(iconType as EntryType | "folder", isExpanded, node.customIcon);
-    const colorResult = getEntryColor(iconType as EntryType | "folder", node.customColor);
+    const Icon = getEntryIcon(iconType as EntryType | "folder", isExpanded, node.customIcon, node.credentialType);
+    const colorResult = getEntryColor(iconType as EntryType | "folder", node.customColor, node.credentialType);
 
     return (
       <div key={node.id}>
@@ -1155,6 +1163,8 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           message = totalItems > 0
             ? `This folder contains ${totalItems} item${totalItems !== 1 ? "s" : ""}. Are you sure you want to delete "${deleteConfirm.node.name}" and all its contents?`
             : `Are you sure you want to delete the folder "${deleteConfirm.node.name}"?`;
+        } else if (deleteConfirm.node.credentialType === RD_GATEWAY_CREDENTIAL_TYPE) {
+          message = gatewayDeleteMessage(deleteConfirm.node.name, gatewayUsageCount(entries, deleteConfirm.node.id));
         } else {
           message = `Are you sure you want to delete "${deleteConfirm.node.name}"?`;
         }

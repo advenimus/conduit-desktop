@@ -9,9 +9,11 @@
  */
 
 import type { RdpEngineConfig } from '../services/rdp/engine.js';
+import { gatewayIdOf, type RdpEntryGatewayFields } from '../services/rdp/gateway-config.js';
+import { connectGateway, type GatewayVault } from '../services/rdp/gateway-connect.js';
 
 /** Minimal view of the RDP fields stored on an entry's `config` JSON blob. */
-export interface RdpEntryConfigFields {
+export interface RdpEntryConfigFields extends RdpEntryGatewayFields {
   resolution?: string;
   customWidth?: number;
   customHeight?: number;
@@ -22,6 +24,12 @@ export interface RdpEntryConfigFields {
   hostname?: string;
   sharedFolders?: { name: string; path: string; readOnly?: boolean }[];
 }
+
+const NO_GATEWAYS: GatewayVault = {
+  getEntry: (id) => {
+    throw new Error(`Entry not found: ${id}`);
+  },
+};
 
 /** Map the entry's quality setting to the engine's performance mode (mirrors the renderer). */
 export function mapQualityToPerformanceMode(
@@ -72,9 +80,16 @@ export function buildRdpEngineConfigFromEntry(opts: {
   password: string;
   domain?: string;
   entryConfig: Record<string, unknown> | undefined;
+  // config.gatewayId is read from here like rdp_connect does; throws GatewayConfigError when it is gone or has no login.
+  gatewayVault?: GatewayVault;
 }): RdpEngineConfig {
   const cfg = (opts.entryConfig ?? {}) as RdpEntryConfigFields;
   const { width, height } = resolutionToDimensions(cfg);
+  const gateway = connectGateway(
+    gatewayIdOf(cfg),
+    { username: opts.username, password: opts.password, domain: opts.domain },
+    opts.gatewayVault ?? NO_GATEWAYS,
+  );
 
   return {
     host: opts.host,
@@ -94,5 +109,6 @@ export function buildRdpEngineConfigFromEntry(opts: {
     enableServerPointer: true,
     frameRate: 30,
     enableClipboard: cfg.clipboard ?? true,
+    gateway,
   };
 }

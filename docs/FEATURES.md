@@ -48,6 +48,14 @@
 - Bitmap caching, server pointer rendering
 - Hostname override for multi-homed servers
 - Send Ctrl+Alt+Delete via RDP tab context menu
+- **RD Gateway** (see `docs/RDP_GATEWAY.md`): connect through a Remote Desktop Gateway over HTTPS
+  - A gateway is its own vault object (New Entry > RD Gateway): server, port, skip for local addresses, transport under Advanced
+  - Gateway login: type one in (password stored encrypted), link a saved credential, or use the login of the RDP entry that connects through it
+  - RDP entry Gateway tab: No gateway or one of the vault's gateways, plus New gateway... to make one on the spot. A deleted gateway shows a warning
+  - The gateway editor says how many RDP entries use it, and deleting one in use says how many entries it affects
+  - Gateways show in the sidebar with their own icon and are left out of every login picker
+  - The connecting screen names the gateway, and gateway failures (login, unreachable, refused by policy, certificate) get their own error messages
+  - iOS shows a gateway as a regular credential and connects RDP entries straight to the computer
 
 ### VNC (Virtual Network Computing)
 - Password authentication via rfb2 client

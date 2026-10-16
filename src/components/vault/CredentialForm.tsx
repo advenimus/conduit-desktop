@@ -3,7 +3,7 @@ import { useVaultStore } from "../../stores/vaultStore";
 import PasswordGenerateButton from "../tools/PasswordGenerateButton";
 import SshKeyGenerateButton from "../tools/SshKeyGenerateButton";
 import type { CredentialDto } from "../../types/credential";
-import { CREDENTIAL_TYPES, resolveCredentialType, type CredentialType } from "../../types/credential";
+import { CREDENTIAL_TYPES, isLoginCredentialType, resolveCredentialType, type CredentialType } from "../../types/credential";
 import { toast } from "../common/Toast";
 import { invoke } from "../../lib/electron";
 import { generateTotpCode } from "../../lib/totp";
@@ -238,7 +238,9 @@ export default function CredentialForm({
     }
   };
 
-  const credentialTypeEntries = Object.entries(CREDENTIAL_TYPES) as [CredentialType, { label: string; description: string }][];
+  const credentialTypeEntries = (Object.entries(CREDENTIAL_TYPES) as [CredentialType, { label: string; description: string }][]).filter(
+    ([key]) => isLoginCredentialType(key),
+  );
 
   const title = isEditing
     ? "Edit Credential"

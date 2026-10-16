@@ -74,7 +74,7 @@ npm run dev:electron
 npm run dev:electron:prod
 
 # Build
-npm run build:electron
+npm run build   # tsc + vite build + electron tsc + mcp tsc
 
 # Build FreeRDP helper (C binary) — see docs/BUILD_FREERDP.md
 cd freerdp-helper && bash build-freerdp.sh
@@ -151,7 +151,7 @@ Desktop side: `electron/services/auth/auth-service.ts` adopts the session the we
 
 ## Conventions
 
-- `npm run build:electron` must pass before shipping
+- `npm run build` must pass before shipping
 - `npx tsc --noEmit` must pass (no new type errors)
 - Feature changes include a matching entry in `docs/FEATURES.md`
 - Every release tag needs a notes file at `docs/releases/vX.Y.Z.md` merged first (format in `docs/releases/README.md`); the release workflow publishes it as the GitHub release body

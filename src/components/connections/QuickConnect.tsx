@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "../../lib/electron";
 import { KeyIcon } from "../../lib/icons";
 import { useSessionStore, SessionType } from "../../stores/sessionStore";
 import PasswordGenerateButton from "../tools/PasswordGenerateButton";
 import { useVaultStore } from "../../stores/vaultStore";
+import { loginCredentials } from "../../types/credential";
 import { Button, Callout, Dialog, FormField, IconButton, SegmentedControl, Select, TextInput, type SegmentOption } from "../ui";
 import { FULL_WIDTH_SEGMENTS } from "../tools/segments";
 import { errorText } from "../../lib/errorText";
@@ -40,7 +41,8 @@ export default function QuickConnect({ onClose }: QuickConnectProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const addSession = useSessionStore((s) => s.addSession);
-  const { credentials, isUnlocked, loadCredentials } = useVaultStore();
+  const { credentials: allCredentials, isUnlocked, loadCredentials } = useVaultStore();
+  const credentials = useMemo(() => loginCredentials(allCredentials), [allCredentials]);
 
   useEffect(() => {
     if (isUnlocked) {

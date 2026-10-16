@@ -8,6 +8,7 @@ import { useSidebarStore } from "./sidebarStore";
 import { useAuthStore } from "./authStore";
 import { useTierStore } from "./tierStore";
 import { resolveRdpConfig, resolveWebConfig } from "../lib/resolveConfig";
+import { describeGatewayAddress, gatewayIdOf, isRdGateway } from "../lib/rdpGateway";
 import { toast } from "../components/common/Toast";
 import { disposeTerminalEntry } from "../components/sessions/TerminalView";
 import { errorText } from "../lib/errorText";
@@ -194,6 +195,16 @@ function deriveSingleId(ids: Set<string>): string | null {
   return ids.size === 1 ? ids.values().next().value! : null;
 }
 
+/** What the RDP connecting and error screens show about the entry's gateway. */
+function rdpGatewayMetadata(gatewayId: string | undefined) {
+  const gateway = gatewayId ? useEntryStore.getState().entries.find((e) => e.id === gatewayId && isRdGateway(e)) : undefined;
+  return {
+    gatewayId: gatewayId ?? null,
+    gatewayName: gateway?.name ?? null,
+    gatewayHost: gateway ? describeGatewayAddress(gateway.config) || null : null,
+  };
+}
+
 /**
  * Shared connection logic used by openEntry and openEntryWithCredential.
  * Handles adding sessions and invoking protocol-specific IPC for SSH/RDP/VNC/Web.
@@ -227,6 +238,10 @@ async function connectEntry(
 
     const globalRdpDefaults = useSettingsStore.getState().sessionDefaultsRdp;
     const rdpCfg: RdpEntryConfig = resolveRdpConfig(entry.config as Partial<RdpEntryConfig>, globalRdpDefaults);
+    // Only the id goes to the main process; it loads the gateway and its login from the vault.
+    const gatewayId = gatewayIdOf(entry.config);
+    const gatewayMeta = rdpGatewayMetadata(gatewayId);
+    sessionStore.updateSessionMetadata(entry.id, gatewayMeta);
     const contentEl = document.querySelector('[data-content-area]');
     const { width: w, height: h, desktopScaleFactor, deviceScaleFactor, effectiveHighDpi } = computeRdpDimensions(rdpCfg, contentEl);
 
@@ -249,6 +264,7 @@ async function connectEntry(
       desktopScaleFactor,
       deviceScaleFactor,
       enableClipboard: rdpCfg.clipboard,
+      gatewayId,
     }).then((result) => {
       useSessionStore.getState().addSession({
         id: entry.id, type: "rdp", title: entry.name,
@@ -256,7 +272,7 @@ async function connectEntry(
         metadata: {
           rdpWidth: result.width, rdpHeight: result.height,
           rdpMode: result.mode, enableHighDpi: effectiveHighDpi,
-          enableClipboard: rdpCfg.clipboard,
+          enableClipboard: rdpCfg.clipboard, ...gatewayMeta,
         },
       });
     }).catch((err) => {

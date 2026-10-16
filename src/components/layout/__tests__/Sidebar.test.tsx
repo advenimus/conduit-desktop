@@ -258,7 +258,7 @@ describe("Sidebar create menus", () => {
     const rect = plus.getBoundingClientRect();
     expect([x, y, options]).toEqual([rect.right, rect.bottom, { anchorRight: true }]);
     expect(ids(items)).toEqual([
-      "new_entry:ssh", "new_entry:rdp", "new_entry:vnc", "new_entry:web", "sep",
+      "new_entry:ssh", "new_entry:rdp", "new_entry:vnc", "new_entry:web", "new_entry:credential:rd_gateway", "sep",
       "new_entry:document", "sep", "new_entry:command", "sep",
       "new_entry:credential:generic", "new_entry:credential:ssh_key", "sep",
       "new_entry:pick", "new_folder",

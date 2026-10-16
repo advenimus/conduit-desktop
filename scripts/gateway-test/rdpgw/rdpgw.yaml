@@ -1,0 +1,23 @@
+# rdpgw config for the local test rig. Session and token keys are left empty
+# on purpose: rdpgw then picks random ones at start, which is fine for one
+# test instance.
+Server:
+  Authentication:
+    - ntlm
+  AuthSocket: /tmp/rdpgw-auth.sock
+  Tls: enable
+  CertFile: /etc/rdpgw/certs/gateway.pem
+  KeyFile: /etc/rdpgw/certs/gateway-key.pem
+  GatewayAddress: localhost:18443
+  Port: 8443
+  HostSelection: unsigned
+  Hosts:
+    - desktop:3389
+  SessionStore: cookie
+Caps:
+  TokenAuth: false
+  IdleTimeout: 0
+  EnableClipboard: true
+  EnableDrive: true
+Security:
+  VerifyClientIp: false

@@ -7,6 +7,7 @@ import {
   ShieldLockIcon,
   FileTextIcon,
   PlayerPlayIcon,
+  NetworkIcon,
 } from "../../lib/icons";
 import type { IconComponent, SemanticIconName } from "../../lib/icons";
 import type { EntryType } from "../../types/entry";
@@ -38,6 +39,7 @@ export const ENTRY_TYPE_CATEGORIES: readonly TypeCategory[] = [
       { type: "rdp", label: "RDP", description: "Remote Desktop", icon: DesktopIcon, iconName: "desktop", color: "text-entry-rdp" },
       { type: "vnc", label: "VNC", description: "Screen Share", icon: ServerAltIcon, iconName: "serverAlt", color: "text-entry-vnc" },
       { type: "web", label: "Web", description: "Browser Session", icon: GlobeIcon, iconName: "globe", color: "text-entry-web" },
+      { type: "credential", label: "RD Gateway", description: "Remote Desktop Gateway", icon: NetworkIcon, iconName: "network", color: "text-entry-rdp", credentialType: "rd_gateway" },
     ],
   },
   {

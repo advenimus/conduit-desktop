@@ -1,3 +1,5 @@
+import type { RdpEntryGatewayFields } from "../lib/rdpGateway";
+
 export type EntryType = 'ssh' | 'rdp' | 'vnc' | 'web' | 'credential' | 'document' | 'command';
 
 export type RdpResolution = "match_window" | "1920x1080" | "1280x720" | "1440x900" | "custom";
@@ -8,7 +10,7 @@ export interface SharedFolder {
   readOnly?: boolean;
 }
 
-export interface RdpEntryConfig {
+export interface RdpEntryConfig extends RdpEntryGatewayFields {
   resolution: RdpResolution;
   customWidth?: number;
   customHeight?: number;

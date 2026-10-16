@@ -469,11 +469,16 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
   // Build a set of credential entry IDs in the export (for remapping credential_id)
   const exportEntryIds = new Set(payload.entries.map(e => e.id));
 
-  // Create credential-type entries first (so credential_id refs can resolve)
-  const credentialEntries = payload.entries.filter(e => e.entry_type === 'credential');
+  // Credentials first so credential_id refs resolve; within them, unlinked ones first because an RD Gateway's login can link another.
+  const linksCredential = (e: ExportEntry) => Number(!!e.credential_id || typeof e.config?.gatewayCredentialId === 'string');
+  const credentialEntries = payload.entries
+    .filter(e => e.entry_type === 'credential')
+    .sort((a, b) => linksCredential(a) - linksCredential(b));
   const otherEntries = payload.entries.filter(e => e.entry_type !== 'credential');
 
   const actualEntryIdMap = new Map<string, string>();
+  // Keyed by export id; linkImportedEntries builds on these so its remaps keep the gateway remap.
+  const createdConfigs = new Map<string, Record<string, unknown> | undefined>();
 
   const createEntry = (entry: ExportEntry) => {
     // Remap folder_id
@@ -501,6 +506,13 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
       }
     }
 
+    const linkedGatewayLogin = entry.config?.gatewayCredentialId;
+    const config = remapGatewayLinks(entry.config, actualEntryIdMap);
+    if (typeof linkedGatewayLogin === 'string' && linkedGatewayLogin) {
+      if (config?.gatewayCredentialId) credentialRefsRemapped++;
+      else credentialRefsCleared++;
+    }
+
     const created = vault.createEntry({
       name: entry.name,
       entry_type: entry.entry_type as 'ssh' | 'rdp' | 'vnc' | 'web' | 'credential',
@@ -512,7 +524,7 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
       domain: entry.domain,
       private_key: entry.private_key,
       credential_id: credentialId,
-      config: entry.config,
+      config,
       tags: entry.tags,
       notes: entry.notes,
       credential_type: entry.credential_type,
@@ -529,6 +541,7 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
     }
 
     actualEntryIdMap.set(entry.id, created.id);
+    createdConfigs.set(entry.id, config);
     entriesCreated++;
   };
 
@@ -540,7 +553,7 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
     createEntry(entry);
   }
 
-  linkImportedEntries(vault, payload.entries, actualEntryIdMap);
+  linkImportedEntries(vault, payload.entries, actualEntryIdMap, createdConfigs);
 
   return {
     foldersCreated,
@@ -552,13 +565,39 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
 
 // ── Helpers ────────────────────────────────────────────────────────
 
+function withoutKey(config: Record<string, unknown>, key: string): Record<string, unknown> {
+  const { [key]: _dropped, ...rest } = config;
+  return rest;
+}
+
+/** Re-points gatewayId and gatewayCredentialId at imported ids; a missing login keeps the saved-credential choice so connecting says it has none. */
+export function remapGatewayLinks(
+  config: Record<string, unknown> | undefined,
+  idMap: ReadonlyMap<string, string>,
+): Record<string, unknown> | undefined {
+  if (!config) return config;
+  let next = config;
+  for (const key of ['gatewayId', 'gatewayCredentialId'] as const) {
+    const oldId = next[key];
+    if (typeof oldId !== 'string' || !oldId) continue;
+    const newId = idMap.get(oldId);
+    next = newId ? { ...next, [key]: newId } : withoutKey(next, key);
+  }
+  return next;
+}
+
 const REF_ID_RE = /\{\{(secret|cred):([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/g;
 
 /**
  * Imported entries get new ids, so restore nesting and point secret refs and embedded-secret owners
  * at the new ids (docs/KNOWLEDGE_BASE.md). Runs after every entry exists.
  */
-function linkImportedEntries(vault: ConduitVault, entries: ExportEntry[], idMap: Map<string, string>): void {
+function linkImportedEntries(
+  vault: ConduitVault,
+  entries: ExportEntry[],
+  idMap: Map<string, string>,
+  createdConfigs: ReadonlyMap<string, Record<string, unknown> | undefined>,
+): void {
   const mapped = (id: string) => idMap.get(id) ?? idMap.get(id.toLowerCase());
   const remapRefs = (text: string) => text.replace(REF_ID_RE, (whole, kind: string, id: string) => {
     const next = mapped(id);
@@ -575,7 +614,8 @@ function linkImportedEntries(vault: ConduitVault, entries: ExportEntry[], idMap:
       const notes = remapRefs(entry.notes);
       if (notes !== entry.notes) patch.notes = notes;
     }
-    let config = entry.config ?? {};
+    const baseConfig = (createdConfigs.has(entry.id) ? createdConfigs.get(entry.id) : entry.config) ?? {};
+    let config = baseConfig;
     if (typeof config.content === 'string') {
       const content = remapRefs(config.content);
       if (content !== config.content) config = { ...config, content };
@@ -599,7 +639,7 @@ function linkImportedEntries(vault: ConduitVault, entries: ExportEntry[], idMap:
       const pendingFor = embedded.pending_for ? mapped(embedded.pending_for) : undefined;
       if (owner || pendingFor) config = { ...config, embedded: { ...embedded, ...(owner ? { owner_id: owner } : {}), ...(pendingFor ? { pending_for: pendingFor } : {}) } };
     }
-    if (config !== entry.config) patch.config = config;
+    if (config !== baseConfig) patch.config = config;
     if (Object.keys(patch).length > 0) vault.updateEntry(newId, patch);
   }
 }

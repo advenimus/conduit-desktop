@@ -56,6 +56,8 @@ export interface McpConnection {
   port: number | null;
   status: 'connected' | 'disconnected';
   created_at: number;
+  /** RD Gateway entry an RDP session goes through; the same host behind another gateway is another machine. */
+  gateway_id?: string;
 }
 
 export { ApprovalManager, type RevealRequestInfo } from './reveal-approvals.js';

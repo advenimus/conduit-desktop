@@ -8,20 +8,13 @@
  */
 
 import { ipcMain } from 'electron';
-import { appendFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { RdpEngineConfig, SharedFolder } from '../services/rdp/engine.js';
 import { AppState } from '../services/state.js';
 import type { ImageFormat } from '../services/rdp/framebuffer.js';
 import { isFreeRdpAvailable, ensureFreeRdpReady } from '../services/rdp/engines/factory.js';
-import { getDataDir } from '../services/env-config.js';
-
-const RDP_LOG = join(getDataDir(), 'rdp-debug.log');
-function rdpLog(msg: string) {
-  const line = `[${new Date().toISOString()}] ${msg}\n`;
-  try { appendFileSync(RDP_LOG, line); } catch { /* ignore */ }
-  console.log(msg);
-}
+import { GatewayConfigError } from '../services/rdp/gateway-config.js';
+import { connectGateway, describeGateway, parseGatewayIdArg } from '../services/rdp/gateway-connect.js';
+import { rdpLog } from '../services/rdp/rdp-log.js';
 
 export function registerRdpHandlers(): void {
   const rdpManager = AppState.getInstance().rdpManager;
@@ -53,7 +46,25 @@ export function registerRdpHandlers(): void {
     desktopScaleFactor?: number;
     deviceScaleFactor?: number;
     enableClipboard?: boolean;
+    gatewayId?: string | null;
   }) => {
+    // Only the gateway's id crosses IPC; its address and login are read from the vault here.
+    let gatewayId: string | undefined;
+    let gateway: RdpEngineConfig['gateway'];
+    try {
+      gatewayId = parseGatewayIdArg(args.gatewayId);
+      gateway = connectGateway(
+        gatewayId,
+        { username: args.username, password: args.password, domain: args.domain },
+        AppState.getInstance().getActiveVault(),
+      );
+    } catch (e) {
+      rdpLog(`[RDP] Gateway setup failed: ${e instanceof Error ? e.message : String(e)}`);
+      // A plain Error so the renderer shows the message without the class-name prefix.
+      if (e instanceof GatewayConfigError) throw new Error(e.message);
+      throw e;
+    }
+
     const config: RdpEngineConfig = {
       host: args.host,
       hostname: args.hostname,
@@ -74,10 +85,12 @@ export function registerRdpHandlers(): void {
       desktopScaleFactor: args.desktopScaleFactor,
       deviceScaleFactor: args.deviceScaleFactor,
       enableClipboard: args.enableClipboard,
+      gateway,
     };
 
     rdpLog(`[RDP] rdp_connect called. sharedFolders=${JSON.stringify(config.sharedFolders)}`);
     rdpLog(`[RDP] Full config: host=${config.host}, port=${config.port}, width=${config.width}, height=${config.height}, enableNla=${config.enableNla}, desktopSF=${config.desktopScaleFactor ?? 100}, deviceSF=${config.deviceScaleFactor ?? 100}`);
+    rdpLog(`[RDP] ${gateway ? describeGateway(gateway) : 'gateway=none'}`);
 
     // Ensure FreeRDP helper binary is available (auto-builds if missing)
     await ensureFreeRdpReady();
@@ -109,6 +122,7 @@ export function registerRdpHandlers(): void {
       port: args.port ?? 3389,
       status: 'connected',
       created_at: Date.now(),
+      gateway_id: gateway ? gatewayId : undefined,
     });
 
     // Return server-negotiated dimensions (may differ from requested)

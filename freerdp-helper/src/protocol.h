@@ -33,6 +33,23 @@ typedef struct {
     char *path;
 } DriveConfig;
 
+typedef enum {
+    GATEWAY_TRANSPORT_AUTO,
+    GATEWAY_TRANSPORT_HTTP,
+    GATEWAY_TRANSPORT_RPC
+} GatewayTransport;
+
+/* RD Gateway config (config.gateway). Credentials are resolved by Electron. */
+typedef struct {
+    char *host;
+    int port;
+    char *username;
+    char *password;
+    char *domain;
+    GatewayTransport transport;
+    bool bypass_local;
+} GatewayConfig;
+
 /* Parsed connect configuration */
 typedef struct {
     char *host;
@@ -51,6 +68,8 @@ typedef struct {
     int desktop_scale_factor;
     int device_scale_factor;
     bool enable_clipboard;
+    bool has_gateway;
+    GatewayConfig gateway;
 } ConnectConfig;
 
 /* Parsed command */
@@ -79,5 +98,11 @@ bool protocol_read_command(Command *cmd);
  * Free any dynamically allocated data in a command.
  */
 void protocol_free_command(Command *cmd);
+
+/* Map "auto" | "http" | "rpc" to a transport. Anything else is AUTO. */
+GatewayTransport gateway_transport_from_string(const char *s);
+
+/* NULL when a parsed connect config is valid, else a short user-facing message (static string). */
+const char *connect_config_validate(const ConnectConfig *config);
 
 #endif /* PROTOCOL_H */

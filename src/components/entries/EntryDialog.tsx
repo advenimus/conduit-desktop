@@ -4,10 +4,11 @@ import { useSessionStore } from "../../stores/sessionStore";
 import { useVaultStore } from "../../stores/vaultStore";
 import { useTeamStore } from "../../stores/teamStore";
 import { useSettingsStore } from "../../stores/settingsStore";
-import type { EntryType, RdpEntryConfig, WebEntryConfig, WebAutofillConfig, CommandEntryConfig } from "../../types/entry";
+import type { EntryMeta, EntryType, RdpEntryConfig, WebEntryConfig, WebAutofillConfig, CommandEntryConfig } from "../../types/entry";
 import { DEFAULT_COMMAND_CONFIG } from "../../types/entry";
 import type { CredentialType } from "../../types/credential";
-import { Button, Dialog, DialogFooter, DialogHeader } from "../ui";
+import { RD_GATEWAY_CREDENTIAL_TYPE, type RdGatewayConfig } from "../../lib/rdpGateway";
+import { Button, Dialog, DialogFooter, DialogHeader, type DialogLayer } from "../ui";
 import CredentialPicker from "../vault/CredentialPicker";
 import EntryDialogSidebar from "./EntryDialogSidebar";
 import EntryTypeStep, { type TypeOption } from "./EntryTypeStep";
@@ -22,6 +23,19 @@ import SecurityTab from "./tabs/SecurityTab";
 import AutofillTab from "./tabs/AutofillTab";
 import InformationTab from "./tabs/InformationTab";
 import CommandTab from "./tabs/CommandTab";
+import GatewayTab from "./tabs/GatewayTab";
+import GatewayServerTab from "./tabs/GatewayServerTab";
+import GatewayLoginTab from "./tabs/GatewayLoginTab";
+import {
+  gatewayEntryConfigForSave,
+  gatewayEntryValidationError,
+  gatewayLinkedCredentialId,
+  gatewayLoginChoiceOf,
+  gatewayLoginColumns,
+  gatewayUsageCount,
+  rdpGatewayConfigForSave,
+  type GatewayLoginChoice,
+} from "./gatewayForm";
 import EntryConflictInline from "../sync/EntryConflictInline";
 import { announceResolvedBySave, conflictFieldsBeforeSave } from "../sync/editor-conflicts";
 import { changedEditorFields } from "./entry-update-diff";
@@ -29,10 +43,13 @@ import { changedEditorFields } from "./entry-update-diff";
 interface EntryDialogProps {
   onClose: () => void;
   presetType?: EntryType;
-  /** With presetType "credential": which kind. Defaults to a password, as on the type picker. */
+  /** With presetType "credential": the credential sub-type to start on. Defaults to a password, as on the type picker. */
   presetCredentialType?: CredentialType;
   folderId?: string | null;
   editingEntryId?: string | null;
+  /** Called with the new entry after a create, before onClose. */
+  onCreated?: (entry: EntryMeta) => void;
+  layer?: DialogLayer;
 }
 
 const DEFAULT_PORTS: Record<string, number> = {
@@ -41,7 +58,15 @@ const DEFAULT_PORTS: Record<string, number> = {
   vnc: 5900,
 };
 
-export default function EntryDialog({ onClose, presetType, presetCredentialType, folderId, editingEntryId }: EntryDialogProps) {
+export default function EntryDialog({
+  onClose,
+  presetType,
+  presetCredentialType,
+  folderId,
+  editingEntryId,
+  onCreated,
+  layer,
+}: EntryDialogProps) {
   const { createEntry, getEntry, updateEntry } = useEntryStore();
   const { credentials, loadCredentials } = useVaultStore();
   const vaultType = useVaultStore((s) => s.vaultType);
@@ -88,6 +113,12 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
   const [publicKey, setPublicKey] = useState("");
   const [fingerprint, setFingerprint] = useState("");
 
+  // RD Gateway objects (credential_type "rd_gateway")
+  const [gatewayConfig, setGatewayConfig] = useState<Partial<RdGatewayConfig>>({});
+  const [gatewayLogin, setGatewayLogin] = useState<GatewayLoginChoice>("typed");
+  const [showNewGateway, setShowNewGateway] = useState(false);
+  const isGateway = entryType === "credential" && credentialType === RD_GATEWAY_CREDENTIAL_TYPE;
+
   // SSH auth method (for SSH entries or credentials with both key+password)
   const [sshAuthMethod, setSshAuthMethod] = useState<string | null>(null);
 
@@ -104,6 +135,8 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
   onCloseRef.current = onClose;
   // What the editor showed after loading: a save sends only the fields that differ from it.
   const loadedFieldsRef = useRef<ReturnType<typeof editorFields> | null>(null);
+  // Older gateways linked their credential in the credential_id column; diff against the stored values so a save moves it to config.
+  const legacyGatewayLinkRef = useRef<{ credential_id: string; config: Record<string, unknown> } | null>(null);
   const captureLoadedRef = useRef(false);
 
   // Load entry data when editing
@@ -131,6 +164,14 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
         const cfg = entry.config as Record<string, unknown>;
         if (cfg.public_key) setPublicKey(cfg.public_key as string);
         if (cfg.fingerprint) setFingerprint(cfg.fingerprint as string);
+      }
+      if (entry.entry_type === "credential" && entry.credential_type === RD_GATEWAY_CREDENTIAL_TYPE) {
+        setGatewayConfig((entry.config ?? {}) as Partial<RdGatewayConfig>);
+        setGatewayLogin(gatewayLoginChoiceOf(entry.config, entry.credential_id));
+        setCredentialId(gatewayLinkedCredentialId(entry.config, entry.credential_id));
+        legacyGatewayLinkRef.current = entry.credential_id
+          ? { credential_id: entry.credential_id, config: (entry.config ?? {}) as Record<string, unknown> }
+          : null;
       }
       // Load SSH auth method from config
       if (entry.config) {
@@ -180,6 +221,7 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
 
   const selectType = (option: TypeOption) => {
     setEntryType(option.type);
+    // Going Back and picking another type must not keep the old sub-type (an RDP entry saved as rd_gateway).
     setCredentialType(option.credentialType ?? null);
     setPort(option.type in DEFAULT_PORTS ? String(DEFAULT_PORTS[option.type]) : "");
     setActiveTab(getDefaultTabId());
@@ -216,7 +258,10 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
       return { ...commandConfig as unknown as Record<string, unknown>, ...totpMeta };
     }
     if (entryType === "rdp") {
-      return { ...stripUndefined(rdpConfig as unknown as Record<string, unknown>), ...totpMeta };
+      return { ...stripUndefined(rdpGatewayConfigForSave(rdpConfig) as unknown as Record<string, unknown>), ...totpMeta };
+    }
+    if (isGateway) {
+      return { ...gatewayEntryConfigForSave(gatewayConfig, gatewayLogin, credentialId) };
     }
     if (entryType === "web") {
       // Include autofill only if any field was explicitly set
@@ -257,14 +302,16 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
 
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const loginFields = () =>
+    isGateway
+      ? gatewayLoginColumns(gatewayLogin, { credentialId, username, password, domain })
+      : { credential_id: credentialId, username: username.trim() || null, password: password || null, domain: domain.trim() || null };
+
   const editorFields = () => ({
     name: name.trim(),
     host: host.trim() || null,
     port: port ? parseInt(port, 10) : null,
-    credential_id: credentialId,
-    username: username.trim() || null,
-    password: password || null,
-    domain: domain.trim() || null,
+    ...loginFields(),
     private_key: privateKey || null,
     totp_secret: totpSecret || null,
     icon: customIcon,
@@ -281,7 +328,7 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
   useEffect(() => {
     if (!captureLoadedRef.current || isLoadingEntry) return;
     captureLoadedRef.current = false;
-    loadedFieldsRef.current = editorFields();
+    loadedFieldsRef.current = { ...editorFields(), ...legacyGatewayLinkRef.current };
   });
 
   const handleSubmit = async () => {
@@ -293,10 +340,15 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
       setActiveTab('credentials');
       return;
     }
+    const gatewayError = isGateway ? gatewayEntryValidationError(gatewayConfig, gatewayLogin, credentialId) : null;
+    if (gatewayError) {
+      setValidationError(gatewayError);
+      setActiveTab(gatewayLogin === 'saved' && gatewayConfig.gatewayHostname?.trim() ? 'gateway_login' : 'gateway_server');
+      return;
+    }
     setValidationError(null);
 
     setIsSubmitting(true);
-    const config = buildConfig();
     try {
       if (isEditing) {
         const conflictedBefore = conflictFieldsBeforeSave(editingEntryId!);
@@ -305,29 +357,9 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
         if (!updated) return;
         void announceResolvedBySave(editingEntryId!, conflictedBefore);
       } else {
-        const created = await createEntry({
-          name: name.trim(),
-          entry_type: entryType,
-          folder_id: folderId,
-          host: host.trim() || null,
-          port: port ? parseInt(port, 10) : null,
-          credential_id: credentialId,
-          username: username.trim() || null,
-          password: password || null,
-          domain: domain.trim() || null,
-          private_key: privateKey || null,
-          totp_secret: totpSecret || null,
-          icon: customIcon,
-          color: customColor,
-          config,
-          tags: tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
-          notes: notes.trim() || null,
-          credential_type: credentialType ?? undefined,
-        });
+        const created = await createEntry({ ...editorFields(), entry_type: entryType, folder_id: folderId });
         if (!created) return;
+        onCreated?.(created);
       }
 
       // Auto-reconnect if this RDP entry has an active session
@@ -351,6 +383,7 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
   };
 
   const isConnection = entryType != null && entryType !== "credential" && entryType !== "document";
+  const gatewayUsage = isGateway && editingEntryId ? gatewayUsageCount(entries, editingEntryId) : null;
   const credentialName = credentialId
     ? credentials.find((c) => c.id === credentialId)?.name ?? null
     : null;
@@ -363,7 +396,7 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
     );
   }
 
-  const typeLabel = credentialType === "ssh_key" ? "SSH Key" : entryType === "document" ? "Document" : entryType === "command" ? "Command" : entryType?.toUpperCase();
+  const typeLabel = credentialType === "ssh_key" ? "SSH Key" : isGateway ? "RD Gateway" : entryType === "document" ? "Document" : entryType === "command" ? "Command" : entryType?.toUpperCase();
   const title = step === "type" ? "New Entry" : `${isEditing ? "Edit" : "New"} ${typeLabel} Entry`;
   const showForm = step === "form" && entryType != null;
 
@@ -375,6 +408,7 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
         return (
           <GeneralTab
             entryType={entryType}
+            credentialType={credentialType}
             name={name}
             setName={setName}
             host={host}
@@ -460,6 +494,39 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
             webGlobalDefaults={webGlobalDefaults}
           />
         );
+      case "gateway":
+        return (
+          <GatewayTab
+            config={rdpConfig}
+            onChange={setRdpConfig}
+            onNewGateway={() => setShowNewGateway(true)}
+          />
+        );
+      case "gateway_server":
+        return (
+          <GatewayServerTab
+            config={gatewayConfig}
+            onChange={(next) => { setGatewayConfig(next); setValidationError(null); }}
+            usageCount={gatewayUsage}
+            showErrors={validationError !== null}
+          />
+        );
+      case "gateway_login":
+        return (
+          <GatewayLoginTab
+            login={gatewayLogin}
+            setLogin={(next) => { setGatewayLogin(next); setValidationError(null); }}
+            username={username}
+            setUsername={setUsername}
+            password={password}
+            setPassword={setPassword}
+            domain={domain}
+            setDomain={setDomain}
+            credentialId={credentialId}
+            setCredentialId={(id) => { setCredentialId(id); setValidationError(null); }}
+            showErrors={validationError !== null}
+          />
+        );
       case "autofill":
         return (
           <AutofillTab
@@ -496,6 +563,7 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
         open
         onClose={onClose}
         title={title}
+        layer={layer}
         width={showForm ? 768 : 448}
         closeOnEscape={false}
         layout="custom"
@@ -556,6 +624,16 @@ export default function EntryDialog({ onClose, presetType, presetCredentialType,
           selectedId={credentialId}
           onSelect={setCredentialId}
           onClose={() => setShowCredentialPicker(false)}
+        />
+      )}
+      {showNewGateway && (
+        <EntryDialog
+          presetType="credential"
+          presetCredentialType="rd_gateway"
+          folderId={effectiveFolderId ?? null}
+          layer="sync"
+          onCreated={(gateway) => setRdpConfig((current) => ({ ...current, gatewayId: gateway.id }))}
+          onClose={() => setShowNewGateway(false)}
         />
       )}
     </>

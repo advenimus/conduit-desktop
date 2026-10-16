@@ -16,6 +16,7 @@ const TYPED_IDS = [
   "new_entry:rdp",
   "new_entry:vnc",
   "new_entry:web",
+  "new_entry:credential:rd_gateway",
   "sep",
   "new_entry:document",
   "sep",
@@ -51,7 +52,7 @@ describe("create menu items", () => {
     expect(menu).toMatchObject({ id: "new_entry", label: "New Entry", icon: "plus" });
     expect(shape(menu.children!)).toEqual(TYPED_IDS);
     expect(menu.children!.filter((i) => !i.type).map((i) => i.label)).toEqual([
-      "SSH", "RDP", "VNC", "Web", "Document", "Command", "Password", "SSH Key",
+      "SSH", "RDP", "VNC", "Web", "RD Gateway", "Document", "Command", "Password", "SSH Key",
     ]);
   });
 

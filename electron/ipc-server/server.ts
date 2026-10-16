@@ -15,6 +15,10 @@ import { AppState } from '../services/state.js';
 import type { SshAuth } from '../services/ssh/client.js';
 import { resolveSshAuth, resolveSshAuthSystem } from '../services/ssh/resolve-auth.js';
 import type { RdpEngineConfig } from '../services/rdp/engine.js';
+import { GatewayConfigError, gatewayIdOf } from '../services/rdp/gateway-config.js';
+import { describeGateway } from '../services/rdp/gateway-connect.js';
+import { rdpLog } from '../services/rdp/rdp-log.js';
+import { gatewayInfo } from './gateway-info.js';
 import type { ImageFormat } from '../services/rdp/framebuffer.js';
 import { getSocketPath, isNamedPipe } from '../services/env-config.js';
 import {
@@ -347,10 +351,11 @@ async function dispatchRequest(
             })
             .map((c): ListedConnection => {
               // Resolve vault entry ID so agents can use it with entry tools
-              const matchingEntry = vaultEntries.find(
+              const matchingEntry = vaultEntries.find((e) => e.id === c.session_id && e.entry_type === c.connection_type) ?? vaultEntries.find(
                 (e) => e.host === c.host &&
                   defaultPort(e.port, e.entry_type) === defaultPort(c.port, c.connection_type) &&
-                  e.entry_type === c.connection_type,
+                  e.entry_type === c.connection_type &&
+                  (e.entry_type !== 'rdp' || gatewayIdOf(e.config) === c.gateway_id),
               );
               return {
                 id: c.session_id,
@@ -671,11 +676,17 @@ async function dispatchRequest(
               password: rdpPassword,
               domain: rdpDomain,
               entryConfig,
+              gatewayVault: vault,
             });
+            rdpLog(`[RDP] connection_open_entry ${config.gateway ? describeGateway(config.gateway) : 'gateway=none'}`);
 
-            const result = await openRdpSession(state, { config, name: entry.name });
+            const result = await openRdpSession(state, { config, name: entry.name, gatewayId: config.gateway ? gatewayIdOf(entryConfig) : undefined });
             return successResponse({ ...result, entry_id, name: entry.name });
           } catch (e) {
+            if (e instanceof GatewayConfigError) {
+              rdpLog(`[RDP] Gateway setup failed: ${e.message}`);
+              return errorResponse('RDP_ERROR', e.message);
+            }
             return errorResponse('RDP_ERROR', String(e));
           }
         }
@@ -1527,6 +1538,7 @@ async function dispatchRequest(
             created_at: entry.created_at,
             updated_at: entry.updated_at,
             has_conflict: hasConflict(state, entry.id),
+            ...gatewayInfo(vault, entry),
           };
           // Notes go out raw: the MCP server swaps !!secret!! values for tokens before an
           // agent sees them, and needs the real values to put tokens back on write.

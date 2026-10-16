@@ -8,6 +8,7 @@
  */
 
 #include "output.h"
+#include "json_out.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -138,15 +139,18 @@ void output_send_bitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
     LeaveCriticalSection(&output_mutex);
 }
 
-void output_send_disconnected(const char *error) {
-    char json[1024];
-    int len;
-    if (error) {
-        len = snprintf(json, sizeof(json), "{\"error\":\"%s\"}", error);
+static void send_json(uint32_t type, char *json, const char *fallback) {
+    if (json) {
+        output_send(type, json, (uint32_t)strlen(json));
+        json_out_free(json);
     } else {
-        len = snprintf(json, sizeof(json), "{\"error\":null}");
+        output_send(type, fallback, (uint32_t)strlen(fallback));
     }
-    output_send(MSG_TYPE_DISCONNECTED, json, (uint32_t)len);
+}
+
+void output_send_disconnected(const char *error) {
+    send_json(MSG_TYPE_DISCONNECTED, json_build_disconnected(error),
+              error ? "{\"error\":\"Disconnected\"}" : "{\"error\":null}");
 }
 
 void output_send_resized(int width, int height) {
@@ -234,7 +238,14 @@ void output_send_cursor_default(void) {
 }
 
 void output_send_error(const char *message) {
-    char json[2048];
-    int len = snprintf(json, sizeof(json), "{\"message\":\"%s\"}", message ? message : "Unknown error");
-    output_send(MSG_TYPE_ERROR, json, (uint32_t)len);
+    output_send_error_code(message, 0);
+}
+
+void output_send_error_code(const char *message, uint32_t code) {
+    output_send_error_phase(message, code, NULL);
+}
+
+void output_send_error_phase(const char *message, uint32_t code, const char *phase) {
+    send_json(MSG_TYPE_ERROR, json_build_error_phase(message, code, phase),
+              "{\"message\":\"Unknown error\"}");
 }

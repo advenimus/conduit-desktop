@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }));
 vi.mock('../../services/state.js', () => ({ AppState: { getInstance: () => ({ getMainWindow: () => null }) } }));
 vi.mock('../../services/env-config.js', () => ({ getSocketPath: () => '/tmp/x.sock', isNamedPipe: () => false }));
+vi.mock('../../ipc/settings.js', () => ({ readSettings: () => ({}) }));
 vi.mock('../../services/ssh/resolve-auth.js', () => ({ resolveSshAuth: vi.fn(() => ({})), resolveSshAuthSystem: vi.fn(() => ({})) }));
 vi.mock('../open-session.js', () => ({
   openSshSession: vi.fn(async () => ({ session_id: 'ssh-new', connection_type: 'ssh', host: '10.0.0.5', port: 22, status: 'connected' })),

@@ -118,6 +118,13 @@ static void command_loop(void) {
                         cmd.data.connect.width,
                         cmd.data.connect.height);
 
+                const char *invalid = connect_config_validate(&cmd.data.connect);
+                if (invalid) {
+                    output_send_error(invalid);
+                    protocol_free_command(&cmd);
+                    break;
+                }
+
                 disp_init();
                 cliprdr_init();
                 cliprdr_file_init();

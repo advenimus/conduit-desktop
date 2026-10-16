@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useVaultStore } from "../../stores/vaultStore";
 import type { CredentialMeta } from "../../types/credential";
-import { resolveCredentialType, CREDENTIAL_TYPES } from "../../types/credential";
+import { loginCredentials, resolveCredentialType, CREDENTIAL_TYPES } from "../../types/credential";
 import { CheckIcon, GlobeIcon, SearchIcon, TagIcon, UserIcon } from "../../lib/icons";
 import { Badge, Dialog, DialogHeader, EmptyState, TextInput, cx } from "../ui";
 
@@ -12,7 +12,8 @@ interface CredentialPickerProps {
 }
 
 export default function CredentialPicker({ selectedId, onSelect, onClose }: CredentialPickerProps) {
-  const { credentials } = useVaultStore();
+  const allCredentials = useVaultStore((s) => s.credentials);
+  const credentials = useMemo(() => loginCredentials(allCredentials), [allCredentials]);
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 

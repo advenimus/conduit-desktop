@@ -16,7 +16,7 @@
  *   0x0B CURSOR_SET   - [hotspotX:u16][hotspotY:u16][width:u16][height:u16][rgba_data...]
  *   0x0C CURSOR_NULL  - (empty) hide cursor
  *   0x0D CURSOR_DEFAULT - (empty) system default cursor
- *   0xFF ERROR        - JSON: {"message":"..."}
+ *   0xFF ERROR        - JSON: {"message":"...","code":N,"phase":"gateway"|"target"} (code when non-zero, phase with a gateway)
  */
 
 #ifndef OUTPUT_H
@@ -71,6 +71,12 @@ void output_send_resized(int width, int height);
  * Send ERROR message.
  */
 void output_send_error(const char *message);
+
+/* Send ERROR with a FreeRDP error code (omitted from the JSON when 0). */
+void output_send_error_code(const char *message, uint32_t code);
+
+/* Send ERROR with a code and, when not NULL, the hop that failed ("gateway" or "target"). */
+void output_send_error_phase(const char *message, uint32_t code, const char *phase);
 
 /**
  * Send CLIPBOARD_TEXT message with UTF-8 text from the remote desktop.

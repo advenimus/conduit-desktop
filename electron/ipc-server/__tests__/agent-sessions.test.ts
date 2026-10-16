@@ -20,14 +20,14 @@ interface Fake extends SessionLookup {
   terminals: string[];
   agentTerminals: Set<string>;
   rdp: Set<string>;
-  connections: Map<string, { session_id: string; connection_type: string; host: string | null; port: number | null; created_at: number }>;
+  connections: Map<string, { session_id: string; connection_type: string; host: string | null; port: number | null; created_at: number; gateway_id?: string }>;
 }
 
 function fakeState(): Fake {
   const terminals = ['ssh-1', 'shell-1'];
   const agentTerminals = new Set(['agent-pty']);
   const rdp = new Set<string>();
-  const connections = new Map([
+  const connections = new Map<string, { session_id: string; connection_type: string; host: string | null; port: number | null; created_at: number; gateway_id?: string }>([
     ['ssh-1', { session_id: 'ssh-1', connection_type: 'ssh', host: '10.0.0.5', port: 22, created_at: 1 }],
     ['shell-1', { session_id: 'shell-1', connection_type: 'local_shell', host: null, port: null, created_at: 1 }],
   ]);
@@ -177,6 +177,24 @@ describe('openSessionsForEntry', () => {
     state.connections.set('mcp-rdp', { session_id: 'mcp-rdp', connection_type: 'rdp', host: 'win', port: 3389, created_at: 1 });
     state.connections.set('closed', { session_id: 'closed', connection_type: 'rdp', host: 'win', port: 3389, created_at: 1 });
     expect(openSessionsForEntry(state, { id: 'entry-9', entry_type: 'rdp', host: 'win', port: null })).toEqual(['entry-9', 'mcp-rdp']);
+  });
+
+  it('does not share a session with the same host behind another gateway', () => {
+    state.rdp.add('direct').add('via-a').add('via-b');
+    state.connections.set('direct', { session_id: 'direct', connection_type: 'rdp', host: 'pc01', port: 3389, created_at: 1 });
+    state.connections.set('via-a', { session_id: 'via-a', connection_type: 'rdp', host: 'pc01', port: 3389, created_at: 1, gateway_id: 'gw-a' });
+    state.connections.set('via-b', { session_id: 'via-b', connection_type: 'rdp', host: 'pc01', port: 3389, created_at: 1, gateway_id: 'gw-b' });
+    const entry = (config: Record<string, unknown>) => ({ id: 'e-new', entry_type: 'rdp', host: 'pc01', port: 3389, config });
+    expect(openSessionsForEntry(state, entry({}))).toEqual(['direct']);
+    expect(openSessionsForEntry(state, entry({ gatewayId: 'gw-a' }))).toEqual(['via-a']);
+    expect(openSessionsForEntry(state, entry({ gatewayId: 'gw-b' }))).toEqual(['via-b']);
+    expect(openSessionsForEntry(state, entry({ gatewayId: 'gw-c' }))).toEqual([]);
+  });
+
+  it('still finds the entry\'s own tab by id', () => {
+    state.rdp.add('e-own');
+    state.connections.set('e-own', { session_id: 'e-own', connection_type: 'rdp', host: 'pc01', port: 3389, created_at: 1, gateway_id: 'gw-a' });
+    expect(openSessionsForEntry(state, { id: 'e-own', entry_type: 'rdp', host: 'pc01', port: 3389, config: { gatewayId: 'gw-a' } })).toEqual(['e-own']);
   });
 });
 

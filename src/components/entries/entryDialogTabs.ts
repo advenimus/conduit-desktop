@@ -1,10 +1,22 @@
 import type { EntryType } from "../../types/entry";
+import { RD_GATEWAY_CREDENTIAL_TYPE } from "../../lib/rdpGateway";
 import {
-  DesktopIcon, DevicesIcon, InfoCircleIcon, KeyIcon, PlayerPlayIcon, RobotIcon, SettingsIcon, ShieldLockIcon
+  DesktopIcon, DevicesIcon, InfoCircleIcon, KeyIcon, NetworkIcon, PlayerPlayIcon, RobotIcon, SettingsIcon, ShieldLockIcon, UserIcon
 } from "../../lib/icons";
 import type { IconComponent } from "../../lib/icons";
 
-export type EntryTabId = "general" | "credentials" | "display" | "resources" | "security" | "autofill" | "command" | "information";
+export type EntryTabId =
+  | "general"
+  | "credentials"
+  | "display"
+  | "resources"
+  | "security"
+  | "gateway"
+  | "gateway_server"
+  | "gateway_login"
+  | "autofill"
+  | "command"
+  | "information";
 
 export interface EntryTab {
   id: EntryTabId;
@@ -17,8 +29,27 @@ export interface EntryTabCategory {
   tabs: EntryTab[];
 }
 
-export function getTabCategories(entryType: EntryType): EntryTabCategory[] {
+export function getTabCategories(entryType: EntryType, credentialType?: string | null): EntryTabCategory[] {
   const categories: EntryTabCategory[] = [];
+
+  if (entryType === "credential" && credentialType === RD_GATEWAY_CREDENTIAL_TYPE) {
+    return [
+      {
+        label: "Common",
+        tabs: [
+          { id: "general", label: "General", icon: SettingsIcon },
+          { id: "information", label: "Information", icon: InfoCircleIcon },
+        ],
+      },
+      {
+        label: "Gateway",
+        tabs: [
+          { id: "gateway_server", label: "Server", icon: NetworkIcon },
+          { id: "gateway_login", label: "Login", icon: UserIcon },
+        ],
+      },
+    ];
+  }
 
   // Common category
   const commonTabs: EntryTab[] = [
@@ -40,6 +71,7 @@ export function getTabCategories(entryType: EntryType): EntryTabCategory[] {
         { id: "display", label: "Display", icon: DesktopIcon },
         { id: "resources", label: "Resources", icon: DevicesIcon },
         { id: "security", label: "Security", icon: ShieldLockIcon },
+        { id: "gateway", label: "Gateway", icon: NetworkIcon },
       ],
     });
   } else if (entryType === "web") {

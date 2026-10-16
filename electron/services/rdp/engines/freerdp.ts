@@ -13,7 +13,7 @@
  *     0x02 BITMAP_UPDATE → [x:u16-LE][y:u16-LE][w:u16-LE][h:u16-LE][rgba_data...]
  *     0x03 DISCONNECTED → JSON {"error":null|"..."}
  *     0x04 RESIZED      → JSON {"width":N,"height":N}
- *     0xFF ERROR        → JSON {"message":"..."}
+ *     0xFF ERROR        → JSON {"message":"...","code"?:N,"phase"?:"gateway"|"target"}
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -38,6 +38,8 @@ import type {
   OnCursorDefaultCallback,
 } from '../engine.js';
 import { getFreeRdpBinaryPath } from './factory.js';
+import { buildHelperConnectConfig, parseHelperError, parseHelperJson } from './helper-protocol.js';
+import { formatRdpConnectError } from '../connect-error.js';
 
 /* Binary protocol message types */
 const MSG_CONNECTED = 0x01;
@@ -190,38 +192,19 @@ export class FreeRdpEngine implements RdpEngine {
 
     /* Pre-resolve hostname for diagnostics. We pass the original hostname
      * to FreeRDP (not the resolved IP) so TLS certificate CN matching works.
-     * FreeRDP's own getaddrinfo() works now that we call WSAStartup() early. */
-    const targetHost = config.hostname || config.host;
-    await resolveHostname(targetHost); // diagnostic logging only
+     * FreeRDP's own getaddrinfo() works now that we call WSAStartup() early.
+     * Behind a gateway the target is often an internal name only the gateway resolves. */
+    const helperConfig = buildHelperConnectConfig(config);
+    if (!config.gateway) {
+      await resolveHostname(helperConfig.host); // diagnostic logging only
+    }
 
     /* Send connect command */
     return new Promise<DesktopDimensions>((resolve, reject) => {
       this.connectResolve = resolve;
       this.connectReject = reject;
 
-      const connectCmd = JSON.stringify({
-        type: 'connect',
-        config: {
-          host: targetHost,
-          port: config.port,
-          username: config.username,
-          password: config.password,
-          domain: config.domain || '',
-          width: config.width,
-          height: config.height,
-          enableNla: config.enableNla,
-          skipCertVerification: config.skipCertVerification,
-          enableGfx: true,
-          enableH264: true,
-          drives: (config.sharedFolders || []).map(f => ({
-            name: f.name,
-            path: f.path,
-          })),
-          desktopScaleFactor: config.desktopScaleFactor ?? 100,
-          deviceScaleFactor: config.deviceScaleFactor ?? 100,
-          enableClipboard: config.enableClipboard ?? true,
-        },
-      });
+      const connectCmd = JSON.stringify({ type: 'connect', config: helperConfig });
 
       this.sendCommand(connectCmd);
     });
@@ -362,10 +345,21 @@ export class FreeRdpEngine implements RdpEngine {
     }
   }
 
-  /**
-   * Handle a fully parsed binary message.
-   */
+  /** A malformed helper frame is logged, never thrown out of the stdout handler. */
   private handleMessage(type: number, payload: Buffer): void {
+    try {
+      this.dispatchMessage(type, payload);
+    } catch (e) {
+      console.error(`[FreeRDP] Could not handle message 0x${type.toString(16)}:`, e);
+      if (type === MSG_CONNECTED && this.connectReject) {
+        this.connectReject(new Error('The RDP helper sent an unreadable connect reply.'));
+        this.connectResolve = null;
+        this.connectReject = null;
+      }
+    }
+  }
+
+  private dispatchMessage(type: number, payload: Buffer): void {
     switch (type) {
       case MSG_CONNECTED: {
         const json = JSON.parse(payload.toString());
@@ -402,11 +396,12 @@ export class FreeRdpEngine implements RdpEngine {
       }
 
       case MSG_DISCONNECTED: {
-        const json = JSON.parse(payload.toString());
+        const json = parseHelperJson(payload);
         this._connected = false;
 
         if (this.onClose) {
-          this.onClose(json.error || null);
+          const error = json ? json.error : payload.toString().trim();
+          this.onClose(typeof error === 'string' && error ? error : null);
         }
 
         // Kill the zombie process — event loop has exited but command_loop is still alive
@@ -530,11 +525,12 @@ export class FreeRdpEngine implements RdpEngine {
       }
 
       case MSG_ERROR: {
-        const json = JSON.parse(payload.toString());
-        console.error(`[FreeRDP] Error: ${json.message}`);
+        const info = parseHelperError(payload);
+        const message = formatRdpConnectError(info);
+        console.error(`[FreeRDP] Error: ${message}`);
 
         if (this.connectReject) {
-          this.connectReject(new Error(json.message));
+          this.connectReject(new Error(message));
           this.connectResolve = null;
           this.connectReject = null;
         }
