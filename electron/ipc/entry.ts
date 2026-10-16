@@ -11,6 +11,9 @@ import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 import * as fs from 'fs';
 import { cloneBorrowedSecrets, createWithSecrets, updateWithSecrets } from '../services/secrets/embedded-secrets.js';
+import { buildRdpFileText } from '../services/rdp/rdp-file.js';
+import { gatewayDefaultsFrom } from '../services/rdp/gateway-connect.js';
+import { readSettings } from './settings.js';
 
 export function registerEntryHandlers(): void {
   const state = AppState.getInstance();
@@ -448,24 +451,16 @@ export function registerEntryHandlers(): void {
       }
       case 'rdp': {
         const rdpPort = port ?? 3389;
-        const config = (entry.config ?? {}) as Record<string, unknown>;
-        const lines = [
-          `full address:s:${host}:${rdpPort}`,
-          'prompt for credentials:i:1',
-          'screen mode id:i:1',
-        ];
-        if (config.colorDepth) lines.push(`session bpp:i:${config.colorDepth}`);
-        if (config.sound) {
-          const soundMap: Record<string, number> = { local: 0, remote: 1, none: 2 };
-          lines.push(`audiomode:i:${soundMap[config.sound as string] ?? 0}`);
-        }
-        if (typeof config.clipboard === 'boolean') {
-          lines.push(`redirectclipboard:i:${config.clipboard ? 1 : 0}`);
-        }
+        const text = buildRdpFileText({
+          host,
+          port: rdpPort,
+          config: (entry.config ?? {}) as Record<string, unknown>,
+          gatewayDefaults: gatewayDefaultsFrom(readSettings().session_defaults_rdp),
+        });
 
         const tmpDir = app.getPath('temp');
         const rdpFile = path.join(tmpDir, `conduit-${entry.id.slice(0, 8)}.rdp`);
-        fs.writeFileSync(rdpFile, lines.join('\r\n') + '\r\n', 'utf-8');
+        fs.writeFileSync(rdpFile, text, 'utf-8');
         console.log(`[entry] open_external: type=rdp file=${rdpFile} entry=${entry.id.slice(0, 8)}`);
         const errMsg = await shell.openPath(rdpFile);
         if (errMsg) throw new Error(`Failed to open RDP file: ${errMsg}`);

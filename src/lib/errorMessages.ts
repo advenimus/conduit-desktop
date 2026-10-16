@@ -94,15 +94,83 @@ const rdpPatterns: [RegExp, string][] = [
 ];
 
 /**
+ * The main process already words its gateway setup errors (GatewayConfigError)
+ * for people; Electron may prefix the class name.
+ */
+const GATEWAY_CONFIG_ERROR = /^(?:GatewayConfigError:\s*)?(The (?:saved )?gateway (?:needs a login|login for this entry was not found)[\s\S]*)$/;
+
+const GATEWAY_LOGIN_MESSAGE =
+  "The gateway did not accept the login. Check the gateway username and password, or pick a different gateway login in this entry's Gateway settings.";
+
+/**
+ * Gateway faults FreeRDP names with their E_PROXY_* code (rpc_fault.c). They
+ * only come from a gateway, so they apply to every RDP session.
+ */
+const gatewayCodePatterns: [RegExp, string][] = [
+  [
+    /E_PROXY_(COOKIE_AUTHENTICATION_ACCESS_DENIED|UNSUPPORTED_AUTHENTICATION_METHOD|REAUTH_AUTHN_FAILED)/,
+    GATEWAY_LOGIN_MESSAGE,
+  ],
+  [
+    /E_PROXY_(RAP|NAP|QUARANTINE)_ACCESSDENIED|E_PROXY_REAUTH_(RAP|NAP)_FAILED/,
+    "The gateway refused the connection. Its policy does not allow this account to reach this computer. Ask the gateway admin to allow it, or check the computer's name.",
+  ],
+  [
+    /E_PROXY_TS_CONNECTFAILED/,
+    "The gateway could not reach this computer. Check the host name and port. The gateway must be able to reach it on its own network.",
+  ],
+  [
+    /E_PROXY_NOCERTAVAILABLE/,
+    "The gateway has no certificate set up. Ask the gateway admin to check its certificate.",
+  ],
+  [
+    /E_PROXY_\w+/,
+    "The gateway reported an error. Try again, and if it keeps happening, ask the gateway admin to check its logs.",
+  ],
+];
+
+/**
+ * When the session goes through a gateway, the gateway is the first hop, so a
+ * login, name lookup, TLS or transport failure most likely came from it.
+ * FreeRDP reports the gateway's HTTP 401 as "Access denied." (rdg.c, rpc_client.c).
+ */
+const gatewaySessionPatterns: [RegExp, string][] = [
+  [/^Access denied\.?$|ERRCONNECT_ACCESS_DENIED|\b401\b|Unauthorized|RPC_S_ACCESS_DENIED/i, GATEWAY_LOGIN_MESSAGE],
+  [
+    /\bDNS\b|name (was )?not found|could not be resolved|DNS_NAME_NOT_FOUND/i,
+    "The gateway's address could not be found. Check the gateway server name, and that DNS or your VPN can reach it.",
+  ],
+  [
+    /TLS|certificate|SSL handshake|ERRCONNECT_TLS/i,
+    "The secure connection to the gateway failed. Check the gateway server name and port, and that the gateway's certificate is valid.",
+  ],
+  [
+    /transport (connection )?failed|transport layer failed|unable to connect|connection (failed|refused)|CONNECT_TRANSPORT_FAILED|CONNECT_FAILED/i,
+    "Could not reach the gateway. Check the gateway server name and port, and that your network or VPN can reach it.",
+  ],
+];
+
+export interface FriendlyErrorOptions {
+  /** The RDP session connects through an RD Gateway. */
+  gateway?: boolean;
+}
+
+/**
  * Maps raw technical error messages to user-friendly descriptions.
  * RDP sessions consult the RDP-specific table first so the guidance is
  * tailored to Remote Desktop. Falls through to the raw message if no
  * pattern matches.
  */
-export function friendlyConnectionError(raw: string, type?: SessionType): string {
+export function friendlyConnectionError(raw: string, type?: SessionType, options?: FriendlyErrorOptions): string {
   if (LOCAL_NETWORK_BLOCKED.test(raw)) return LOCAL_NETWORK_MESSAGE;
 
-  const tables = type === "rdp" ? [rdpPatterns, patterns] : [patterns];
+  const gatewayConfig = GATEWAY_CONFIG_ERROR.exec(raw);
+  if (gatewayConfig) return gatewayConfig[1];
+
+  const rdpTables = options?.gateway
+    ? [gatewayCodePatterns, gatewaySessionPatterns, rdpPatterns]
+    : [gatewayCodePatterns, rdpPatterns];
+  const tables = type === "rdp" ? [...rdpTables, patterns] : [patterns];
   for (const table of tables) {
     for (const [re, friendly] of table) {
       if (re.test(raw)) return friendly;

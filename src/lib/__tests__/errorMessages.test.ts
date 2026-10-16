@@ -86,6 +86,86 @@ describe("friendlyConnectionError", () => {
     });
   });
 
+  describe("RD Gateway errors", () => {
+    const viaGateway = { gateway: true };
+
+    it("maps the gateway's HTTP 401 (FreeRDP 'Access denied.') to a gateway login hint", () => {
+      const friendly = friendlyConnectionError("Access denied.", "rdp", viaGateway);
+      expect(friendly).toMatch(/gateway/i);
+      expect(friendly).toMatch(/login|password/i);
+      expect(friendly).not.toMatch(/Remote Desktop Users/);
+    });
+
+    it("keeps today's access denied guidance when no gateway is in use", () => {
+      expect(friendlyConnectionError("Access is denied.", "rdp")).toMatch(/Remote Desktop Users/);
+    });
+
+    it.each([
+      "E_PROXY_COOKIE_AUTHENTICATION_ACCESS_DENIED",
+      "E_PROXY_UNSUPPORTED_AUTHENTICATION_METHOD",
+      "E_PROXY_REAUTH_AUTHN_FAILED",
+      "HTTP status 401 Unauthorized",
+    ])("treats %s as a gateway login failure", (raw) => {
+      expect(friendlyConnectionError(raw, "rdp", viaGateway)).toMatch(/gateway.*(login|password)/i);
+    });
+
+    it.each(["E_PROXY_RAP_ACCESSDENIED", "E_PROXY_NAP_ACCESSDENIED", "E_PROXY_QUARANTINE_ACCESSDENIED"])(
+      "explains that the gateway refused this computer for %s",
+      (raw) => {
+        const friendly = friendlyConnectionError(raw, "rdp");
+        expect(friendly).toMatch(/gateway/i);
+        expect(friendly).toMatch(/not allowed|policy|refused/i);
+      },
+    );
+
+    it("explains that the gateway could not reach the computer", () => {
+      const friendly = friendlyConnectionError("E_PROXY_TS_CONNECTFAILED", "rdp", viaGateway);
+      expect(friendly).toMatch(/gateway could not reach/i);
+    });
+
+    it("maps a failed transport to an unreachable gateway when a gateway is in use", () => {
+      const friendly = friendlyConnectionError("The connection transport layer failed.", "rdp", viaGateway);
+      expect(friendly).toMatch(/Could not reach the gateway/i);
+    });
+
+    it("maps a DNS failure to the gateway's address when a gateway is in use", () => {
+      const friendly = friendlyConnectionError("The DNS host name was not found.", "rdp", viaGateway);
+      expect(friendly).toMatch(/gateway/i);
+      expect(friendly).toMatch(/address|hostname/i);
+    });
+
+    it("maps a TLS failure to a gateway certificate hint when a gateway is in use", () => {
+      const friendly = friendlyConnectionError("The connection failed at TLS connect.", "rdp", viaGateway);
+      expect(friendly).toMatch(/gateway/i);
+      expect(friendly).toMatch(/certificate/i);
+    });
+
+    it("keeps the direct TLS and transport guidance without a gateway", () => {
+      expect(friendlyConnectionError("The connection failed at TLS connect.", "rdp")).not.toMatch(/gateway/i);
+      expect(friendlyConnectionError("The connection transport layer failed.", "rdp")).not.toMatch(/gateway/i);
+    });
+
+    it("gives a gateway hint for other E_PROXY errors", () => {
+      expect(friendlyConnectionError("E_PROXY_MAXCONNECTIONSREACHED", "rdp")).toMatch(/gateway/i);
+    });
+
+    it("passes the gateway setup errors from the main process through unchanged", () => {
+      const raw =
+        "The gateway needs a login. Add a username and password to this entry, or pick a saved gateway login in its Gateway settings.";
+      expect(friendlyConnectionError(raw, "rdp", viaGateway)).toBe(raw);
+      expect(friendlyConnectionError(`GatewayConfigError: ${raw}`, "rdp")).toBe(raw);
+      const missing =
+        "The saved gateway login for this entry was not found. Pick a gateway login again in the entry's Gateway settings.";
+      expect(friendlyConnectionError(missing, "rdp", viaGateway)).toBe(missing);
+    });
+
+    it("contains no em dashes in gateway guidance", () => {
+      for (const raw of ["Access denied.", "E_PROXY_RAP_ACCESSDENIED", "E_PROXY_TS_CONNECTFAILED", "The connection failed at TLS connect."]) {
+        expect(friendlyConnectionError(raw, "rdp", viaGateway)).not.toContain("—");
+      }
+    });
+  });
+
   describe("non-RDP errors are unaffected", () => {
     it("still maps the SSH auth failure for ssh sessions", () => {
       const friendly = friendlyConnectionError(

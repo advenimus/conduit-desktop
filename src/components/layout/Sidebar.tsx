@@ -21,6 +21,7 @@ import TeamSyncIndicator from "../vault/TeamSyncIndicator";
 import PersonalSyncIndicator from "../sync/PersonalSyncIndicator";
 import SidebarPanel from "./SidebarPanel";
 import SidebarWindowControls from "./SidebarWindowControls";
+import BetaPill from "../common/BetaPill";
 import { hasInsetTitleBar } from "../../lib/titleBar";
 
 const CREATE_DISABLED_REASON = "View-only access";
@@ -303,6 +304,7 @@ export default function Sidebar() {
           onTogglePin={togglePin}
         />
         {!INSET_TITLE_BAR && vaultSwitcher}
+        <BetaPill className="mx-1" />
         {INSET_TITLE_BAR && <div className="flex-1" />}
         <div className="flex shrink-0 items-center gap-1">
           <IconButton

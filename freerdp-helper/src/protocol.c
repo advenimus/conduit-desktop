@@ -29,6 +29,57 @@ static bool cjson_get_bool(cJSON *obj, const char *key, bool def) {
     return def;
 }
 
+/* volatile stops the compiler from dropping the wipe of memory about to be freed */
+static void secure_zero(void *p, size_t n) {
+    volatile unsigned char *v = (volatile unsigned char *)p;
+    while (n--) *v++ = 0;
+}
+
+static void secure_free_string(char *s) {
+    if (!s) return;
+    secure_zero(s, strlen(s));
+    free(s);
+}
+
+static void scrub_json_string(cJSON *obj, const char *key) {
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(obj, key);
+    if (cJSON_IsString(item) && item->valuestring) {
+        secure_zero(item->valuestring, strlen(item->valuestring));
+    }
+}
+
+GatewayTransport gateway_transport_from_string(const char *s) {
+    if (s && strcmp(s, "http") == 0) return GATEWAY_TRANSPORT_HTTP;
+    if (s && strcmp(s, "rpc") == 0) return GATEWAY_TRANSPORT_RPC;
+    return GATEWAY_TRANSPORT_AUTO;
+}
+
+const char *connect_config_validate(const ConnectConfig *config) {
+    if (!config->has_gateway) return NULL;
+    if (!config->gateway.host || !config->gateway.host[0]) {
+        return "The RD Gateway address is missing.";
+    }
+    if (config->gateway.port < 1 || config->gateway.port > 65535) {
+        return "The RD Gateway port must be between 1 and 65535.";
+    }
+    return NULL;
+}
+
+static void parse_gateway(cJSON *config, GatewayConfig *gw, bool *has_gateway) {
+    cJSON *obj = cJSON_GetObjectItemCaseSensitive(config, "gateway");
+    if (!cJSON_IsObject(obj)) return;
+
+    *has_gateway = true;
+    gw->host = safe_strdup(cjson_get_string(obj, "host"));
+    gw->port = cjson_get_int(obj, "port", 443);
+    gw->username = safe_strdup(cjson_get_string(obj, "username"));
+    gw->password = safe_strdup(cjson_get_string(obj, "password"));
+    gw->domain = safe_strdup(cjson_get_string(obj, "domain"));
+    gw->transport = gateway_transport_from_string(cjson_get_string(obj, "transport"));
+    gw->bypass_local = cjson_get_bool(obj, "bypassLocal", false);
+    scrub_json_string(obj, "password");
+}
+
 bool protocol_read_command(Command *cmd) {
     char line[16384];
 
@@ -45,7 +96,9 @@ bool protocol_read_command(Command *cmd) {
 
     cJSON *json = cJSON_Parse(line);
     if (!json) {
-        fprintf(stderr, "[conduit-freerdp] Failed to parse JSON: %s\n", line);
+        /* Never echo the line: a connect command carries passwords. */
+        fprintf(stderr, "[conduit-freerdp] Failed to parse JSON command (%zu bytes)\n", strlen(line));
+        secure_zero(line, sizeof(line));
         cmd->type = CMD_UNKNOWN;
         return true;
     }
@@ -78,6 +131,8 @@ bool protocol_read_command(Command *cmd) {
             cmd->data.connect.desktop_scale_factor = cjson_get_int(config, "desktopScaleFactor", 100);
             cmd->data.connect.device_scale_factor = cjson_get_int(config, "deviceScaleFactor", 100);
             cmd->data.connect.enable_clipboard = cjson_get_bool(config, "enableClipboard", true);
+            scrub_json_string(config, "password");
+            parse_gateway(config, &cmd->data.connect.gateway, &cmd->data.connect.has_gateway);
 
             /* Parse drives array for RDPDR */
             cJSON *drives = cJSON_GetObjectItemCaseSensitive(config, "drives");
@@ -154,6 +209,7 @@ bool protocol_read_command(Command *cmd) {
     }
 
     cJSON_Delete(json);
+    if (cmd->type == CMD_CONNECT) secure_zero(line, sizeof(line));
     return true;
 }
 
@@ -173,8 +229,12 @@ void protocol_free_command(Command *cmd) {
     if (cmd->type == CMD_CONNECT) {
         free(cmd->data.connect.host);
         free(cmd->data.connect.username);
-        free(cmd->data.connect.password);
+        secure_free_string(cmd->data.connect.password);
         free(cmd->data.connect.domain);
+        free(cmd->data.connect.gateway.host);
+        free(cmd->data.connect.gateway.username);
+        secure_free_string(cmd->data.connect.gateway.password);
+        free(cmd->data.connect.gateway.domain);
         if (cmd->data.connect.drives) {
             for (int i = 0; i < cmd->data.connect.drive_count; i++) {
                 free(cmd->data.connect.drives[i].name);

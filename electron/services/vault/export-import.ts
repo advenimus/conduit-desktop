@@ -512,7 +512,7 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
       domain: entry.domain,
       private_key: entry.private_key,
       credential_id: credentialId,
-      config: entry.config,
+      config: remapGatewayCredential(entry.config, actualEntryIdMap),
       tags: entry.tags,
       notes: entry.notes,
       credential_type: entry.credential_type,
@@ -551,6 +551,22 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Points an RDP entry's gateway login at the imported credential's new id. A
+ * link to a credential left out of the import falls back to the PC's login.
+ */
+export function remapGatewayCredential(
+  config: Record<string, unknown> | undefined,
+  idMap: ReadonlyMap<string, string>,
+): Record<string, unknown> | undefined {
+  const oldId = config?.gatewayCredentialId;
+  if (!config || typeof oldId !== 'string' || !oldId) return config;
+  const newId = idMap.get(oldId);
+  if (newId) return { ...config, gatewayCredentialId: newId };
+  const { gatewayCredentialId: _dropped, ...rest } = config;
+  return { ...rest, gatewayCredentialMode: 'same' };
+}
 
 const REF_ID_RE = /\{\{(secret|cred):([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/g;
 

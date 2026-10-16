@@ -9,9 +9,16 @@
  */
 
 import type { RdpEngineConfig } from '../services/rdp/engine.js';
+import {
+  HARDCODED_GATEWAY_DEFAULTS,
+  resolveGatewaySettings,
+  type RdpEntryGatewayFields,
+  type RdpGatewayDefaults,
+} from '../services/rdp/gateway-config.js';
+import { connectGateway, type CredentialLookup } from '../services/rdp/gateway-connect.js';
 
 /** Minimal view of the RDP fields stored on an entry's `config` JSON blob. */
-export interface RdpEntryConfigFields {
+export interface RdpEntryConfigFields extends RdpEntryGatewayFields {
   resolution?: string;
   customWidth?: number;
   customHeight?: number;
@@ -64,6 +71,10 @@ export function resolutionToDimensions(cfg: RdpEntryConfigFields): { width: numb
  * fields the entry persists (resolution, NLA, color depth, quality, clipboard,
  * shared folders). Fields that depend on a live window (DPI scale factors) are
  * left unset, matching the manual tool.
+ *
+ * The gateway resolves like the renderer's: entry fields over the device's
+ * RDP defaults, with a linked gateway login read through `lookupCredential`.
+ * Throws GatewayConfigError when the gateway has no usable login.
  */
 export function buildRdpEngineConfigFromEntry(opts: {
   host: string;
@@ -72,9 +83,16 @@ export function buildRdpEngineConfigFromEntry(opts: {
   password: string;
   domain?: string;
   entryConfig: Record<string, unknown> | undefined;
+  gatewayDefaults?: RdpGatewayDefaults;
+  lookupCredential?: CredentialLookup;
 }): RdpEngineConfig {
   const cfg = (opts.entryConfig ?? {}) as RdpEntryConfigFields;
   const { width, height } = resolutionToDimensions(cfg);
+  const gateway = connectGateway(
+    resolveGatewaySettings(cfg, opts.gatewayDefaults ?? HARDCODED_GATEWAY_DEFAULTS),
+    { username: opts.username, password: opts.password, domain: opts.domain },
+    opts.lookupCredential ?? (() => null),
+  );
 
   return {
     host: opts.host,
@@ -94,5 +112,6 @@ export function buildRdpEngineConfigFromEntry(opts: {
     enableServerPointer: true,
     frameRate: 30,
     enableClipboard: cfg.clipboard ?? true,
+    gateway,
   };
 }

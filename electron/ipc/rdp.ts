@@ -15,6 +15,8 @@ import { AppState } from '../services/state.js';
 import type { ImageFormat } from '../services/rdp/framebuffer.js';
 import { isFreeRdpAvailable, ensureFreeRdpReady } from '../services/rdp/engines/factory.js';
 import { getDataDir } from '../services/env-config.js';
+import { GatewayConfigError, type RdpGatewaySettings } from '../services/rdp/gateway-config.js';
+import { connectGateway, describeGateway, parseGatewaySettingsArg } from '../services/rdp/gateway-connect.js';
 
 const RDP_LOG = join(getDataDir(), 'rdp-debug.log');
 function rdpLog(msg: string) {
@@ -53,7 +55,23 @@ export function registerRdpHandlers(): void {
     desktopScaleFactor?: number;
     deviceScaleFactor?: number;
     enableClipboard?: boolean;
+    gateway?: RdpGatewaySettings | null;
   }) => {
+    // Gateway passwords never cross IPC: a linked gateway login is read from the vault here.
+    let gateway: RdpEngineConfig['gateway'];
+    try {
+      gateway = connectGateway(
+        parseGatewaySettingsArg(args.gateway),
+        { username: args.username, password: args.password, domain: args.domain },
+        (id) => AppState.getInstance().getActiveVault().getCredential(id),
+      );
+    } catch (e) {
+      rdpLog(`[RDP] Gateway setup failed: ${e instanceof Error ? e.message : String(e)}`);
+      // A plain Error so the renderer shows the message without the class-name prefix.
+      if (e instanceof GatewayConfigError) throw new Error(e.message);
+      throw e;
+    }
+
     const config: RdpEngineConfig = {
       host: args.host,
       hostname: args.hostname,
@@ -74,10 +92,12 @@ export function registerRdpHandlers(): void {
       desktopScaleFactor: args.desktopScaleFactor,
       deviceScaleFactor: args.deviceScaleFactor,
       enableClipboard: args.enableClipboard,
+      gateway,
     };
 
     rdpLog(`[RDP] rdp_connect called. sharedFolders=${JSON.stringify(config.sharedFolders)}`);
     rdpLog(`[RDP] Full config: host=${config.host}, port=${config.port}, width=${config.width}, height=${config.height}, enableNla=${config.enableNla}, desktopSF=${config.desktopScaleFactor ?? 100}, deviceSF=${config.deviceScaleFactor ?? 100}`);
+    rdpLog(`[RDP] ${gateway ? describeGateway(gateway) : 'gateway=none'}`);
 
     // Ensure FreeRDP helper binary is available (auto-builds if missing)
     await ensureFreeRdpReady();

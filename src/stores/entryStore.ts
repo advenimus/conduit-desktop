@@ -8,6 +8,7 @@ import { useSidebarStore } from "./sidebarStore";
 import { useAuthStore } from "./authStore";
 import { useTierStore } from "./tierStore";
 import { resolveRdpConfig, resolveWebConfig } from "../lib/resolveConfig";
+import { resolveGatewaySettings } from "../lib/rdpGateway";
 import { toast } from "../components/common/Toast";
 import { disposeTerminalEntry } from "../components/sessions/TerminalView";
 import { errorText } from "../lib/errorText";
@@ -227,6 +228,10 @@ async function connectEntry(
 
     const globalRdpDefaults = useSettingsStore.getState().sessionDefaultsRdp;
     const rdpCfg: RdpEntryConfig = resolveRdpConfig(entry.config as Partial<RdpEntryConfig>, globalRdpDefaults);
+    // Secret-free: the main process looks up a linked gateway login itself.
+    const gateway = resolveGatewaySettings(rdpCfg, globalRdpDefaults);
+    const gatewayHost = gateway?.hostname ?? null;
+    sessionStore.updateSessionMetadata(entry.id, { gatewayHost });
     const contentEl = document.querySelector('[data-content-area]');
     const { width: w, height: h, desktopScaleFactor, deviceScaleFactor, effectiveHighDpi } = computeRdpDimensions(rdpCfg, contentEl);
 
@@ -249,6 +254,7 @@ async function connectEntry(
       desktopScaleFactor,
       deviceScaleFactor,
       enableClipboard: rdpCfg.clipboard,
+      gateway,
     }).then((result) => {
       useSessionStore.getState().addSession({
         id: entry.id, type: "rdp", title: entry.name,
@@ -256,7 +262,7 @@ async function connectEntry(
         metadata: {
           rdpWidth: result.width, rdpHeight: result.height,
           rdpMode: result.mode, enableHighDpi: effectiveHighDpi,
-          enableClipboard: rdpCfg.clipboard,
+          enableClipboard: rdpCfg.clipboard, gatewayHost,
         },
       });
     }).catch((err) => {

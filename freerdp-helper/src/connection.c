@@ -281,6 +281,42 @@ static void cb_post_disconnect(freerdp *instance) {
     fprintf(stderr, "[conduit-freerdp] Disconnected\n");
 }
 
+static const char *gateway_transport_name(GatewayTransport t) {
+    switch (t) {
+        case GATEWAY_TRANSPORT_HTTP: return "http";
+        case GATEWAY_TRANSPORT_RPC:  return "rpc";
+        default:                     return "auto";
+    }
+}
+
+static BOOL apply_gateway_settings(rdpSettings *settings, const GatewayConfig *gw) {
+    /* DETECT = gateway enabled but bypassed for local addresses. */
+    const UINT32 usage = gw->bypass_local ? TSC_PROXY_MODE_DETECT : TSC_PROXY_MODE_DIRECT;
+    const BOOL use_http = gw->transport != GATEWAY_TRANSPORT_RPC;
+    const BOOL use_rpc = gw->transport != GATEWAY_TRANSPORT_HTTP;
+
+    if (!freerdp_set_gateway_usage_method(settings, usage) ||
+        !freerdp_settings_set_string(settings, FreeRDP_GatewayHostname, gw->host) ||
+        !freerdp_settings_set_uint32(settings, FreeRDP_GatewayPort, (UINT32)gw->port) ||
+        !freerdp_settings_set_string(settings, FreeRDP_GatewayUsername, gw->username) ||
+        !freerdp_settings_set_string(settings, FreeRDP_GatewayPassword, gw->password) ||
+        !freerdp_settings_set_bool(settings, FreeRDP_GatewayUseSameCredentials, FALSE) ||
+        !freerdp_settings_set_bool(settings, FreeRDP_GatewayHttpTransport, use_http) ||
+        !freerdp_settings_set_bool(settings, FreeRDP_GatewayRpcTransport, use_rpc) ||
+        !freerdp_settings_set_bool(settings, FreeRDP_GatewayHttpUseWebsockets, TRUE)) {
+        return FALSE;
+    }
+    if (gw->domain && gw->domain[0] &&
+        !freerdp_settings_set_string(settings, FreeRDP_GatewayDomain, gw->domain)) {
+        return FALSE;
+    }
+
+    fprintf(stderr, "[conduit-freerdp] RD Gateway: %s:%d transport=%s bypassLocal=%s\n",
+            gw->host ? gw->host : "?", gw->port, gateway_transport_name(gw->transport),
+            gw->bypass_local ? "yes" : "no");
+    return TRUE;
+}
+
 /* ── Public API ─────────────────────────────────────────────────────── */
 
 freerdp *connection_init(const ConnectConfig *config) {
@@ -356,6 +392,14 @@ freerdp *connection_init(const ConnectConfig *config) {
         freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, TRUE);
     }
 
+    /* ── RD Gateway ── */
+    if (config->has_gateway && !apply_gateway_settings(settings, &config->gateway)) {
+        fprintf(stderr, "[conduit-freerdp] Failed to apply RD Gateway settings\n");
+        freerdp_context_free(instance);
+        freerdp_free(instance);
+        return NULL;
+    }
+
     /* ── Network ── */
     freerdp_settings_set_bool(settings, FreeRDP_NetworkAutoDetect, TRUE);
 
@@ -411,10 +455,18 @@ bool connection_connect(freerdp *instance) {
 
     if (!freerdp_connect(instance)) {
         UINT32 error = freerdp_get_last_error(instance->context);
-        const char *error_str = freerdp_get_last_error_string(error);
-        fprintf(stderr, "[conduit-freerdp] Connection failed: %s (0x%08X)\n",
-                error_str ? error_str : "unknown", error);
-        output_send_error(error_str ? error_str : "Connection failed");
+        const char *error_str = error != FREERDP_ERROR_SUCCESS
+            ? freerdp_get_last_error_string(error) : NULL;
+        if (!error_str || !error_str[0]) {
+            /* Some gateway failure paths reset the last error to SUCCESS. */
+            error_str = freerdp_settings_get_bool(instance->context->settings, FreeRDP_GatewayEnabled)
+                ? "Could not connect through the RD Gateway."
+                : "Connection failed";
+        }
+        const char *error_name = freerdp_get_last_error_name(error);
+        fprintf(stderr, "[conduit-freerdp] Connection failed: %s (0x%08X %s)\n",
+                error_str, error, error_name ? error_name : "?");
+        output_send_error_code(error_str, error);
         return false;
     }
 

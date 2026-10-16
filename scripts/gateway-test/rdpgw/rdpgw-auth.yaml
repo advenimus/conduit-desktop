@@ -1,0 +1,4 @@
+# Gateway logins for the local test rig only. Plain text by design (NTLM needs it).
+Users:
+  - Username: "gwuser"
+    Password: "GwTest-Pass1!"

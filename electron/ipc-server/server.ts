@@ -15,6 +15,9 @@ import { AppState } from '../services/state.js';
 import type { SshAuth } from '../services/ssh/client.js';
 import { resolveSshAuth, resolveSshAuthSystem } from '../services/ssh/resolve-auth.js';
 import type { RdpEngineConfig } from '../services/rdp/engine.js';
+import { GatewayConfigError } from '../services/rdp/gateway-config.js';
+import { gatewayDefaultsFrom } from '../services/rdp/gateway-connect.js';
+import { readSettings } from '../ipc/settings.js';
 import type { ImageFormat } from '../services/rdp/framebuffer.js';
 import { getSocketPath, isNamedPipe } from '../services/env-config.js';
 import {
@@ -671,12 +674,14 @@ async function dispatchRequest(
               password: rdpPassword,
               domain: rdpDomain,
               entryConfig,
+              gatewayDefaults: gatewayDefaultsFrom(readSettings().session_defaults_rdp),
+              lookupCredential: (id) => vault.getCredential(id),
             });
 
             const result = await openRdpSession(state, { config, name: entry.name });
             return successResponse({ ...result, entry_id, name: entry.name });
           } catch (e) {
-            return errorResponse('RDP_ERROR', String(e));
+            return errorResponse('RDP_ERROR', e instanceof GatewayConfigError ? e.message : String(e));
           }
         }
 

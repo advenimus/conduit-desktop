@@ -10,6 +10,7 @@ add_executable(conduit-freerdp
     src/connection.c
     src/disp.c
     src/input.c
+    src/json_out.c
     src/output.c
     src/pointer.c
     src/protocol.c

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAppIcon } from "../../hooks/useAppIcon";
 import { invoke } from "../../lib/electron";
 import { Button, Dialog, IconButton } from "../ui";
+import BetaPill from "../common/BetaPill";
 
 interface AboutDialogProps {
   onClose: () => void;
@@ -27,7 +28,12 @@ export default function AboutDialog({ onClose }: AboutDialogProps) {
         <img src={appIcon} alt="Conduit" className="h-20 w-20 rounded-lg" />
         <div className="text-center">
           <h1 className="text-display text-ink">Conduit</h1>
-          {version && <p className="mt-1 text-body text-ink-muted">Version {version}</p>}
+          {version && (
+            <p className="mt-1 flex items-center justify-center gap-2 text-body text-ink-muted">
+              Version {version}
+              <BetaPill version={version} />
+            </p>
+          )}
         </div>
         <p className="text-center text-body text-ink-muted">AI-Powered Remote Connection Manager</p>
         <Button variant="link" size="lg" onClick={() => invoke("auth_open_website")}>

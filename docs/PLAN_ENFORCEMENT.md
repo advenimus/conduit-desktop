@@ -1417,7 +1417,7 @@ HTTP cases (same runner, PostgREST):
 | D13 | `electron/services/vault/__tests__/cloud-sync*.test.ts` | Count prune before snapshot; refusal mapping (S16, S17, S24) |
 | D14 | `session-client-parse.test.ts` | `also_locks`, `shared_until`, `released`, `ownership: unowned` on a grant; `p_claim` is sent |
 
-`npx tsc --noEmit`, `npx vitest run` and `npm run build:electron` must pass (CLAUDE.md).
+`npx tsc --noEmit`, `npx vitest run` and `npm run build` must pass (CLAUDE.md).
 
 ### 7.3 Live `/verify` (owner: Desktop builder)
 

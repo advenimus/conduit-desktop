@@ -96,7 +96,7 @@ describe("EntryDialog form step", () => {
   it("uses NavList for the tabs, with group labels in title case and the selected tab marked", () => {
     render(<EntryDialog onClose={vi.fn()} presetType="rdp" />);
     const nav = panel().querySelector("nav") as HTMLElement;
-    expect(buttonTexts(nav)).toEqual(["General", "Credentials", "Information", "Display", "Resources", "Security"]);
+    expect(buttonTexts(nav)).toEqual(["General", "Credentials", "Information", "Display", "Resources", "Security", "Gateway"]);
     expect(within(nav).getByText("Common").className).not.toMatch(/uppercase/);
     expect(within(nav).getByText("Connection")).toBeTruthy();
     const general = within(nav).getByRole("button", { name: "General" });
@@ -147,6 +147,46 @@ describe("EntryDialog form step", () => {
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.click(within(panel()).getByRole("button", { name: "Cancel" }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("EntryDialog gateway", () => {
+  const nameField = () => labelWithText("Name*").querySelector("input")!;
+  const openGateway = () => fireEvent.click(within(panel().querySelector("nav")!).getByRole("button", { name: "Gateway" }));
+
+  it("blocks saving a custom gateway with no server and shows why", () => {
+    render(<EntryDialog onClose={vi.fn()} presetType="rdp" />);
+    fireEvent.change(nameField(), { target: { value: "app-01" } });
+    openGateway();
+    fireEvent.click(screen.getByRole("radio", { name: "Custom gateway" }));
+    fireEvent.click(within(panel().querySelector("nav")!).getByRole("button", { name: "General" }));
+    fireEvent.submit(panel().querySelector("form")!);
+    expect(createEntry).not.toHaveBeenCalled();
+    expect(panel().querySelector("[data-cv-dialog-footer] [data-cv-error]")?.textContent).toBe(
+      "Enter a gateway server, or choose another gateway option.",
+    );
+    expect(within(panel().querySelector("nav")!).getByRole("button", { name: "Gateway" }).hasAttribute("data-selected")).toBe(true);
+  });
+
+  it("saves only the gateway keys that were set", async () => {
+    render(<EntryDialog onClose={vi.fn()} presetType="rdp" />);
+    fireEvent.change(nameField(), { target: { value: "app-01" } });
+    openGateway();
+    fireEvent.click(screen.getByRole("radio", { name: "Custom gateway" }));
+    fireEvent.change(screen.getByLabelText("Gateway server"), { target: { value: " gw.example.com " } });
+    fireEvent.submit(panel().querySelector("form")!);
+    await vi.waitFor(() => expect(createEntry).toHaveBeenCalledTimes(1));
+    const calls = createEntry.mock.calls as unknown as [{ config: Record<string, unknown> }][];
+    expect(calls[0][0].config).toEqual({ gatewayMode: "custom", gatewayHostname: "gw.example.com" });
+  });
+
+  it("saves no gateway keys for an entry left on the default", async () => {
+    render(<EntryDialog onClose={vi.fn()} presetType="rdp" />);
+    fireEvent.change(nameField(), { target: { value: "app-01" } });
+    fireEvent.submit(panel().querySelector("form")!);
+    await vi.waitFor(() => expect(createEntry).toHaveBeenCalledTimes(1));
+    const calls = createEntry.mock.calls as unknown as [{ config: Record<string, unknown> }][];
+    expect(Object.keys(calls[0][0].config).filter((k) => k.startsWith("gateway"))).toEqual([]);
   });
 });
 

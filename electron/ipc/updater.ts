@@ -12,6 +12,8 @@ import { AppState } from '../services/state.js';
 import { setIsQuitting } from '../services/app-lifecycle.js';
 import { appQuitFlush } from '../services/vault/app-quit-flush.js';
 import { installAfterVaultFlush } from './update-install.js';
+import { readSettings, writeSettings } from './settings.js';
+import { applyUpdateChannel, getEffectiveBetaUpdates, isPrereleaseVersion } from '../services/update-channel.js';
 
 type ElectronUpdaterModule = typeof import('electron-updater');
 
@@ -26,7 +28,7 @@ interface CachedUpdateInfo {
 }
 
 let cachedUpdateInfo: CachedUpdateInfo | null = null;
-let checkInProgress = false;
+let checkInFlight: Promise<CachedUpdateInfo | null> | null = null;
 let updateDownloaded = false;
 let periodicCheckTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -61,14 +63,34 @@ async function getAutoUpdater() {
   }
 }
 
+function betaUpdatesEnabled(): boolean {
+  return getEffectiveBetaUpdates(readSettings().beta_updates, app.getVersion());
+}
+
 /** Perform an update check, guarded against concurrent calls. */
 async function doUpdateCheck(): Promise<CachedUpdateInfo | null> {
-  if (checkInProgress) return cachedUpdateInfo;
+  if (checkInFlight) return cachedUpdateInfo;
+  checkInFlight = runUpdateCheck();
+  try {
+    return await checkInFlight;
+  } finally {
+    checkInFlight = null;
+  }
+}
 
+/** Waits out a check that may have used the old channel, then checks again from scratch. */
+async function freshUpdateCheck(): Promise<CachedUpdateInfo | null> {
+  if (checkInFlight) await checkInFlight.catch(() => null);
+  cachedUpdateInfo = null;
+  return doUpdateCheck();
+}
+
+async function runUpdateCheck(): Promise<CachedUpdateInfo | null> {
   const updater = await getAutoUpdater();
   if (!updater) return null;
 
-  checkInProgress = true;
+  // Read fresh each time: the setting can change from the Settings dialog between checks.
+  applyUpdateChannel(updater, betaUpdatesEnabled());
   try {
     const result = await updater.checkForUpdates();
     if (result && result.isUpdateAvailable && result.updateInfo) {
@@ -91,8 +113,6 @@ async function doUpdateCheck(): Promise<CachedUpdateInfo | null> {
   } catch (err) {
     console.error('[updater] checkForUpdates failed:', err);
     return cachedUpdateInfo;
-  } finally {
-    checkInProgress = false;
   }
 }
 
@@ -109,6 +129,22 @@ export function registerUpdaterHandlers(): void {
     // Reset cache so we get fresh data
     cachedUpdateInfo = null;
     return doUpdateCheck();
+  });
+
+  // ── updater_get_channel ────────────────────────────────────────────
+  ipcMain.handle('updater_get_channel', () => {
+    const version = app.getVersion();
+    return { betaUpdates: betaUpdatesEnabled(), version, isPrerelease: isPrereleaseVersion(version) };
+  });
+
+  // ── updater_set_beta_updates ───────────────────────────────────────
+  // Acts at once (not part of the Settings Save button) and returns a fresh check on the new channel.
+  ipcMain.handle('updater_set_beta_updates', async (_e, args: { enabled?: unknown } | undefined) => {
+    if (typeof args?.enabled !== 'boolean') throw new Error('Invalid beta updates value');
+    writeSettings({ ...readSettings(), beta_updates: args.enabled });
+    const updater = await getAutoUpdater();
+    if (updater) applyUpdateChannel(updater, args.enabled);
+    return freshUpdateCheck();
   });
 
   // ── download_and_install_update ────────────────────────────────────
@@ -183,6 +219,7 @@ export async function setupAutoUpdater(): Promise<void> {
   updater.forceDevUpdateConfig = true;
   updater.autoDownload = true;
   updater.autoInstallOnAppQuit = true;
+  applyUpdateChannel(updater, betaUpdatesEnabled());
 
   // Attach global error listener once
   updater.on('error', (err) => {

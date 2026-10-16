@@ -1,10 +1,10 @@
 import type { EntryType } from "../../types/entry";
 import {
-  DesktopIcon, DevicesIcon, InfoCircleIcon, KeyIcon, PlayerPlayIcon, RobotIcon, SettingsIcon, ShieldLockIcon
+  DesktopIcon, DevicesIcon, InfoCircleIcon, KeyIcon, NetworkIcon, PlayerPlayIcon, RobotIcon, SettingsIcon, ShieldLockIcon
 } from "../../lib/icons";
 import type { IconComponent } from "../../lib/icons";
 
-export type EntryTabId = "general" | "credentials" | "display" | "resources" | "security" | "autofill" | "command" | "information";
+export type EntryTabId = "general" | "credentials" | "display" | "resources" | "security" | "gateway" | "autofill" | "command" | "information";
 
 export interface EntryTab {
   id: EntryTabId;
@@ -40,6 +40,7 @@ export function getTabCategories(entryType: EntryType): EntryTabCategory[] {
         { id: "display", label: "Display", icon: DesktopIcon },
         { id: "resources", label: "Resources", icon: DevicesIcon },
         { id: "security", label: "Security", icon: ShieldLockIcon },
+        { id: "gateway", label: "Gateway", icon: NetworkIcon },
       ],
     });
   } else if (entryType === "web") {

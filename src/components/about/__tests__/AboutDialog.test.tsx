@@ -36,6 +36,18 @@ describe("AboutDialog", () => {
     expect(invoke).toHaveBeenCalledWith("auth_open_website", undefined);
   });
 
+  it("shows no Beta pill on a regular release", async () => {
+    await mount();
+    expect(screen.queryByRole("button", { name: "Beta" })).toBeNull();
+  });
+
+  it("shows a Beta pill on a beta build", async () => {
+    invoke.mockImplementation(async (channel) => (channel === "app_get_version" ? "0.19.0-beta.1" : null));
+    await mount();
+    expect(topPanel()).toHaveTextContent("Version 0.19.0-beta.1");
+    expect(screen.getByRole("button", { name: "Beta" })).toBeInTheDocument();
+  });
+
   it("closes on Escape, a scrim click and its close button (3.12.1)", async () => {
     const onClose = await mount();
     pressEscape();

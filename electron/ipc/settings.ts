@@ -16,9 +16,10 @@ import { clearRecentVaults, removeRecentVault, type RecentVaultDeps } from './re
 import { parseStartupVault, type StartupVault } from './startup-vault-core.js';
 import { applyAppearanceMigration, migrateAppearance, type AppearanceSettings } from '../services/appearance-migration.js';
 import { windowBackground } from '../services/appearance-palette.js';
+import { HARDCODED_GATEWAY_DEFAULTS, type RdpGatewayDefaults } from '../services/rdp/gateway-config.js';
 
 // Session default types — mirrored from src/types/entry.ts to avoid cross-boundary imports
-interface RdpGlobalDefaults {
+interface RdpGlobalDefaults extends RdpGatewayDefaults {
   resolution: string;
   colorDepth: number;
   sound: string;
@@ -45,6 +46,7 @@ const HARDCODED_RDP_DEFAULTS: RdpGlobalDefaults = {
   resolution: "match_window", colorDepth: 32, sound: "local",
   quality: "good", clipboard: true, enableNla: true, enableHighDpi: false,
   displayScale: 1.0,
+  ...HARDCODED_GATEWAY_DEFAULTS,
 };
 
 const HARDCODED_WEB_DEFAULTS: WebGlobalDefaults = {
@@ -119,6 +121,8 @@ export interface AppSettings {
   vault_idle_lock_minutes: number;
   // What opens at startup (docs/AUTO_UNLOCK.md 3.5); null = the last team vault used, else the Vault Hub
   startup_vault: StartupVault | null;
+  // Beta update channel (docs/BETA_CHANNEL.md); undefined = follow the running version
+  beta_updates?: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -215,6 +219,10 @@ export function readSettings(): AppSettings {
     parsed.startup_vault = parseStartupVault(raw.startup_vault);
     if (!isKnownEngineType(String(parsed.default_engine))) {
       parsed.default_engine = 'claude-code';
+    }
+    // Nested merge so files saved before a default existed (e.g. the gateway keys) still get it.
+    if (raw.session_defaults_rdp && typeof raw.session_defaults_rdp === 'object' && !Array.isArray(raw.session_defaults_rdp)) {
+      parsed.session_defaults_rdp = { ...HARDCODED_RDP_DEFAULTS, ...raw.session_defaults_rdp };
     }
     // Migrate: populate session_defaults_web.engine from legacy default_web_engine
     if (!raw.session_defaults_web && raw.default_web_engine) {

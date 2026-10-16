@@ -22,6 +22,8 @@ import SecurityTab from "./tabs/SecurityTab";
 import AutofillTab from "./tabs/AutofillTab";
 import InformationTab from "./tabs/InformationTab";
 import CommandTab from "./tabs/CommandTab";
+import GatewayTab from "./tabs/GatewayTab";
+import { gatewayConfigForSave, gatewayValidationError } from "./gatewayForm";
 import EntryConflictInline from "../sync/EntryConflictInline";
 import { announceResolvedBySave, conflictFieldsBeforeSave } from "../sync/editor-conflicts";
 import { changedEditorFields } from "./entry-update-diff";
@@ -216,7 +218,7 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
       return { ...commandConfig as unknown as Record<string, unknown>, ...totpMeta };
     }
     if (entryType === "rdp") {
-      return { ...stripUndefined(rdpConfig as unknown as Record<string, unknown>), ...totpMeta };
+      return { ...stripUndefined(gatewayConfigForSave(rdpConfig) as unknown as Record<string, unknown>), ...totpMeta };
     }
     if (entryType === "web") {
       // Include autofill only if any field was explicitly set
@@ -291,6 +293,12 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
     if (entryType === 'ssh' && !username.trim() && !credentialId) {
       setValidationError('Username is required for SSH connections');
       setActiveTab('credentials');
+      return;
+    }
+    const gatewayError = entryType === 'rdp' ? gatewayValidationError(rdpConfig) : null;
+    if (gatewayError) {
+      setValidationError(gatewayError);
+      setActiveTab('gateway');
       return;
     }
     setValidationError(null);
@@ -458,6 +466,14 @@ export default function EntryDialog({ onClose, presetType, folderId, editingEntr
             host={host}
             rdpGlobalDefaults={rdpGlobalDefaults}
             webGlobalDefaults={webGlobalDefaults}
+          />
+        );
+      case "gateway":
+        return (
+          <GatewayTab
+            config={rdpConfig}
+            onChange={(next) => { setRdpConfig(next); setValidationError(null); }}
+            globalDefaults={rdpGlobalDefaults}
           />
         );
       case "autofill":
