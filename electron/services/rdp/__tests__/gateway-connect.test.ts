@@ -1,160 +1,197 @@
 import { describe, it, expect, vi } from 'vitest';
-import { GatewayConfigError, HARDCODED_GATEWAY_DEFAULTS, type RdpGatewaySettings } from '../gateway-config.js';
+import { GatewayConfigError } from '../gateway-config.js';
 import {
   connectGateway,
   describeGateway,
-  gatewayDefaultsFrom,
-  parseGatewaySettingsArg,
+  findRdGatewayEntry,
+  loadRdGatewayRecord,
+  parseGatewayIdArg,
+  type GatewayVault,
+  type GatewayVaultEntry,
 } from '../gateway-connect.js';
 
-const settings: RdpGatewaySettings = {
-  hostname: 'gw.corp.example',
-  port: 443,
-  transport: 'auto',
-  bypassLocal: false,
-  credentialMode: 'same',
-  source: 'entry',
-};
+function entry(over: Partial<GatewayVaultEntry> & { id: string }): GatewayVaultEntry {
+  return {
+    name: over.id,
+    entry_type: 'credential',
+    credential_type: null,
+    config: {},
+    credential_id: null,
+    username: null,
+    password: null,
+    domain: null,
+    ...over,
+  };
+}
 
+function vaultOf(...entries: GatewayVaultEntry[]): GatewayVault & { getEntry: ReturnType<typeof vi.fn> } {
+  return {
+    getEntry: vi.fn((id: string) => {
+      const e = entries.find((x) => x.id === id);
+      if (!e) throw new Error(`Entry not found: ${id}`);
+      return e;
+    }),
+  };
+}
+
+const gwConfig = { gatewayHostname: 'gw.corp.example' };
 const hostLogin = { username: 'CORP\\alice', password: 'host-pw', domain: '' };
 
-describe('gatewayDefaultsFrom', () => {
-  it('fills every default for an old settings value without gateway keys', () => {
-    expect(gatewayDefaultsFrom({ resolution: 'match_window' })).toEqual(HARDCODED_GATEWAY_DEFAULTS);
-  });
-
-  it('falls back to defaults for non-objects', () => {
-    expect(gatewayDefaultsFrom(undefined)).toEqual(HARDCODED_GATEWAY_DEFAULTS);
-    expect(gatewayDefaultsFrom('nope')).toEqual(HARDCODED_GATEWAY_DEFAULTS);
-  });
-
-  it('keeps stored values and drops ones with the wrong type', () => {
-    expect(
-      gatewayDefaultsFrom({
-        gatewayEnabled: true,
-        gatewayHostname: 'gw.corp.example',
-        gatewayPort: '8443',
-        gatewayTransport: 'http',
-        gatewayBypassLocal: true,
-      }),
-    ).toEqual({
-      gatewayEnabled: true,
-      gatewayHostname: 'gw.corp.example',
-      gatewayPort: 443,
-      gatewayTransport: 'http',
-      gatewayBypassLocal: true,
+describe('loadRdGatewayRecord', () => {
+  it('uses the typed-in login on the gateway entry', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', name: 'Corp GW', credential_type: 'rd_gateway', config: gwConfig, username: 'gwuser', password: 'gw-pw', domain: 'GW' }),
+    );
+    expect(loadRdGatewayRecord(vault, 'gw')).toEqual({
+      id: 'gw',
+      name: 'Corp GW',
+      entryType: 'credential',
+      credentialType: 'rd_gateway',
+      config: gwConfig,
+      ownLogin: { username: 'gwuser', password: 'gw-pw', domain: 'GW' },
     });
+  });
+
+  it('uses the linked credential over typed-in fields', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: gwConfig, credential_id: 'cred', username: 'stale', password: 'stale' }),
+      entry({ id: 'cred', username: 'linked', password: 'linked-pw', domain: 'CORP' }),
+    );
+    expect(loadRdGatewayRecord(vault, 'gw')?.ownLogin).toEqual({ username: 'linked', password: 'linked-pw', domain: 'CORP' });
+  });
+
+  it('has no own login when the linked credential is gone', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: gwConfig, credential_id: 'gone', username: 'stale', password: 'stale' }),
+    );
+    expect(loadRdGatewayRecord(vault, 'gw')?.ownLogin).toBeNull();
+  });
+
+  it('has no own login when the link points at something that is not a credential', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: gwConfig, credential_id: 'pc' }),
+      entry({ id: 'pc', entry_type: 'rdp', username: 'u', password: 'p' }),
+    );
+    expect(loadRdGatewayRecord(vault, 'gw')?.ownLogin).toBeNull();
+  });
+
+  it('skips the login lookup when the gateway uses the RDP entry login', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: { ...gwConfig, gatewayLoginSource: 'connection' }, credential_id: 'cred' }),
+      entry({ id: 'cred', username: 'linked', password: 'linked-pw' }),
+    );
+    expect(loadRdGatewayRecord(vault, 'gw')?.ownLogin).toBeNull();
+    expect(vault.getEntry).not.toHaveBeenCalledWith('cred');
+  });
+
+  it('returns null for a missing entry', () => {
+    expect(loadRdGatewayRecord(vaultOf(), 'nope')).toBeNull();
+  });
+
+  it('treats an empty typed-in login as none', () => {
+    const vault = vaultOf(entry({ id: 'gw', credential_type: 'rd_gateway', config: gwConfig }));
+    expect(loadRdGatewayRecord(vault, 'gw')?.ownLogin).toBeNull();
   });
 });
 
-describe('parseGatewaySettingsArg', () => {
-  it('returns null when no gateway was sent', () => {
-    expect(parseGatewaySettingsArg(undefined)).toBeNull();
-    expect(parseGatewaySettingsArg(null)).toBeNull();
-  });
-
-  it('accepts well-formed settings', () => {
-    expect(parseGatewaySettingsArg({ ...settings, port: 8443, transport: 'rpc', bypassLocal: true })).toEqual({
-      ...settings,
-      port: 8443,
-      transport: 'rpc',
-      bypassLocal: true,
-      credentialId: undefined,
-    });
-  });
-
-  it('cleans bad port, transport and credential values', () => {
-    expect(
-      parseGatewaySettingsArg({
-        hostname: 'https://gw.corp.example/',
-        port: 99999,
-        transport: 'carrier-pigeon',
-        bypassLocal: 'yes',
-        credentialMode: 'credential',
-        source: 'elsewhere',
-      }),
-    ).toEqual({
-      hostname: 'gw.corp.example',
-      port: 443,
-      transport: 'auto',
-      bypassLocal: false,
-      credentialMode: 'same',
-      credentialId: undefined,
-      source: 'entry',
-    });
-  });
-
-  it('rejects a missing gateway address', () => {
-    expect(() => parseGatewaySettingsArg({ ...settings, hostname: '  ' })).toThrow(GatewayConfigError);
-  });
-
-  it('rejects a value that is not an object', () => {
-    expect(() => parseGatewaySettingsArg('gw.corp.example')).toThrow(GatewayConfigError);
+describe('findRdGatewayEntry', () => {
+  it('finds a gateway entry and ignores other entries', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: gwConfig }),
+      entry({ id: 'cred', username: 'u' }),
+    );
+    expect(findRdGatewayEntry(vault, 'gw')?.id).toBe('gw');
+    expect(findRdGatewayEntry(vault, 'cred')).toBeNull();
+    expect(findRdGatewayEntry(vault, 'missing')).toBeNull();
   });
 });
 
 describe('connectGateway', () => {
-  it('returns undefined when there is no gateway', () => {
-    expect(connectGateway(null, hostLogin, () => null)).toBeUndefined();
+  it('connects directly without a gateway id', () => {
+    const vault = vaultOf();
+    expect(connectGateway(undefined, hostLogin, vault)).toBeUndefined();
+    expect(vault.getEntry).not.toHaveBeenCalled();
   });
 
-  it('uses the host login in same mode and never looks up a credential', () => {
-    const lookup = vi.fn();
-    expect(connectGateway(settings, hostLogin, lookup)).toEqual({
+  it('builds the engine config from the gateway\'s own login', () => {
+    const vault = vaultOf(
+      entry({
+        id: 'gw',
+        credential_type: 'rd_gateway',
+        config: { gatewayHostname: 'gw.corp.example', gatewayPort: 8443, gatewayTransport: 'http', gatewayBypassLocal: true },
+        username: 'GW\\gwuser',
+        password: 'gw-pw',
+      }),
+    );
+    expect(connectGateway('gw', hostLogin, vault)).toEqual({
       hostname: 'gw.corp.example',
-      port: 443,
+      port: 8443,
+      username: 'gwuser',
+      password: 'gw-pw',
+      domain: 'GW',
+      transport: 'http',
+      bypassLocal: true,
+    });
+  });
+
+  it('uses the RDP entry login when the gateway is set to', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', credential_type: 'rd_gateway', config: { ...gwConfig, gatewayLoginSource: 'connection' } }),
+    );
+    expect(connectGateway('gw', { username: 'CORP\\alice', password: 'host-pw', domain: null }, vault)).toMatchObject({
       username: 'alice',
       password: 'host-pw',
       domain: 'CORP',
-      transport: 'auto',
-      bypassLocal: false,
     });
-    expect(lookup).not.toHaveBeenCalled();
   });
 
-  it('uses the linked vault credential in credential mode', () => {
-    const lookup = vi.fn(() => ({ username: 'gwuser', password: 'gw-pw', domain: 'GW' }));
-    const cfg = connectGateway({ ...settings, credentialMode: 'credential', credentialId: 'cred-1' }, hostLogin, lookup);
-    expect(lookup).toHaveBeenCalledWith('cred-1');
-    expect(cfg).toMatchObject({ username: 'gwuser', password: 'gw-pw', domain: 'GW' });
+  it('fails with a clear error when the gateway was deleted', () => {
+    expect(() => connectGateway('gone', hostLogin, vaultOf())).toThrow(GatewayConfigError);
+    expect(() => connectGateway('gone', hostLogin, vaultOf())).toThrow(/was deleted/);
   });
 
-  it('treats null secrets on the linked credential as empty', () => {
-    const cfg = connectGateway(
-      { ...settings, credentialMode: 'credential', credentialId: 'cred-1' },
-      hostLogin,
-      () => ({ username: 'gwuser', password: null, domain: null }),
+  it('fails when the id points at an entry that is not a gateway', () => {
+    const vault = vaultOf(entry({ id: 'cred', username: 'u', password: 'p' }));
+    expect(() => connectGateway('cred', hostLogin, vault)).toThrow(/was deleted/);
+  });
+
+  it('fails with a clear error when the linked login was deleted', () => {
+    const vault = vaultOf(
+      entry({ id: 'gw', name: 'Corp GW', credential_type: 'rd_gateway', config: gwConfig, credential_id: 'gone', username: 'stale' }),
     );
-    expect(cfg).toMatchObject({ username: 'gwuser', password: '', domain: '' });
+    expect(() => connectGateway('gw', hostLogin, vault)).toThrow('The gateway "Corp GW" has no login.');
+  });
+});
+
+describe('parseGatewayIdArg', () => {
+  it('accepts a missing or blank id as no gateway', () => {
+    expect(parseGatewayIdArg(undefined)).toBeUndefined();
+    expect(parseGatewayIdArg(null)).toBeUndefined();
+    expect(parseGatewayIdArg('  ')).toBeUndefined();
   });
 
-  it('throws a clear error when the linked credential is gone', () => {
-    const lookup = () => {
-      throw new Error('Credential not found: cred-1');
-    };
-    expect(() =>
-      connectGateway({ ...settings, credentialMode: 'credential', credentialId: 'cred-1' }, hostLogin, lookup),
-    ).toThrow(/saved gateway login/);
+  it('trims an id', () => {
+    expect(parseGatewayIdArg(' gw-1 ')).toBe('gw-1');
   });
 
-  it('throws when same mode has no host username', () => {
-    expect(() => connectGateway(settings, { username: '', password: '' }, () => null)).toThrow(GatewayConfigError);
+  it('rejects anything else', () => {
+    expect(() => parseGatewayIdArg({ hostname: 'gw' })).toThrow(GatewayConfigError);
+    expect(() => parseGatewayIdArg(42)).toThrow(GatewayConfigError);
   });
 });
 
 describe('describeGateway', () => {
-  it('names host, port and transport but never the password', () => {
+  it('never includes the password', () => {
     const line = describeGateway({
-      hostname: 'gw.corp.example',
-      port: 8443,
-      username: 'alice',
-      password: 'super-secret',
-      domain: 'CORP',
-      transport: 'http',
-      bypassLocal: true,
+      hostname: 'gw',
+      port: 443,
+      username: 'u',
+      password: 'top-secret',
+      domain: '',
+      transport: 'auto',
+      bypassLocal: false,
     });
-    expect(line).toContain('gw.corp.example:8443');
-    expect(line).toContain('transport=http');
-    expect(line).not.toContain('super-secret');
+    expect(line).toBe('gateway=gw:443 transport=auto bypassLocal=false user=set');
+    expect(line).not.toContain('top-secret');
   });
 });

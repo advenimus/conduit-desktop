@@ -32,34 +32,30 @@ describe('readSettings session_defaults_rdp', () => {
     fs.rmSync(dataDir.current, { recursive: true, force: true });
   });
 
-  it('adds the gateway defaults to an older stored value', async () => {
+  it('fills defaults missing from an older stored value', async () => {
     const s = await readWith({ session_defaults_rdp: { resolution: '1280x720', colorDepth: 16 } });
-    expect(s.session_defaults_rdp).toMatchObject({
+    expect(s.session_defaults_rdp).toEqual({
       resolution: '1280x720',
       colorDepth: 16,
+      sound: 'local',
+      quality: 'good',
       clipboard: true,
-      gatewayEnabled: false,
-      gatewayHostname: '',
-      gatewayPort: 443,
-      gatewayTransport: 'auto',
-      gatewayBypassLocal: false,
+      enableNla: true,
+      enableHighDpi: false,
+      displayScale: 1.0,
     });
   });
 
-  it('keeps stored gateway values', async () => {
+  it('drops the old device gateway keys', async () => {
     const s = await readWith({
-      session_defaults_rdp: { gatewayEnabled: true, gatewayHostname: 'gw.corp.example', gatewayPort: 8443 },
+      session_defaults_rdp: { gatewayEnabled: true, gatewayHostname: 'gw.corp.example', gatewayPort: 8443, gatewayTransport: 'http', gatewayBypassLocal: true, quality: 'best' },
     });
-    expect(s.session_defaults_rdp).toMatchObject({
-      gatewayEnabled: true,
-      gatewayHostname: 'gw.corp.example',
-      gatewayPort: 8443,
-      resolution: 'match_window',
-    });
+    expect(s.session_defaults_rdp).toMatchObject({ quality: 'best', resolution: 'match_window' });
+    expect(Object.keys(s.session_defaults_rdp).filter((k) => k.startsWith('gateway'))).toEqual([]);
   });
 
-  it('has the gateway defaults when the key is missing', async () => {
+  it('has no gateway keys when the value is missing', async () => {
     const s = await readWith({ theme: 'dark' });
-    expect(s.session_defaults_rdp).toMatchObject({ gatewayEnabled: false, gatewayPort: 443 });
+    expect(Object.keys(s.session_defaults_rdp).filter((k) => k.startsWith('gateway'))).toEqual([]);
   });
 });

@@ -9,19 +9,23 @@ import {
   PlayerPlayIcon,
   FolderIcon,
   FolderOpenIcon,
+  NetworkIcon,
 } from "../../lib/icons";
 import type { EntryType } from "../../types/entry";
+import { RD_GATEWAY_CREDENTIAL_TYPE } from "../../lib/rdpGateway";
 import { resolveIcon } from "./iconRegistry";
 
 export function getEntryIcon(
   entryType: EntryType | "folder",
   isOpen?: boolean,
   customIcon?: string | null,
+  credentialType?: string | null,
 ): IconComponent {
   if (customIcon) {
     const resolved = resolveIcon(customIcon);
     if (resolved) return resolved;
   }
+  if (entryType === "credential" && credentialType === RD_GATEWAY_CREDENTIAL_TYPE) return NetworkIcon;
 
   switch (entryType) {
     case "ssh":
@@ -53,10 +57,12 @@ export interface EntryColorResult {
 export function getEntryColor(
   entryType: EntryType | "folder",
   customColor?: string | null,
+  credentialType?: string | null,
 ): EntryColorResult {
   if (customColor) {
     return { style: { color: customColor } };
   }
+  if (entryType === "credential" && credentialType === RD_GATEWAY_CREDENTIAL_TYPE) return { className: "text-entry-rdp" };
 
   switch (entryType) {
     case "ssh":

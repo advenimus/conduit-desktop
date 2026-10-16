@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import type { CredentialMeta } from "../../types/credential";
-import { resolveCredentialType, CREDENTIAL_TYPES } from "../../types/credential";
+import { loginCredentials, resolveCredentialType, CREDENTIAL_TYPES } from "../../types/credential";
 import { SearchIcon } from "../../lib/icons";
 import { Badge, ListRow, TextInput } from "../ui";
 
@@ -23,9 +23,10 @@ export default function PickerCredentialList({ credentials, onSelect }: PickerCr
   }, []);
 
   const filtered = useMemo(() => {
-    if (!search) return credentials;
+    const logins = loginCredentials(credentials);
+    if (!search) return logins;
     const q = search.toLowerCase();
-    return credentials.filter(
+    return logins.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         (c.username && c.username.toLowerCase().includes(q)) ||

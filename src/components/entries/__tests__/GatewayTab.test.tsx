@@ -1,123 +1,72 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import GatewayTab from "../tabs/GatewayTab";
-import { useVaultStore } from "../../../stores/vaultStore";
-import { HARDCODED_RDP_DEFAULTS, type RdpEntryConfig, type RdpGlobalDefaults } from "../../../types/entry";
+import { useEntryStore } from "../../../stores/entryStore";
+import type { RdpEntryConfig } from "../../../types/entry";
 
 vi.hoisted(() => {
   Object.assign(globalThis, { electron: { invoke: async () => null, on: () => () => undefined } });
 });
 
 let latest: Partial<RdpEntryConfig> = {};
+const onNewGateway = vi.fn();
 
-function Harness({ initial = {}, defaults = HARDCODED_RDP_DEFAULTS }: { initial?: Partial<RdpEntryConfig>; defaults?: RdpGlobalDefaults }) {
+function Harness({ initial = {} }: { initial?: Partial<RdpEntryConfig> }) {
   const [config, setConfig] = useState<Partial<RdpEntryConfig>>(initial);
   latest = config;
-  return <GatewayTab config={config} onChange={setConfig} globalDefaults={defaults} />;
+  return <GatewayTab config={config} onChange={setConfig} onNewGateway={onNewGateway} />;
 }
 
-const mode = (name: string) => screen.getByRole("radio", { name });
+const picker = () => screen.getByRole("combobox", { name: "Gateway" }) as HTMLSelectElement;
+const optionTexts = () => [...picker().options].map((o) => o.textContent);
 
 beforeEach(() => {
   latest = {};
-  useVaultStore.setState({
-    credentials: [
-      { id: "c1", name: "Gateway Admin", username: "CORP\\gwadmin", domain: null, tags: [], credential_type: null, created_at: "" },
+  onNewGateway.mockClear();
+  useEntryStore.setState({
+    entries: [
+      { id: "g2", name: "West", entry_type: "credential", credential_type: "rd_gateway", config: { gatewayHostname: "west.example.com", gatewayPort: 8443 } },
+      { id: "g1", name: "East", entry_type: "credential", credential_type: "rd_gateway", config: { gatewayHostname: "east.example.com" } },
+      { id: "c1", name: "Admin login", entry_type: "credential", credential_type: null, config: {} },
+      { id: "r1", name: "app-01", entry_type: "rdp", credential_type: null, config: {} },
     ],
   } as never);
 });
 
-describe("GatewayTab mode", () => {
-  it("starts on the default gateway and says when none is set", () => {
+describe("GatewayTab", () => {
+  it("starts on No gateway and lists only the vault's gateways, by name with their address", () => {
     render(<Harness />);
-    expect((mode("Use default gateway") as HTMLInputElement).checked).toBe(true);
-    expect(screen.getByText("No default gateway set")).toBeTruthy();
-    expect(screen.getByText(/Settings > Sessions > RDP/)).toBeTruthy();
+    expect(picker().value).toBe("");
+    expect(optionTexts()).toEqual(["No gateway", "East (east.example.com)", "West (west.example.com:8443)"]);
   });
 
-  it("shows the Settings default it will use", () => {
-    render(<Harness defaults={{ ...HARDCODED_RDP_DEFAULTS, gatewayEnabled: true, gatewayHostname: "gw.example.com" }} />);
-    expect(screen.getByText("Default: gw.example.com:443")).toBeTruthy();
-  });
-
-  it("stores off and hides the server and login fields", () => {
+  it("stores the picked gateway's id and removes it for No gateway", () => {
     render(<Harness />);
-    fireEvent.click(mode("No gateway"));
-    expect(latest.gatewayMode).toBe("off");
-    expect(screen.queryByLabelText("Gateway server")).toBeNull();
-    expect(screen.queryByRole("radio", { name: "Same login as this computer" })).toBeNull();
+    fireEvent.change(picker(), { target: { value: "g2" } });
+    expect(latest.gatewayId).toBe("g2");
+    fireEvent.change(picker(), { target: { value: "" } });
+    expect(latest.gatewayId).toBeUndefined();
   });
 
-  it("shows the custom fields and goes back to default as an unset mode", () => {
+  it("warns when the picked gateway was deleted and lets the user pick again", () => {
+    render(<Harness initial={{ gatewayId: "gone" }} />);
+    expect(screen.getByText(/The gateway this entry used was deleted/)).toBeTruthy();
+    expect(picker().value).toBe("gone");
+    fireEvent.change(picker(), { target: { value: "g1" } });
+    expect(latest.gatewayId).toBe("g1");
+    expect(screen.queryByText(/was deleted/)).toBeNull();
+  });
+
+  it("offers to create a new gateway", () => {
     render(<Harness />);
-    fireEvent.click(mode("Custom gateway"));
-    expect(latest.gatewayMode).toBe("custom");
-    expect(screen.getByLabelText("Gateway server")).toBeTruthy();
-    expect((screen.getByLabelText("Port") as HTMLInputElement).placeholder).toBe("443");
-    expect(screen.getByRole("checkbox", { name: /^Skip the gateway for local addresses/ })).toBeTruthy();
-    fireEvent.click(mode("Use default gateway"));
-    expect(latest.gatewayMode).toBeUndefined();
+    fireEvent.click(screen.getByRole("button", { name: "New gateway..." }));
+    expect(onNewGateway).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the transport under Advanced", () => {
-    render(<Harness initial={{ gatewayMode: "custom", gatewayHostname: "gw" }} />);
-    expect(screen.queryByRole("combobox", { name: "Transport" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
-    const transport = screen.getByRole("combobox", { name: "Transport" }) as HTMLSelectElement;
-    expect([...transport.options].map((o) => o.textContent)).toEqual(["Automatic", "HTTP", "RPC"]);
-    fireEvent.change(transport, { target: { value: "rpc" } });
-    expect(latest.gatewayTransport).toBe("rpc");
-  });
-
-  it("splits a typed host:port into the port field", () => {
-    render(<Harness initial={{ gatewayMode: "custom" }} />);
-    const host = screen.getByLabelText("Gateway server");
-    fireEvent.change(host, { target: { value: "gw.example.com:8443" } });
-    fireEvent.blur(host);
-    expect(latest.gatewayHostname).toBe("gw.example.com");
-    expect(latest.gatewayPort).toBe(8443);
-  });
-
-  it("shows an inline message for a custom gateway with no server", () => {
-    render(<Harness initial={{ gatewayMode: "custom" }} />);
-    expect(screen.getByText("Enter a gateway server, or choose another gateway option.")).toBeTruthy();
-  });
-});
-
-describe("GatewayTab login", () => {
-  it("defaults to the same login as the computer", () => {
+  it("says when the vault has no gateways yet", () => {
+    useEntryStore.setState({ entries: [] } as never);
     render(<Harness />);
-    expect((screen.getByRole("radio", { name: "Same login as this computer" }) as HTMLInputElement).checked).toBe(true);
-  });
-
-  it("picks a saved credential, shows its name, and clears it", () => {
-    render(<Harness />);
-    fireEvent.click(screen.getByRole("radio", { name: "Use a saved credential" }));
-    expect(latest.gatewayCredentialMode).toBe("credential");
-    fireEvent.click(screen.getByRole("button", { name: "Choose a credential" }));
-    const picker = document.querySelector('[data-cv-layer="sync"]') as HTMLElement;
-    fireEvent.click(within(picker).getByText("Gateway Admin"));
-    expect(latest.gatewayCredentialId).toBe("c1");
-    expect(screen.getByRole("button", { name: "Gateway Admin" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Clear gateway credential" }));
-    expect(latest.gatewayCredentialId).toBeUndefined();
-  });
-
-  it("says when the linked credential no longer exists", () => {
-    render(<Harness initial={{ gatewayCredentialMode: "credential", gatewayCredentialId: "gone" }} />);
-    expect(screen.getByRole("button", { name: "Unknown credential" })).toBeTruthy();
-  });
-
-  it("going back to the same login drops the picked credential", () => {
-    render(<Harness initial={{ gatewayCredentialMode: "credential", gatewayCredentialId: "c1" }} />);
-    fireEvent.click(screen.getByRole("radio", { name: "Same login as this computer" }));
-    expect(latest.gatewayCredentialMode).toBeUndefined();
-    expect(latest.gatewayCredentialId).toBeUndefined();
-  });
-
-  it("keeps the login choice under the default mode, since it applies once a default is set", () => {
-    render(<Harness />);
-    expect(screen.getByRole("radio", { name: "Same login as this computer" })).toBeTruthy();
+    expect(screen.getByText(/No gateways in this vault yet/)).toBeTruthy();
   });
 });

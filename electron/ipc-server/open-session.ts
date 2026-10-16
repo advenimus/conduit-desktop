@@ -51,6 +51,7 @@ function registerMcpConnection(
   name: string,
   host: string,
   port: number,
+  gatewayId?: string,
 ): void {
   state.mcpConnections.set(sessionId, {
     session_id: sessionId,
@@ -60,6 +61,7 @@ function registerMcpConnection(
     port,
     status: 'connected',
     created_at: Date.now(),
+    ...(gatewayId ? { gateway_id: gatewayId } : {}),
   });
 }
 
@@ -90,7 +92,7 @@ export async function openSshSession(
 /** Open an RDP session from a fully-built engine config and wire it into the MCP registry + UI. */
 export async function openRdpSession(
   state: AppState,
-  opts: { config: RdpEngineConfig; name: string },
+  opts: { config: RdpEngineConfig; name: string; gatewayId?: string },
 ): Promise<OpenedSession> {
   // Ensure FreeRDP helper binary is available (auto-builds if missing)
   await ensureFreeRdpReady();
@@ -108,7 +110,7 @@ export async function openRdpSession(
 
   const host = opts.config.host;
   const port = opts.config.port;
-  registerMcpConnection(state, sessionId, 'rdp', opts.name, host, port);
+  registerMcpConnection(state, sessionId, 'rdp', opts.name, host, port, opts.gatewayId);
   notifyRendererTab(sessionId, 'rdp', opts.name, host, port);
 
   const dims = session.getDimensions();

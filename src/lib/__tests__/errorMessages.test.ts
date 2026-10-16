@@ -151,12 +151,14 @@ describe("friendlyConnectionError", () => {
 
     it("passes the gateway setup errors from the main process through unchanged", () => {
       const raw =
-        "The gateway needs a login. Add a username and password to this entry, or pick a saved gateway login in its Gateway settings.";
+        'The gateway "Office" has no login. Add one in the gateway\'s settings, or set it to use the RDP entry\'s login.';
       expect(friendlyConnectionError(raw, "rdp", viaGateway)).toBe(raw);
       expect(friendlyConnectionError(`GatewayConfigError: ${raw}`, "rdp")).toBe(raw);
-      const missing =
-        "The saved gateway login for this entry was not found. Pick a gateway login again in the entry's Gateway settings.";
-      expect(friendlyConnectionError(missing, "rdp", viaGateway)).toBe(missing);
+      const deleted = "The gateway this entry uses was deleted. Pick a gateway again in the entry's Gateway settings.";
+      expect(friendlyConnectionError(deleted, "rdp", viaGateway)).toBe(deleted);
+      const noUser =
+        'The gateway "Office" uses the login of the RDP entry, but this entry has no username. Add a login to the entry.';
+      expect(friendlyConnectionError(noUser, "rdp", viaGateway)).toBe(noUser);
     });
 
     it("contains no em dashes in gateway guidance", () => {

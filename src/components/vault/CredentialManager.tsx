@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useVaultStore } from "../../stores/vaultStore";
 import { useTeamStore } from "../../stores/teamStore";
 import UnlockDialog from "./UnlockDialog";
 import CredentialForm from "./CredentialForm";
 import type { CredentialMeta } from "../../types/credential";
-import { resolveCredentialType, CREDENTIAL_TYPES } from "../../types/credential";
+import { loginCredentials, resolveCredentialType, CREDENTIAL_TYPES } from "../../types/credential";
 import { GlobeIcon, LockIcon, SearchIcon, TagIcon, UserIcon } from "../../lib/icons";
 import { Badge, Button, Dialog, DialogHeader, EmptyState, IconButton, TextInput } from "../ui";
 
@@ -15,7 +15,7 @@ interface CredentialManagerProps {
 export default function CredentialManager({ onClose }: CredentialManagerProps) {
   const {
     isUnlocked,
-    credentials,
+    credentials: allCredentials,
     checkVaultStatus,
     lockVault,
     deleteCredential,
@@ -26,6 +26,8 @@ export default function CredentialManager({ onClose }: CredentialManagerProps) {
     s.teamVaults.find((v) => v.id === teamVaultId)
   );
 
+  // Gateways are edited from the sidebar, where their own editor keeps their settings.
+  const credentials = useMemo(() => loginCredentials(allCredentials), [allCredentials]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showUnlock, setShowUnlock] = useState(false);
   const [showForm, setShowForm] = useState(false);

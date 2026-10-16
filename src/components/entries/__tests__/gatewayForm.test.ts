@@ -1,132 +1,171 @@
 import { describe, expect, it } from "vitest";
-import { describeDefaultGateway, gatewayConfigForSave, gatewayValidationError, splitGatewayHostInput } from "../gatewayForm";
-import { HARDCODED_RDP_DEFAULTS, type RdpEntryConfig } from "../../../types/entry";
+import type { EntryMeta, RdpEntryConfig } from "../../../types/entry";
+import {
+  describeGatewayUsage,
+  gatewayDeleteMessage,
+  gatewayEntryConfigForSave,
+  gatewayEntryValidationError,
+  gatewayLoginChoiceOf,
+  gatewayLoginColumns,
+  gatewayOptions,
+  gatewayUsageCount,
+  rdpGatewayConfigForSave,
+  splitGatewayHostInput,
+} from "../gatewayForm";
 
-const base: Partial<RdpEntryConfig> = { resolution: "1920x1080", enableNla: true };
+function entry(partial: Partial<EntryMeta>): EntryMeta {
+  return { entry_type: "rdp", credential_type: null, config: {}, ...partial } as EntryMeta;
+}
 
-describe("gatewayConfigForSave", () => {
-  it("leaves an entry without gateway keys untouched", () => {
-    expect(gatewayConfigForSave(base)).toEqual(base);
-  });
-
-  it("keeps only the mode when the gateway is off", () => {
-    const saved = gatewayConfigForSave({
-      ...base,
-      gatewayMode: "off",
-      gatewayHostname: "gw",
-      gatewayPort: 8443,
-      gatewayCredentialMode: "credential",
-      gatewayCredentialId: "c1",
-    });
-    expect(saved).toEqual({ ...base, gatewayMode: "off" });
-  });
-
-  it("drops the custom server keys under the default gateway but keeps a picked login", () => {
-    const saved = gatewayConfigForSave({
-      ...base,
-      gatewayMode: undefined,
-      gatewayHostname: "gw",
-      gatewayTransport: "rpc",
-      gatewayBypassLocal: true,
-      gatewayCredentialMode: "credential",
-      gatewayCredentialId: "c1",
-    });
-    expect(saved).toEqual({ ...base, gatewayCredentialMode: "credential", gatewayCredentialId: "c1" });
-  });
-
-  it("stores a custom gateway with a trimmed host and only the keys that were set", () => {
-    const saved = gatewayConfigForSave({ ...base, gatewayMode: "custom", gatewayHostname: "  gw.example.com " });
-    expect(saved).toEqual({ ...base, gatewayMode: "custom", gatewayHostname: "gw.example.com" });
-  });
-
-  it("keeps the custom port, transport and local bypass", () => {
-    const saved = gatewayConfigForSave({
-      ...base,
-      gatewayMode: "custom",
-      gatewayHostname: "gw",
+describe("gatewayEntryConfigForSave", () => {
+  it("keeps only the gateway keys, trimmed, with the login source", () => {
+    expect(
+      gatewayEntryConfigForSave({ gatewayHostname: " gw.example.com ", gatewayPort: 8443, gatewayTransport: "http", gatewayBypassLocal: true }, "typed"),
+    ).toEqual({
+      gatewayHostname: "gw.example.com",
       gatewayPort: 8443,
       gatewayTransport: "http",
       gatewayBypassLocal: true,
+      gatewayLoginSource: "own",
     });
-    expect(saved).toMatchObject({ gatewayPort: 8443, gatewayTransport: "http", gatewayBypassLocal: true });
   });
 
-  it("drops the credential keys when the gateway uses the same login", () => {
-    const saved = gatewayConfigForSave({
-      ...base,
-      gatewayMode: "custom",
+  it("drops defaults and stray keys", () => {
+    const config = { gatewayHostname: "gw", gatewayTransport: "auto", gatewayBypassLocal: false, resolution: "1920x1080" } as never;
+    expect(gatewayEntryConfigForSave(config, "saved")).toEqual({ gatewayHostname: "gw", gatewayLoginSource: "own" });
+  });
+
+  it("moves a port typed into the server box into the port key", () => {
+    expect(gatewayEntryConfigForSave({ gatewayHostname: "https://gw:9443/rdgw" }, "typed")).toEqual({
       gatewayHostname: "gw",
-      gatewayCredentialMode: "same",
-      gatewayCredentialId: "c1",
+      gatewayPort: 9443,
+      gatewayLoginSource: "own",
     });
-    expect(saved).not.toHaveProperty("gatewayCredentialMode");
-    expect(saved).not.toHaveProperty("gatewayCredentialId");
   });
 
-  it("does not change the object it was given", () => {
-    const input: Partial<RdpEntryConfig> = { ...base, gatewayMode: "off", gatewayHostname: "gw" };
-    gatewayConfigForSave(input);
-    expect(input.gatewayHostname).toBe("gw");
+  it("stores connection for the RDP entry's login", () => {
+    expect(gatewayEntryConfigForSave({ gatewayHostname: "gw" }, "connection").gatewayLoginSource).toBe("connection");
   });
 });
 
-describe("gatewayValidationError", () => {
-  it("needs a server for a custom gateway", () => {
-    expect(gatewayValidationError({ gatewayMode: "custom" })).toMatch(/gateway server/i);
-    expect(gatewayValidationError({ gatewayMode: "custom", gatewayHostname: "   " })).toMatch(/gateway server/i);
-    expect(gatewayValidationError({ gatewayMode: "custom", gatewayHostname: "gw" })).toBeNull();
+describe("gatewayLoginChoiceOf", () => {
+  it("reads connection from the config", () => {
+    expect(gatewayLoginChoiceOf({ gatewayLoginSource: "connection" }, "c1")).toBe("connection");
   });
 
-  it("needs a picked credential when the gateway uses a saved login", () => {
-    expect(gatewayValidationError({ gatewayCredentialMode: "credential" })).toMatch(/saved credential/i);
-    expect(gatewayValidationError({ gatewayCredentialMode: "credential", gatewayCredentialId: "c1" })).toBeNull();
+  it("reads a linked credential as saved", () => {
+    expect(gatewayLoginChoiceOf({ gatewayLoginSource: "own" }, "c1")).toBe("saved");
   });
 
-  it("ignores the login choice when the gateway is off", () => {
-    expect(gatewayValidationError({ gatewayMode: "off", gatewayCredentialMode: "credential" })).toBeNull();
+  it("falls back to a typed login", () => {
+    expect(gatewayLoginChoiceOf({}, null)).toBe("typed");
+  });
+});
+
+describe("gatewayLoginColumns", () => {
+  const fields = { credentialId: "c1", username: " alice ", password: "pw", domain: " CORP " };
+
+  it("keeps the typed login and clears the link", () => {
+    expect(gatewayLoginColumns("typed", fields)).toEqual({ credential_id: null, username: "alice", password: "pw", domain: "CORP" });
   });
 
-  it("rejects a port out of range", () => {
-    expect(gatewayValidationError({ gatewayMode: "custom", gatewayHostname: "gw", gatewayPort: 70000 })).toMatch(/port/i);
+  it("keeps the link and clears the typed login", () => {
+    expect(gatewayLoginColumns("saved", fields)).toEqual({ credential_id: "c1", username: null, password: null, domain: null });
   });
 
-  it("accepts an entry with no gateway keys", () => {
-    expect(gatewayValidationError({})).toBeNull();
+  it("clears both when the RDP entry's login is used", () => {
+    expect(gatewayLoginColumns("connection", fields)).toEqual({ credential_id: null, username: null, password: null, domain: null });
+  });
+});
+
+describe("gatewayEntryValidationError", () => {
+  it("needs a server", () => {
+    expect(gatewayEntryValidationError({ gatewayHostname: "  " }, "typed", null)).toBe("Enter a gateway server.");
+  });
+
+  it("needs a valid port", () => {
+    expect(gatewayEntryValidationError({ gatewayHostname: "gw", gatewayPort: 70000 }, "typed", null)).toBe(
+      "The gateway port must be a number from 1 to 65535.",
+    );
+  });
+
+  it("needs a picked credential for a saved login", () => {
+    expect(gatewayEntryValidationError({ gatewayHostname: "gw" }, "saved", null)).toBe(
+      "Pick a saved credential for the gateway login, or choose another login option.",
+    );
+    expect(gatewayEntryValidationError({ gatewayHostname: "gw" }, "saved", "c1")).toBeNull();
+  });
+
+  it("accepts a server with a typed login", () => {
+    expect(gatewayEntryValidationError({ gatewayHostname: "gw" }, "typed", null)).toBeNull();
   });
 });
 
 describe("splitGatewayHostInput", () => {
-  it("moves a typed port into the port field when it is empty", () => {
-    expect(splitGatewayHostInput("gw.example.com:8443", undefined)).toEqual({ gatewayHostname: "gw.example.com", gatewayPort: 8443 });
+  it("moves a pasted port into an empty port field", () => {
+    expect(splitGatewayHostInput("gw:8443", undefined)).toEqual({ gatewayHostname: "gw", gatewayPort: 8443 });
   });
 
-  it("keeps a port that was already set", () => {
-    expect(splitGatewayHostInput("gw:8443", 9443)).toEqual({ gatewayHostname: "gw", gatewayPort: 9443 });
-  });
-
-  it("strips a pasted URL down to the host", () => {
-    expect(splitGatewayHostInput("https://gw.example.com/remoteDesktopGateway/", undefined)).toEqual({
-      gatewayHostname: "gw.example.com",
-      gatewayPort: undefined,
-    });
+  it("keeps a port the user already typed", () => {
+    expect(splitGatewayHostInput("gw:8443", 443)).toEqual({ gatewayHostname: "gw", gatewayPort: 443 });
   });
 });
 
-describe("describeDefaultGateway", () => {
-  it("names the Settings default with its port", () => {
-    expect(
-      describeDefaultGateway({ ...HARDCODED_RDP_DEFAULTS, gatewayEnabled: true, gatewayHostname: "gw.example.com" }),
-    ).toBe("Default: gw.example.com:443");
+describe("gateway lists", () => {
+  const entries = [
+    entry({ id: "g2", name: "West gateway", entry_type: "credential", credential_type: "rd_gateway", config: { gatewayHostname: "west", gatewayPort: 8443 } }),
+    entry({ id: "g1", name: "East gateway", entry_type: "credential", credential_type: "rd_gateway", config: { gatewayHostname: "east" } }),
+    entry({ id: "c1", name: "Admin", entry_type: "credential", credential_type: null }),
+    entry({ id: "r1", name: "app-01", config: { gatewayId: "g1" } }),
+    entry({ id: "r2", name: "app-02", config: { gatewayId: "g1" } }),
+    entry({ id: "r3", name: "app-03", config: { gatewayId: "g2" } }),
+    entry({ id: "s1", name: "ssh", entry_type: "ssh", config: { gatewayId: "g1" } }),
+  ];
+
+  it("lists the gateways by name with their address", () => {
+    expect(gatewayOptions(entries)).toEqual([
+      { id: "g1", name: "East gateway", address: "east" },
+      { id: "g2", name: "West gateway", address: "west:8443" },
+    ]);
   });
 
-  it("uses a port typed into the default's server name", () => {
-    expect(
-      describeDefaultGateway({ ...HARDCODED_RDP_DEFAULTS, gatewayEnabled: true, gatewayHostname: "gw:8443" }),
-    ).toBe("Default: gw:8443");
+  it("counts the RDP entries that use a gateway", () => {
+    expect(gatewayUsageCount(entries, "g1")).toBe(2);
+    expect(gatewayUsageCount(entries, "g2")).toBe(1);
+    expect(gatewayUsageCount(entries, "nope")).toBe(0);
+  });
+});
+
+describe("rdpGatewayConfigForSave", () => {
+  it("keeps a picked gateway", () => {
+    expect(rdpGatewayConfigForSave({ enableNla: true, gatewayId: "g1" })).toEqual({ enableNla: true, gatewayId: "g1" });
   });
 
-  it("returns null when no default is on", () => {
-    expect(describeDefaultGateway(HARDCODED_RDP_DEFAULTS)).toBeNull();
-    expect(describeDefaultGateway({ ...HARDCODED_RDP_DEFAULTS, gatewayEnabled: true, gatewayHostname: "" })).toBeNull();
+  it("removes the key for no gateway", () => {
+    expect(rdpGatewayConfigForSave({ enableNla: true, gatewayId: undefined })).toEqual({ enableNla: true });
+    expect(rdpGatewayConfigForSave({ enableNla: true, gatewayId: "  " })).toEqual({ enableNla: true });
+  });
+
+  it("drops the old per-entry gateway keys", () => {
+    const old = { enableNla: true, gatewayMode: "custom", gatewayHostname: "gw", gatewayCredentialId: "c1" } as Partial<RdpEntryConfig>;
+    expect(rdpGatewayConfigForSave(old)).toEqual({ enableNla: true });
+  });
+});
+
+describe("gateway usage text", () => {
+  it("says how many RDP entries use a gateway", () => {
+    expect(describeGatewayUsage(0)).toBe("No RDP entries use this gateway yet.");
+    expect(describeGatewayUsage(1)).toBe("Used by 1 RDP entry.");
+    expect(describeGatewayUsage(3)).toBe("Used by 3 RDP entries.");
+  });
+
+  it("warns before deleting a gateway that is in use", () => {
+    expect(gatewayDeleteMessage("Office", 0)).toBe('Are you sure you want to delete "Office"?');
+    expect(gatewayDeleteMessage("Office", 1)).toBe(
+      'Delete the gateway "Office"? 1 RDP entry uses it. That entry will not connect until you pick another gateway for it.',
+    );
+    expect(gatewayDeleteMessage("Office", 2)).toBe(
+      'Delete the gateway "Office"? 2 RDP entries use it. They will not connect until you pick another gateway for them.',
+    );
   });
 });

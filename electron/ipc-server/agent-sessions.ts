@@ -16,6 +16,7 @@ import {
   sessionInUseMessage,
   terminalSessionId,
 } from './agent-requests.js';
+import { gatewayIdOf } from '../services/rdp/gateway-config.js';
 
 export interface SessionLookup {
   readonly mcpConnections: ReadonlyMap<string, {
@@ -24,6 +25,7 @@ export interface SessionLookup {
     readonly host: string | null;
     readonly port: number | null;
     readonly created_at: number;
+    readonly gateway_id?: string;
   }>;
   readonly terminalManager: { listSessions(): string[]; isAgentTerminal(sessionId: string): boolean };
   readonly rdpManager: { get(sessionId: string): unknown };
@@ -84,15 +86,27 @@ export function sessionInUseResponse(holder: AgentIdentity, connectionType: stri
   };
 }
 
-/** Open sessions of a saved RDP or VNC entry: UI tabs use the entry id, MCP ones match host and port. */
+/**
+ * Open sessions of a saved RDP or VNC entry: UI tabs use the entry id, others match host, port and
+ * RD Gateway (the same host name behind another gateway, or none, can be another machine).
+ */
 export function openSessionsForEntry(
   state: SessionLookup,
-  entry: { readonly id: string; readonly entry_type: string; readonly host: string | null | undefined; readonly port: number | null | undefined },
+  entry: {
+    readonly id: string;
+    readonly entry_type: string;
+    readonly host: string | null | undefined;
+    readonly port: number | null | undefined;
+    readonly config?: unknown;
+  },
 ): string[] {
   const port = entry.port ?? DEFAULT_PORTS[entry.entry_type];
+  const gatewayId = entry.entry_type === 'rdp' ? gatewayIdOf(entry.config) : undefined;
+  const sameRoute = (c: { host: string | null; port: number | null; connection_type: string; gateway_id?: string }) =>
+    c.host === entry.host && (c.port ?? DEFAULT_PORTS[c.connection_type]) === port && c.gateway_id === gatewayId;
   return [...state.mcpConnections.values()]
     .filter((c) => c.connection_type === entry.entry_type)
-    .filter((c) => c.session_id === entry.id || (c.host === entry.host && (c.port ?? DEFAULT_PORTS[c.connection_type]) === port))
+    .filter((c) => c.session_id === entry.id || sameRoute(c))
     .map((c) => c.session_id)
     .filter((id) => isSessionOpen(state, id));
 }

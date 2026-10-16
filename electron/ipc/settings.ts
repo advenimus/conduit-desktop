@@ -16,10 +16,9 @@ import { clearRecentVaults, removeRecentVault, type RecentVaultDeps } from './re
 import { parseStartupVault, type StartupVault } from './startup-vault-core.js';
 import { applyAppearanceMigration, migrateAppearance, type AppearanceSettings } from '../services/appearance-migration.js';
 import { windowBackground } from '../services/appearance-palette.js';
-import { HARDCODED_GATEWAY_DEFAULTS, type RdpGatewayDefaults } from '../services/rdp/gateway-config.js';
 
 // Session default types — mirrored from src/types/entry.ts to avoid cross-boundary imports
-interface RdpGlobalDefaults extends RdpGatewayDefaults {
+interface RdpGlobalDefaults {
   resolution: string;
   colorDepth: number;
   sound: string;
@@ -46,8 +45,14 @@ const HARDCODED_RDP_DEFAULTS: RdpGlobalDefaults = {
   resolution: "match_window", colorDepth: 32, sound: "local",
   quality: "good", clipboard: true, enableNla: true, enableHighDpi: false,
   displayScale: 1.0,
-  ...HARDCODED_GATEWAY_DEFAULTS,
 };
+
+// A device-wide default gateway was dropped before release; gateways are vault entries now.
+const STALE_GATEWAY_KEYS = ['gatewayEnabled', 'gatewayHostname', 'gatewayPort', 'gatewayTransport', 'gatewayBypassLocal'];
+
+function withoutStaleGatewayKeys(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([k]) => !STALE_GATEWAY_KEYS.includes(k)));
+}
 
 const HARDCODED_WEB_DEFAULTS: WebGlobalDefaults = {
   autofillEnabled: false, ignoreCertErrors: false, engine: "auto",
@@ -220,9 +225,9 @@ export function readSettings(): AppSettings {
     if (!isKnownEngineType(String(parsed.default_engine))) {
       parsed.default_engine = 'claude-code';
     }
-    // Nested merge so files saved before a default existed (e.g. the gateway keys) still get it.
+    // Nested merge so files saved before a default existed still get it.
     if (raw.session_defaults_rdp && typeof raw.session_defaults_rdp === 'object' && !Array.isArray(raw.session_defaults_rdp)) {
-      parsed.session_defaults_rdp = { ...HARDCODED_RDP_DEFAULTS, ...raw.session_defaults_rdp };
+      parsed.session_defaults_rdp = { ...HARDCODED_RDP_DEFAULTS, ...withoutStaleGatewayKeys(raw.session_defaults_rdp) };
     }
     // Migrate: populate session_defaults_web.engine from legacy default_web_engine
     if (!raw.session_defaults_web && raw.default_web_engine) {

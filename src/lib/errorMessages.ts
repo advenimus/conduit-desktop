@@ -97,10 +97,10 @@ const rdpPatterns: [RegExp, string][] = [
  * The main process already words its gateway setup errors (GatewayConfigError)
  * for people; Electron may prefix the class name.
  */
-const GATEWAY_CONFIG_ERROR = /^(?:GatewayConfigError:\s*)?(The (?:saved )?gateway (?:needs a login|login for this entry was not found)[\s\S]*)$/;
+const GATEWAY_CONFIG_ERROR = /^(?:GatewayConfigError:\s*)?(The gateway (?:this entry uses|"[^"]*"|setting is not valid)[\s\S]*)$/;
 
 const GATEWAY_LOGIN_MESSAGE =
-  "The gateway did not accept the login. Check the gateway username and password, or pick a different gateway login in this entry's Gateway settings.";
+  "The gateway did not accept the login. Check the login in the gateway's settings, or in this entry if the gateway uses the entry's login.";
 
 /**
  * Gateway faults FreeRDP names with their E_PROXY_* code (rpc_fault.c). They

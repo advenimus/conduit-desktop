@@ -2,12 +2,7 @@
  * Builds the text of a .rdp file for opening an entry in the system's RDP client.
  */
 
-import {
-  RDP_GATEWAY_DEFAULT_PORT,
-  resolveGatewaySettings,
-  type RdpEntryGatewayFields,
-  type RdpGatewayDefaults,
-} from './gateway-config.js';
+import { describeGatewayAddress, readGatewayConfig, type RdGatewayConfig } from './gateway-config.js';
 
 const SOUND_MODES: Record<string, number> = { local: 0, remote: 1, none: 2 };
 
@@ -16,26 +11,29 @@ function oneLine(value: string): string {
   return value.replace(/[\r\n]+/g, '');
 }
 
-function gatewayLines(config: Record<string, unknown>, defaults: RdpGatewayDefaults): string[] {
-  const gw = resolveGatewaySettings(config as RdpEntryGatewayFields, defaults);
-  if (!gw) return [];
-  const address = gw.port === RDP_GATEWAY_DEFAULT_PORT ? gw.hostname : `${gw.hostname}:${gw.port}`;
+function gatewayLines(gateway: RdGatewayConfig | Record<string, unknown> | null | undefined): string[] {
+  if (!gateway) return [];
+  const address = describeGatewayAddress(gateway);
+  if (!address) return [];
+  const g = readGatewayConfig(gateway);
   return [
     `gatewayhostname:s:${oneLine(address)}`,
     // 1 = always use the gateway, 2 = skip it for local addresses
-    `gatewayusagemethod:i:${gw.bypassLocal ? 2 : 1}`,
+    `gatewayusagemethod:i:${g.gatewayBypassLocal ? 2 : 1}`,
     // 0 = ask for the gateway password
     'gatewaycredentialssource:i:0',
     'gatewayprofileusagemethod:i:1',
-    'promptcredentialonce:i:1',
+    // 1 = one login prompt for the gateway and the PC
+    `promptcredentialonce:i:${g.gatewayLoginSource === 'connection' ? 1 : 0}`,
   ];
 }
 
+/** `gateway` is the config of the gateway entry the RDP entry points at, if any. */
 export function buildRdpFileText(opts: {
   host: string;
   port: number;
   config: Record<string, unknown>;
-  gatewayDefaults: RdpGatewayDefaults;
+  gateway?: RdGatewayConfig | Record<string, unknown> | null;
 }): string {
   const { config } = opts;
   const lines = [
@@ -48,6 +46,6 @@ export function buildRdpFileText(opts: {
   if (typeof config.clipboard === 'boolean') {
     lines.push(`redirectclipboard:i:${config.clipboard ? 1 : 0}`);
   }
-  lines.push(...gatewayLines(config, opts.gatewayDefaults));
+  lines.push(...gatewayLines(opts.gateway));
   return lines.join('\r\n') + '\r\n';
 }

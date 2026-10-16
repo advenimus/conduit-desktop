@@ -9,13 +9,8 @@
  */
 
 import type { RdpEngineConfig } from '../services/rdp/engine.js';
-import {
-  HARDCODED_GATEWAY_DEFAULTS,
-  resolveGatewaySettings,
-  type RdpEntryGatewayFields,
-  type RdpGatewayDefaults,
-} from '../services/rdp/gateway-config.js';
-import { connectGateway, type CredentialLookup } from '../services/rdp/gateway-connect.js';
+import { gatewayIdOf, type RdpEntryGatewayFields } from '../services/rdp/gateway-config.js';
+import { connectGateway, type GatewayVault } from '../services/rdp/gateway-connect.js';
 
 /** Minimal view of the RDP fields stored on an entry's `config` JSON blob. */
 export interface RdpEntryConfigFields extends RdpEntryGatewayFields {
@@ -29,6 +24,12 @@ export interface RdpEntryConfigFields extends RdpEntryGatewayFields {
   hostname?: string;
   sharedFolders?: { name: string; path: string; readOnly?: boolean }[];
 }
+
+const NO_GATEWAYS: GatewayVault = {
+  getEntry: (id) => {
+    throw new Error(`Entry not found: ${id}`);
+  },
+};
 
 /** Map the entry's quality setting to the engine's performance mode (mirrors the renderer). */
 export function mapQualityToPerformanceMode(
@@ -72,9 +73,9 @@ export function resolutionToDimensions(cfg: RdpEntryConfigFields): { width: numb
  * shared folders). Fields that depend on a live window (DPI scale factors) are
  * left unset, matching the manual tool.
  *
- * The gateway resolves like the renderer's: entry fields over the device's
- * RDP defaults, with a linked gateway login read through `lookupCredential`.
- * Throws GatewayConfigError when the gateway has no usable login.
+ * The gateway the entry points at (config.gatewayId) is read from
+ * `gatewayVault`, the same way rdp_connect reads it. Throws GatewayConfigError
+ * when that gateway is gone or has no usable login.
  */
 export function buildRdpEngineConfigFromEntry(opts: {
   host: string;
@@ -83,15 +84,14 @@ export function buildRdpEngineConfigFromEntry(opts: {
   password: string;
   domain?: string;
   entryConfig: Record<string, unknown> | undefined;
-  gatewayDefaults?: RdpGatewayDefaults;
-  lookupCredential?: CredentialLookup;
+  gatewayVault?: GatewayVault;
 }): RdpEngineConfig {
   const cfg = (opts.entryConfig ?? {}) as RdpEntryConfigFields;
   const { width, height } = resolutionToDimensions(cfg);
   const gateway = connectGateway(
-    resolveGatewaySettings(cfg, opts.gatewayDefaults ?? HARDCODED_GATEWAY_DEFAULTS),
+    gatewayIdOf(cfg),
     { username: opts.username, password: opts.password, domain: opts.domain },
-    opts.lookupCredential ?? (() => null),
+    opts.gatewayVault ?? NO_GATEWAYS,
   );
 
   return {

@@ -65,6 +65,8 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
   const [cursorStyle, setCursorStyle] = useState<string>("default");
   const isConnected = useRef(status === "connected");
   const [error, setError] = useState<string | null>(connectionError ?? null);
+  const gatewayId = useSessionStore((s) => s.sessions.find((x) => x.id === sessionId)?.metadata?.gatewayId) as string | null | undefined;
+  const gatewayName = useSessionStore((s) => s.sessions.find((x) => x.id === sessionId)?.metadata?.gatewayName) as string | null | undefined;
   const gatewayHost = useSessionStore((s) => s.sessions.find((x) => x.id === sessionId)?.metadata?.gatewayHost) as string | null | undefined;
 
   // Toast IDs for file transfer notifications
@@ -835,14 +837,14 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
   if (status === "connecting") {
     return (
       <SessionConnecting
-        text={reconnecting ? "Reconnecting..." : gatewayHost ? `Connecting through gateway ${gatewayHost}` : "Connecting to RDP session..."}
-        detail={reconnecting ? "Waiting for server to release previous session" : undefined}
+        text={reconnecting ? "Reconnecting..." : gatewayName ? `Connecting through gateway ${gatewayName}` : "Connecting to RDP session..."}
+        detail={reconnecting ? "Waiting for server to release previous session" : gatewayName ? gatewayHost ?? undefined : undefined}
       />
     );
   }
 
   if (error || status === "disconnected") {
-    const friendly = error ? friendlyConnectionError(error, "rdp", { gateway: !!gatewayHost }) : "Disconnected";
+    const friendly = error ? friendlyConnectionError(error, "rdp", { gateway: !!gatewayId }) : "Disconnected";
     return (
       <SessionError
         message={friendly}

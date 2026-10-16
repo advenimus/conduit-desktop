@@ -31,7 +31,9 @@ export function entryInfoDefinition() {
       'knowledge lists the knowledge articles that apply (the asset\'s own, its folders\', matching vault playbooks) ' +
       'with a hint on what to do next, including when to offer moving long notes into articles. ' +
       'has_conflict is true when devices saved different values and the conflict is not resolved yet; ' +
-      'the values shown are the provisional ones.',
+      'the values shown are the provisional ones. ' +
+      'gateway names the RD Gateway an RDP entry connects through (missing is true when it was deleted). ' +
+      'gateway_settings shows an RD Gateway entry\'s address, port and whose login it uses (gateway or rdp_entry).',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -74,6 +76,8 @@ export async function entryInfo(
     const notes = entry.notes as string | null;
     result.notes = notes ? maskSecrets(notes) : null;
   }
+  if (entry.gateway) result.gateway = entry.gateway;
+  if (entry.gateway_settings) result.gateway_settings = entry.gateway_settings;
   if (entry.knowledge) result.knowledge = entry.knowledge;
 
   return result;

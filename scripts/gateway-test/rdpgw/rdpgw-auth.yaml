@@ -2,3 +2,6 @@
 Users:
   - Username: "gwuser"
     Password: "GwTest-Pass1!"
+  # Also a desktop login, for gateways set to use the RDP entry's login.
+  - Username: "shareduser"
+    Password: "SharedTest-Pass1!"

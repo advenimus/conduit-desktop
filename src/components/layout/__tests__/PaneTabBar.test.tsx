@@ -405,3 +405,49 @@ describe("PaneTabBar folder view tab", () => {
     expect(tab(folderTab.id).querySelector(".cv-tab-close")).not.toBeNull();
   });
 });
+
+describe("PaneTabBar Beta pill", () => {
+  const TOP_LEFT: PaneEdges = { top: true, left: true };
+  let saved: typeof window.electron;
+
+  beforeEach(() => {
+    saved = window.electron;
+    window.electron = {
+      ...saved,
+      invoke: vi.fn(async (channel: string) => (channel === "app_get_version" ? "0.19.0-beta.1" : null)),
+    } as typeof window.electron;
+  });
+
+  afterEach(() => {
+    window.electron = saved;
+  });
+
+  const pill = (bar: HTMLElement) => [...bar.querySelectorAll("button")].find((b) => b.textContent === "Beta");
+
+  it("shows on a beta build in the first tab strip while the side bar is closed, after the side bar button", async () => {
+    const { bar } = setup({ sidebar: "closed", edges: TOP_LEFT });
+    await waitFor(() => expect(pill(bar)).toBeTruthy());
+    const toggle = bar.querySelector("[data-cv-sidebar-toggle]")!;
+    expect(toggle.compareDocumentPosition(pill(bar)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pill(bar)!.getAttribute("type")).toBe("button");
+  });
+
+  it.each(["docked-open", "floating-open"] as const)("leaves it to the side bar header while the side bar is %s", async (sidebar) => {
+    const { bar } = setup({ sidebar, edges: TOP_LEFT });
+    await act(async () => {});
+    expect(pill(bar)).toBeUndefined();
+  });
+
+  it("shows only in the pane at the window's top left", async () => {
+    const { bar } = setup({ sidebar: "closed", edges: { top: true, left: false } });
+    await act(async () => {});
+    expect(pill(bar)).toBeUndefined();
+  });
+
+  it("stays hidden on a regular release", async () => {
+    window.electron = { ...saved, invoke: vi.fn(async () => "0.19.0") } as typeof window.electron;
+    const { bar } = setup({ sidebar: "closed", edges: TOP_LEFT });
+    await act(async () => {});
+    expect(pill(bar)).toBeUndefined();
+  });
+});

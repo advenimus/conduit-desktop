@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { EntryMeta, RdpEntryConfig } from "../../types/entry";
+import type { EntryMeta } from "../../types/entry";
 import { HARDCODED_RDP_DEFAULTS } from "../../types/entry";
 
 const invoke = vi.fn();
@@ -12,7 +12,7 @@ const { useSessionStore } = await import("../sessionStore");
 const { useSettingsStore } = await import("../settingsStore");
 const { useTierStore } = await import("../tierStore");
 
-function rdpEntry(config: Partial<RdpEntryConfig>): EntryMeta {
+function rdpEntry(config: Record<string, unknown>): EntryMeta {
   return {
     id: "e1",
     name: "app-01",
@@ -21,9 +21,19 @@ function rdpEntry(config: Partial<RdpEntryConfig>): EntryMeta {
     port: 3389,
     username: "CORP\\alice",
     domain: null,
+    credential_type: null,
     config,
   } as unknown as EntryMeta;
 }
+
+const gatewayEntry = {
+  id: "g1",
+  name: "Office gateway",
+  entry_type: "credential",
+  credential_type: "rd_gateway",
+  username: "CORP\\gwadmin",
+  config: { gatewayHostname: "gw.example.com", gatewayPort: 8443, gatewayLoginSource: "own" },
+} as unknown as EntryMeta;
 
 function rdpConnectArgs(): Record<string, unknown> {
   const call = invoke.mock.calls.find((c) => c[0] === "rdp_connect");
@@ -31,8 +41,8 @@ function rdpConnectArgs(): Record<string, unknown> {
   return call[1] as Record<string, unknown>;
 }
 
-async function open(config: Partial<RdpEntryConfig>) {
-  useEntryStore.setState({ entries: [rdpEntry(config)] } as never);
+async function open(config: Record<string, unknown>, others: EntryMeta[] = [gatewayEntry]) {
+  useEntryStore.setState({ entries: [rdpEntry(config), ...others] } as never);
   await useEntryStore.getState().openEntry("e1");
 }
 
@@ -49,61 +59,50 @@ beforeEach(() => {
 });
 
 describe("connectEntry RD Gateway", () => {
-  it("sends gateway null when no gateway applies", async () => {
+  it("sends no gateway id for an entry without a gateway", async () => {
     await open({});
-    expect(rdpConnectArgs().gateway).toBeNull();
+    expect(rdpConnectArgs().gatewayId).toBeUndefined();
+    expect(rdpConnectArgs()).not.toHaveProperty("gateway");
   });
 
-  it("sends the Settings default for an entry on the default", async () => {
-    useSettingsStore.setState({
-      sessionDefaultsRdp: { ...HARDCODED_RDP_DEFAULTS, gatewayEnabled: true, gatewayHostname: "gw.example.com" },
-    });
-    await open({});
-    expect(rdpConnectArgs().gateway).toEqual({
-      hostname: "gw.example.com",
-      port: 443,
-      transport: "auto",
-      bypassLocal: false,
-      credentialMode: "same",
-      credentialId: undefined,
-      source: "default",
-    });
+  it("sends only the gateway id, never a gateway secret or address", async () => {
+    await open({ gatewayId: "g1" });
+    const args = rdpConnectArgs();
+    expect(args.gatewayId).toBe("g1");
+    expect(args).not.toHaveProperty("gateway");
+    expect(JSON.stringify(args)).not.toMatch(/gwadmin|gw\.example\.com/);
+    expect(invoke.mock.calls.some((c) => c[0] === "credential_get" || c[0] === "entry_get")).toBe(false);
   });
 
-  it("sends a custom gateway with its linked credential id and no password", async () => {
-    await open({
-      gatewayMode: "custom",
-      gatewayHostname: "gw2.example.com:8443",
-      gatewayCredentialMode: "credential",
-      gatewayCredentialId: "c9",
-    });
-    const gateway = rdpConnectArgs().gateway as Record<string, unknown>;
-    expect(gateway).toMatchObject({ hostname: "gw2.example.com", port: 8443, credentialMode: "credential", credentialId: "c9", source: "entry" });
-    expect(JSON.stringify(gateway)).not.toMatch(/password/i);
-    expect(invoke.mock.calls.some((c) => c[0] === "credential_get")).toBe(false);
+  it("ignores the old per-entry gateway keys", async () => {
+    await open({ gatewayMode: "custom", gatewayHostname: "old-gw.example.com" });
+    expect(rdpConnectArgs().gatewayId).toBeUndefined();
+    expect(JSON.stringify(rdpConnectArgs())).not.toMatch(/old-gw/);
   });
 
-  it("sends gateway null when the entry turns the gateway off", async () => {
-    useSettingsStore.setState({
-      sessionDefaultsRdp: { ...HARDCODED_RDP_DEFAULTS, gatewayEnabled: true, gatewayHostname: "gw.example.com" },
-    });
-    await open({ gatewayMode: "off" });
-    expect(rdpConnectArgs().gateway).toBeNull();
-  });
-
-  it("records the gateway host on the session for the connecting screen", async () => {
-    await open({ gatewayMode: "custom", gatewayHostname: "gw.example.com" });
+  it("records the gateway's name and address on the session for the connecting screen", async () => {
+    await open({ gatewayId: "g1" });
     await vi.waitFor(() => expect(useSessionStore.getState().sessions[0]?.status).toBe("connected"));
-    expect(useSessionStore.getState().sessions[0].metadata?.gatewayHost).toBe("gw.example.com");
+    expect(useSessionStore.getState().sessions[0].metadata).toMatchObject({
+      gatewayId: "g1",
+      gatewayName: "Office gateway",
+      gatewayHost: "gw.example.com:8443",
+    });
+  });
+
+  it("still sends the id of a deleted gateway so the main process can explain it", async () => {
+    await open({ gatewayId: "gone" }, []);
+    expect(rdpConnectArgs().gatewayId).toBe("gone");
+    expect(useSessionStore.getState().sessions[0].metadata).toMatchObject({ gatewayId: "gone", gatewayName: null, gatewayHost: null });
   });
 
   it("shows a gateway setup error from the main process as the connect error", async () => {
     invoke.mockImplementation(async (cmd: string) => {
-      if (cmd === "rdp_connect") throw new Error("The gateway needs a login. Add a username and password to this entry, or pick a saved gateway login in its Gateway settings.");
+      if (cmd === "rdp_connect") throw new Error("The gateway this entry uses was deleted. Pick a gateway again in the entry's Gateway settings.");
       return null;
     });
-    await open({ gatewayMode: "custom", gatewayHostname: "gw.example.com" });
+    await open({ gatewayId: "gone" }, []);
     await vi.waitFor(() => expect(useSessionStore.getState().sessions[0]?.status).toBe("disconnected"));
-    expect(useSessionStore.getState().sessions[0].error).toMatch(/^The gateway needs a login/);
+    expect(useSessionStore.getState().sessions[0].error).toMatch(/^The gateway this entry uses was deleted/);
   });
 });

@@ -106,10 +106,13 @@ describe("RdpView states (restyle)", () => {
 
   it("names the gateway while connecting through one", () => {
     useSessionStore.setState({
-      sessions: [{ id: "r1", type: "rdp", title: "app", status: "connecting", metadata: { gatewayHost: "gw.example.com" } }],
+      sessions: [{
+        id: "r1", type: "rdp", title: "app", status: "connecting",
+        metadata: { gatewayId: "g1", gatewayName: "Office gateway", gatewayHost: "gw.example.com" },
+      }],
     });
     const { container, rerender } = render(<RdpView {...base} status="connecting" />);
-    expect(container.textContent).toBe("Connecting through gateway gw.example.com");
+    expect(container.textContent).toBe("Connecting through gateway Office gatewaygw.example.com");
     rerender(<RdpView {...base} status="connecting" reconnecting />);
     expect(container.textContent).toBe("Reconnecting...Waiting for server to release previous session");
     useSessionStore.setState({ sessions: [] });
@@ -117,7 +120,7 @@ describe("RdpView states (restyle)", () => {
 
   it("explains a gateway login failure for a session that used a gateway", () => {
     useSessionStore.setState({
-      sessions: [{ id: "r1", type: "rdp", title: "app", status: "disconnected", metadata: { gatewayHost: "gw.example.com" } }],
+      sessions: [{ id: "r1", type: "rdp", title: "app", status: "disconnected", metadata: { gatewayId: "g1", gatewayName: "Office gateway", gatewayHost: "gw.example.com" } }],
     });
     render(<RdpView {...base} status="disconnected" connectionError="Access denied." />);
     expect(screen.getByText(/The gateway did not accept the login/)).toBeInTheDocument();

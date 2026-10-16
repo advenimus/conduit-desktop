@@ -6,6 +6,7 @@ import { TextInput } from "../../ui";
 
 interface GeneralTabProps {
   entryType: EntryType;
+  credentialType?: string | null;
   name: string;
   setName: (v: string) => void;
   host: string;
@@ -22,6 +23,7 @@ interface GeneralTabProps {
 
 export default function GeneralTab({
   entryType,
+  credentialType,
   name,
   setName,
   host,
@@ -37,8 +39,8 @@ export default function GeneralTab({
 }: GeneralTabProps) {
   const isConnection = entryType !== "credential" && entryType !== "document" && entryType !== "command";
 
-  const Icon = getEntryIcon(entryType, false, customIcon);
-  const colorResult = getEntryColor(entryType, customColor);
+  const Icon = getEntryIcon(entryType, false, customIcon, credentialType);
+  const colorResult = getEntryColor(entryType, customColor, credentialType);
 
   return (
     <div className="space-y-4">
@@ -46,7 +48,7 @@ export default function GeneralTab({
         <TextInput
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={entryType === "web" ? "Google" : entryType === "document" ? "Meeting Notes" : "Production Server"}
+          placeholder={namePlaceholder(entryType, credentialType)}
           autoFocus
         />
       </Field>
@@ -88,4 +90,11 @@ export default function GeneralTab({
       </Field>
     </div>
   );
+}
+
+function namePlaceholder(entryType: EntryType, credentialType?: string | null): string {
+  if (credentialType === "rd_gateway") return "Office Gateway";
+  if (entryType === "web") return "Google";
+  if (entryType === "document") return "Meeting Notes";
+  return "Production Server";
 }

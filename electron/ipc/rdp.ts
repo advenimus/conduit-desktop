@@ -8,22 +8,13 @@
  */
 
 import { ipcMain } from 'electron';
-import { appendFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { RdpEngineConfig, SharedFolder } from '../services/rdp/engine.js';
 import { AppState } from '../services/state.js';
 import type { ImageFormat } from '../services/rdp/framebuffer.js';
 import { isFreeRdpAvailable, ensureFreeRdpReady } from '../services/rdp/engines/factory.js';
-import { getDataDir } from '../services/env-config.js';
-import { GatewayConfigError, type RdpGatewaySettings } from '../services/rdp/gateway-config.js';
-import { connectGateway, describeGateway, parseGatewaySettingsArg } from '../services/rdp/gateway-connect.js';
-
-const RDP_LOG = join(getDataDir(), 'rdp-debug.log');
-function rdpLog(msg: string) {
-  const line = `[${new Date().toISOString()}] ${msg}\n`;
-  try { appendFileSync(RDP_LOG, line); } catch { /* ignore */ }
-  console.log(msg);
-}
+import { GatewayConfigError } from '../services/rdp/gateway-config.js';
+import { connectGateway, describeGateway, parseGatewayIdArg } from '../services/rdp/gateway-connect.js';
+import { rdpLog } from '../services/rdp/rdp-log.js';
 
 export function registerRdpHandlers(): void {
   const rdpManager = AppState.getInstance().rdpManager;
@@ -55,15 +46,17 @@ export function registerRdpHandlers(): void {
     desktopScaleFactor?: number;
     deviceScaleFactor?: number;
     enableClipboard?: boolean;
-    gateway?: RdpGatewaySettings | null;
+    gatewayId?: string | null;
   }) => {
-    // Gateway passwords never cross IPC: a linked gateway login is read from the vault here.
+    // Only the gateway's id crosses IPC; its address and login are read from the vault here.
+    let gatewayId: string | undefined;
     let gateway: RdpEngineConfig['gateway'];
     try {
+      gatewayId = parseGatewayIdArg(args.gatewayId);
       gateway = connectGateway(
-        parseGatewaySettingsArg(args.gateway),
+        gatewayId,
         { username: args.username, password: args.password, domain: args.domain },
-        (id) => AppState.getInstance().getActiveVault().getCredential(id),
+        AppState.getInstance().getActiveVault(),
       );
     } catch (e) {
       rdpLog(`[RDP] Gateway setup failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -129,6 +122,7 @@ export function registerRdpHandlers(): void {
       port: args.port ?? 3389,
       status: 'connected',
       created_at: Date.now(),
+      gateway_id: gateway ? gatewayId : undefined,
     });
 
     // Return server-negotiated dimensions (may differ from requested)

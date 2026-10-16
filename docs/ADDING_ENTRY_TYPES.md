@@ -196,6 +196,12 @@ UI components (type selectors, badges, form headers) all read from this registry
 - New data that rides on existing entries belongs in a top-level `config` key: each key is its own synced
   register, and team sync encrypts `config`. The knowledge base is built this way (`docs/KNOWLEDGE_BASE.md`):
   articles are documents with `config.kb`, embedded secrets are credentials with `config.embedded`.
+- A new kind of object can ride on `credential` with its own `credential_type` (the column is free text, and
+  `resolveCredentialType` falls back to `generic` on older clients). RD Gateway is the example
+  (`docs/RDP_GATEWAY.md`): `credential_type` `rd_gateway`, its settings in flat `config` keys, its login in the
+  normal entry columns. Give it its own tabs in `getTabCategories(entryType, credentialType)`, its own icon in
+  `getEntryIcon`, and keep it out of login pickers if it is not a login (`loginCredentials` in
+  `src/types/credential.ts`).
 - Entries whose `config.kb` or `config.embedded` is set are hidden from lists (`isHiddenEntry` in
   `electron/services/knowledge/kb-model.ts`, re-exported by `src/lib/kb.ts`). Code that lists or counts
   entries must use `useEntryStore().entries` (visible only) or filter with `isHiddenEntry`.

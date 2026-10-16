@@ -1,60 +1,50 @@
 /**
- * RD Gateway settings: the shared contract between the renderer, the main
- * process, MCP and the FreeRDP helper.
+ * RD Gateway contract shared by the renderer, the main process, MCP and the
+ * FreeRDP helper.
+ *
+ * A gateway is its own vault object: a credential entry with
+ * credential_type 'rd_gateway'. Its login uses the normal entry login fields
+ * (typed in or a linked credential) unless it is set to use the RDP entry's
+ * own login. RDP entries point at one with config.gatewayId.
  *
  * Pure and import-free so the renderer can re-export it (like the knowledge
- * model) and both connect paths resolve a gateway the same way.
+ * model) and every connect path resolves a gateway the same way.
  */
 
-export type RdpGatewayMode = 'default' | 'off' | 'custom';
 export type RdpGatewayTransport = 'auto' | 'http' | 'rpc';
-export type RdpGatewayCredentialMode = 'same' | 'credential';
+export type RdpGatewayLoginSource = 'own' | 'connection';
 
+export const RD_GATEWAY_CREDENTIAL_TYPE = 'rd_gateway';
 export const RDP_GATEWAY_DEFAULT_PORT = 443;
 
-/** Gateway keys stored flat on an RDP entry's `config` blob (flat so sync merges each one). */
-export interface RdpEntryGatewayFields {
-  gatewayMode?: RdpGatewayMode;
+/** Config keys on a gateway entry (flat so sync merges each one). */
+export interface RdGatewayConfig {
   gatewayHostname?: string;
   gatewayPort?: number;
   gatewayTransport?: RdpGatewayTransport;
   gatewayBypassLocal?: boolean;
-  gatewayCredentialMode?: RdpGatewayCredentialMode;
-  gatewayCredentialId?: string;
+  gatewayLoginSource?: RdpGatewayLoginSource;
 }
 
-/** Default gateway kept in Settings > Sessions > RDP (device-local, so no credential id). */
-export interface RdpGatewayDefaults {
-  gatewayEnabled: boolean;
-  gatewayHostname: string;
-  gatewayPort: number;
-  gatewayTransport: RdpGatewayTransport;
-  gatewayBypassLocal: boolean;
-}
-
-export const HARDCODED_GATEWAY_DEFAULTS: RdpGatewayDefaults = {
-  gatewayEnabled: false,
-  gatewayHostname: '',
-  gatewayPort: RDP_GATEWAY_DEFAULT_PORT,
-  gatewayTransport: 'auto',
-  gatewayBypassLocal: false,
-};
-
-/** Effective, secret-free gateway settings for one connection. */
-export interface RdpGatewaySettings {
-  hostname: string;
-  port: number;
-  transport: RdpGatewayTransport;
-  bypassLocal: boolean;
-  credentialMode: RdpGatewayCredentialMode;
-  credentialId?: string;
-  source: 'default' | 'entry';
+/** Config key on an RDP entry. */
+export interface RdpEntryGatewayFields {
+  gatewayId?: string;
 }
 
 export interface GatewayLogin {
   username: string;
   password: string;
   domain?: string;
+}
+
+/** A gateway entry as read from the vault, with its own login already resolved (linked or typed in). */
+export interface RdGatewayRecord {
+  id: string;
+  name: string;
+  entryType: string;
+  credentialType: string | null;
+  config: RdGatewayConfig | Record<string, unknown>;
+  ownLogin: GatewayLogin | null;
 }
 
 /** What the RDP engine and helper receive. */
@@ -81,8 +71,19 @@ function validPort(port: unknown): number | undefined {
   return typeof port === 'number' && Number.isInteger(port) && port >= 1 && port <= 65535 ? port : undefined;
 }
 
-function validTransport(t: unknown): RdpGatewayTransport {
+export function validTransport(t: unknown): RdpGatewayTransport {
   return TRANSPORTS.includes(t as RdpGatewayTransport) ? (t as RdpGatewayTransport) : 'auto';
+}
+
+export function isRdGateway(entry: { entry_type?: string | null; credential_type?: string | null }): boolean {
+  return entry.entry_type === 'credential' && entry.credential_type === RD_GATEWAY_CREDENTIAL_TYPE;
+}
+
+/** The gateway id an RDP entry points at, or undefined. Tolerates junk from other clients. */
+export function gatewayIdOf(config: unknown): string | undefined {
+  if (typeof config !== 'object' || config === null) return undefined;
+  const id = (config as Record<string, unknown>).gatewayId;
+  return typeof id === 'string' && id.trim() ? id.trim() : undefined;
 }
 
 /** Accepts what people paste: "gw", "gw:8443", "https://gw/remoteDesktopGateway/". */
@@ -106,73 +107,72 @@ export function splitDomainUser(username: string, domain: string): { username: s
   return { username, domain };
 }
 
-export function resolveGatewaySettings(
-  fields: RdpEntryGatewayFields,
-  defaults: RdpGatewayDefaults,
-): RdpGatewaySettings | null {
-  const mode: RdpGatewayMode =
-    fields.gatewayMode === 'off' || fields.gatewayMode === 'custom' ? fields.gatewayMode : 'default';
-  if (mode === 'off') return null;
-
-  const custom = mode === 'custom';
-  if (!custom && !defaults.gatewayEnabled) return null;
-
-  const parsed = normalizeGatewayHost(custom ? fields.gatewayHostname ?? '' : defaults.gatewayHostname);
-  if (!parsed.hostname) return null;
-
-  // An entry's port field wins; the default's port field is always filled (443), so a port typed into its hostname wins there.
-  const port = custom
-    ? validPort(fields.gatewayPort) ?? parsed.port
-    : parsed.port ?? validPort(defaults.gatewayPort);
-  const credentialId = fields.gatewayCredentialId || undefined;
-  const credentialMode: RdpGatewayCredentialMode =
-    fields.gatewayCredentialMode === 'credential' && credentialId ? 'credential' : 'same';
-
+/** Normalized, secret-free view of a gateway entry's config, for forms and summaries. */
+export function readGatewayConfig(config: unknown): Required<RdGatewayConfig> {
+  const c = typeof config === 'object' && config !== null ? (config as Record<string, unknown>) : {};
+  const parsed = normalizeGatewayHost(typeof c.gatewayHostname === 'string' ? c.gatewayHostname : '');
   return {
-    hostname: parsed.hostname,
-    port: port ?? RDP_GATEWAY_DEFAULT_PORT,
-    transport: validTransport(custom ? fields.gatewayTransport : defaults.gatewayTransport),
-    bypassLocal: (custom ? fields.gatewayBypassLocal : defaults.gatewayBypassLocal) === true,
-    credentialMode,
-    credentialId: credentialMode === 'credential' ? credentialId : undefined,
-    source: custom ? 'entry' : 'default',
+    gatewayHostname: parsed.hostname,
+    // A port field wins over a port typed into the server box.
+    gatewayPort: validPort(c.gatewayPort) ?? parsed.port ?? RDP_GATEWAY_DEFAULT_PORT,
+    gatewayTransport: validTransport(c.gatewayTransport),
+    gatewayBypassLocal: c.gatewayBypassLocal === true,
+    gatewayLoginSource: c.gatewayLoginSource === 'connection' ? 'connection' : 'own',
   };
 }
 
+/** "gw.corp.example" or "gw.corp.example:8443" (443 is left off). */
+export function describeGatewayAddress(config: unknown): string {
+  const g = readGatewayConfig(config);
+  if (!g.gatewayHostname) return '';
+  return g.gatewayPort === RDP_GATEWAY_DEFAULT_PORT ? g.gatewayHostname : `${g.gatewayHostname}:${g.gatewayPort}`;
+}
+
 /**
- * Attach the gateway login. `linkedLogin` is the vault credential looked up by
- * `settings.credentialId` (null when it no longer exists).
+ * Builds the engine gateway config for an RDP entry that points at `gatewayId`.
+ * `gateway` is the looked-up record (null when the entry no longer exists).
+ * Throws GatewayConfigError with a message meant for the user.
  */
 export function resolveGatewayEngineConfig(
-  settings: RdpGatewaySettings,
+  gatewayId: string,
+  gateway: RdGatewayRecord | null,
   hostLogin: GatewayLogin,
-  linkedLogin: GatewayLogin | null | undefined,
 ): RdpGatewayEngineConfig {
+  if (!gateway || gateway.id !== gatewayId || !isRdGateway({ entry_type: gateway.entryType, credential_type: gateway.credentialType })) {
+    throw new GatewayConfigError(
+      'The gateway this entry uses was deleted. Pick a gateway again in the entry\'s Gateway settings.',
+    );
+  }
+  const g = readGatewayConfig(gateway.config);
+  if (!g.gatewayHostname) {
+    throw new GatewayConfigError(`The gateway "${gateway.name}" has no server address. Add one in the gateway's settings.`);
+  }
+
   let login: GatewayLogin;
-  if (settings.credentialMode === 'credential') {
-    if (!linkedLogin?.username) {
-      throw new GatewayConfigError(
-        'The saved gateway login for this entry was not found. Pick a gateway login again in the entry\'s Gateway settings.',
-      );
-    }
-    login = linkedLogin;
-  } else {
+  if (g.gatewayLoginSource === 'connection') {
     if (!hostLogin.username) {
       throw new GatewayConfigError(
-        'The gateway needs a login. Add a username and password to this entry, or pick a saved gateway login in its Gateway settings.',
+        `The gateway "${gateway.name}" uses the login of the RDP entry, but this entry has no username. Add a login to the entry.`,
       );
     }
     login = hostLogin;
+  } else {
+    if (!gateway.ownLogin?.username) {
+      throw new GatewayConfigError(
+        `The gateway "${gateway.name}" has no login. Add one in the gateway's settings, or set it to use the RDP entry's login.`,
+      );
+    }
+    login = gateway.ownLogin;
   }
 
   const { username, domain } = splitDomainUser(login.username, login.domain ?? '');
   return {
-    hostname: settings.hostname,
-    port: settings.port,
+    hostname: g.gatewayHostname,
+    port: g.gatewayPort,
     username,
     password: login.password ?? '',
     domain,
-    transport: settings.transport,
-    bypassLocal: settings.bypassLocal,
+    transport: g.gatewayTransport,
+    bypassLocal: g.gatewayBypassLocal,
   };
 }

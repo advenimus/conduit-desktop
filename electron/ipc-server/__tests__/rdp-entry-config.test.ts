@@ -4,7 +4,8 @@ import {
   resolutionToDimensions,
   mapQualityToPerformanceMode,
 } from '../rdp-entry-config.js';
-import { HARDCODED_GATEWAY_DEFAULTS, GatewayConfigError } from '../../services/rdp/gateway-config.js';
+import { GatewayConfigError } from '../../services/rdp/gateway-config.js';
+import type { GatewayVault, GatewayVaultEntry } from '../../services/rdp/gateway-connect.js';
 
 describe('mapQualityToPerformanceMode', () => {
   it('maps quality presets to engine performance modes', () => {
@@ -116,94 +117,71 @@ describe('buildRdpEngineConfigFromEntry gateway', () => {
     username: 'CORP\\alice',
     password: 'host-pw',
   };
-  const enabledDefaults = {
-    ...HARDCODED_GATEWAY_DEFAULTS,
-    gatewayEnabled: true,
-    gatewayHostname: 'gw.corp.example',
-  };
+  const gatewayEntry = (over: Partial<GatewayVaultEntry> = {}): GatewayVaultEntry => ({
+    id: 'gw-1',
+    name: 'Corp GW',
+    entry_type: 'credential',
+    credential_type: 'rd_gateway',
+    config: { gatewayHostname: 'gw.corp.example' },
+    credential_id: null,
+    username: 'gwuser',
+    password: 'gw-pw',
+    domain: 'GW',
+    ...over,
+  });
+  const vaultWith = (...entries: GatewayVaultEntry[]): GatewayVault => ({
+    getEntry: vi.fn((id: string) => {
+      const e = entries.find((x) => x.id === id);
+      if (!e) throw new Error(`Entry not found: ${id}`);
+      return e;
+    }),
+  });
 
-  it('connects directly when no default gateway is on', () => {
+  it('connects directly when the entry has no gateway', () => {
+    const gatewayVault = vaultWith(gatewayEntry());
+    expect(buildRdpEngineConfigFromEntry({ ...base, entryConfig: {}, gatewayVault }).gateway).toBeUndefined();
+    expect(gatewayVault.getEntry).not.toHaveBeenCalled();
+  });
+
+  it('ignores the old per-entry gateway keys', () => {
     const cfg = buildRdpEngineConfigFromEntry({
       ...base,
-      entryConfig: {},
-      gatewayDefaults: HARDCODED_GATEWAY_DEFAULTS,
+      entryConfig: { gatewayMode: 'custom', gatewayHostname: 'rdg.other.example' },
     });
     expect(cfg.gateway).toBeUndefined();
   });
 
-  it('connects directly when no defaults are passed', () => {
-    expect(buildRdpEngineConfigFromEntry({ ...base, entryConfig: {} }).gateway).toBeUndefined();
-  });
-
-  it('uses the enabled default gateway with the host login', () => {
-    const cfg = buildRdpEngineConfigFromEntry({ ...base, entryConfig: {}, gatewayDefaults: enabledDefaults });
+  it('uses the gateway entry the RDP entry points at, with its own login', () => {
+    const cfg = buildRdpEngineConfigFromEntry({
+      ...base,
+      entryConfig: { gatewayId: 'gw-1' },
+      gatewayVault: vaultWith(gatewayEntry({ config: { gatewayHostname: 'gw.corp.example', gatewayPort: 8443, gatewayTransport: 'http', gatewayBypassLocal: true } })),
+    });
     expect(cfg.gateway).toEqual({
       hostname: 'gw.corp.example',
-      port: 443,
-      username: 'alice',
-      password: 'host-pw',
-      domain: 'CORP',
-      transport: 'auto',
-      bypassLocal: false,
-    });
-  });
-
-  it('skips the default gateway when the entry turns it off', () => {
-    const cfg = buildRdpEngineConfigFromEntry({
-      ...base,
-      entryConfig: { gatewayMode: 'off' },
-      gatewayDefaults: enabledDefaults,
-    });
-    expect(cfg.gateway).toBeUndefined();
-  });
-
-  it('uses a custom gateway from the entry', () => {
-    const cfg = buildRdpEngineConfigFromEntry({
-      ...base,
-      domain: 'CORP',
-      username: 'alice',
-      entryConfig: {
-        gatewayMode: 'custom',
-        gatewayHostname: 'rdg.other.example',
-        gatewayPort: 8443,
-        gatewayTransport: 'http',
-        gatewayBypassLocal: true,
-      },
-    });
-    expect(cfg.gateway).toEqual({
-      hostname: 'rdg.other.example',
       port: 8443,
-      username: 'alice',
-      password: 'host-pw',
-      domain: 'CORP',
+      username: 'gwuser',
+      password: 'gw-pw',
+      domain: 'GW',
       transport: 'http',
       bypassLocal: true,
     });
-  });
-
-  it('uses the linked vault credential for the gateway login', () => {
-    const lookupCredential = vi.fn(() => ({ username: 'gwuser', password: 'gw-pw', domain: 'GW' }));
-    const cfg = buildRdpEngineConfigFromEntry({
-      ...base,
-      entryConfig: { gatewayCredentialMode: 'credential', gatewayCredentialId: 'cred-9' },
-      gatewayDefaults: enabledDefaults,
-      lookupCredential,
-    });
-    expect(lookupCredential).toHaveBeenCalledWith('cred-9');
-    expect(cfg.gateway).toMatchObject({ username: 'gwuser', password: 'gw-pw', domain: 'GW' });
     expect(cfg.username).toBe('CORP\\alice');
   });
 
-  it('fails with a clear error when the linked credential is missing', () => {
+  it('uses the RDP entry login when the gateway is set to', () => {
+    const cfg = buildRdpEngineConfigFromEntry({
+      ...base,
+      entryConfig: { gatewayId: 'gw-1' },
+      gatewayVault: vaultWith(gatewayEntry({ config: { gatewayHostname: 'gw.corp.example', gatewayLoginSource: 'connection' } })),
+    });
+    expect(cfg.gateway).toMatchObject({ username: 'alice', password: 'host-pw', domain: 'CORP' });
+  });
+
+  it('fails with a clear error when the gateway was deleted', () => {
     expect(() =>
-      buildRdpEngineConfigFromEntry({
-        ...base,
-        entryConfig: { gatewayCredentialMode: 'credential', gatewayCredentialId: 'gone' },
-        gatewayDefaults: enabledDefaults,
-        lookupCredential: () => {
-          throw new Error('Credential not found: gone');
-        },
-      }),
+      buildRdpEngineConfigFromEntry({ ...base, entryConfig: { gatewayId: 'gone' }, gatewayVault: vaultWith() }),
     ).toThrow(GatewayConfigError);
+    expect(() => buildRdpEngineConfigFromEntry({ ...base, entryConfig: { gatewayId: 'gone' } })).toThrow(/was deleted/);
   });
 });

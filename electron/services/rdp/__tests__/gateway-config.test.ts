@@ -1,19 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import {
-  HARDCODED_GATEWAY_DEFAULTS,
   GatewayConfigError,
+  RD_GATEWAY_CREDENTIAL_TYPE,
+  describeGatewayAddress,
+  gatewayIdOf,
+  isRdGateway,
   normalizeGatewayHost,
-  resolveGatewaySettings,
+  readGatewayConfig,
   resolveGatewayEngineConfig,
   splitDomainUser,
-  type RdpGatewayDefaults,
+  type RdGatewayRecord,
 } from '../gateway-config.js';
 
-const enabledDefaults: RdpGatewayDefaults = {
-  ...HARDCODED_GATEWAY_DEFAULTS,
-  gatewayEnabled: true,
-  gatewayHostname: 'gw.corp.example',
-};
+function gateway(overrides: Partial<RdGatewayRecord> = {}): RdGatewayRecord {
+  return {
+    id: 'gw-1',
+    name: 'Corp gateway',
+    entryType: 'credential',
+    credentialType: RD_GATEWAY_CREDENTIAL_TYPE,
+    config: { gatewayHostname: 'gw.corp.example' },
+    ownLogin: { username: 'gwuser', password: 'gwpw', domain: 'CORP' },
+    ...overrides,
+  };
+}
+
+const host = { username: 'HOSTDOM\\alice', password: 'pw', domain: '' };
 
 describe('normalizeGatewayHost', () => {
   it('keeps a plain host', () => {
@@ -49,128 +60,96 @@ describe('splitDomainUser', () => {
   });
 });
 
-describe('resolveGatewaySettings', () => {
-  it('is off when the entry has no gateway and no default is enabled', () => {
-    expect(resolveGatewaySettings({}, HARDCODED_GATEWAY_DEFAULTS)).toBeNull();
+describe('isRdGateway / gatewayIdOf', () => {
+  it('recognizes a gateway entry', () => {
+    expect(isRdGateway({ entry_type: 'credential', credential_type: 'rd_gateway' })).toBe(true);
+    expect(isRdGateway({ entry_type: 'credential', credential_type: 'generic' })).toBe(false);
+    expect(isRdGateway({ entry_type: 'rdp', credential_type: 'rd_gateway' })).toBe(false);
   });
 
-  it('uses the enabled default when the entry mode is unset', () => {
-    expect(resolveGatewaySettings({}, enabledDefaults)).toEqual({
-      hostname: 'gw.corp.example',
-      port: 443,
-      transport: 'auto',
-      bypassLocal: false,
-      credentialMode: 'same',
-      credentialId: undefined,
-      source: 'default',
+  it('reads a trimmed gateway id and ignores junk', () => {
+    expect(gatewayIdOf({ gatewayId: ' gw-1 ' })).toBe('gw-1');
+    expect(gatewayIdOf({ gatewayId: '' })).toBeUndefined();
+    expect(gatewayIdOf({ gatewayId: 5 })).toBeUndefined();
+    expect(gatewayIdOf(null)).toBeUndefined();
+  });
+});
+
+describe('readGatewayConfig / describeGatewayAddress', () => {
+  it('fills defaults', () => {
+    expect(readGatewayConfig({})).toEqual({
+      gatewayHostname: '',
+      gatewayPort: 443,
+      gatewayTransport: 'auto',
+      gatewayBypassLocal: false,
+      gatewayLoginSource: 'own',
     });
   });
 
-  it('ignores an enabled default whose hostname is blank', () => {
-    expect(resolveGatewaySettings({}, { ...enabledDefaults, gatewayHostname: ' ' })).toBeNull();
+  it('uses a port typed into the server box when there is no port field', () => {
+    expect(readGatewayConfig({ gatewayHostname: 'gw:9443' }).gatewayPort).toBe(9443);
   });
 
-  it('turns the gateway off for mode off even with a default', () => {
-    expect(resolveGatewaySettings({ gatewayMode: 'off' }, enabledDefaults)).toBeNull();
+  it('prefers the port field over a port in the server box', () => {
+    expect(readGatewayConfig({ gatewayHostname: 'gw:9443', gatewayPort: 4443 }).gatewayPort).toBe(4443);
   });
 
-  it('uses the entry values in custom mode', () => {
-    expect(
-      resolveGatewaySettings(
-        {
-          gatewayMode: 'custom',
-          gatewayHostname: 'other-gw:9443',
-          gatewayTransport: 'http',
-          gatewayBypassLocal: true,
-          gatewayCredentialMode: 'credential',
-          gatewayCredentialId: 'cred-1',
-        },
-        enabledDefaults,
-      ),
-    ).toEqual({
-      hostname: 'other-gw',
-      port: 9443,
-      transport: 'http',
-      bypassLocal: true,
-      credentialMode: 'credential',
-      credentialId: 'cred-1',
-      source: 'entry',
+  it('drops an out-of-range port and junk transport', () => {
+    expect(readGatewayConfig({ gatewayHostname: 'gw', gatewayPort: 70000, gatewayTransport: 'udp' })).toMatchObject({
+      gatewayPort: 443,
+      gatewayTransport: 'auto',
     });
   });
 
-  it('prefers the explicit port over a port in the hostname', () => {
-    const s = resolveGatewaySettings(
-      { gatewayMode: 'custom', gatewayHostname: 'gw:9443', gatewayPort: 4443 },
-      HARDCODED_GATEWAY_DEFAULTS,
-    );
-    expect(s?.port).toBe(4443);
-  });
-
-  it('falls back to 443 for an out-of-range port', () => {
-    const s = resolveGatewaySettings(
-      { gatewayMode: 'custom', gatewayHostname: 'gw', gatewayPort: 70000 },
-      HARDCODED_GATEWAY_DEFAULTS,
-    );
-    expect(s?.port).toBe(443);
-  });
-
-  it('is off in custom mode with no hostname', () => {
-    expect(resolveGatewaySettings({ gatewayMode: 'custom', gatewayHostname: '' }, enabledDefaults)).toBeNull();
-  });
-
-  it('lets a default-mode entry pick its own gateway login', () => {
-    const s = resolveGatewaySettings(
-      { gatewayCredentialMode: 'credential', gatewayCredentialId: 'cred-9' },
-      enabledDefaults,
-    );
-    expect(s).toMatchObject({ source: 'default', credentialMode: 'credential', credentialId: 'cred-9' });
-  });
-
-  it('treats credential mode with no id as same-login', () => {
-    const s = resolveGatewaySettings({ gatewayCredentialMode: 'credential' }, enabledDefaults);
-    expect(s?.credentialMode).toBe('same');
-  });
-
-  it('tolerates junk values from an older or foreign client', () => {
-    const s = resolveGatewaySettings(
-      { gatewayMode: 'weird' as never, gatewayTransport: 'udp' as never },
-      enabledDefaults,
-    );
-    expect(s).toMatchObject({ source: 'default', transport: 'auto' });
+  it('describes the address, leaving off 443', () => {
+    expect(describeGatewayAddress({ gatewayHostname: 'gw' })).toBe('gw');
+    expect(describeGatewayAddress({ gatewayHostname: 'gw', gatewayPort: 8443 })).toBe('gw:8443');
+    expect(describeGatewayAddress({})).toBe('');
   });
 });
 
 describe('resolveGatewayEngineConfig', () => {
-  const settings = resolveGatewaySettings({}, enabledDefaults)!;
-  const host = { username: 'CORP\\alice', password: 'pw', domain: '' };
-
-  it('reuses the host login in same mode', () => {
-    expect(resolveGatewayEngineConfig(settings, host, null)).toEqual({
+  it('uses the gateway\'s own login', () => {
+    expect(resolveGatewayEngineConfig('gw-1', gateway(), host)).toEqual({
       hostname: 'gw.corp.example',
       port: 443,
-      username: 'alice',
-      password: 'pw',
+      username: 'gwuser',
+      password: 'gwpw',
       domain: 'CORP',
       transport: 'auto',
       bypassLocal: false,
     });
   });
 
-  it('uses the linked credential in credential mode', () => {
-    const s = { ...settings, credentialMode: 'credential' as const, credentialId: 'cred-1' };
-    const gw = resolveGatewayEngineConfig(s, host, { username: 'gwuser', password: 'gwpw', domain: 'GW' });
-    expect(gw).toMatchObject({ username: 'gwuser', password: 'gwpw', domain: 'GW' });
+  it('uses the RDP entry\'s login when set to', () => {
+    const gw = gateway({ config: { gatewayHostname: 'gw', gatewayLoginSource: 'connection' }, ownLogin: null });
+    expect(resolveGatewayEngineConfig('gw-1', gw, host)).toMatchObject({ username: 'alice', domain: 'HOSTDOM', password: 'pw' });
   });
 
-  it('throws a clear error when the linked credential is missing', () => {
-    const s = { ...settings, credentialMode: 'credential' as const, credentialId: 'gone' };
-    expect(() => resolveGatewayEngineConfig(s, host, null)).toThrow(GatewayConfigError);
-    expect(() => resolveGatewayEngineConfig(s, host, null)).toThrow(/saved gateway login/i);
+  it('passes transport, port and bypass through', () => {
+    const gw = gateway({ config: { gatewayHostname: 'gw', gatewayPort: 8443, gatewayTransport: 'http', gatewayBypassLocal: true } });
+    expect(resolveGatewayEngineConfig('gw-1', gw, host)).toMatchObject({ port: 8443, transport: 'http', bypassLocal: true });
   });
 
-  it('throws a clear error when same mode has no host username', () => {
-    expect(() => resolveGatewayEngineConfig(settings, { username: '', password: '' }, null)).toThrow(
-      /gateway needs a login/i,
-    );
+  it('throws when the gateway entry is gone', () => {
+    expect(() => resolveGatewayEngineConfig('gw-1', null, host)).toThrow(GatewayConfigError);
+    expect(() => resolveGatewayEngineConfig('gw-1', null, host)).toThrow(/was deleted/);
+  });
+
+  it('throws when the id points at something that is not a gateway', () => {
+    expect(() => resolveGatewayEngineConfig('gw-1', gateway({ credentialType: 'generic' }), host)).toThrow(/was deleted/);
+  });
+
+  it('throws when the gateway has no server address', () => {
+    expect(() => resolveGatewayEngineConfig('gw-1', gateway({ config: {} }), host)).toThrow(/no server address/);
+  });
+
+  it('throws when the gateway has no login of its own', () => {
+    expect(() => resolveGatewayEngineConfig('gw-1', gateway({ ownLogin: null }), host)).toThrow(/has no login/);
+  });
+
+  it('throws when it uses the entry login and the entry has none', () => {
+    const gw = gateway({ config: { gatewayHostname: 'gw', gatewayLoginSource: 'connection' } });
+    expect(() => resolveGatewayEngineConfig('gw-1', gw, { username: '', password: '' })).toThrow(/has no username/);
   });
 });

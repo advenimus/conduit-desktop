@@ -469,8 +469,11 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
   // Build a set of credential entry IDs in the export (for remapping credential_id)
   const exportEntryIds = new Set(payload.entries.map(e => e.id));
 
-  // Create credential-type entries first (so credential_id refs can resolve)
-  const credentialEntries = payload.entries.filter(e => e.entry_type === 'credential');
+  // Create credential-type entries first (so credential_id refs can resolve). Within them, ones
+  // without a link go first: an RD Gateway's login can be a link to another credential.
+  const credentialEntries = payload.entries
+    .filter(e => e.entry_type === 'credential')
+    .sort((a, b) => Number(!!a.credential_id) - Number(!!b.credential_id));
   const otherEntries = payload.entries.filter(e => e.entry_type !== 'credential');
 
   const actualEntryIdMap = new Map<string, string>();
@@ -512,7 +515,7 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
       domain: entry.domain,
       private_key: entry.private_key,
       credential_id: credentialId,
-      config: remapGatewayCredential(entry.config, actualEntryIdMap),
+      config: remapGatewayId(entry.config, actualEntryIdMap),
       tags: entry.tags,
       notes: entry.notes,
       credential_type: entry.credential_type,
@@ -552,20 +555,17 @@ function importExportFile(vault: ConduitVault, filePath: string, passphrase: str
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-/**
- * Points an RDP entry's gateway login at the imported credential's new id. A
- * link to a credential left out of the import falls back to the PC's login.
- */
-export function remapGatewayCredential(
+/** Points an RDP entry at the imported gateway's new id, or drops a gateway left out of the import. */
+export function remapGatewayId(
   config: Record<string, unknown> | undefined,
   idMap: ReadonlyMap<string, string>,
 ): Record<string, unknown> | undefined {
-  const oldId = config?.gatewayCredentialId;
+  const oldId = config?.gatewayId;
   if (!config || typeof oldId !== 'string' || !oldId) return config;
   const newId = idMap.get(oldId);
-  if (newId) return { ...config, gatewayCredentialId: newId };
-  const { gatewayCredentialId: _dropped, ...rest } = config;
-  return { ...rest, gatewayCredentialMode: 'same' };
+  if (newId) return { ...config, gatewayId: newId };
+  const { gatewayId: _dropped, ...rest } = config;
+  return rest;
 }
 
 const REF_ID_RE = /\{\{(secret|cred):([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/g;

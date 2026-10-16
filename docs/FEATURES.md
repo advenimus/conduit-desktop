@@ -48,10 +48,13 @@
 - Hostname override for multi-homed servers
 - Send Ctrl+Alt+Delete via RDP tab context menu
 - **RD Gateway** (see `docs/RDP_GATEWAY.md`): connect through a Remote Desktop Gateway over HTTPS
-  - Default gateway in Settings > Sessions > RDP (server, port, skip for local addresses, transport under Advanced)
-  - Per entry Gateway tab: use the default, no gateway, or a custom gateway
-  - Gateway login: the same login as the computer, or a saved credential from the vault. The gateway password is never stored in the entry's settings
+  - A gateway is its own vault object (New Entry > RD Gateway): server, port, skip for local addresses, transport under Advanced
+  - Gateway login: type one in (password stored encrypted), link a saved credential, or use the login of the RDP entry that connects through it
+  - RDP entry Gateway tab: No gateway or one of the vault's gateways, plus New gateway... to make one on the spot. A deleted gateway shows a warning
+  - The gateway editor says how many RDP entries use it, and deleting one in use says how many entries it affects
+  - Gateways show in the sidebar with their own icon and are left out of every login picker
   - The connecting screen names the gateway, and gateway failures (login, unreachable, refused by policy, certificate) get their own error messages
+  - iOS shows a gateway as a regular credential and connects RDP entries straight to the computer
 
 ### VNC (Virtual Network Computing)
 - Password authentication via rfb2 client
@@ -966,7 +969,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - **Beta update channel** (see `docs/BETA_CHANNEL.md`): Settings > General > Updates shows the current version, a "Get beta updates" switch that takes effect at once, and a Check for updates button
   - Beta builds carry a `-beta.N` version and are GitHub pre-releases. They use the normal production account and data
   - A beta build turns beta updates on by itself until the user changes the switch. Turning it off never downgrades: the app moves to the next regular release when it comes out
-  - Beta builds show a small Beta pill in the title bar and the About dialog; clicking it opens Send Feedback
+  - Beta builds show a small Beta pill in the title bar (the side bar header when it is open, the first tab row when it is closed) and the About dialog; clicking it opens Send Feedback
   - What's New does not open on its own for a beta that has no release notes entry
 
 ---

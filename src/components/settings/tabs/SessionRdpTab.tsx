@@ -1,12 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import type { TabProps } from "../SettingsHelpers";
 import type { Settings } from "../SettingsHelpers";
 import type { RdpGlobalDefaults, RdpGlobalResolution } from "../../../types/entry";
 import { GLOBAL_RESOLUTION_OPTIONS, COLOR_DEPTH_OPTIONS, QUALITY_OPTIONS, SOUND_OPTIONS } from "../../../lib/sessionOptions";
 import { HARDCODED_RDP_DEFAULTS } from "../../../types/entry";
-import { HARDCODED_GATEWAY_DEFAULTS, normalizeGatewayHost, type RdpGatewayDefaults, type RdpGatewayTransport } from "../../../lib/rdpGateway";
-import { GATEWAY_TRANSPORT_OPTIONS } from "../../entries/gatewayForm";
-import { Button, Checkbox, FormField, Select, SettingsRow, Slider, Switch, TextInput } from "../../ui";
+import { Checkbox, FormField, Select, Slider } from "../../ui";
 import { CAPTION, HINT, SECTION_LABEL } from "../settings-styles";
 
 interface SessionRdpTabProps extends TabProps {
@@ -129,98 +127,6 @@ export default function SessionRdpTab({ settings, setSettings, onApplyDisplaySca
           NLA (Network Level Auth)
         </Checkbox>
       </div>
-
-      <DefaultGatewaySection gateway={{ ...HARDCODED_GATEWAY_DEFAULTS, ...defaults }} update={update} />
-    </div>
-  );
-}
-
-function validPort(text: string): number | null {
-  const port = Number(text);
-  return text.trim() !== "" && Number.isInteger(port) && port >= 1 && port <= 65535 ? port : null;
-}
-
-function DefaultGatewaySection({ gateway, update }: { gateway: RdpGatewayDefaults; update: (partial: Partial<RdpGatewayDefaults>) => void }) {
-  const [showAdvanced, setShowAdvanced] = useState(gateway.gatewayTransport !== "auto");
-  const [portText, setPortText] = useState(String(gateway.gatewayPort));
-  useEffect(() => setPortText(String(gateway.gatewayPort)), [gateway.gatewayPort]);
-
-  // The port field is always filled here, so a port typed into the server name must move into it.
-  const commitHost = () => {
-    const parsed = normalizeGatewayHost(gateway.gatewayHostname);
-    if (parsed.port) update({ gatewayHostname: parsed.hostname, gatewayPort: parsed.port });
-    else if (parsed.hostname !== gateway.gatewayHostname) update({ gatewayHostname: parsed.hostname });
-  };
-
-  return (
-    <div className="border-t border-divider pt-4">
-      <SettingsRow
-        title="Default gateway"
-        description="RDP entries set to Use default gateway connect through this Remote Desktop Gateway. They sign in with the entry's own login unless the entry picks a gateway login."
-        toggle={<Switch checked={gateway.gatewayEnabled} onChange={(gatewayEnabled) => update({ gatewayEnabled })} />}
-      />
-      {gateway.gatewayEnabled && (
-        <div className="mt-3 space-y-4">
-          <div className="flex gap-3">
-            <FormField
-              label="Gateway server"
-              className="min-w-0 flex-1"
-              error={gateway.gatewayHostname.trim() ? null : "Enter a gateway server to use the default gateway."}
-            >
-              <TextInput
-                value={gateway.gatewayHostname}
-                onChange={(e) => update({ gatewayHostname: e.target.value })}
-                onBlur={commitHost}
-                placeholder="gateway.example.com"
-              />
-            </FormField>
-            <FormField label="Port" className="w-28">
-              <TextInput
-                type="number"
-                min={1}
-                max={65535}
-                value={portText}
-                onChange={(e) => {
-                  setPortText(e.target.value);
-                  const port = validPort(e.target.value);
-                  if (port !== null) update({ gatewayPort: port });
-                }}
-                onBlur={() => setPortText(String(gateway.gatewayPort))}
-              />
-            </FormField>
-          </div>
-          <Checkbox
-            checked={gateway.gatewayBypassLocal}
-            onChange={(gatewayBypassLocal) => update({ gatewayBypassLocal })}
-            description="Connect straight to the computer when it is on your local network."
-          >
-            Skip the gateway for local addresses
-          </Checkbox>
-          <div className="space-y-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={showAdvanced ? "chevronDown" : "chevronRight"}
-              aria-expanded={showAdvanced}
-              onClick={() => setShowAdvanced((v) => !v)}
-            >
-              Advanced
-            </Button>
-            {showAdvanced && (
-              <FormField label="Transport" description="Automatic tries HTTP first, then RPC. Change it only if your gateway needs one of them.">
-                <Select
-                  value={gateway.gatewayTransport}
-                  onChange={(e) => update({ gatewayTransport: e.target.value as RdpGatewayTransport })}
-                >
-                  {GATEWAY_TRANSPORT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </Select>
-              </FormField>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

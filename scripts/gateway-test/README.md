@@ -45,6 +45,7 @@ These exist only inside this rig. Never use them anywhere else.
 | Gateway login | `gwuser` / `GwTest-Pass1!` (no domain) |
 | Target host behind the gateway | `desktop`, port `3389` |
 | Desktop login | `deskuser` / `DeskTest-Pass1!` |
+| Login that works on both | `shareduser` / `SharedTest-Pass1!`, for a gateway set to use the RDP entry's login |
 | Target the gateway refuses | anything else, for example `not-allowed-host` |
 
 The certificate is self-signed for `localhost` and `127.0.0.1`, so clients must skip certificate checks. Conduit's helper already accepts every certificate.

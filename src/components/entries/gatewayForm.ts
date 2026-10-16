@@ -1,5 +1,13 @@
-import type { RdpEntryConfig, RdpGlobalDefaults } from "../../types/entry";
-import { normalizeGatewayHost, resolveGatewaySettings, type RdpGatewayTransport } from "../../lib/rdpGateway";
+import type { EntryMeta, RdpEntryConfig } from "../../types/entry";
+import {
+  describeGatewayAddress,
+  gatewayIdOf,
+  isRdGateway,
+  normalizeGatewayHost,
+  readGatewayConfig,
+  type RdGatewayConfig,
+  type RdpGatewayTransport,
+} from "../../lib/rdpGateway";
 
 export const GATEWAY_TRANSPORT_OPTIONS: { value: RdpGatewayTransport; label: string }[] = [
   { value: "auto", label: "Automatic" },
@@ -7,43 +15,74 @@ export const GATEWAY_TRANSPORT_OPTIONS: { value: RdpGatewayTransport; label: str
   { value: "rpc", label: "RPC" },
 ];
 
-const SERVER_KEYS = ["gatewayHostname", "gatewayPort", "gatewayTransport", "gatewayBypassLocal"] as const;
-const LOGIN_KEYS = ["gatewayCredentialMode", "gatewayCredentialId"] as const;
+/** How a gateway signs in: a typed-in login, a linked credential, or the RDP entry's own login. */
+export type GatewayLoginChoice = "typed" | "saved" | "connection";
 
-function without(config: Partial<RdpEntryConfig>, keys: readonly (keyof RdpEntryConfig)[]): Partial<RdpEntryConfig> {
-  const result = { ...config };
-  for (const key of keys) delete result[key];
-  return result;
+/** Per-entry gateway keys from before gateways were their own objects. */
+const LEGACY_RDP_GATEWAY_KEYS = [
+  "gatewayMode",
+  "gatewayHostname",
+  "gatewayPort",
+  "gatewayTransport",
+  "gatewayBypassLocal",
+  "gatewayCredentialMode",
+  "gatewayCredentialId",
+] as const;
+
+function validPort(port: unknown): boolean {
+  return typeof port === "number" && Number.isInteger(port) && port >= 1 && port <= 65535;
 }
 
-/** The entry config to save: keys the chosen gateway mode does not use are dropped. */
-export function gatewayConfigForSave(config: Partial<RdpEntryConfig>): Partial<RdpEntryConfig> {
-  if (config.gatewayMode === "off") {
-    return without(config, [...SERVER_KEYS, ...LOGIN_KEYS]);
-  }
-
-  let result = config.gatewayMode === "custom" ? { ...config } : without(config, [...SERVER_KEYS, "gatewayMode"]);
-  if (result.gatewayHostname !== undefined) {
-    result = { ...result, gatewayHostname: result.gatewayHostname.trim() };
-  }
-  if (result.gatewayCredentialMode !== "credential") {
-    result = without(result, LOGIN_KEYS);
-  }
-  return result;
+/** The config to save on a gateway entry: only the RdGatewayConfig keys, defaults left out. */
+export function gatewayEntryConfigForSave(config: Partial<RdGatewayConfig>, login: GatewayLoginChoice): RdGatewayConfig {
+  const parsed = normalizeGatewayHost(config.gatewayHostname ?? "");
+  const port = config.gatewayPort ?? parsed.port;
+  return {
+    gatewayHostname: parsed.hostname,
+    ...(port !== undefined ? { gatewayPort: port } : {}),
+    ...(config.gatewayTransport && config.gatewayTransport !== "auto" ? { gatewayTransport: config.gatewayTransport } : {}),
+    ...(config.gatewayBypassLocal === true ? { gatewayBypassLocal: true } : {}),
+    gatewayLoginSource: login === "connection" ? "connection" : "own",
+  };
 }
 
-/** Why the gateway settings cannot be saved, or null. */
-export function gatewayValidationError(config: Partial<RdpEntryConfig>): string | null {
-  if (config.gatewayMode === "off") return null;
-  if (config.gatewayMode === "custom") {
-    if (!config.gatewayHostname?.trim()) return "Enter a gateway server, or choose another gateway option.";
-    const port = config.gatewayPort;
-    if (port !== undefined && !(Number.isInteger(port) && port >= 1 && port <= 65535)) {
-      return "The gateway port must be a number from 1 to 65535.";
-    }
+export function gatewayLoginChoiceOf(config: unknown, credentialId: string | null | undefined): GatewayLoginChoice {
+  if (readGatewayConfig(config).gatewayLoginSource === "connection") return "connection";
+  return credentialId ? "saved" : "typed";
+}
+
+interface GatewayLoginFields {
+  credentialId: string | null;
+  username: string;
+  password: string;
+  domain: string;
+}
+
+/** The login columns to save: only what the chosen login uses, so no stale secret stays behind. */
+export function gatewayLoginColumns(login: GatewayLoginChoice, fields: GatewayLoginFields) {
+  if (login === "typed") {
+    return {
+      credential_id: null,
+      username: fields.username.trim() || null,
+      password: fields.password || null,
+      domain: fields.domain.trim() || null,
+    };
   }
-  if (config.gatewayCredentialMode === "credential" && !config.gatewayCredentialId) {
-    return "Pick a saved credential for the gateway login, or use the same login as this computer.";
+  return { credential_id: login === "saved" ? fields.credentialId : null, username: null, password: null, domain: null };
+}
+
+/** Why a gateway entry cannot be saved, or null. */
+export function gatewayEntryValidationError(
+  config: Partial<RdGatewayConfig>,
+  login: GatewayLoginChoice,
+  credentialId: string | null,
+): string | null {
+  if (!config.gatewayHostname?.trim()) return "Enter a gateway server.";
+  if (config.gatewayPort !== undefined && !validPort(config.gatewayPort)) {
+    return "The gateway port must be a number from 1 to 65535.";
+  }
+  if (login === "saved" && !credentialId) {
+    return "Pick a saved credential for the gateway login, or choose another login option.";
   }
   return null;
 }
@@ -52,13 +91,51 @@ export function gatewayValidationError(config: Partial<RdpEntryConfig>): string 
 export function splitGatewayHostInput(
   input: string,
   currentPort: number | undefined,
-): Pick<RdpEntryConfig, "gatewayHostname" | "gatewayPort"> {
+): Pick<RdGatewayConfig, "gatewayHostname" | "gatewayPort"> {
   const parsed = normalizeGatewayHost(input);
   return { gatewayHostname: parsed.hostname, gatewayPort: currentPort ?? parsed.port };
 }
 
-/** "Default: host:port" for the Settings default gateway, or null when none is on. */
-export function describeDefaultGateway(defaults: RdpGlobalDefaults): string | null {
-  const settings = resolveGatewaySettings({}, defaults);
-  return settings ? `Default: ${settings.hostname}:${settings.port}` : null;
+export interface GatewayOption {
+  id: string;
+  name: string;
+  address: string;
+}
+
+type EntryLike = Pick<EntryMeta, "id" | "name" | "entry_type" | "credential_type" | "config">;
+
+export function gatewayOptions(entries: readonly EntryLike[]): GatewayOption[] {
+  return entries
+    .filter(isRdGateway)
+    .map((e) => ({ id: e.id, name: e.name, address: describeGatewayAddress(e.config) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function gatewayUsageCount(entries: readonly EntryLike[], gatewayId: string): number {
+  return entries.filter((e) => e.entry_type === "rdp" && gatewayIdOf(e.config) === gatewayId).length;
+}
+
+/** "Used by 2 RDP entries". */
+export function describeGatewayUsage(count: number): string {
+  if (count === 0) return "No RDP entries use this gateway yet.";
+  return `Used by ${count} RDP ${count === 1 ? "entry" : "entries"}.`;
+}
+
+export function gatewayDeleteMessage(name: string, usageCount: number): string {
+  if (usageCount === 0) return `Are you sure you want to delete "${name}"?`;
+  const users =
+    usageCount === 1
+      ? "1 RDP entry uses it. That entry will not connect until you pick another gateway for it."
+      : `${usageCount} RDP entries use it. They will not connect until you pick another gateway for them.`;
+  return `Delete the gateway "${name}"? ${users}`;
+}
+
+/** The RDP entry config to save: gatewayId when one is picked, and none of the old per-entry gateway keys. */
+export function rdpGatewayConfigForSave(config: Partial<RdpEntryConfig>): Partial<RdpEntryConfig> {
+  const result: Record<string, unknown> = { ...config };
+  for (const key of LEGACY_RDP_GATEWAY_KEYS) delete result[key];
+  const gatewayId = gatewayIdOf(config);
+  if (gatewayId) result.gatewayId = gatewayId;
+  else delete result.gatewayId;
+  return result as Partial<RdpEntryConfig>;
 }

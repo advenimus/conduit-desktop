@@ -14,6 +14,7 @@ import type {
   SshGlobalDefaults,
   SshAuthMethod,
 } from "../types/entry";
+import { gatewayIdOf } from "./rdpGateway";
 import {
   HARDCODED_RDP_DEFAULTS,
   HARDCODED_WEB_DEFAULTS,
@@ -37,14 +38,7 @@ export function resolveRdpConfig(
     hostname: entryConfig.hostname,
     sharedFolders: entryConfig.sharedFolders ?? [],
     enableHighDpi: entryConfig.enableHighDpi ?? globalDefaults.enableHighDpi,
-    // Left unresolved: resolveGatewaySettings merges them with the Settings default.
-    gatewayMode: entryConfig.gatewayMode,
-    gatewayHostname: entryConfig.gatewayHostname,
-    gatewayPort: entryConfig.gatewayPort,
-    gatewayTransport: entryConfig.gatewayTransport,
-    gatewayBypassLocal: entryConfig.gatewayBypassLocal,
-    gatewayCredentialMode: entryConfig.gatewayCredentialMode,
-    gatewayCredentialId: entryConfig.gatewayCredentialId,
+    gatewayId: gatewayIdOf(entryConfig),
   };
 }
 

@@ -37,6 +37,8 @@ services:
     environment:
       DESK_USER: deskuser
       DESK_PASS: "DeskTest-Pass1!"
+      SHARED_USER: shareduser
+      SHARED_PASS: "SharedTest-Pass1!"
     networks:
       - backend
     healthcheck:

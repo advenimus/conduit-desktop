@@ -7,6 +7,7 @@ import {
   ShieldLockIcon,
   FileTextIcon,
   PlayerPlayIcon,
+  NetworkIcon,
 } from "../../lib/icons";
 import type { IconComponent } from "../../lib/icons";
 import type { EntryType } from "../../types/entry";
@@ -36,6 +37,7 @@ const ENTRY_TYPE_CATEGORIES: TypeCategory[] = [
       { type: "rdp", label: "RDP", description: "Remote Desktop", icon: DesktopIcon, color: "text-entry-rdp" },
       { type: "vnc", label: "VNC", description: "Screen Share", icon: ServerAltIcon, color: "text-entry-vnc" },
       { type: "web", label: "Web", description: "Browser Session", icon: GlobeIcon, color: "text-entry-web" },
+      { type: "credential", label: "RD Gateway", description: "Remote Desktop Gateway", icon: NetworkIcon, color: "text-entry-rdp", credentialType: "rd_gateway" },
     ],
   },
   {
