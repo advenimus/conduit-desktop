@@ -3,11 +3,11 @@
  *
  * Orchestrates creation, opening, member management, and VEK rotation
  * for team-shared vaults. Coordinates between the local ConduitVault,
- * Supabase cloud state, and TeamSyncService.
+ * server cloud state, and TeamSyncService.
  */
 
 import path from 'node:path';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ConduitDb } from '../backend/conduit-db.js';
 import { ConduitVault } from './vault.js';
 import { TeamSyncService } from './team-sync.js';
 import {
@@ -17,7 +17,7 @@ import {
   loadPrivateKey,
   derivePublicKey,
 } from './team-crypto.js';
-import type { AuthService } from '../auth/supabase.js';
+import type { AuthService } from '../auth/auth-service.js';
 import type { VaultLockService } from './vault-lock.js';
 import { getDataDir } from '../env-config.js';
 
@@ -86,11 +86,11 @@ export class TeamVaultManager {
    * 1. Generate VEK
    * 2. Create local vault with initializeWithKey()
    * 3. Wrap VEK for creator
-   * 4. Register in Supabase (team_vaults, vault_key_wraps, team_vault_members)
+   * 4. Register on the server (team_vaults, vault_key_wraps, team_vault_members)
    * 5. Initial entry upload via TeamSyncService
    */
   async createTeamVault(name: string, teamId: string, description?: string): Promise<TeamVaultInfo> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const userId = this.requireUserId();
 
     // Load identity key pair
@@ -103,8 +103,8 @@ export class TeamVaultManager {
     // 1. Generate VEK
     const vek = generateVEK();
 
-    // 2. Register in Supabase first (to get the vault ID)
-    const { data: vaultRow, error: createError } = await supabase
+    // 2. Register on the server first (to get the vault ID)
+    const { data: vaultRow, error: createError } = await db
       .from('team_vaults')
       .insert({
         team_id: teamId,
@@ -123,7 +123,7 @@ export class TeamVaultManager {
 
     try {
       // 3. Add creator as vault admin first (must precede key wrap insert for RLS)
-      const { error: memberError } = await supabase
+      const { error: memberError } = await db
         .from('team_vault_members')
         .insert({
           team_vault_id: teamVaultId,
@@ -137,7 +137,7 @@ export class TeamVaultManager {
       // 4. Wrap VEK for creator and store
       const wrapped = wrapVEK(vek, publicDer);
 
-      const { error: wrapError } = await supabase
+      const { error: wrapError } = await db
         .from('vault_key_wraps')
         .insert({
           team_vault_id: teamVaultId,
@@ -150,7 +150,7 @@ export class TeamVaultManager {
       if (wrapError) throw new Error(`Failed to store key wrap: ${wrapError.message}`);
 
       // 5. Auto-enroll all other team admins (VEK is still in memory)
-      const { data: teamAdmins } = await supabase
+      const { data: teamAdmins } = await db
         .from('team_members')
         .select('user_id')
         .eq('team_id', teamId)
@@ -160,7 +160,7 @@ export class TeamVaultManager {
       if (teamAdmins) {
         for (const admin of teamAdmins) {
           try {
-            const { data: adminKey } = await supabase
+            const { data: adminKey } = await db
               .from('user_public_keys')
               .select('public_key_b64')
               .eq('user_id', admin.user_id)
@@ -173,13 +173,13 @@ export class TeamVaultManager {
             const adminPubDer = Buffer.from(adminKey.public_key_b64 as string, 'base64');
             const adminWrapped = wrapVEK(vek, adminPubDer);
 
-            await supabase.from('team_vault_members').insert({
+            await db.from('team_vault_members').insert({
               team_vault_id: teamVaultId,
               user_id: admin.user_id,
               role: 'admin',
               added_by: userId,
             });
-            await supabase.from('vault_key_wraps').insert({
+            await db.from('vault_key_wraps').insert({
               team_vault_id: teamVaultId,
               user_id: admin.user_id,
               ephemeral_public_key_b64: adminWrapped.ephemeralPublicKeyB64,
@@ -210,7 +210,7 @@ export class TeamVaultManager {
       };
     } catch (err) {
       // Cleanup on failure
-      await supabase.from('team_vaults').delete().eq('id', teamVaultId);
+      await db.from('team_vaults').delete().eq('id', teamVaultId);
       throw err;
     } finally {
       vek.fill(0);
@@ -220,7 +220,7 @@ export class TeamVaultManager {
   /**
    * Open an existing team vault.
    *
-   * 1. Fetch wrapped VEK from Supabase
+   * 1. Fetch wrapped VEK from the server
    * 2. Unwrap with local private key
    * 3. Create/open local cache file
    * 4. unlockWithKey()
@@ -230,7 +230,7 @@ export class TeamVaultManager {
     // Close any currently open team vault first
     this.closeTeamVault();
 
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const userId = this.requireUserId();
 
     // Load identity key pair
@@ -241,7 +241,7 @@ export class TeamVaultManager {
     const publicDer = derivePublicKey(privateDer);
 
     // 1. Fetch vault info
-    const { data: vaultRow, error: vaultError } = await supabase
+    const { data: vaultRow, error: vaultError } = await db
       .from('team_vaults')
       .select('*')
       .eq('id', teamVaultId)
@@ -270,7 +270,7 @@ export class TeamVaultManager {
     }
 
     // 2. Fetch wrapped VEK for this user
-    const { data: wrapRow, error: wrapError } = await supabase
+    const { data: wrapRow, error: wrapError } = await db
       .from('vault_key_wraps')
       .select('*')
       .eq('team_vault_id', teamVaultId)
@@ -280,7 +280,7 @@ export class TeamVaultManager {
 
     if (wrapError || !wrapRow) {
       // Distinguish "not a vault member" from "member without key wrap"
-      const { data: membership } = await supabase
+      const { data: membership } = await db
         .from('team_vault_members')
         .select('user_id')
         .eq('team_vault_id', teamVaultId)
@@ -321,7 +321,7 @@ export class TeamVaultManager {
         const keyVersion = vaultRow.key_version as number;
 
         // Get all team admins except the current user
-        const { data: teamAdmins } = await supabase
+        const { data: teamAdmins } = await db
           .from('team_members')
           .select('user_id')
           .eq('team_id', teamId)
@@ -330,7 +330,7 @@ export class TeamVaultManager {
 
         if (teamAdmins?.length) {
           // Get existing vault members
-          const { data: existingMembers } = await supabase
+          const { data: existingMembers } = await db
             .from('team_vault_members')
             .select('user_id')
             .eq('team_vault_id', teamVaultId);
@@ -341,7 +341,7 @@ export class TeamVaultManager {
             if (memberSet.has(admin.user_id)) continue;
 
             // Check if they have an active public key
-            const { data: pubKey } = await supabase
+            const { data: pubKey } = await db
               .from('user_public_keys')
               .select('public_key_b64')
               .eq('user_id', admin.user_id)
@@ -354,7 +354,7 @@ export class TeamVaultManager {
             const adminPubDer = Buffer.from(pubKey.public_key_b64 as string, 'base64');
             const wrapped = wrapVEK(vek, adminPubDer);
 
-            await supabase.from('vault_key_wraps').insert({
+            await db.from('vault_key_wraps').insert({
               team_vault_id: teamVaultId,
               user_id: admin.user_id,
               ephemeral_public_key_b64: wrapped.ephemeralPublicKeyB64,
@@ -362,7 +362,7 @@ export class TeamVaultManager {
               key_version: keyVersion,
             });
 
-            await supabase.from('team_vault_members').insert({
+            await db.from('team_vault_members').insert({
               team_vault_id: teamVaultId,
               user_id: admin.user_id,
               role: 'admin',
@@ -433,11 +433,11 @@ export class TeamVaultManager {
     targetUserId: string,
     role: 'admin' | 'editor' | 'viewer' = 'editor',
   ): Promise<void> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const userId = this.requireUserId();
 
     // Verify we're an admin of this vault
-    await this.requireVaultAdmin(supabase, teamVaultId, userId);
+    await this.requireVaultAdmin(db, teamVaultId, userId);
 
     // Load our identity key pair
     const privateDer = loadPrivateKey(userId);
@@ -447,7 +447,7 @@ export class TeamVaultManager {
     const publicDer = derivePublicKey(privateDer);
 
     // Fetch the vault's current key version
-    const { data: vaultRow } = await supabase
+    const { data: vaultRow } = await db
       .from('team_vaults')
       .select('key_version')
       .eq('id', teamVaultId)
@@ -457,7 +457,7 @@ export class TeamVaultManager {
     const keyVersion = vaultRow.key_version as number;
 
     // Fetch our wrapped VEK
-    const { data: ourWrap } = await supabase
+    const { data: ourWrap } = await db
       .from('vault_key_wraps')
       .select('*')
       .eq('team_vault_id', teamVaultId)
@@ -479,7 +479,7 @@ export class TeamVaultManager {
 
     try {
       // Fetch target user's public key
-      const { data: targetKey } = await supabase
+      const { data: targetKey } = await db
         .from('user_public_keys')
         .select('public_key_b64')
         .eq('user_id', targetUserId)
@@ -497,7 +497,7 @@ export class TeamVaultManager {
       const wrapped = wrapVEK(vek, targetPubDer);
 
       // Insert key wrap
-      const { error: wrapError } = await supabase
+      const { error: wrapError } = await db
         .from('vault_key_wraps')
         .insert({
           team_vault_id: teamVaultId,
@@ -510,7 +510,7 @@ export class TeamVaultManager {
       if (wrapError) throw new Error(`Failed to store key wrap: ${wrapError.message}`);
 
       // Insert vault membership
-      const { error: memberError } = await supabase
+      const { error: memberError } = await db
         .from('team_vault_members')
         .insert({
           team_vault_id: teamVaultId,
@@ -530,10 +530,10 @@ export class TeamVaultManager {
    * Deletes their key wrap and membership, flags rotation pending.
    */
   async removeMember(teamVaultId: string, targetUserId: string): Promise<void> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const userId = this.requireUserId();
 
-    await this.requireVaultAdmin(supabase, teamVaultId, userId);
+    await this.requireVaultAdmin(db, teamVaultId, userId);
 
     // Cannot remove yourself
     if (targetUserId === userId) {
@@ -541,21 +541,21 @@ export class TeamVaultManager {
     }
 
     // Delete key wrap
-    await supabase
+    await db
       .from('vault_key_wraps')
       .delete()
       .eq('team_vault_id', teamVaultId)
       .eq('user_id', targetUserId);
 
     // Delete vault membership
-    await supabase
+    await db
       .from('team_vault_members')
       .delete()
       .eq('team_vault_id', teamVaultId)
       .eq('user_id', targetUserId);
 
     // Flag rotation pending
-    await supabase
+    await db
       .from('team_vaults')
       .update({ rotation_pending: true })
       .eq('id', teamVaultId);
@@ -571,28 +571,28 @@ export class TeamVaultManager {
     targetUserId: string,
     newRole: 'admin' | 'editor' | 'viewer',
   ): Promise<void> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const userId = this.requireUserId();
-    await this.requireVaultAdmin(supabase, teamVaultId, userId);
+    await this.requireVaultAdmin(db, teamVaultId, userId);
 
     if (targetUserId === userId) throw new Error('Cannot change your own vault role');
 
     // Protect against demoting the last admin
     if (newRole !== 'admin') {
-      const { data: admins } = await supabase
+      const { data: admins } = await db
         .from('team_vault_members')
         .select('user_id')
         .eq('team_vault_id', teamVaultId)
         .eq('role', 'admin');
 
       const adminCount = admins?.length ?? 0;
-      const isTargetAdmin = admins?.some((a) => a.user_id === targetUserId);
+      const isTargetAdmin = admins?.some((a: { user_id: string }) => a.user_id === targetUserId);
       if (isTargetAdmin && adminCount <= 1) {
         throw new Error('Cannot demote the last vault admin');
       }
     }
 
-    const { error } = await supabase
+    const { error } = await db
       .from('team_vault_members')
       .update({ role: newRole })
       .eq('team_vault_id', teamVaultId)
@@ -603,7 +603,7 @@ export class TeamVaultManager {
     // Cascade: prune folder permissions that exceed the new ceiling
     if (newRole !== 'admin') {
       const rolesToRemove = newRole === 'viewer' ? ['admin', 'editor'] : ['admin'];
-      await supabase
+      await db
         .from('vault_folder_permissions')
         .delete()
         .eq('vault_id', teamVaultId)
@@ -618,11 +618,11 @@ export class TeamVaultManager {
    * Used when promoting a team member to team admin.
    */
   async enrollAdminInAllVaults(teamId: string, targetUserId: string): Promise<void> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     this.requireUserId();
 
     // Fetch all team vaults
-    const { data: vaults } = await supabase
+    const { data: vaults } = await db
       .from('team_vaults')
       .select('id')
       .eq('team_id', teamId);
@@ -633,7 +633,7 @@ export class TeamVaultManager {
       const vaultId = vault.id as string;
 
       // Check if target is already a member
-      const { data: existing } = await supabase
+      const { data: existing } = await db
         .from('team_vault_members')
         .select('role')
         .eq('team_vault_id', vaultId)
@@ -643,7 +643,7 @@ export class TeamVaultManager {
       if (existing) {
         // Already a member — upgrade to admin if not already
         if (existing.role !== 'admin') {
-          await supabase
+          await db
             .from('team_vault_members')
             .update({ role: 'admin' })
             .eq('team_vault_id', vaultId)
@@ -669,10 +669,10 @@ export class TeamVaultManager {
    * 4. Update key version, re-upload all entries
    */
   async rotateVEK(teamVaultId: string): Promise<void> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const userId = this.requireUserId();
 
-    await this.requireVaultAdmin(supabase, teamVaultId, userId);
+    await this.requireVaultAdmin(db, teamVaultId, userId);
 
     // Ensure the vault is currently open
     if (this.activeVaultId !== teamVaultId || !this.activeVault) {
@@ -692,7 +692,7 @@ export class TeamVaultManager {
       // If any fetch fails, we haven't modified the local vault yet.
 
       // Get current key version
-      const { data: vaultRow } = await supabase
+      const { data: vaultRow } = await db
         .from('team_vaults')
         .select('key_version')
         .eq('id', teamVaultId)
@@ -702,7 +702,7 @@ export class TeamVaultManager {
       const newKeyVersion = (vaultRow.key_version as number) + 1;
 
       // Fetch all current vault members
-      const { data: members } = await supabase
+      const { data: members } = await db
         .from('team_vault_members')
         .select('user_id')
         .eq('team_vault_id', teamVaultId);
@@ -712,7 +712,7 @@ export class TeamVaultManager {
       // Fetch all member public keys upfront
       const memberKeys: Array<{ userId: string; pubDer: Buffer }> = [];
       for (const member of members) {
-        const { data: memberKey } = await supabase
+        const { data: memberKey } = await db
           .from('user_public_keys')
           .select('public_key_b64')
           .eq('user_id', member.user_id)
@@ -740,7 +740,7 @@ export class TeamVaultManager {
         for (const { userId: memberId, pubDer } of memberKeys) {
           const wrapped = wrapVEK(newVek, pubDer);
 
-          await supabase
+          await db
             .from('vault_key_wraps')
             .insert({
               team_vault_id: teamVaultId,
@@ -752,7 +752,7 @@ export class TeamVaultManager {
         }
 
         // Update vault key version and clear rotation flag
-        await supabase
+        await db
           .from('team_vaults')
           .update({
             key_version: newKeyVersion,
@@ -766,7 +766,7 @@ export class TeamVaultManager {
         console.error('[team-vault] Post-rekey cloud operations failed, wrapping VEK for current user as safety net:', postRekeyErr);
         try {
           const wrapped = wrapVEK(newVek, publicDer);
-          await supabase
+          await db
             .from('vault_key_wraps')
             .upsert({
               team_vault_id: teamVaultId,
@@ -807,10 +807,10 @@ export class TeamVaultManager {
 
   /** List members of a team vault. Returns snake_case keys matching the frontend TeamVaultMember type. */
   async listMembers(teamVaultId: string): Promise<TeamVaultMemberInfo[]> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
 
     // Fetch vault members
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('team_vault_members')
       .select('user_id, role, created_at')
       .eq('team_vault_id', teamVaultId)
@@ -824,7 +824,7 @@ export class TeamVaultManager {
 
     // Resolve display names via the team_id → get_team_members_with_email RPC
     // (direct user_profiles queries are blocked by RLS)
-    const { data: vault } = await supabase
+    const { data: vault } = await db
       .from('team_vaults')
       .select('team_id')
       .eq('id', teamVaultId)
@@ -833,7 +833,7 @@ export class TeamVaultManager {
     const profileMap = new Map<string, { display_name?: string; email?: string }>();
 
     if (vault?.team_id) {
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers } = await db
         .rpc('get_team_members_with_email', { p_team_id: vault.team_id });
 
       if (teamMembers) {
@@ -874,11 +874,11 @@ export class TeamVaultManager {
   }
 
   private async requireVaultAdmin(
-    supabase: SupabaseClient,
+    db: ConduitDb,
     teamVaultId: string,
     userId: string,
   ): Promise<void> {
-    const { data } = await supabase
+    const { data } = await db
       .from('team_vault_members')
       .select('role')
       .eq('team_vault_id', teamVaultId)
@@ -892,12 +892,12 @@ export class TeamVaultManager {
 
   /** Require vault admin OR team admin role. */
   private async requireVaultOrTeamAdmin(
-    supabase: SupabaseClient,
+    db: ConduitDb,
     teamVaultId: string,
     userId: string,
   ): Promise<void> {
     // Check vault-level admin first
-    const { data: vaultMember } = await supabase
+    const { data: vaultMember } = await db
       .from('team_vault_members')
       .select('role')
       .eq('team_vault_id', teamVaultId)
@@ -907,14 +907,14 @@ export class TeamVaultManager {
     if (vaultMember?.role === 'admin') return;
 
     // Fall back to team-level admin
-    const { data: vault } = await supabase
+    const { data: vault } = await db
       .from('team_vaults')
       .select('team_id')
       .eq('id', teamVaultId)
       .single();
 
     if (vault?.team_id) {
-      const { data: teamMember } = await supabase
+      const { data: teamMember } = await db
         .from('team_members')
         .select('role')
         .eq('team_id', vault.team_id as string)
@@ -927,18 +927,18 @@ export class TeamVaultManager {
     throw new Error('You must be a vault admin or team admin to rename this vault');
   }
 
-  /** Rename a team vault (update name in Supabase). */
+  /** Rename a team vault (update name on the server). */
   async renameTeamVault(teamVaultId: string, newName: string): Promise<void> {
     const trimmed = newName.trim();
     if (!trimmed) throw new Error('Vault name cannot be empty');
     if (trimmed.length > 100) throw new Error('Vault name must be 100 characters or fewer');
 
     const userId = this.requireUserId();
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
 
-    await this.requireVaultOrTeamAdmin(supabase, teamVaultId, userId);
+    await this.requireVaultOrTeamAdmin(db, teamVaultId, userId);
 
-    const { error } = await supabase
+    const { error } = await db
       .from('team_vaults')
       .update({ name: trimmed })
       .eq('id', teamVaultId);

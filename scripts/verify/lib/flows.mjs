@@ -3,7 +3,7 @@
 // renderer itself only calls IPC.
 
 import fs from 'node:fs';
-import { passwordSession } from './supabase.mjs';
+import { passwordSession } from './backend.mjs';
 import { SELECTORS, SYNC_DIALOG, clickIn, existsIn } from './selectors.mjs';
 import {
   bodyText,
@@ -57,12 +57,12 @@ export async function enterLocalMode(device) {
 }
 
 /**
- * Signs `user` in the way the website does: a password grant against local Supabase, then the
+ * Signs `user` in the way the website does: a password session on the local Appwrite, then the
  * conduit://auth/callback deep link handed to the app's open-url handler. Resolves on the vault hub.
  */
 export async function signIn(device, user) {
-  const { accessToken, refreshToken } = await passwordSession(user);
-  const url = `conduit://auth/callback#access_token=${accessToken}&refresh_token=${refreshToken}&token_type=bearer`;
+  const { userId, sessionSecret } = await passwordSession(user);
+  const url = `conduit://auth/callback#user_id=${userId}&session=${encodeURIComponent(sessionSecret)}`;
   await mainEval(device, ({ app }, link) => {
     app.emit('open-url', { preventDefault() {} }, link);
   }, url, { label: 'deliver auth deep link' });

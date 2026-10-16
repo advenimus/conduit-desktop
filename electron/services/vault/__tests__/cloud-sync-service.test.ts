@@ -32,7 +32,7 @@ function fakeAuth(server: { on: boolean }) {
       profile = profileWith(server.on);
       return profile;
     }),
-    getSupabaseClient: () => ({ storage: { from: () => bucket } }),
+    getDb: () => ({ storage: { from: () => bucket } }),
   };
   return { auth, upload };
 }

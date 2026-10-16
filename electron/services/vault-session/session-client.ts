@@ -1,6 +1,6 @@
 /**
  * Typed wrappers of the five session RPCs (spec 6.3 step 5, 6.5, 6.11, 9.4, 9.5; the SQL in
- * supabase/migrations/20260926150905_personal_vault_session_rpcs.sql is the exact contract).
+ * appwrite/src/api/rpc/sessions.ts is the exact contract).
  * Validates every response. Network errors, timeouts, 5xx, SQL errors, check-constraint
  * violations (oversize busy/flags/written_vv), 'not authenticated', 'too_many_sessions' and
  * malformed JSON are all 'unconfirmed': a server problem is never a denial. Only a well-formed

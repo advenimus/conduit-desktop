@@ -86,7 +86,7 @@ export type ConduitEnvironment = 'preview' | 'production';
 
 /**
  * 6.8: a packaged build always talks to production, whatever CONDUIT_ENV says, so a user-run
- * local Supabase answering `limit: -1` cannot lift the Free limit. Dev builds honor
+ * local Appwrite answering `limit: -1` cannot lift the Free limit. Dev builds honor
  * CONDUIT_ENV and default to preview. For env-config.getEnvConfig (integration).
  */
 export function resolveEnvironment(isPackaged: boolean, conduitEnv: string | undefined): ConduitEnvironment {

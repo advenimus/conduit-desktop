@@ -18,8 +18,9 @@ const logFile = process.env.CV_LOG;
 if (!appData || !mainJs || !logFile) throw new Error('CV_APPDATA, CV_MAIN_JS and CV_LOG are required');
 
 const JWT = /eyJ[\\w-]{6,}\\.[\\w-]{6,}\\.[\\w-]{6,}/g;
-const NAMED = /((?:refresh_token|access_token|password)["']?\\s*[:=]\\s*["']?)[^\\s"'&,}]{8,}/gi;
-const redact = (s) => s.replace(JWT, '<jwt>').replace(NAMED, '$1<redacted>');
+const NAMED = /((?:refresh_token|access_token|session|session_secret|secret|password)["']?\\s*[:=]\\s*["']?)[^\\s"'&,}]{8,}/gi;
+const APPWRITE_KEY = /\\b(?:standard|dynamic)_[0-9a-f]{32,}\\b/g;
+const redact = (s) => s.replace(JWT, '<jwt>').replace(APPWRITE_KEY, '<key>').replace(NAMED, '$1<redacted>');
 
 for (const stream of [process.stdout, process.stderr]) {
   const write = stream.write.bind(stream);

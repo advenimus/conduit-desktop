@@ -11,7 +11,7 @@ import { preflight } from './lib/preflight.mjs';
 import { pidsMentioning } from './lib/proc.mjs';
 import { createReporter } from './lib/report.mjs';
 import { createRunContext, freePort, installSignalHandlers } from './lib/run-context.mjs';
-import { deleteTestUsers, ensureLocalSupabase, sweepStaleTestUsers } from './lib/supabase.mjs';
+import { deleteTestUsers, ensureLocalAppwrite, sweepStaleTestUsers } from './lib/backend.mjs';
 
 const SUITES_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'suites');
 /** The --help text; opt-in suites are listed because `all` leaves them out. */
@@ -59,8 +59,8 @@ export function parseArgs(argv) {
 function validateSuite(suite, file) {
   const flag = (v) => v === undefined || typeof v === 'boolean';
   const ok = suite && typeof suite.id === 'string' && typeof suite.title === 'string' && Array.isArray(suite.scenarios) && flag(suite.optIn) &&
-    suite.scenarios.every((s) => typeof s.id === 'string' && typeof s.title === 'string' && typeof s.run === 'function' && flag(s.needsSupabase));
-  if (!ok) throw new Error(`${file} must export default {id, title, optIn?, scenarios: [{id, title, needsSupabase?, run(ctx)}]}`);
+    suite.scenarios.every((s) => typeof s.id === 'string' && typeof s.title === 'string' && typeof s.run === 'function' && flag(s.needsBackend));
+  if (!ok) throw new Error(`${file} must export default {id, title, optIn?, scenarios: [{id, title, needsBackend?, run(ctx)}]}`);
   return suite;
 }
 
@@ -90,9 +90,9 @@ export function selectSuites(available, opts) {
   return selected;
 }
 
-/** Scenarios need the local Supabase stack unless they say `needsSupabase: false`. */
-export function needsSupabase(suites) {
-  return suites.some((s) => s.scenarios.some((sc) => sc.needsSupabase !== false));
+/** Scenarios need the local Appwrite stack unless they say `needsBackend: false`. */
+export function needsBackend(suites) {
+  return suites.some((s) => s.scenarios.some((sc) => sc.needsBackend !== false));
 }
 
 async function leftoverProcesses(run) {
@@ -154,7 +154,7 @@ async function main() {
     return 0;
   }
   const suites = selectSuites(available, opts);
-  const supabase = needsSupabase(suites);
+  const backend = needsBackend(suites);
   const run = createRunContext({ keep: opts.keep });
   const reporter = createReporter(run);
   const finish = createFinisher(run, reporter);
@@ -168,18 +168,18 @@ async function main() {
   reporter.log(`artifacts: ${run.runDir}`);
 
   try {
-    const notes = await reporter.phase('preflight', () => preflight({ supabase }));
+    const notes = await reporter.phase('preflight', () => preflight({ backend }));
     for (const n of notes) reporter.log(`   ${n}`);
-    if (supabase) {
+    if (backend) {
       const sbLog = (m) => reporter.log(`   ${m}`);
       sbLog.file = (name) => run.logPath(name);
-      await reporter.phase('supabase', async () => {
-        await ensureLocalSupabase(sbLog);
+      await reporter.phase('appwrite', async () => {
+        await ensureLocalAppwrite(sbLog);
         const swept = await sweepStaleTestUsers();
         if (swept > 0) sbLog(`removed ${swept} stale verify users from earlier runs`);
       });
     } else {
-      reporter.log('   no selected scenario needs Supabase: the supabase phase is skipped');
+      reporter.log('   no selected scenario needs Appwrite: the appwrite phase is skipped');
     }
     const mainJs = await reporter.phase('build', () => buildForRun(run));
     const vite = await reporter.phase('vite', async () => startVite(run, await freePort()));

@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import { startIpcServer, stopIpcServer } from '../ipc-server/server.js';
 import { AppState } from './state.js';
 import { getSocketPath, isNamedPipe } from './env-config.js';
-import type { AuthState } from './auth/supabase.js';
+import type { AuthState } from './auth/auth-service.js';
 
 export class McpGatekeeper {
   private ipcServerRunning = false;

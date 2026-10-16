@@ -37,7 +37,7 @@ export function registerTeamHandlers(): void {
 
     let teamId: string | undefined;
     try {
-      const { data } = await state.authService.getSupabaseClient()
+      const { data } = await state.authService.getDb()
         .from('team_invitations').select('team_id').eq('id', invitationId).single();
       teamId = data?.team_id;
     } catch {}
@@ -57,7 +57,7 @@ export function registerTeamHandlers(): void {
 
     let teamId: string | undefined;
     try {
-      const { data } = await state.authService.getSupabaseClient()
+      const { data } = await state.authService.getDb()
         .from('team_invitations').select('team_id').eq('id', invitationId).single();
       teamId = data?.team_id;
     } catch {}

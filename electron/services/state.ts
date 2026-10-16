@@ -18,7 +18,7 @@ import { WebSessionManager } from './web/manager.js';
 import { RdpSessionManager } from './rdp/session.js';
 import { VncSessionManager } from './vnc/session.js';
 import { readSettings, writeSettings, type AppSettings } from '../ipc/settings.js';
-import { AuthService, type AuthState } from './auth/supabase.js';
+import { AuthService, type AuthState } from './auth/auth-service.js';
 import { AppSyncManager } from './sync/app-sync-manager.js';
 import { VAULT_PATH_CHANGED_EVENT, type SharedPathChange } from './sync/app-sync-binding.js';
 import { withMovedRecentVault } from '../ipc/recent-vaults.js';

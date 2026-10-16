@@ -3,7 +3,7 @@
 // a vault with an SSH entry on a closed local port and a web entry on the harness test page. Opens
 // and closes the web entry, lets the SSH entry fail, then calls every dashboard channel through
 // window.electron.invoke and saves the answers to .verify/dashboard/data/results.json with one
-// screenshot. No Supabase, no live suite. Usage: node scripts/verify/capture-dashboard-data.mjs
+// screenshot. No server, no live suite. Usage: node scripts/verify/capture-dashboard-data.mjs
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';

@@ -3,7 +3,7 @@
  * their names, last backup time and size. Read and written whole, with upsert.
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ConduitDb } from '../backend/conduit-db.js';
 
 export const MANIFEST_FILENAME = 'manifest.json';
 
@@ -19,8 +19,8 @@ export interface CloudManifest {
 }
 
 /** The manifest, or null when it does not exist or cannot be parsed. */
-export async function readCloudManifest(supabase: SupabaseClient, bucket: string, userId: string): Promise<CloudManifest | null> {
-  const { data, error } = await supabase.storage.from(bucket).download(`${userId}/${MANIFEST_FILENAME}`);
+export async function readCloudManifest(db: ConduitDb, bucket: string, userId: string): Promise<CloudManifest | null> {
+  const { data, error } = await db.storage.from(bucket).download(`${userId}/${MANIFEST_FILENAME}`);
   if (error || !data) return null;
   try {
     return JSON.parse(await data.text()) as CloudManifest;
@@ -32,19 +32,19 @@ export async function readCloudManifest(supabase: SupabaseClient, bucket: string
 
 /** Sets (or with null removes) one vault's entry; returns the Storage error, or null. */
 export async function writeManifestEntry(
-  supabase: SupabaseClient,
+  db: ConduitDb,
   bucket: string,
   userId: string,
   vaultId: string,
   entry: ManifestEntry | null,
 ): Promise<unknown> {
-  const current = await readCloudManifest(supabase, bucket, userId);
+  const current = await readCloudManifest(db, bucket, userId);
   if (current === null && entry === null) return null;
   const vaults = { ...(current?.vaults ?? {}) };
   if (entry === null) delete vaults[vaultId];
   else vaults[vaultId] = entry;
   const blob = Buffer.from(JSON.stringify({ vaults }, null, 2), 'utf-8');
-  const { error } = await supabase.storage
+  const { error } = await db.storage
     .from(bucket)
     .upload(`${userId}/${MANIFEST_FILENAME}`, blob, { upsert: true, contentType: 'application/octet-stream' });
   if (error) {

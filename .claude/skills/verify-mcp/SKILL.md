@@ -1,12 +1,12 @@
 ---
 name: verify-mcp
-description: Run only the live MCP suite (tool list, no daily quota, MCP writes that sync to a second device, has_conflict, locked and open_elsewhere errors, two agents side by side, audit log) against the real Conduit app, its MCP server and a local Supabase. Use after changing mcp/src/, electron/ipc-server/, the MCP gatekeeper, agent session ownership, tier or quota handling, or vault lock errors, or when asked to verify MCP live. Fully isolated; takes about 1 minute.
+description: Run only the live MCP suite (tool list, no daily quota, MCP writes that sync to a second device, has_conflict, locked and open_elsewhere errors, two agents side by side, audit log) against the real Conduit app, its MCP server and a local Appwrite. Use after changing mcp/src/, electron/ipc-server/, the MCP gatekeeper, agent session ownership, tier or quota handling, or vault lock errors, or when asked to verify MCP live. Fully isolated; takes about 1 minute.
 ---
 
 # /verify-mcp: MCP suite
 
 Runs `npm run verify:mcp` (`node scripts/verify/run.mjs mcp`). Real Electron devices unlock vaults on
-a local Supabase, and a real MCP client (the built `mcp/dist` server over stdio) connects to each
+a local Appwrite, and a real MCP client (the built `mcp/dist` server over stdio) connects to each
 device's own socket. The harness reference is `scripts/verify/README.md`. Every suite at once is the
 `verify` skill.
 
@@ -30,13 +30,13 @@ device's own socket. The harness reference is `scripts/verify/README.md`. Every 
 
 - macOS or Linux, Node 20+, Docker running, `mcp/` dependencies installed (preflight fails fast with
   the fix otherwise). The build phase compiles `mcp/` into `mcp/dist` each run.
-- Local Supabase on 127.0.0.1:54321 (API) and :54322 (DB). A running stack with project_id `conduit`
-  is reused; otherwise the harness starts one with the pinned CLI
-  `npx -y supabase@2.109.1 start --workdir ~/.cache/conduit-verify/supabase` (a Homebrew `supabase`
-  binary can be broken, so it is not used; `SUPABASE_CLI` overrides).
-- If `public.tiers` is missing it restores the newest `~/conduit-backups/conduit-preview-*.sql`
-  (auth schema errors during that restore are expected). It applies the sync migrations every run and
-  checks tiers (free `vault_max_open_devices=1`, pro and team `-1`, `mcp_daily_quota=-1`).
+- Local Appwrite at localhost:8085, project `conduit-dev`, made once with `npm run appwrite:setup`
+  (`docs/LOCAL_APPWRITE.md`). The harness reads `conduit-dev.env` in the stack folder, refuses any
+  endpoint that is not localhost, and starts the stack (`docker compose up -d`) when it is down.
+- When anything under `appwrite/` changed since the last deploy (stamp file `.deployed-conduit-dev`),
+  it redeploys the schema, the seed rows (tiers, `app_config`) and the `api` function. There is no
+  SQL, no dump and no schema check: the rules come from `appwrite/src/api/` in this checkout.
+  The seed tiers keep `mcp_daily_quota=-1` and Free `vault_max_open_devices=1`.
 - Isolation: its own Vite on a free port (never 1420); each device in `/tmp/cv-<id>/<name>/` with its
   own HOME (so its own audit log), app data, Chromium profile and MCP socket, `--use-mock-keychain`.
   The MCP client never touches `~/.claude.json` or the user's MCP config. Test users are
@@ -57,8 +57,8 @@ windows appear on screen: leave them alone.
 ## How long
 
 About 1 minute (setup about 8 s, scenarios about 47 s; `no-daily-quota` alone is about 17 s because
-its calls are spaced for the rate limiter). Use a 10 minute timeout. A cold Supabase start can add
-several minutes the first time.
+its calls are spaced for the rate limiter). Use a 10 minute timeout. A cold Appwrite start, or a redeploy
+after `appwrite/` changed, can add a few minutes.
 
 ## Read the results
 
@@ -97,7 +97,7 @@ device, stops its Vite, deletes its test users, removes `/tmp/cv-<id>/` and
 `.verify/<runId>/dist-electron/`, then kills and reports any process still mentioning the run; any
 leftover makes the run FAIL. Stale `verify-*` users older than 6 hours are deleted at the start, and
 `.verify/` is pruned to the 20 newest run folders before the new one is made (21 after a run). Local
-Supabase keeps running. The build rewrites the gitignored `mcp/dist/`; that is expected. `--keep`
+Appwrite keeps running. The build rewrites the gitignored `mcp/dist/`; that is expected. `--keep`
 keeps only the device roots and `dist-electron/` (test users are still deleted); afterwards delete
 `/tmp/cv-<id>` and `.verify/<runId>/dist-electron` yourself.
 
@@ -110,26 +110,26 @@ another run is going.
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Docker is not running` | Docker Desktop is off | Start it, wait for `docker info`, rerun. |
-| supabase phase fails or the API does not answer | Broken Homebrew CLI or a half-started stack | Keep the pinned `npx` CLI. Check `curl -s http://127.0.0.1:54321/auth/v1/health` and `docker ps --filter name=supabase_`; if unhealthy, `npx -y supabase@2.109.1 stop --workdir ~/.cache/conduit-verify/supabase` and rerun. See `logs/supabase-start.log`. |
-| `public.tiers is missing and no ~/conduit-backups/conduit-preview-*.sql backup exists` | Fresh database, no dump | Ask the user for a preview backup in `~/conduit-backups/` (`docs/LOCAL_SUPABASE.md`). Never create one from production. |
-| `Local Supabase schema check failed` | Tier values wrong (for example `mcp_daily_quota` not `-1`) | Read `logs/supabase-migrate.log`; fix the migration, not the check. |
-| Ports 54321 or 54322 busy | Another Supabase project | `lsof -nP -iTCP:54321 -sTCP:LISTEN`; ask the user before stopping it. |
+| appwrite phase fails or the API does not answer | Stack never set up, half-started, or short of memory | If the message names a missing `conduit-dev.env`, run `npm run appwrite:setup`. Check `curl -s http://localhost:8085/v1/health/version` and `docker ps --filter name=appwrite`; run `npm run appwrite:stop` and rerun (the harness starts it again). Give Docker Desktop at least 4 GB of memory. |
+| `appwrite deploy` fails in the appwrite phase | Build or schema error in `appwrite/` | `npm run test:server`, then `npm run appwrite:deploy` to see the error; fix the code, not the check. Deployment and execution logs are in the console (http://localhost:8085). |
+| Port 8085 busy | Another Appwrite stack | `lsof -nP -iTCP:8085 -sTCP:LISTEN`; ask the user before stopping it. |
 | `EINVAL` or `connect ENOENT` on the MCP socket, or `too long for the MCP socket path` | Socket path over 104 bytes, or the device's app is not up yet | Device names 1 to 12 characters, roots stay at `/tmp/cv-<id>/<name>`. Call `ctx.connectMcp(device)` only after `launchDevice` returns: the MCP server connects to the app once at startup and keeps saying "Not connected" if the app was not there. |
 | `Rate limit exceeded` in a scenario that did not expect it | Calls faster than `mcp/src/rate-limiter.ts` allows | Space the calls; do not raise the limiter to pass. |
 | Audit lines missing | The audit log is per HOME, written by the MCP process | Read the device's `home/.config/conduit/audit.log` with `--keep`; check `mcp/src/audit.ts`. |
 | Page call timeout or a macOS keychain prompt | A code path reached the real keychain | Never answer it. Let cleanup kill the device or SIGKILL only that device's pid; fix the isolation in `scripts/verify/lib/launcher.mjs`. |
-| Dependencies or `psql` missing | Install step skipped | `npm install`, `(cd mcp && npm install)`, `brew install libpq` or `PSQL=/path/to/psql`. |
+| Dependencies missing | Install step skipped | `npm install`, `(cd mcp && npm install)`. |
 | `[cleanup] FAIL` or `leftover process killed` | A device or MCP client did not shut down | Read `logs/cleanup.log`; fix the quit path. |
 
 ## Safety rules
 
-- Only the local stack on 127.0.0.1; never production Supabase or any cloud project; never
-  `CONDUIT_ENV=production`.
+- Only the local stack on localhost; never production Appwrite (`appwrite.cloudwise.ca`) or any cloud
+  project; never `CONDUIT_ENV=production`.
 - Never touch the user's dev profile (`~/Library/Application Support/conduit/conduit-dev`, "Conduit
   Dev"), their running dev app or port 1420, `~/.claude.json`, or the Conduit MCP server registered
   in the user's own Claude Code setup. Only the MCP clients the harness starts are used.
 - Never answer a macOS keychain prompt; only kill processes that belong to the run.
-- Never run `supabase db reset`; never print the service-role key or tokens.
+- Never run `docker compose down -v` on the local stack or delete its env file unless the user asks;
+  never print the API key, the service secret or tokens.
 
 ## Report back
 

@@ -1,6 +1,6 @@
 /**
  * Explicit sign-out with a personal vault open (spec 6.4 release points): the vault's lease is
- * released while the session can still reach the server, then Supabase signs out. After that the
+ * released while the session can still reach the server, then the session is signed out. After that the
  * lease RPC has no session, so releasing afterwards would leave the lease to expire instead.
  */
 

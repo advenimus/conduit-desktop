@@ -8,6 +8,8 @@ Status: built on `advenimus/auto-unlock`, 2026-09-29 (spec revised the same day 
 
 **Path roots.** Paths are relative to this repository. `IOS` is the conduit-iOS-private repository.
 
+**Backend note.** The backend moved from Supabase to Appwrite in October 2026. `electron/services/auth/supabase.ts`, cited below with line numbers from b072690, is now `electron/services/auth/auth-service.ts`.
+
 **Evidence tags.**
 - **[V]** verified by reading the code at b072690, or by running a command on this Mac.
 - **[A]** assumed. Every [A] item is listed again in section 9 and must be tested.
@@ -825,7 +827,7 @@ One highlight in the next version's entry of `release-notes/manifest.json` (form
 
 ### 8.2 Live verify scenarios (new suite `startup`)
 
-Run only this suite: `node scripts/verify/run.mjs startup` (or `--only <id>` for one scenario; `scripts/verify/run.mjs:37-55`) [V]. Devices run in quiet mode by default (`scripts/verify/lib/launcher.mjs:101-133`) [V], so nothing takes focus. Local Supabase is shared: the suite creates its own users and never resets or stops it. Modeled on `idleAutoLock` (`scripts/verify/suites/lifecycle.mjs:283-326`) [V], using `ctx.quitDevice`, `ctx.launchDevice(id, { args })`, `waitForScreen`, `readDeviceSettings`. The suite runs after the token logging fix (6.0), since it reads main logs. Also run `lifecycle` (lock and idle lock paths change).
+Run only this suite: `node scripts/verify/run.mjs startup` (or `--only <id>` for one scenario; `scripts/verify/run.mjs:37-55`) [V]. Devices run in quiet mode by default (`scripts/verify/lib/launcher.mjs:101-133`) [V], so nothing takes focus. Local Appwrite is shared: the suite creates its own users and never resets or stops it. Modeled on `idleAutoLock` (`scripts/verify/suites/lifecycle.mjs:283-326`) [V], using `ctx.quitDevice`, `ctx.launchDevice(id, { args })`, `waitForScreen`, `readDeviceSettings`. The suite runs after the token logging fix (6.0), since it reads main logs. Also run `lifecycle` (lock and idle lock paths change).
 
 | Id | Steps and checks |
 |---|---|

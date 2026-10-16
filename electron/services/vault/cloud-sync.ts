@@ -1,7 +1,7 @@
 /**
  * Cloud vault sync service.
  *
- * Orchestrates debounced upload of the encrypted vault to Supabase Storage,
+ * Orchestrates debounced upload of the encrypted vault to cloud storage,
  * download for restore, versioned backup snapshots, and state broadcasting
  * to the renderer.
  */
@@ -21,13 +21,13 @@ import {
   type CloudBackupNotice,
 } from './cloud-backup-limits.js';
 import { AppState } from '../state.js';
-import type { AuthService } from '../auth/supabase.js';
+import type { AuthService } from '../auth/auth-service.js';
 import { readSettings } from '../../ipc/settings.js';
 
 /** Debounce delay after last mutation before uploading (ms). */
 const DEBOUNCE_MS = 5_000;
 
-/** Supabase Storage bucket name. */
+/** Cloud storage bucket name. */
 const BUCKET = 'vaults';
 
 /** File name within the user's folder. */
@@ -189,8 +189,8 @@ export class CloudSyncService {
     }
 
     // Legacy fallback: check for vault.enc at {userId}/vault.enc
-    const supabase = this.authService.getSupabaseClient();
-    const { data, error } = await supabase.storage
+    const db = this.authService.getDb();
+    const { data, error } = await db.storage
       .from(BUCKET)
       .list(uid, { limit: 1, search: VAULT_FILENAME });
 
@@ -211,7 +211,7 @@ export class CloudSyncService {
     const uid = userId ?? this.userId;
     if (!uid) throw new Error('No user ID for cloud vault download');
 
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
 
     // Try manifest first — download the first (or most recently synced) vault
     const manifest = await this.readManifest(uid);
@@ -226,7 +226,7 @@ export class CloudSyncService {
       const [vId] = entries[0];
       const storagePath = `${uid}/${vId}/${VAULT_FILENAME}`;
 
-      const { data, error } = await supabase.storage
+      const { data, error } = await db.storage
         .from(BUCKET)
         .download(storagePath);
 
@@ -239,7 +239,7 @@ export class CloudSyncService {
 
     // Legacy path
     const storagePath = `${uid}/${VAULT_FILENAME}`;
-    const { data, error } = await supabase.storage
+    const { data, error } = await db.storage
       .from(BUCKET)
       .download(storagePath);
 
@@ -258,7 +258,7 @@ export class CloudSyncService {
   async deleteCloudVault(): Promise<void> {
     if (!this.userId) throw new Error('No user ID for cloud vault deletion');
 
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const filesToDelete: string[] = [];
 
     // Delete per-vault files if we have a vaultId
@@ -266,7 +266,7 @@ export class CloudSyncService {
       const prefix = `${this.userId}/${this.vaultId}`;
       filesToDelete.push(`${prefix}/${VAULT_FILENAME}`);
 
-      const { data: backups } = await supabase.storage
+      const { data: backups } = await db.storage
         .from(BUCKET)
         .list(`${prefix}/${BACKUPS_FOLDER}`, { limit: 1000 });
 
@@ -280,7 +280,7 @@ export class CloudSyncService {
     // Also delete legacy path files
     filesToDelete.push(`${this.userId}/${VAULT_FILENAME}`);
 
-    const { data: legacyBackups } = await supabase.storage
+    const { data: legacyBackups } = await db.storage
       .from(BUCKET)
       .list(`${this.userId}/${BACKUPS_FOLDER}`, { limit: 1000 });
 
@@ -291,7 +291,7 @@ export class CloudSyncService {
     }
 
     if (filesToDelete.length > 0) {
-      const { error } = await supabase.storage
+      const { error } = await db.storage
         .from(BUCKET)
         .remove(filesToDelete);
 
@@ -314,13 +314,13 @@ export class CloudSyncService {
     const uid = this.userId;
     if (!uid) return [];
 
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
     const vid = this.vaultId;
     const backupsPrefix = vid
       ? `${uid}/${vid}/${BACKUPS_FOLDER}`
       : `${uid}/${BACKUPS_FOLDER}`;
 
-    const { data, error } = await supabase.storage
+    const { data, error } = await db.storage
       .from(BUCKET)
       .list(backupsPrefix, {
         limit: 200,
@@ -354,7 +354,7 @@ export class CloudSyncService {
     const uid = this.userId;
     if (!uid) return [];
 
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
 
     // Try to read the manifest to discover all vaults
     const manifest = await this.readManifest(uid);
@@ -364,7 +364,7 @@ export class CloudSyncService {
       const allBackups: CloudBackupEntry[] = [];
 
       for (const [vaultId, meta] of Object.entries(manifest.vaults)) {
-        const { data, error } = await supabase.storage
+        const { data, error } = await db.storage
           .from(BUCKET)
           .list(`${uid}/${vaultId}/${BACKUPS_FOLDER}`, {
             limit: 200,
@@ -391,7 +391,7 @@ export class CloudSyncService {
       }
 
       // Also include any legacy backups at {userId}/backups/ (pre-migration)
-      const { data: legacyData } = await supabase.storage
+      const { data: legacyData } = await db.storage
         .from(BUCKET)
         .list(`${uid}/${BACKUPS_FOLDER}`, {
           limit: 200,
@@ -423,8 +423,8 @@ export class CloudSyncService {
    * List backups from the legacy flat layout at {userId}/backups/.
    */
   private async listLegacyBackups(userId: string): Promise<CloudBackupEntry[]> {
-    const supabase = this.authService.getSupabaseClient();
-    const { data, error } = await supabase.storage
+    const db = this.authService.getDb();
+    const { data, error } = await db.storage
       .from(BUCKET)
       .list(`${userId}/${BACKUPS_FOLDER}`, {
         limit: 200,
@@ -452,9 +452,9 @@ export class CloudSyncService {
    * Download and decrypt a specific backup snapshot.
    */
   async downloadBackup(storagePath: string, masterPassword: string): Promise<Buffer> {
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
 
-    const { data, error } = await supabase.storage
+    const { data, error } = await db.storage
       .from(BUCKET)
       .download(storagePath);
 
@@ -504,17 +504,17 @@ export class CloudSyncService {
   }
 
   private readManifest(userId: string): Promise<CloudManifest | null> {
-    return readCloudManifest(this.authService.getSupabaseClient(), BUCKET, userId);
+    return readCloudManifest(this.authService.getDb(), BUCKET, userId);
   }
 
   /** Records the vault in manifest.json; a policy refusal is handled like a refused vault.enc. */
   private async updateManifest(userId: string, vaultId: string, vaultName: string, lastSyncedAt: string, size: number): Promise<void> {
-    const error = await writeManifestEntry(this.authService.getSupabaseClient(), BUCKET, userId, vaultId, { name: vaultName, lastSyncedAt, size });
+    const error = await writeManifestEntry(this.authService.getDb(), BUCKET, userId, vaultId, { name: vaultName, lastSyncedAt, size });
     if (error !== null && isPolicyRefusal(error)) await this.handleRefusal(userId, vaultId);
   }
 
   private async removeFromManifest(userId: string, vaultId: string): Promise<void> {
-    await writeManifestEntry(this.authService.getSupabaseClient(), BUCKET, userId, vaultId, null);
+    await writeManifestEntry(this.authService.getDb(), BUCKET, userId, vaultId, null);
   }
 
   /**
@@ -525,11 +525,11 @@ export class CloudSyncService {
     const uid = this.userId;
     if (!uid) return;
 
-    const supabase = this.authService.getSupabaseClient();
+    const db = this.authService.getDb();
 
     // Try per-vault path first
     if (this.vaultId) {
-      const { data, error } = await supabase.storage
+      const { data, error } = await db.storage
         .from(BUCKET)
         .list(`${uid}/${this.vaultId}`, { limit: 1, search: VAULT_FILENAME });
 
@@ -547,7 +547,7 @@ export class CloudSyncService {
     }
 
     // Legacy fallback
-    const { data, error } = await supabase.storage
+    const { data, error } = await db.storage
       .from(BUCKET)
       .list(uid, { limit: 1, search: VAULT_FILENAME });
 
@@ -566,7 +566,7 @@ export class CloudSyncService {
   /** Uploads a timestamped snapshot ({userId}/{vaultId}/backups/); a policy refusal is the snapshot cap (S17). */
   private async uploadVersionedSnapshot(userId: string, vaultId: string, blob: Buffer): Promise<void> {
     const storagePath = `${userId}/${vaultId}/${BACKUPS_FOLDER}/${snapshotFileName(new Date())}`;
-    const { error } = await this.authService.getSupabaseClient().storage
+    const { error } = await this.authService.getDb().storage
       .from(BUCKET)
       .upload(storagePath, blob, { contentType: 'application/octet-stream' });
     if (error && isPolicyRefusal(error)) {
@@ -583,7 +583,7 @@ export class CloudSyncService {
   private async pruneBackupsByCount(): Promise<void> {
     const toDelete = countPruneTargets(await this.listBackups(), this.tierCap(MAX_CLOUD_BACKUPS_FEATURE));
     if (toDelete.length === 0) return;
-    const { error } = await this.authService.getSupabaseClient().storage.from(BUCKET).remove([...toDelete]);
+    const { error } = await this.authService.getDb().storage.from(BUCKET).remove([...toDelete]);
     if (error) console.warn('[cloud-sync] Failed to prune backups by count:', error.message);
     else console.log(`[cloud-sync] Pruned ${toDelete.length} backup(s) over the snapshot limit`);
   }
@@ -608,7 +608,7 @@ export class CloudSyncService {
       this.stopForPlan();
       return;
     }
-    const { data } = await this.authService.getSupabaseClient().storage.from(BUCKET).list(`${userId}/${vaultId}`, { limit: 1 });
+    const { data } = await this.authService.getDb().storage.from(BUCKET).list(`${userId}/${vaultId}`, { limit: 1 });
     const notice: CloudBackupNotice =
       data !== null && data.length === 0 ? { kind: 'vaults-full', vaults: this.tierCap(MAX_CLOUD_BACKUP_VAULTS_FEATURE) } : { kind: 'plan' };
     console.warn('[cloud-sync] Upload refused by the server', { notice: notice.kind });
@@ -632,8 +632,8 @@ export class CloudSyncService {
 
     if (toDelete.length === 0) return;
 
-    const supabase = this.authService.getSupabaseClient();
-    const { error } = await supabase.storage
+    const db = this.authService.getDb();
+    const { error } = await db.storage
       .from(BUCKET)
       .remove(toDelete);
 
@@ -655,7 +655,7 @@ export class CloudSyncService {
   }
 
   /**
-   * The plan as Supabase has it now: the auth state's profile is read at sign-in, so a downgrade
+   * The plan as the server has it now: the auth state's profile is read at sign-in, so a downgrade
    * since then is only seen after reloadProfile. A failed read (offline) leaves the last known plan.
    */
   private async planStillAllowsBackup(): Promise<boolean> {
@@ -713,11 +713,11 @@ export class CloudSyncService {
       // 0x01, or 0x02 (deflated) when a 0x01 blob would not fit the bucket
       const blob = packVaultForCloud(fileBuffer, masterPasswordBuf.toString('utf-8'));
 
-      // Upload to Supabase Storage at per-vault path: {userId}/{vaultId}/vault.enc
-      const supabase = this.authService.getSupabaseClient();
+      // Upload to cloud storage at per-vault path: {userId}/{vaultId}/vault.enc
+      const db = this.authService.getDb();
       const storagePath = `${userId}/${vaultId}/${VAULT_FILENAME}`;
 
-      const { error } = await supabase.storage
+      const { error } = await db.storage
         .from(BUCKET)
         .upload(storagePath, blob, {
           upsert: true,
