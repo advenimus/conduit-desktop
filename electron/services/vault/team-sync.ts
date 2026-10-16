@@ -13,6 +13,7 @@ import { BrowserWindow } from 'electron';
 import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import { encrypt, decrypt } from './crypto.js';
 import { OfflineQueue } from './offline-queue.js';
+import { orderParentsFirst } from './team-sync-order.js';
 import type { ConduitVault, VaultMutation } from './vault.js';
 import type { AuthService } from '../auth/supabase.js';
 
@@ -598,7 +599,7 @@ export class TeamSyncService {
           name: record.name as string,
           entry_type: record.entry_type as 'ssh' | 'rdp' | 'vnc' | 'web' | 'credential',
           folder_id: (record.folder_id as string) ?? null,
-          parent_entry_id: (record.parent_entry_id as string) ?? null,
+          parent_entry_id: this.localParentId(record.parent_entry_id),
           sort_order: (record.sort_order as number) ?? 0,
           host: (record.host as string) ?? null,
           port: (record.port as number) ?? null,
@@ -630,7 +631,7 @@ export class TeamSyncService {
           name: record.name as string,
           entry_type: record.entry_type as string,
           folder_id: (record.folder_id as string) ?? null,
-          parent_entry_id: (record.parent_entry_id as string) ?? null,
+          parent_entry_id: this.localParentId(record.parent_entry_id),
           sort_order: (record.sort_order as number) ?? 0,
           host: (record.host as string) ?? null,
           port: (record.port as number) ?? null,
@@ -902,7 +903,7 @@ export class TeamSyncService {
 
       // Merge entries
       if (cloudEntries) {
-        for (const ce of cloudEntries) {
+        for (const ce of orderParentsFirst(cloudEntries as Array<Record<string, unknown> & { id: string }>)) {
           if (this.destroyed || !this.vault) break;
           try {
             await this.mergeCloudEntry(ce);
@@ -1049,6 +1050,7 @@ export class TeamSyncService {
             name: cloudEntry.name as string,
             entry_type: cloudEntry.entry_type as 'ssh' | 'rdp' | 'vnc' | 'web' | 'credential',
             folder_id: (cloudEntry.folder_id as string) ?? null,
+            parent_entry_id: this.localParentId(cloudEntry.parent_entry_id),
             sort_order: (cloudEntry.sort_order as number) ?? 0,
             host: (cloudEntry.host as string) ?? null,
             port: (cloudEntry.port as number) ?? null,
@@ -1079,6 +1081,7 @@ export class TeamSyncService {
           name: cloudEntry.name as string,
           entry_type: cloudEntry.entry_type as string,
           folder_id: (cloudEntry.folder_id as string) ?? null,
+          parent_entry_id: this.localParentId(cloudEntry.parent_entry_id),
           sort_order: (cloudEntry.sort_order as number) ?? 0,
           host: (cloudEntry.host as string) ?? null,
           port: (cloudEntry.port as number) ?? null,
@@ -1101,6 +1104,17 @@ export class TeamSyncService {
       }
     } finally {
       this.applyingRemoteChange = false;
+    }
+  }
+
+  /** A parent the local vault does not hold would fail the foreign key, so the entry lands at the top level. */
+  private localParentId(parentId: unknown): string | null {
+    if (typeof parentId !== 'string' || !parentId || !this.vault) return null;
+    try {
+      this.vault.getEntryMeta(parentId);
+      return parentId;
+    } catch {
+      return null;
     }
   }
 
