@@ -9,7 +9,7 @@ import SyncBanner from "./SyncBanner";
 import PromptBanner, { MODAL_PROMPT_KINDS } from "./PromptBanner";
 import { waitingText } from "./WaitingForDriveDialog";
 import { deviceNameOr, plural } from "./sync-copy";
-import { NotOwnerLockBanner, OwnershipBanner, UpdateRequiredLockBanner } from "./OwnershipBanners";
+import { DevOwnerCheckBanner, NotOwnerLockBanner, OwnershipBanner, UpdateRequiredLockBanner } from "./OwnershipBanners";
 
 const EPOCH_PROMPT_KINDS: ReadonlySet<SyncPrompt["kind"]> = new Set(["epoch-newer", "epoch-legacy", "epoch-concurrent"]);
 
@@ -92,7 +92,14 @@ export default function SyncBanners() {
   if (lockedReason === "not_owner") return <NotOwnerLockBanner />;
   if (lockedReason === "update_required") return <UpdateRequiredLockBanner />;
   const status = activeStatus(state);
-  if (status === null) return <OwnershipBanner />;
+  if (status === null) {
+    return (
+      <>
+        <DevOwnerCheckBanner />
+        <OwnershipBanner />
+      </>
+    );
+  }
   const waiting = currentWaiting(openWaiting, state);
   const prompts = visiblePrompts(state, deferred).filter((p) => !MODAL_PROMPT_KINDS.has(p.kind));
   const deferredPassword = (status.prompts ?? []).find((p) => EPOCH_PROMPT_KINDS.has(p.kind) && deferred.has(p.id)) ?? null;
@@ -100,6 +107,7 @@ export default function SyncBanners() {
   const fileName = state?.vault?.fileName ?? status.fileName ?? "this vault";
   return (
     <>
+      <DevOwnerCheckBanner />
       <OwnershipBanner />
       {waiting && !waiting.blocking && <WaitingBanner waiting={waiting} />}
       {deferredPassword && <DeferredPasswordBanner promptId={deferredPassword.id} />}

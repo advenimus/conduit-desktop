@@ -361,6 +361,8 @@ export interface SyncStateResponse {
   readonly ownership: VaultOwnership | null;
   /** account_max_active_devices from the last confirmed answer (-1 no cap), else null. */
   readonly deviceCap: number | null;
+  /** Dev only: the owner tag check is skipped and the tag never written (CONDUIT_DEV_IGNORE_OWNER_TAG). */
+  readonly ownerCheckSkipped?: boolean;
 }
 
 // ---------- Devices ----------

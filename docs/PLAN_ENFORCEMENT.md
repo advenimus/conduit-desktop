@@ -1222,6 +1222,22 @@ All dialogs use `SyncDialogFrame` and `DialogButton` (`src/components/sync/SyncD
 - `docs/SUPABASE.md:74-99`: add `account_max_active_devices` to the tier table and an `app_config` section.
 - `docs/MULTI_DEVICE_SYNC.md`: 3.5 table row, 6.13 known limit rewritten to point here (the pointer is added now; the row when built).
 
+### 4.12 Dev overrides
+
+Two environment variables exist for people running the app from source. Neither can be turned on in a packaged build.
+
+- `CONDUIT_DEV_VAULT_DEVICE_LIMIT` (for example `-1`): forces the device limit where the client computes it without a confirmed server answer. See `electron/services/sync/app-sync-dev.ts`.
+- `CONDUIT_DEV_IGNORE_OWNER_TAG=1`: skips the unlock-time owner tag check (3.4), so a developer on the preview stack can open a vault whose owner is a production account, signed out or signed in to a local account. Only the exact value `1` counts. The banner "Owner check skipped (dev)" shows while it is on, and `sync_get_state` carries `ownerCheckSkipped: true`.
+
+What the owner tag bypass does and does not touch:
+
+- It is honored only when the build is not packaged and `CONDUIT_ENV` resolves to `preview` (`resolveEnvironment`). Packaged builds and `dev:electron:prod` ignore it with a warning in the log.
+- While it is on, this device never writes the owner tag (3.2), the released tag, or a new `ownerCheck` in `local.json` (3.3). Existing checks can still be cleared, which only makes a later run stricter. A vault keeps its real owner, and a later run without the flag is refused exactly as before.
+- It does not change anything the server decides. Leases, the vault and device limits, ownership answers, seats, cloud backup and team vaults all come from the Supabase the build talks to. In a preview build that is the local stack, so nothing here can lift a limit on production data.
+- It is safe for an open-source app because the check it skips is only a backup signal for honest apps when the server cannot answer (3.4). Anyone who builds from source can already edit that code, and the official builds cannot be switched into it.
+
+Run it with `npm run dev:electron:owner-bypass`, or by hand with `CONDUIT_DEV_IGNORE_OWNER_TAG=1 npm run dev:electron`. The live ownership suite and `launchDevice({ env })` accept it the same way.
+
 ---
 
 ## 5. iOS changes (owner: iOS builder)
