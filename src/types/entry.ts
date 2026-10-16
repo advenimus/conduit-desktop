@@ -1,3 +1,9 @@
+import {
+  HARDCODED_GATEWAY_DEFAULTS,
+  type RdpEntryGatewayFields,
+  type RdpGatewayDefaults,
+} from "../lib/rdpGateway";
+
 export type EntryType = 'ssh' | 'rdp' | 'vnc' | 'web' | 'credential' | 'document' | 'command';
 
 export type RdpResolution = "match_window" | "1920x1080" | "1280x720" | "1440x900" | "custom";
@@ -8,7 +14,7 @@ export interface SharedFolder {
   readOnly?: boolean;
 }
 
-export interface RdpEntryConfig {
+export interface RdpEntryConfig extends RdpEntryGatewayFields {
   resolution: RdpResolution;
   customWidth?: number;
   customHeight?: number;
@@ -83,7 +89,7 @@ export const DEFAULT_COMMAND_CONFIG: CommandEntryConfig = {
 
 export type RdpGlobalResolution = Exclude<RdpResolution, "custom">;
 
-export interface RdpGlobalDefaults {
+export interface RdpGlobalDefaults extends RdpGatewayDefaults {
   resolution: RdpGlobalResolution;
   colorDepth: 32 | 24 | 16 | 15;
   sound: "local" | "remote" | "none";
@@ -115,6 +121,7 @@ export const HARDCODED_RDP_DEFAULTS: RdpGlobalDefaults = {
   enableNla: true,
   enableHighDpi: false,
   displayScale: 1.0,
+  ...HARDCODED_GATEWAY_DEFAULTS,
 };
 
 export const HARDCODED_WEB_DEFAULTS: WebGlobalDefaults = {

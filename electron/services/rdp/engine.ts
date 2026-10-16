@@ -2,6 +2,8 @@
  * RDP Engine interface — abstraction layer for the FreeRDP backend.
  */
 
+import type { RdpGatewayEngineConfig } from './gateway-config.js';
+
 export interface SharedFolder {
   name: string;
   path: string;
@@ -28,6 +30,8 @@ export interface RdpEngineConfig {
   desktopScaleFactor?: number;
   deviceScaleFactor?: number;
   enableClipboard?: boolean;
+  /** Set only when the connection goes through an RD Gateway. */
+  gateway?: RdpGatewayEngineConfig;
 }
 
 export interface RdpBitmapUpdate {
