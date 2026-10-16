@@ -104,6 +104,8 @@ export interface TerminalGlobalDefaults {
   fontSize: number;
   scrollback: number;
   cursorBlink: boolean;
+  /** An installed font name tried before the built-in fonts; "" uses only the built-in fonts. */
+  fontFamily: string;
 }
 
 export const HARDCODED_RDP_DEFAULTS: RdpGlobalDefaults = {
@@ -127,6 +129,7 @@ export const HARDCODED_TERMINAL_DEFAULTS: TerminalGlobalDefaults = {
   fontSize: 14,
   scrollback: 10000,
   cursorBlink: true,
+  fontFamily: "",
 };
 
 export type SshAuthMethod = 'key' | 'password';

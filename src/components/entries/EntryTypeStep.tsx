@@ -8,7 +8,7 @@ import {
   FileTextIcon,
   PlayerPlayIcon,
 } from "../../lib/icons";
-import type { IconComponent } from "../../lib/icons";
+import type { IconComponent, SemanticIconName } from "../../lib/icons";
 import type { EntryType } from "../../types/entry";
 import type { CredentialType } from "../../types/credential";
 import { COLOR_TRANSITION, cx } from "../ui/cx";
@@ -18,39 +18,41 @@ export interface TypeOption {
   label: string;
   description: string;
   icon: IconComponent;
+  /** The same glyph by name, for the popup menus. */
+  iconName: SemanticIconName;
   color: string;
   /** If set, triggers a special action instead of opening the normal entry form */
   credentialType?: CredentialType;
 }
 
-interface TypeCategory {
+export interface TypeCategory {
   label: string;
   items: TypeOption[];
 }
 
-const ENTRY_TYPE_CATEGORIES: TypeCategory[] = [
+export const ENTRY_TYPE_CATEGORIES: readonly TypeCategory[] = [
   {
     label: "Connections",
     items: [
-      { type: "ssh", label: "SSH", description: "Terminal", icon: TerminalIcon, color: "text-entry-ssh" },
-      { type: "rdp", label: "RDP", description: "Remote Desktop", icon: DesktopIcon, color: "text-entry-rdp" },
-      { type: "vnc", label: "VNC", description: "Screen Share", icon: ServerAltIcon, color: "text-entry-vnc" },
-      { type: "web", label: "Web", description: "Browser Session", icon: GlobeIcon, color: "text-entry-web" },
+      { type: "ssh", label: "SSH", description: "Terminal", icon: TerminalIcon, iconName: "terminal", color: "text-entry-ssh" },
+      { type: "rdp", label: "RDP", description: "Remote Desktop", icon: DesktopIcon, iconName: "desktop", color: "text-entry-rdp" },
+      { type: "vnc", label: "VNC", description: "Screen Share", icon: ServerAltIcon, iconName: "serverAlt", color: "text-entry-vnc" },
+      { type: "web", label: "Web", description: "Browser Session", icon: GlobeIcon, iconName: "globe", color: "text-entry-web" },
     ],
   },
   {
     label: "Documents",
-    items: [{ type: "document", label: "Document", description: "Markdown", icon: FileTextIcon, color: "text-entry-document" }],
+    items: [{ type: "document", label: "Document", description: "Markdown", icon: FileTextIcon, iconName: "fileText", color: "text-entry-document" }],
   },
   {
     label: "Automation",
-    items: [{ type: "command", label: "Command", description: "Run As User", icon: PlayerPlayIcon, color: "text-entry-command" }],
+    items: [{ type: "command", label: "Command", description: "Run As User", icon: PlayerPlayIcon, iconName: "playerPlay", color: "text-entry-command" }],
   },
   {
     label: "Credentials",
     items: [
-      { type: "credential", label: "Password", description: "Username & password", icon: KeyIcon, color: "text-entry-credential", credentialType: "generic" },
-      { type: "credential", label: "SSH Key", description: "Key pair & fingerprint", icon: ShieldLockIcon, color: "text-entry-sshkey", credentialType: "ssh_key" },
+      { type: "credential", label: "Password", description: "Username & password", icon: KeyIcon, iconName: "key", color: "text-entry-credential", credentialType: "generic" },
+      { type: "credential", label: "SSH Key", description: "Key pair & fingerprint", icon: ShieldLockIcon, iconName: "shieldLock", color: "text-entry-sshkey", credentialType: "ssh_key" },
     ],
   },
 ];

@@ -22,6 +22,8 @@ import PersonalSyncIndicator from "../sync/PersonalSyncIndicator";
 import SidebarPanel from "./SidebarPanel";
 import SidebarWindowControls from "./SidebarWindowControls";
 import { hasInsetTitleBar } from "../../lib/titleBar";
+import { showContextMenu } from "../../utils/contextMenu";
+import { blankAreaMenu, headerCreateMenu, parseCreateAction, runCreateAction } from "../entries/createMenu";
 
 const CREATE_DISABLED_REASON = "View-only access";
 const INSET_TITLE_BAR = hasInsetTitleBar();
@@ -150,8 +152,20 @@ export default function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showVaultMenu]);
 
-  const handleNewEntry = () => {
-    document.dispatchEvent(new CustomEvent("conduit:new-entry"));
+  const runSelectedCreate = (selected: string | null) => {
+    const action = parseCreateAction(selected);
+    if (action) runCreateAction(action, null);
+  };
+
+  const handleNewEntryMenu = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    runSelectedCreate(await showContextMenu(rect.right, rect.bottom, headerCreateMenu(), { anchorRight: true }));
+  };
+
+  // Rows open their own menu and stop the event, so this only sees the tree's blank space.
+  const handleTreeContextMenu = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    runSelectedCreate(await showContextMenu(e.clientX, e.clientY, blankAreaMenu(!isCreateDisabled)));
   };
 
   const handleNewFolder = () => {
@@ -318,7 +332,8 @@ export default function Sidebar() {
             title={isCreateDisabled ? CREATE_DISABLED_REASON : "New Entry (Ctrl+E)"}
             disabled={isCreateDisabled}
             disabledReason={CREATE_DISABLED_REASON}
-            onClick={handleNewEntry}
+            aria-haspopup="menu"
+            onClick={handleNewEntryMenu}
           />
           <IconButton
             icon="folderPlus"
@@ -411,6 +426,8 @@ export default function Sidebar() {
             requestAnimationFrame(step);
           }, 800);
         }}
+        data-cv-sidebar-tree=""
+        onContextMenu={handleTreeContextMenu}
         className="flex-1 overflow-y-auto overflow-x-auto px-1 scrollbar-autohide"
       >
         <div className="min-w-fit">

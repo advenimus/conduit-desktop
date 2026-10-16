@@ -54,6 +54,7 @@ export async function startSharedSession(
     client: ctx.client,
     lease: ctx.lease,
     replica,
+    ignoreOwnerTag: ctx.deps.ignoreOwnerTag,
   });
   const engine = ctx.c.assembleEngine({ host: ctx.host, replica, session: runtime.signals(), realpath: loc.realpath });
   runtime.attachEngine(engine);
@@ -160,7 +161,10 @@ function writePresenceAndClaim(ctx: OpenContext, replica: ReplicaPort, engine: S
   const limit = limitAfterAcquire(ctx, replica, acquire, nowMs);
   const claims = ctx.c.claimsApply(limit) ? ctx.c.claimWrites(hint, rctx) : [];
   const ownership = acquire?.kind === 'granted' ? acquire.ownership : null;
-  const tag = ownerTagWritesFor(ownership, userId === null ? null : ownerHint(replica.lineageId, userId), replica.state(), rctx);
+  const tag =
+    ctx.deps.ignoreOwnerTag === true
+      ? []
+      : ownerTagWritesFor(ownership, userId === null ? null : ownerHint(replica.lineageId, userId), replica.state(), rctx);
   replica.applyWrites([presenceWrite(presence, rctx), ...claims, ...tag], { interactive: true, ruleR: false });
 }
 

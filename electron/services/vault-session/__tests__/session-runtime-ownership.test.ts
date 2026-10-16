@@ -22,7 +22,7 @@ afterEach(() => {
   for (const r of roots.splice(0)) fs.rmSync(r, { recursive: true, force: true });
 });
 
-function rig() {
+function rig(extra: Partial<RuntimeDeps> = {}) {
   const root = makeTempRoot('runtime-owner');
   roots.push(root);
   const t: TestSessionHost = makeTestSessionHost(root);
@@ -39,6 +39,7 @@ function rig() {
     client: new SessionClient(t.rpc, t.host),
     lease,
     replica: replica.asReplica(),
+    ...extra,
   };
   const runtime = new PersonalVaultRuntime(deps);
   runtime.attachEngine(engine.asEngine());
@@ -157,5 +158,26 @@ describe('the reconnect take-over claims (2.3)', () => {
     await r.runtime.answerConflict('use-here');
     expect(r.t.rpc.callsOf('vault_session_acquire')[0]?.args).toMatchObject({ p_claim: true, p_takeover: true });
     await r.runtime.lock();
+  });
+});
+
+describe('dev owner tag bypass', () => {
+  it('a grant and an owner heartbeat leave the tag and the owner check alone', async () => {
+    const r = rig({ ignoreOwnerTag: true });
+    r.runtime.start(granted(OWNER));
+    r.t.rpc.handle('vault_session_heartbeat', () => rpcOk({ status: 'ok', limit: -1, sessions: [], server_now: TS, ownership: 'owner', release_after: TS }));
+    await r.t.clock.advance(HEARTBEAT_MS);
+    await flushAsync();
+    expect(tagWrites(r.replica)).toEqual([]);
+    expect(r.replica.local().ownerCheck).toBeNull();
+    await r.runtime.lock();
+  });
+
+  it('a release does not write {"a": null}', async () => {
+    const r = rig({ ignoreOwnerTag: true });
+    r.t.rpc.handle('vault_owner_release', () => rpcOk({ released: true }));
+    r.runtime.start(granted(OWNER));
+    expect(await r.runtime.releaseOwnership()).toEqual({ released: true });
+    expect(tagWrites(r.replica)).toEqual([]);
   });
 });

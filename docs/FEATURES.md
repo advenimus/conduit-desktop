@@ -12,6 +12,7 @@
 - **Keyboard-interactive fallback**: Automatically answers keyboard-interactive prompts with the configured password, so servers that advertise only keyboard-interactive (e.g. VMware ESXi) connect successfully
 - **SSH auth method selection**: When a credential has both an SSH key and a password, choose which method to use per-credential or per-entry (default: SSH key)
 - **Global SSH auth default**: Configurable in Settings → Sessions → SSH — sets the default auth method when both key and password are present
+- **Terminal font family**: Settings → Sessions → Terminal takes any installed font (type a name or browse the installed fonts), with a live preview including Nerd Font icons. The built-in fonts (Menlo, Monaco, Consolas, Courier New) stay as the fallback. Applies to SSH, local, agent and command terminals, and open terminals switch as soon as the setting is saved. Nerd Font icons are scaled to fit their cell
 - Auto-detection of local SSH keys (~/.ssh/id_rsa, id_ed25519)
 - Real-time terminal via xterm.js + node-pty
 - Terminal buffer reading with configurable history
@@ -202,6 +203,7 @@ A structured memory that agents and the user build up about every asset. Data co
 
 ### Entry Organization
 - Hierarchical folder structure (unlimited depth)
+- **Create menus**: Right-click the blank area of the sidebar for New Entry ▸ (SSH, RDP, VNC, Web, Document, Command, Password, SSH Key) and New Folder at the top level; works on an empty vault too. The header "+" is a dropdown with the same types, Choose Type… and New Folder. Folders get the typed New Entry submenu, and entries get "New in This Folder". A typed item skips the type picker and fills in the default port; Back still changes the type. Team vault viewers get no create items
 - Move entries between folders
 - **Nested entries**: Any entry can be nested under another entry — e.g. drop a credential onto a web session, an SSH command under a host, a document under a project. Children promote to the parent's container when the parent is deleted, so nothing is orphaned.
 - **Multi-select**: Ctrl/Cmd+Click to select multiple entries and folders

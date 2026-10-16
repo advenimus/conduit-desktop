@@ -17,6 +17,12 @@ import {
   HARDCODED_TERMINAL_DEFAULTS,
   HARDCODED_SSH_DEFAULTS,
 } from "../types/entry";
+import { sanitizeFontFamily } from "../lib/terminalFont";
+
+function loadTerminalDefaults(saved: unknown): TerminalGlobalDefaults {
+  const merged = { ...HARDCODED_TERMINAL_DEFAULTS, ...(saved as Partial<TerminalGlobalDefaults> | undefined) };
+  return { ...merged, fontFamily: sanitizeFontFamily(merged.fontFamily) };
+}
 
 interface SettingsState {
   sessionDefaultsRdp: RdpGlobalDefaults;
@@ -46,10 +52,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           ...HARDCODED_WEB_DEFAULTS,
           ...(settings.session_defaults_web as Partial<WebGlobalDefaults> | undefined),
         },
-        sessionDefaultsTerminal: {
-          ...HARDCODED_TERMINAL_DEFAULTS,
-          ...(settings.session_defaults_terminal as Partial<TerminalGlobalDefaults> | undefined),
-        },
+        sessionDefaultsTerminal: loadTerminalDefaults(settings.session_defaults_terminal),
         sessionDefaultsSsh: {
           ...HARDCODED_SSH_DEFAULTS,
           ...(settings.session_defaults_ssh as Partial<SshGlobalDefaults> | undefined),

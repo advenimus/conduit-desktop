@@ -3,9 +3,10 @@ import type { TerminalGlobalDefaults } from "../../../types/entry";
 import { HARDCODED_TERMINAL_DEFAULTS } from "../../../types/entry";
 import { Checkbox, FormField, Select, Slider, TextInput } from "../../ui";
 import { HINT, SECTION_LABEL } from "../settings-styles";
+import TerminalFontField from "./TerminalFontField";
 
 export default function SessionTerminalTab({ settings, setSettings }: TabProps) {
-  const defaults = settings.session_defaults_terminal ?? { ...HARDCODED_TERMINAL_DEFAULTS };
+  const defaults: TerminalGlobalDefaults = { ...HARDCODED_TERMINAL_DEFAULTS, ...settings.session_defaults_terminal };
 
   const updateTerminal = (partial: Partial<TerminalGlobalDefaults>) => {
     setSettings({
@@ -29,6 +30,8 @@ export default function SessionTerminalTab({ settings, setSettings }: TabProps) 
         <p className={HINT}>
           Default settings for all terminal sessions. SSH sessions inherit these values.
         </p>
+
+        <TerminalFontField value={defaults.fontFamily} onChange={(fontFamily) => updateTerminal({ fontFamily })} />
 
         <div>
           <label htmlFor="terminal-font-size" className={`${SECTION_LABEL} mb-1`}>

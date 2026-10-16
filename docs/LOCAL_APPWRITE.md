@@ -106,6 +106,16 @@ On a local stack the desktop app does not require MFA. Production does.
 
 You can also manage users in the console (Auth > Users) at http://localhost:8085.
 
+## Opening a vault owned by another account
+
+A vault owned by your production account is refused on the local stack ("This vault belongs to a Conduit account. Sign in with that account to open it."). Start the app with the owner check off:
+
+```bash
+npm run dev:electron:owner-bypass
+```
+
+This only works in an unpackaged preview build, never writes the vault's owner tag, and shows an "Owner check skipped (dev)" banner. `CONDUIT_DEV_VAULT_DEVICE_LIMIT` is the sibling override for the device limit. Both are explained in `docs/PLAN_ENFORCEMENT.md` section 4.12.
+
 ## Mail
 
 Every email the local stack sends (verification, password recovery, MFA codes) lands in Mailpit at
