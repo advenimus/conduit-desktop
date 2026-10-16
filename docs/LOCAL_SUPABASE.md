@@ -78,6 +78,16 @@ PORT=3001 npm run dev
 
 Basic dev (auth, connections, MCP) doesn't require the backend running.
 
+## Opening a vault owned by another account
+
+A vault owned by your production account is refused on the preview stack ("This vault belongs to a Conduit account. Sign in with that account to open it."). Start the app with the owner check off:
+
+```bash
+CONDUIT_DEV_IGNORE_OWNER_TAG=1 npm run dev:electron
+```
+
+This only works in an unpackaged preview build, never writes the vault's owner tag, and shows an "Owner check skipped (dev)" banner. `CONDUIT_DEV_VAULT_DEVICE_LIMIT` is the sibling override for the device limit. Both are explained in `docs/PLAN_ENFORCEMENT.md` section 4.12.
+
 ## Creating dev users
 
 The restored `auth.users` rows came from the production preview branch, but

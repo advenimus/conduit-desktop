@@ -11,6 +11,7 @@ import CloudRestoreDialog from "./components/vault/CloudRestoreDialog";
 import VaultHub from "./components/vault/VaultHub";
 import EntryDialog from "./components/entries/EntryDialog";
 import FolderDialog from "./components/entries/FolderDialog";
+import { readNewEntryRequest } from "./components/entries/createMenu";
 import { ToastController, toast, setPushOverlayState } from "./components/common/Toast";
 import UpdateNotificationBridge, { setPushUpdateState } from "./components/common/UpdateNotification";
 import type { SerializedToast, OverlayState, UpdateState } from "./types/toast";
@@ -134,7 +135,7 @@ function App() {
   const [showSettings, setShowSettings] = useState<SettingsTab | false>(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [showEntryDialog, setShowEntryDialog] = useState(false);
-  const [newEntryFolderId, setNewEntryFolderId] = useState<string | null>(null);
+  const [newEntryRequest, setNewEntryRequest] = useState<ReturnType<typeof readNewEntryRequest>>({ folderId: null });
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [showCloudRestore, setShowCloudRestore] = useState(false);
@@ -472,7 +473,7 @@ function App() {
   const closeEditingEntry = useCallback(() => setEditingEntryId(null), []);
   const closeNewEntryDialog = useCallback(() => {
     setShowEntryDialog(false);
-    setNewEntryFolderId(null);
+    setNewEntryRequest({ folderId: null });
   }, []);
 
   // Create a new engine session via keyboard shortcut / menu event
@@ -536,8 +537,7 @@ function App() {
     };
     const handleCredentials = () => setShowCredentials(true);
     const handleNewEntry = (e: Event) => {
-      const folderId = (e as CustomEvent).detail?.folderId ?? null;
-      setNewEntryFolderId(folderId);
+      setNewEntryRequest(readNewEntryRequest((e as CustomEvent).detail));
       setShowEntryDialog(true);
     };
     const handleNewFolder = (e: Event) => {
@@ -1136,7 +1136,9 @@ function App() {
         )}
         {showEntryDialog && (
           <EntryDialog
-            folderId={newEntryFolderId}
+            folderId={newEntryRequest.folderId}
+            presetType={newEntryRequest.type}
+            presetCredentialType={newEntryRequest.credentialType}
             onClose={closeNewEntryDialog}
           />
         )}

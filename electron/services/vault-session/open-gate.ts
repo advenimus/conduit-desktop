@@ -78,7 +78,7 @@ export async function earlyInUseCheck(ctx: OpenContext, loc: VaultLocation, g: G
 
 /** Plan enforcement 3.4: signed out or unconfirmed, the owner tag decides before the claims (a non-owner must not take over). */
 function checkOwnerTagAtUnlock(ctx: OpenContext, g: GateInput): void {
-  if (!g.shared || g.claimState === null) return;
+  if (!g.shared || g.claimState === null || ctx.deps.ignoreOwnerTag === true) return;
   const verdict = evaluateOwnerTag({
     signedIn: ctx.signedIn,
     peekConfirmed: false,

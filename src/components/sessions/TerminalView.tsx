@@ -7,6 +7,8 @@ import { getTerminalTheme } from "../../lib/terminalTheme";
 import { AGENT_NEWLINE_SEQUENCE, isAgentNewlineKey, type AgentZoom } from "../../lib/agentTerminalKeys";
 import { AGENT_TERMINAL_ATTR, AGENT_ZOOM_EVENT } from "../../lib/zoomKeys";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { buildTerminalFontStack } from "../../lib/terminalFont";
+import { useTerminalFontFamily } from "../../hooks/useTerminalFontFamily";
 import "@xterm/xterm/css/xterm.css";
 
 const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
@@ -97,7 +99,8 @@ export default function TerminalView({
     const term = new Terminal({
       cursorBlink: termDefaults.cursorBlink,
       fontSize: termDefaults.fontSize,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontFamily: buildTerminalFontStack(termDefaults.fontFamily),
+      rescaleOverlappingGlyphs: true,
       theme: getTerminalTheme(),
       scrollback: termDefaults.scrollback,
       convertEol: true,
@@ -151,6 +154,9 @@ export default function TerminalView({
       }
     };
   }, [sessionId]);
+
+  const refit = useCallback(() => fitAddonRef.current?.fit(), []);
+  useTerminalFontFamily(terminal, refit);
 
   // Live-update terminal theme when app theme changes
   useEffect(() => {

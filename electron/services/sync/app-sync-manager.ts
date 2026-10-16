@@ -39,6 +39,7 @@ import { TBL } from './types.js';
 import { loadLaunchIdentity, type LaunchIdentity } from './app-sync-identity.js';
 import { openInPlace } from './app-sync-open.js';
 import { devDeviceLimitOverride, devLimitCollaborators } from './app-sync-dev.js';
+import { devIgnoreOwnerTag } from './app-sync-dev-owner.js';
 import { exportClosedLineage, lineageForPath, pendingVaults, type LineageLookupDeps } from './app-sync-lineage.js';
 import { exportUnsynced as exportOpen, sideFileTuples } from './app-sync-actions.js';
 import { changeEnginePassword, renameEngineShared, snapshotEngineVault } from './app-sync-flows.js';
@@ -109,6 +110,7 @@ interface Started {
   readonly sessionHost: SessionHost;
   readonly focus: FocusTracker;
   readonly devLimit: number | null;
+  readonly ignoreOwnerTag: boolean;
   readonly lookup: LineageLookupDeps;
 }
 
@@ -158,7 +160,10 @@ export class AppSyncManager {
       replicaDeps: { host: syncHost, incarnations: identity.incarnations },
       host: syncHost,
     };
-    this.started = { identity, syncHost, sessionHost, focus, devLimit: devDeviceLimitOverride(deps.isPackaged, deps.env, logger), lookup };
+    this.started = { identity, syncHost, sessionHost, focus, devLimit: devDeviceLimitOverride(deps.isPackaged, deps.env, logger),
+      ignoreOwnerTag: devIgnoreOwnerTag(deps.isPackaged, deps.env, logger),
+      lookup,
+    };
     logger.info(`${SYNC_LOG_PREFIX} sync manager started`, { enabled: this.isEnabled() });
   }
 
@@ -209,6 +214,7 @@ export class AppSyncManager {
       incarnations: s.identity.incarnations,
       tickets: this.tickets,
       collaborators: devLimitCollaborators(s.devLimit),
+      ignoreOwnerTag: s.ignoreOwnerTag,
     };
     try {
       const opened = await this.slot.open(() => (this.isEnabled() ? openPersonalVault(input, openDeps) : openInPlace(input, openDeps)));
@@ -321,6 +327,7 @@ export class AppSyncManager {
       softLocked: soft,
       ownership: this.ownership(o, soft),
       deviceCap: o?.runtime.ownershipView().deviceCap ?? null,
+      ownerCheckSkipped: s.ignoreOwnerTag,
     };
   }
 

@@ -279,3 +279,105 @@ describe("EntryTree RD Gateway objects", () => {
     ).toBeTruthy();
   });
 });
+
+type MenuTree = MenuItem & { children?: MenuItem[] };
+
+function recordCreateEvents() {
+  const events: Array<{ type: string; detail: unknown }> = [];
+  const record = (e: Event) => events.push({ type: e.type, detail: (e as CustomEvent).detail });
+  document.addEventListener("conduit:new-entry", record);
+  document.addEventListener("conduit:new-folder", record);
+  return {
+    events,
+    stop: () => {
+      document.removeEventListener("conduit:new-entry", record);
+      document.removeEventListener("conduit:new-folder", record);
+    },
+  };
+}
+
+describe("EntryTree create items", () => {
+  it("gives a folder a typed New Entry submenu, then New Folder and Add Knowledge Article", async () => {
+    setup();
+    render(<EntryTree />);
+    await screen.findByText("db-01");
+    const items = (await menuFor("Production")) as MenuTree[];
+    expect(items.slice(2, 5).map((i) => i.id)).toEqual(["new_entry", "new_folder", "new_article"]);
+    const children = items[2].children!.filter((c) => !c.type).map((c) => c.label);
+    expect(children).toEqual(["SSH", "RDP", "VNC", "Web", "RD Gateway", "Document", "Command", "Password", "SSH Key"]);
+  });
+
+  it("creates a typed entry or a subfolder inside the right-clicked folder", async () => {
+    setup();
+    const { events, stop } = recordCreateEvents();
+    render(<EntryTree />);
+    await screen.findByText("db-01");
+    await menuFor("Databases", "new_entry:rdp");
+    await menuFor("Databases", "new_entry:credential:ssh_key");
+    await menuFor("Databases", "new_folder");
+    await waitFor(() => expect(events).toHaveLength(3));
+    stop();
+    expect(events).toEqual([
+      { type: "conduit:new-entry", detail: { folderId: "f2", type: "rdp" } },
+      { type: "conduit:new-entry", detail: { folderId: "f2", type: "credential", credentialType: "ssh_key" } },
+      { type: "conduit:new-folder", detail: { parentId: "f2" } },
+    ]);
+  });
+
+  it("offers New in This Folder on an entry and creates beside it", async () => {
+    setup();
+    const { events, stop } = recordCreateEvents();
+    render(<EntryTree />);
+    await screen.findByText("db-01");
+    const items = (await menuFor("web-01", "new_entry:ssh")) as MenuTree[];
+    const here = items.find((i) => i.id === "new_here")!;
+    expect(here.label).toBe("New in This Folder");
+    expect(here.children!.map((c) => c.id)).toContain("new_folder");
+    await menuFor("web-01", "new_folder");
+    await waitFor(() => expect(events).toHaveLength(2));
+    stop();
+    expect(events).toEqual([
+      { type: "conduit:new-entry", detail: { folderId: "f1", type: "ssh" } },
+      { type: "conduit:new-folder", detail: { parentId: "f1" } },
+    ]);
+  });
+
+  it("names the entry submenu for the top level when the entry has no folder", async () => {
+    setup();
+    const { events, stop } = recordCreateEvents();
+    render(<EntryTree />);
+    await screen.findByText("db-01");
+    const items = (await menuFor("Runbook", "new_entry:web")) as MenuTree[];
+    expect(items.find((i) => i.id === "new_here")?.label).toBe("New at Top Level");
+    await waitFor(() => expect(events).toHaveLength(1));
+    stop();
+    expect(events[0]).toEqual({ type: "conduit:new-entry", detail: { folderId: null, type: "web" } });
+  });
+
+  it("leaves create items off an entry for a team viewer and off a locked entry", async () => {
+    setup({ vaultType: "team", role: "viewer" });
+    const { unmount } = render(<EntryTree />);
+    await screen.findByText("db-01");
+    expect((await menuFor("web-01")).map((i) => i.id)).not.toContain("new_here");
+    unmount();
+
+    showContextMenu.mockReset();
+    setup({ locked: ["e4"] });
+    render(<EntryTree />);
+    await screen.findByText("db-01");
+    expect((await menuFor("Locked Box")).map((i) => i.id)).not.toContain("new_here");
+  });
+
+  it("tells an empty vault where to create", async () => {
+    setup();
+    useEntryStore.setState({ entries: [], folders: [] } as never);
+    const { unmount } = render(<EntryTree />);
+    expect(await screen.findByText("No entries yet. Right-click here or use + above to add one.")).toBeTruthy();
+    unmount();
+
+    setup({ vaultType: "team", role: "editor" });
+    useEntryStore.setState({ entries: [], folders: [] } as never);
+    render(<EntryTree />);
+    expect(await screen.findByText("Right-click here or use + above to add your first connection or credential.")).toBeTruthy();
+  });
+});

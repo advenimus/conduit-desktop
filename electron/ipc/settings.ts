@@ -16,6 +16,7 @@ import { clearRecentVaults, removeRecentVault, type RecentVaultDeps } from './re
 import { parseStartupVault, type StartupVault } from './startup-vault-core.js';
 import { applyAppearanceMigration, migrateAppearance, type AppearanceSettings } from '../services/appearance-migration.js';
 import { windowBackground } from '../services/appearance-palette.js';
+import { HARDCODED_TERMINAL_DEFAULTS, withSafeTerminalFont, type TerminalGlobalDefaults } from '../services/terminal-font.js';
 
 // Session default types — mirrored from src/types/entry.ts to avoid cross-boundary imports
 interface RdpGlobalDefaults {
@@ -35,12 +36,6 @@ interface WebGlobalDefaults {
   engine: string;
 }
 
-interface TerminalGlobalDefaults {
-  fontSize: number;
-  scrollback: number;
-  cursorBlink: boolean;
-}
-
 const HARDCODED_RDP_DEFAULTS: RdpGlobalDefaults = {
   resolution: "match_window", colorDepth: 32, sound: "local",
   quality: "good", clipboard: true, enableNla: true, enableHighDpi: false,
@@ -56,10 +51,6 @@ function withoutStaleGatewayKeys(value: Record<string, unknown>): Record<string,
 
 const HARDCODED_WEB_DEFAULTS: WebGlobalDefaults = {
   autofillEnabled: false, ignoreCertErrors: false, engine: "auto",
-};
-
-const HARDCODED_TERMINAL_DEFAULTS: TerminalGlobalDefaults = {
-  fontSize: 14, scrollback: 10000, cursorBlink: true,
 };
 
 interface SshGlobalDefaults {
@@ -305,8 +296,9 @@ export function registerSettingsHandlers(): void {
 
   // ── settings_save ──────────────────────────────────────────────────
   ipcMain.handle('settings_save', async (_e, args: { settings: AppSettings }) => {
-    writeSettings(args.settings);
-    refreshWindowBackground(args.settings);
+    const settings = withSafeTerminalFont(args.settings);
+    writeSettings(settings);
+    refreshWindowBackground(settings);
   });
 
   // ── settings_remove_recent_vault / settings_clear_recent_vaults ────

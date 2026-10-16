@@ -13,6 +13,7 @@ import { RD_GATEWAY_CREDENTIAL_TYPE } from "../../lib/rdpGateway";
 import ConfirmDialog from "../common/ConfirmDialog";
 import ConflictDot from "../sync/ConflictDot";
 import { showContextMenu, type PopupMenuItem } from "../../utils/contextMenu";
+import { newEntrySubmenu, newFolderItem, newHereSubmenu, parseCreateAction, runCreateAction } from "./createMenu";
 import { getTypeableActiveSession, typeIntoActiveSession, typeUsernameTabPassword, globalTypeText, globalTypeUsernameTabPassword } from "../../utils/autotype";
 import { toast } from "../common/Toast";
 import { generateTotpCode } from "../../lib/totp";
@@ -551,8 +552,8 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
       items.push({ id: "view_info", label: "View Info", icon: "infoCircle" });
       if (canEdit) {
         items.push({ id: "sep_info", label: "", type: "separator" });
-        items.push({ id: "new_entry", label: "New Entry", icon: "plus" });
-        items.push({ id: "new_folder", label: "New Folder", icon: "folderPlus" });
+        items.push(newEntrySubmenu());
+        items.push(newFolderItem());
         items.push({ id: "new_article", label: "Add Knowledge Article", icon: "notes" });
         items.push({ id: "sep1", label: "", type: "separator" });
         items.push({ id: "edit_folder", label: "Edit Folder", icon: "pencil" });
@@ -632,6 +633,8 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           items.push({ id: "rename", label: "Rename", icon: "textCursor" });
           items.push({ id: "duplicate", label: "Duplicate", icon: "copy" });
           items.push({ id: "new_article", label: "Add Knowledge Article", icon: "notes" });
+          items.push({ id: "sep_new", label: "", type: "separator" });
+          items.push(newHereSubmenu(parentFolderId ? "New in This Folder" : "New at Top Level"));
         }
         if (role === "admin") {
           items.push({ id: "sep2", label: "", type: "separator" });
@@ -643,15 +646,16 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
     const selected = await showContextMenu(e.clientX, e.clientY, items);
     if (!selected) return;
 
+    const createAction = parseCreateAction(selected);
+    if (createAction) {
+      const target = node.kind === "folder" ? node.id : (entries.find((en) => en.id === node.id)?.folder_id ?? null);
+      runCreateAction(createAction, target);
+      return;
+    }
+
     switch (selected) {
       case "upgrade":
         invoke('auth_open_pricing');
-        break;
-      case "new_entry":
-        document.dispatchEvent(new CustomEvent("conduit:new-entry", { detail: { folderId: node.id } }));
-        break;
-      case "new_folder":
-        document.dispatchEvent(new CustomEvent("conduit:new-folder", { detail: { parentId: node.id } }));
         break;
       case "new_article":
         setNewArticleFor(node.kind === "folder" ? { folderId: node.id } : { entryId: node.id });
@@ -1080,7 +1084,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           <UsersIcon size={32} className="text-ink-faint mx-auto mb-2" />
           <p className="text-body text-ink-muted">No entries in this vault yet</p>
           <p className="text-label text-ink-faint mt-1">
-            Click + above to add your first connection or credential.
+            Right-click here or use + above to add your first connection or credential.
           </p>
         </div>
       );
@@ -1091,7 +1095,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
           ? "No matching entries"
           : showFavoritesOnly
             ? "No favorites yet — right-click an entry to add one"
-            : "No entries yet"}
+            : "No entries yet. Right-click here or use + above to add one."}
       </div>
     );
   }
