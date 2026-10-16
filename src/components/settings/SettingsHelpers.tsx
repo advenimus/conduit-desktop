@@ -24,6 +24,8 @@ export interface Settings {
   personal_sync_enabled: boolean;
   /** Idle auto-lock in minutes; 0 = off (the default). */
   vault_idle_lock_minutes: number;
+  /** Saved by updater_set_beta_updates, not by Save; undefined = follow the running version. */
+  beta_updates?: boolean;
 }
 
 export { HARDCODED_RDP_DEFAULTS, HARDCODED_WEB_DEFAULTS, HARDCODED_TERMINAL_DEFAULTS, HARDCODED_SSH_DEFAULTS };

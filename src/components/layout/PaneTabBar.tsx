@@ -25,6 +25,7 @@ import { openDashboardForEntry } from "../../lib/openDashboard";
 import { dashboardViewOf, isHomeSession } from "../../lib/dashboardSessions";
 import { AI_HARNESSES } from "../../lib/ai-harnesses";
 import { IconButton, cx } from "../ui";
+import BetaPill from "../common/BetaPill";
 import type { EntryMeta } from "../../types/entry";
 import type { PaneEdges } from "./LayoutRenderer";
 
@@ -362,6 +363,7 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot, e
       className="cv-tabstrip"
     >
       <SidebarToggle />
+      {edges.top && edges.left && <TabStripBetaPill />}
 
       <div
         ref={tabsRef}
@@ -440,6 +442,17 @@ export default function PaneTabBar({ paneId, isFocused: _isFocused, rightSlot, e
         />
         {rightSlot}
       </div>
+    </div>
+  );
+}
+
+/** The side bar header shows the Beta pill while it is open; with it closed, the first tab strip does. */
+function TabStripBetaPill() {
+  const sidebarActive = useSidebarStore((s) => s.isExpanded);
+  if (sidebarActive) return null;
+  return (
+    <div className="cv-tabstrip-slot">
+      <BetaPill className="mx-1" />
     </div>
   );
 }

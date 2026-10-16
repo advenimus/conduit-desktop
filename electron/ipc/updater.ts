@@ -12,10 +12,18 @@ import { AppState } from '../services/state.js';
 import { setIsQuitting } from '../services/app-lifecycle.js';
 import { appQuitFlush } from '../services/vault/app-quit-flush.js';
 import { installAfterVaultFlush } from './update-install.js';
+import { readSettings, writeSettings } from './settings.js';
+import { applyUpdateChannel, getEffectiveBetaUpdates, isPrereleaseVersion } from '../services/update-channel.js';
+import { createPendingUpdateGate, type PendingUpdateGate } from '../services/pending-update.js';
 
 type ElectronUpdaterModule = typeof import('electron-updater');
 
 let autoUpdater: ElectronUpdaterModule['autoUpdater'] | null = null;
+let gate: PendingUpdateGate | null = null;
+
+/** main.ts rebuilds the Help menu on this event. */
+const MENU_REFRESH_EVENT = 'conduit:update-downloaded';
+const BETA_OFF_MESSAGE = 'Beta updates are off';
 
 // ── Module-level state ─────────────────────────────────────────────────
 interface CachedUpdateInfo {
@@ -26,8 +34,7 @@ interface CachedUpdateInfo {
 }
 
 let cachedUpdateInfo: CachedUpdateInfo | null = null;
-let checkInProgress = false;
-let updateDownloaded = false;
+let checkInFlight: Promise<CachedUpdateInfo | null> | null = null;
 let periodicCheckTimer: ReturnType<typeof setInterval> | null = null;
 
 /** Tracks the downloaded version for dynamic menu label. */
@@ -54,6 +61,7 @@ async function getAutoUpdater() {
     // ESM interop puts module.exports on .default; named export may be missing.
     const cjs = (mod as { readonly default?: Partial<Pick<ElectronUpdaterModule, 'autoUpdater'>> }).default;
     autoUpdater = mod.autoUpdater ?? cjs?.autoUpdater ?? null;
+    if (autoUpdater) gate = createPendingUpdateGate(autoUpdater, betaUpdatesEnabled);
     return autoUpdater;
   } catch (err) {
     console.error('[updater] Failed to import electron-updater:', err);
@@ -61,17 +69,50 @@ async function getAutoUpdater() {
   }
 }
 
+function betaUpdatesEnabled(): boolean {
+  return getEffectiveBetaUpdates(readSettings().beta_updates, app.getVersion());
+}
+
+/** Forgets a beta that may no longer install, and tells the overlay and Help menu. */
+function dropBlockedUpdate(): void {
+  cachedUpdateInfo = null;
+  downloadedVersion = null;
+  AppState.getInstance().getMainWindow()?.webContents.send('update:cleared');
+  app.emit(MENU_REFRESH_EVENT);
+}
+
 /** Perform an update check, guarded against concurrent calls. */
 async function doUpdateCheck(): Promise<CachedUpdateInfo | null> {
-  if (checkInProgress) return cachedUpdateInfo;
+  if (checkInFlight) return cachedUpdateInfo;
+  checkInFlight = runUpdateCheck();
+  try {
+    return await checkInFlight;
+  } finally {
+    checkInFlight = null;
+  }
+}
 
+/** Waits out a check that may have used the old channel, then checks again from scratch. */
+async function freshUpdateCheck(): Promise<CachedUpdateInfo | null> {
+  if (checkInFlight) await checkInFlight.catch(() => null);
+  cachedUpdateInfo = null;
+  return doUpdateCheck();
+}
+
+async function runUpdateCheck(): Promise<CachedUpdateInfo | null> {
   const updater = await getAutoUpdater();
   if (!updater) return null;
 
-  checkInProgress = true;
+  // Read fresh each time: the setting can change from the Settings dialog between checks.
+  applyUpdateChannel(updater, betaUpdatesEnabled());
   try {
     const result = await updater.checkForUpdates();
     if (result && result.isUpdateAvailable && result.updateInfo) {
+      // Betas may have been turned off while this check ran.
+      if (gate?.track(result.updateInfo.version, result.cancellationToken, result.downloadPromise)) {
+        dropBlockedUpdate();
+        return null;
+      }
       const notes = result.updateInfo.releaseNotes;
       let body: string | null = null;
       if (typeof notes === 'string') {
@@ -91,8 +132,6 @@ async function doUpdateCheck(): Promise<CachedUpdateInfo | null> {
   } catch (err) {
     console.error('[updater] checkForUpdates failed:', err);
     return cachedUpdateInfo;
-  } finally {
-    checkInProgress = false;
   }
 }
 
@@ -111,15 +150,33 @@ export function registerUpdaterHandlers(): void {
     return doUpdateCheck();
   });
 
+  // ── updater_get_channel ────────────────────────────────────────────
+  ipcMain.handle('updater_get_channel', () => {
+    const version = app.getVersion();
+    return { betaUpdates: betaUpdatesEnabled(), version, isPrerelease: isPrereleaseVersion(version) };
+  });
+
+  // ── updater_set_beta_updates ───────────────────────────────────────
+  // Acts at once (not part of the Settings Save button) and returns a fresh check on the new channel.
+  ipcMain.handle('updater_set_beta_updates', async (_e, args: { enabled?: unknown } | undefined) => {
+    if (typeof args?.enabled !== 'boolean') throw new Error('Invalid beta updates value');
+    writeSettings({ ...readSettings(), beta_updates: args.enabled });
+    const updater = await getAutoUpdater();
+    if (updater) applyUpdateChannel(updater, args.enabled);
+    if (!args.enabled && gate?.clearIfBlocked()) dropBlockedUpdate();
+    return freshUpdateCheck();
+  });
+
   // ── download_and_install_update ────────────────────────────────────
   // Fallback for manual retry — auto-download handles the normal path
   ipcMain.handle('download_and_install_update', async () => {
-    if (updateDownloaded) return; // Already downloaded
+    if (downloadedVersion) return; // Already downloaded
 
     const updater = await getAutoUpdater();
     if (!updater) {
       throw new Error('Auto-updater is not available');
     }
+    if (gate?.isBlocked(gate.offeredVersion)) throw new Error(BETA_OFF_MESSAGE);
 
     try {
       await updater.downloadUpdate();
@@ -139,9 +196,10 @@ export function registerUpdaterHandlers(): void {
     if (!updater) {
       throw new Error('Auto-updater is not available');
     }
-    if (!updateDownloaded) {
+    if (!downloadedVersion || !gate) {
       throw new Error('No update has been downloaded');
     }
+    if (!gate.canInstall()) throw new Error(BETA_OFF_MESSAGE);
 
     // Signal that the app is intentionally quitting so the window close handler
     // doesn't preventDefault() and hide the window (close-to-tray behavior).
@@ -183,6 +241,7 @@ export async function setupAutoUpdater(): Promise<void> {
   updater.forceDevUpdateConfig = true;
   updater.autoDownload = true;
   updater.autoInstallOnAppQuit = true;
+  applyUpdateChannel(updater, betaUpdatesEnabled());
 
   // Attach global error listener once
   updater.on('error', (err) => {
@@ -195,6 +254,7 @@ export async function setupAutoUpdater(): Promise<void> {
 
   // Listen for update-available (fires when checkForUpdates finds a new version)
   updater.on('update-available', (info) => {
+    if (gate && !gate.offer(info.version)) return;
     const notes = info.releaseNotes;
     let body: string | null = null;
     if (typeof notes === 'string') {
@@ -209,6 +269,7 @@ export async function setupAutoUpdater(): Promise<void> {
 
   // Listen for download-progress (fires during auto-download)
   updater.on('download-progress', (progress: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => {
+    if (gate && !gate.progressVisible()) return;
     const win = AppState.getInstance().getMainWindow();
     win?.webContents.send('update:progress', {
       percent: Math.round(progress.percent),
@@ -220,14 +281,17 @@ export async function setupAutoUpdater(): Promise<void> {
 
   // Listen for completed download (auto or manual)
   updater.on('update-downloaded', (info) => {
-    updateDownloaded = true;
+    if (gate && !gate.downloaded(info.version)) {
+      dropBlockedUpdate();
+      return;
+    }
     downloadedVersion = info.version;
     if (cachedUpdateInfo) {
       cachedUpdateInfo = { ...cachedUpdateInfo, downloaded: true };
     }
     const win = AppState.getInstance().getMainWindow();
     win?.webContents.send('update:downloaded', { version: info.version });
-    app.emit('conduit:update-downloaded');
+    app.emit(MENU_REFRESH_EVENT);
   });
 
   // Initial check (non-blocking) — auto-download kicks in automatically

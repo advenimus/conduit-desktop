@@ -40,6 +40,9 @@ import { useTeamStore } from "./stores/teamStore";
 import AuthScreen from "./components/auth/AuthScreen";
 import OnboardingWizard from "./components/onboarding/OnboardingWizard";
 import WhatsNewDialog from "./components/whats-new/WhatsNewDialog";
+import { loadReleaseNotes } from "./components/whats-new/useReleaseNotes";
+import { isPrereleaseVersion, whatsNewAutoOpen } from "./lib/updateChannel";
+import { OPEN_FEEDBACK_EVENT } from "./components/common/BetaPill";
 import DeviceSetupDialog from "./components/vault/DeviceSetupDialog";
 import CreateTeamVaultDialog from "./components/vault/CreateTeamVaultDialog";
 import TeamVaultUnlock from "./components/vault/TeamVaultUnlock";
@@ -271,7 +274,15 @@ function App() {
         if (!settings.onboarding_completed) return; // onboarding not done yet
 
         const version = await invoke<string>('app_get_version');
-        if (settings.last_seen_whats_new_version === version) return; // already seen
+        const releases = isPrereleaseVersion(version) ? await loadReleaseNotes() : null;
+        const action = whatsNewAutoOpen(version, settings.last_seen_whats_new_version ?? null, releases);
+        if (action === 'mark-seen') {
+          // A beta without its own notes would only show the last regular release's.
+          const fresh = await invoke<Record<string, unknown>>('settings_get');
+          await invoke('settings_save', { settings: { ...fresh, last_seen_whats_new_version: version } });
+          return;
+        }
+        if (action !== 'open') return;
 
         // Show the dialog — it handles its own manifest loading and error states
         setWhatsNewVersion(version);
@@ -608,6 +619,10 @@ function App() {
       setShowUnlockDialog(true);
     };
     const handleAbout = () => setShowAbout(true);
+    const handleOpenFeedback = () => {
+      setShowAbout(false);
+      setFeedbackType("feedback");
+    };
     const handlePasswordGenerator = () => setShowPasswordGenerator(true);
     const handleSshKeyGenerator = () => setShowSshKeyGenerator(true);
     const handleImportRdm = () => setShowImportDialog(true);
@@ -699,6 +714,7 @@ function App() {
       : null;
     if (handleDevOnboarding) document.addEventListener("keydown", handleDevOnboarding);
     document.addEventListener("conduit:about", handleAbout);
+    document.addEventListener(OPEN_FEEDBACK_EVENT, handleOpenFeedback);
     document.addEventListener("conduit:quick-connect", handleQuickConnect);
     document.addEventListener("conduit:settings", handleSettings);
     document.addEventListener("conduit:credentials", handleCredentials);
@@ -898,6 +914,7 @@ function App() {
       document.removeEventListener("conduit:whats-new", handleWhatsNew);
       if (handleDevOnboarding) document.removeEventListener("keydown", handleDevOnboarding);
       document.removeEventListener("conduit:about", handleAbout);
+      document.removeEventListener(OPEN_FEEDBACK_EVENT, handleOpenFeedback);
       document.removeEventListener("conduit:quick-connect", handleQuickConnect);
       document.removeEventListener("conduit:settings", handleSettings);
       document.removeEventListener("conduit:credentials", handleCredentials);

@@ -45,6 +45,18 @@ jobs:
           sparse-checkout: docs/releases
           sparse-checkout-cone-mode: true
 
+      # Cone mode always checks out root files, so package.json is here.
+      - name: Check the tag matches package.json
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Tag $TAG does not match package.json version $VERSION. Tag v$VERSION, or bump package.json first."
+            exit 1
+          fi
+          echo "Tag $TAG matches package.json version $VERSION"
+
       - name: Delete old artifacts
         uses: actions/github-script@v7
         with:

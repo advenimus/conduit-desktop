@@ -717,6 +717,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 
 ### General
 - Open at startup (see Startup Vault and Automatic Unlock)
+- Updates: current version, "Get beta updates" switch and Check for updates (see Auto-Update)
 
 ### Security
 - Quick Unlock toggle (macOS)
@@ -965,6 +966,11 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Silent install on next restart
 - Graceful install failure fallback: if `quitAndInstall()` fails (e.g., ad-hoc signed builds), auto-opens the website download page and transitions UI to error state with "Download from Website" button
 - **What's New in-app links**: Release note highlights support `[label](conduit://settings/<tab>)` syntax to link directly to settings tabs (e.g., promote mobile app download from release notes)
+- **Beta update channel** (see `docs/BETA_CHANNEL.md`): Settings > General > Updates shows the current version, a "Get beta updates" switch that takes effect at once, and a Check for updates button
+  - Beta builds carry a `-beta.N` version and are GitHub pre-releases. They use the normal production account and data
+  - A beta build turns beta updates on by itself until the user changes the switch. Turning it off never downgrades: the app moves to the next regular release when it comes out
+  - Beta builds show a small Beta pill in the title bar (the side bar header when it is open, the first tab row when it is closed) and the About dialog; clicking it opens Send Feedback
+  - What's New does not open on its own for a beta that has no release notes entry
 
 ---
 
