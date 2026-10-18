@@ -101,10 +101,20 @@ function withPort(hostname: string, rawPort: string | undefined): { hostname: st
   return port ? { hostname, port } : { hostname };
 }
 
+function stripGatewayUrl(input: string): string {
+  return (input ?? '').trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split('/')[0];
+}
+
+/** True when the input ends in ":<port>" that normalizeGatewayHost would drop, so a save would quietly use 443. */
+export function typedGatewayPortInvalid(input: string): boolean {
+  const m = /^(?:\[[^\]]*\]|[^:[\]]+):(\d*)$/.exec(stripGatewayUrl(input));
+  return m !== null && validPort(Number(m[1])) === undefined;
+}
+
 // FreeRDP resolves GatewayHostname with getaddrinfo, so an IPv6 address must be stored without brackets.
 /** Accepts what people paste: a host, host:port, [IPv6]:port, a bare IPv6 address, or a gateway URL. */
 export function normalizeGatewayHost(input: string): { hostname: string; port?: number } {
-  const s = (input ?? '').trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split('/')[0];
+  const s = stripGatewayUrl(input);
   const bracketed = /^\[([0-9a-f:.%]+)\](?::(\d{1,5}))?$/i.exec(s);
   if (bracketed) return withPort(bracketed[1], bracketed[2]);
   const hostPort = /^([^:[\]]+):(\d{1,5})$/.exec(s);

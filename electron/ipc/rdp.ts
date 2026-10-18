@@ -122,7 +122,7 @@ export function registerRdpHandlers(): void {
       port: args.port ?? 3389,
       status: 'connected',
       created_at: Date.now(),
-      gateway_id: gateway ? gatewayId : undefined,
+      gateway_id: gatewayId,
     });
 
     // Return server-negotiated dimensions (may differ from requested)

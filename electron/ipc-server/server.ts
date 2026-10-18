@@ -680,7 +680,7 @@ async function dispatchRequest(
             });
             rdpLog(`[RDP] connection_open_entry ${config.gateway ? describeGateway(config.gateway) : 'gateway=none'}`);
 
-            const result = await openRdpSession(state, { config, name: entry.name, gatewayId: config.gateway ? gatewayIdOf(entryConfig) : undefined });
+            const result = await openRdpSession(state, { config, name: entry.name, gatewayId: gatewayIdOf(entryConfig) });
             return successResponse({ ...result, entry_id, name: entry.name });
           } catch (e) {
             if (e instanceof GatewayConfigError) {

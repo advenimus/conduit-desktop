@@ -18,6 +18,7 @@ import { useSidebarStore, selectIsDockedOpen } from "../../stores/sidebarStore";
 import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import { showContextMenu, type PopupMenuItem } from "../../utils/contextMenu";
 import { invoke } from "../../lib/electron";
+import { connectionErrorText } from "../../lib/errorMessages";
 import { useTierStore } from "../../stores/tierStore";
 import { useDragContext } from "./DragContext";
 import { toast } from "../common/Toast";
@@ -497,7 +498,7 @@ function SidebarToggle() {
 }
 
 function statusTitle(session: Session): string {
-  if (session.status === "disconnected" && session.error) return session.error;
+  if (session.status === "disconnected" && session.error) return connectionErrorText(session.error);
   if (session.metadata?.reconnecting) return "Reconnecting...";
   return session.status;
 }

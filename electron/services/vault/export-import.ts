@@ -570,7 +570,7 @@ function withoutKey(config: Record<string, unknown>, key: string): Record<string
   return rest;
 }
 
-/** Re-points gatewayId and gatewayCredentialId at imported ids; a missing login keeps the saved-credential choice so connecting says it has none. */
+/** Re-points gatewayId and gatewayCredentialId at imported ids. A gateway outside the import keeps its old id so connecting fails with "was deleted" instead of silently skipping the gateway; a missing login keeps the saved-credential choice so connecting says it has none. */
 export function remapGatewayLinks(
   config: Record<string, unknown> | undefined,
   idMap: ReadonlyMap<string, string>,
@@ -581,7 +581,8 @@ export function remapGatewayLinks(
     const oldId = next[key];
     if (typeof oldId !== 'string' || !oldId) continue;
     const newId = idMap.get(oldId);
-    next = newId ? { ...next, [key]: newId } : withoutKey(next, key);
+    if (newId) next = { ...next, [key]: newId };
+    else if (key === 'gatewayCredentialId') next = withoutKey(next, key);
   }
   return next;
 }
