@@ -65,9 +65,10 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
   const [cursorStyle, setCursorStyle] = useState<string>("default");
   const isConnected = useRef(status === "connected");
   const [error, setError] = useState<string | null>(connectionError ?? null);
-  const gatewayId = useSessionStore((s) => s.sessions.find((x) => x.id === sessionId)?.metadata?.gatewayId) as string | null | undefined;
-  const gatewayName = useSessionStore((s) => s.sessions.find((x) => x.id === sessionId)?.metadata?.gatewayName) as string | null | undefined;
-  const gatewayHost = useSessionStore((s) => s.sessions.find((x) => x.id === sessionId)?.metadata?.gatewayHost) as string | null | undefined;
+  const sessionMetadata = useSessionStore((s) => s.sessions.find((x) => x.id === sessionId)?.metadata);
+  const gatewayId = sessionMetadata?.gatewayId as string | null | undefined;
+  const gatewayName = sessionMetadata?.gatewayName as string | null | undefined;
+  const gatewayHost = sessionMetadata?.gatewayHost as string | null | undefined;
 
   // Toast IDs for file transfer notifications
   const fileToastIdRef = useRef<string | null>(null);

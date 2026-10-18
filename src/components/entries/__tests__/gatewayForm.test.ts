@@ -115,6 +115,16 @@ describe("gatewayEntryValidationError", () => {
     );
   });
 
+  it("rejects a bad port typed into the server box instead of quietly using 443", () => {
+    for (const host of ["gw:99999", "gw:", "[2001:db8::1]:0", "https://gw:70000/remoteDesktopGateway/"]) {
+      expect(gatewayEntryValidationError({ gatewayHostname: host }, "typed", null)).toBe(
+        "The gateway port must be a number from 1 to 65535.",
+      );
+    }
+    expect(gatewayEntryValidationError({ gatewayHostname: "2001:db8::1" }, "typed", null)).toBeNull();
+    expect(gatewayEntryValidationError({ gatewayHostname: "gw:8443" }, "typed", null)).toBeNull();
+  });
+
   it("needs a picked credential for a saved login", () => {
     expect(gatewayEntryValidationError({ gatewayHostname: "gw" }, "saved", null)).toBe(
       "Pick a saved credential for the gateway login, or choose another login option.",
@@ -134,6 +144,10 @@ describe("splitGatewayHostInput", () => {
 
   it("keeps a port the user already typed", () => {
     expect(splitGatewayHostInput("gw:8443", 443)).toEqual({ gatewayHostname: "gw", gatewayPort: 443 });
+  });
+
+  it("leaves a bad typed port in the box", () => {
+    expect(splitGatewayHostInput("gw:99999", undefined)).toEqual({ gatewayHostname: "gw:99999", gatewayPort: undefined });
   });
 });
 

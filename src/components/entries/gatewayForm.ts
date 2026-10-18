@@ -6,6 +6,7 @@ import {
   isRdGateway,
   normalizeGatewayHost,
   readGatewayConfig,
+  typedGatewayPortInvalid,
   type RdGatewayConfig,
   type RdpGatewayTransport,
   validPort,
@@ -88,7 +89,10 @@ export function gatewayEntryValidationError(
   credentialId: string | null,
 ): string | null {
   if (!config.gatewayHostname?.trim()) return "Enter a gateway server.";
-  if (config.gatewayPort !== undefined && validPort(config.gatewayPort) === undefined) {
+  if (
+    typedGatewayPortInvalid(config.gatewayHostname) ||
+    (config.gatewayPort !== undefined && validPort(config.gatewayPort) === undefined)
+  ) {
     return GATEWAY_PORT_MESSAGE;
   }
   if (login === "saved" && !credentialId) {
@@ -102,6 +106,8 @@ export function splitGatewayHostInput(
   input: string,
   currentPort: number | undefined,
 ): Pick<RdGatewayConfig, "gatewayHostname" | "gatewayPort"> {
+  // Leave a bad typed port visible so the save check can name it.
+  if (typedGatewayPortInvalid(input)) return { gatewayHostname: input, gatewayPort: currentPort };
   const parsed = normalizeGatewayHost(input);
   return { gatewayHostname: parsed.hostname, gatewayPort: currentPort ?? parsed.port };
 }

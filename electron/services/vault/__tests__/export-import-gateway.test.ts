@@ -34,8 +34,8 @@ describe('remapGatewayLinks', () => {
     expect(config.gatewayId).toBe('old-gw');
   });
 
-  it('drops a gateway that was not imported', () => {
-    expect(remapGatewayLinks({ gatewayId: 'elsewhere', colorDepth: 24 }, ids)).toEqual({ colorDepth: 24 });
+  it('keeps a gateway link that was not imported so the entry never connects without it', () => {
+    expect(remapGatewayLinks({ gatewayId: 'elsewhere', colorDepth: 24 }, ids)).toEqual({ gatewayId: 'elsewhere', colorDepth: 24 });
   });
 
   it('points a gateway at its imported login credential', () => {
@@ -162,7 +162,7 @@ describe('export and import with a gateway', () => {
     dst.lock();
   });
 
-  it('drops the gateway when it is outside the export', () => {
+  it('keeps a dangling gateway link when the gateway is outside the export, so connecting never skips it', () => {
     const src = open('src-folder');
     const gw = src.createEntry({
       name: 'GW',
@@ -178,7 +178,8 @@ describe('export and import with a gateway', () => {
     const dst = open('dst-folder');
     importIntoVault(dst, file, 'export-pass-1');
     const rdp = dst.listEntries().find((e) => e.name === 'pc02')!;
-    expect(rdp.config).not.toHaveProperty('gatewayId');
+    expect(rdp.config).toHaveProperty('gatewayId', gw.id);
+    expect(dst.listEntries().some((e) => e.id === gw.id)).toBe(false);
     src.lock();
     dst.lock();
   });

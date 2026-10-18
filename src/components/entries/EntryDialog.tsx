@@ -343,7 +343,8 @@ export default function EntryDialog({
     const gatewayError = isGateway ? gatewayEntryValidationError(gatewayConfig, gatewayLogin, credentialId) : null;
     if (gatewayError) {
       setValidationError(gatewayError);
-      setActiveTab(gatewayLogin === 'saved' && gatewayConfig.gatewayHostname?.trim() ? 'gateway_login' : 'gateway_server');
+      const serverError = gatewayEntryValidationError(gatewayConfig, 'typed', null);
+      setActiveTab(serverError ? 'gateway_server' : 'gateway_login');
       return;
     }
     setValidationError(null);

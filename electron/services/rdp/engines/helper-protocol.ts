@@ -60,12 +60,15 @@ export function parseHelperJson(payload: Buffer): Record<string, unknown> | null
   }
 }
 
-/** Text for an ERROR frame; a code field may ride along but the message is what users see. */
-export function helperErrorMessage(payload: Buffer): string {
-  const json = parseHelperJson(payload);
+function errorMessageOf(json: Record<string, unknown> | null, payload: Buffer): string {
   if (json && typeof json.message === 'string' && json.message) return json.message;
   const raw = payload.toString().trim();
   return raw || 'The RDP helper reported an error.';
+}
+
+/** Text for an ERROR frame; a code field may ride along but the message is what users see. */
+export function helperErrorMessage(payload: Buffer): string {
+  return errorMessageOf(parseHelperJson(payload), payload);
 }
 
 /** An ERROR frame's message plus the FreeRDP code and failed hop when the helper sent them. */
@@ -74,7 +77,7 @@ export function parseHelperError(payload: Buffer): RdpConnectErrorInfo {
   const code = json?.code;
   const phase = json?.phase;
   return {
-    message: helperErrorMessage(payload),
+    message: errorMessageOf(json, payload),
     ...(typeof code === 'number' && Number.isInteger(code) && code >= 0 ? { code } : {}),
     ...(isRdpErrorPhase(phase) ? { phase } : {}),
   };

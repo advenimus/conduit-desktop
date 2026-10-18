@@ -1,6 +1,7 @@
 // Secret-free RD Gateway fields for entry_info: which gateway an RDP entry uses, or a gateway entry's own settings.
 
 import { describeGatewayAddress, gatewayIdOf, isRdGateway, readGatewayConfig } from '../services/rdp/gateway-config.js';
+import { isEntryNotFound } from '../services/rdp/gateway-connect.js';
 
 interface InfoEntry {
   id: string;
@@ -22,7 +23,7 @@ function findEntryMeta(vault: GatewayInfoVault, id: string): InfoEntry | null {
   try {
     return vault.getEntryMeta(id);
   } catch (e) {
-    if (e instanceof Error && /^Entry not found\b/.test(e.message)) return null;
+    if (isEntryNotFound(e)) return null;
     throw e;
   }
 }

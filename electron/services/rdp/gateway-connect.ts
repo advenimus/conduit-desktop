@@ -34,12 +34,16 @@ export interface GatewayVault {
 // ConduitVault.getEntry and getEntryMeta throw this for an unknown id; anything else is a vault fault.
 const NOT_FOUND_RE = /^Entry not found\b/;
 
+export function isEntryNotFound(e: unknown): boolean {
+  return e instanceof Error && NOT_FOUND_RE.test(e.message);
+}
+
 function tryGetEntry(vault: GatewayVault, id: string): GatewayVaultEntry | null {
   try {
     return vault.getEntry(id) ?? null;
   } catch (e) {
+    if (isEntryNotFound(e)) return null;
     const reason = e instanceof Error ? e.message : String(e);
-    if (NOT_FOUND_RE.test(reason)) return null;
     console.error(`[RDP] Could not read gateway entry ${id} from the vault:`, e);
     throw new GatewayConfigError(`Could not read the gateway from the vault: ${reason}`);
   }
