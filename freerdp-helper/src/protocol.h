@@ -24,6 +24,7 @@ typedef enum {
     CMD_CLIPBOARD_SET,
     CMD_CLIPBOARD_SET_FILES,
     CMD_CLIPBOARD_REQUEST_FILES,
+    CMD_CERT_RESPONSE,
     CMD_UNKNOWN
 } CommandType;
 
@@ -48,6 +49,7 @@ typedef struct {
     char *domain;
     GatewayTransport transport;
     bool bypass_local;
+    bool legacy_tls;
 } GatewayConfig;
 
 /* Parsed connect configuration */
@@ -68,6 +70,10 @@ typedef struct {
     int desktop_scale_factor;
     int device_scale_factor;
     bool enable_clipboard;
+    /* TLS security level 0 for old servers (TLS 1.0/1.1); renegotiation is set by Electron in OPENSSL_CONF. */
+    bool legacy_tls;
+    /* FreeRDP's config folder; its certificate store there is never written. */
+    char *config_dir;
     bool has_gateway;
     GatewayConfig gateway;
 } ConnectConfig;
@@ -85,6 +91,7 @@ typedef struct {
         struct { char *text; int length; } clipboard_set;
         struct { char *json; } clipboard_set_files;
         struct { char *temp_dir; } clipboard_request_files;
+        struct { int id; bool accept; } cert_response;
     } data;
 } Command;
 

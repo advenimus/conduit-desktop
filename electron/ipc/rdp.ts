@@ -46,6 +46,7 @@ export function registerRdpHandlers(): void {
     desktopScaleFactor?: number;
     deviceScaleFactor?: number;
     enableClipboard?: boolean;
+    legacyTls?: boolean;
     gatewayId?: string | null;
   }) => {
     // Only the gateway's id crosses IPC; its address and login are read from the vault here.
@@ -65,6 +66,16 @@ export function registerRdpHandlers(): void {
       throw e;
     }
 
+    const state = AppState.getInstance();
+    let connName = `RDP ${args.host}`;
+    try {
+      if (state.getActiveVault().isUnlocked()) {
+        const entries = state.getActiveVault().listEntries();
+        const match = entries.find((e) => e.id === args.sessionId);
+        if (match) connName = match.name;
+      }
+    } catch { /* Use default name */ }
+
     const config: RdpEngineConfig = {
       host: args.host,
       hostname: args.hostname,
@@ -75,7 +86,7 @@ export function registerRdpHandlers(): void {
       width: args.width ?? 1920,
       height: args.height ?? 1080,
       enableNla: args.enableNla ?? true,
-      skipCertVerification: args.skipCertVerification ?? false,
+      skipCertVerification: args.skipCertVerification === true,
       sharedFolders: args.sharedFolders,
       colorDepth: args.colorDepth,
       performanceMode: args.performanceMode,
@@ -85,12 +96,15 @@ export function registerRdpHandlers(): void {
       desktopScaleFactor: args.desktopScaleFactor,
       deviceScaleFactor: args.deviceScaleFactor,
       enableClipboard: args.enableClipboard,
+      legacyTls: args.legacyTls === true,
       gateway,
+      verifyCertificate: (request, signal) =>
+        state.rdpCertTrust.check(request, { origin: 'user', connectionName: connName, signal }),
     };
 
     rdpLog(`[RDP] rdp_connect called. sharedFolders=${JSON.stringify(config.sharedFolders)}`);
     rdpLog(`[RDP] Full config: host=${config.host}, port=${config.port}, width=${config.width}, height=${config.height}, enableNla=${config.enableNla}, desktopSF=${config.desktopScaleFactor ?? 100}, deviceSF=${config.deviceScaleFactor ?? 100}`);
-    rdpLog(`[RDP] ${gateway ? describeGateway(gateway) : 'gateway=none'}`);
+    rdpLog(`[RDP] ${gateway ? describeGateway(gateway) : 'gateway=none'} skipCert=${config.skipCertVerification} legacyTls=${config.legacyTls}`);
 
     // Ensure FreeRDP helper binary is available (auto-builds if missing)
     await ensureFreeRdpReady();
@@ -105,15 +119,6 @@ export function registerRdpHandlers(): void {
     await session.connect();
 
     // Register in MCP connection registry so AI/MCP tools can see UI-opened sessions
-    const state = AppState.getInstance();
-    let connName = `RDP ${args.host}`;
-    try {
-      if (state.getActiveVault().isUnlocked()) {
-        const entries = state.getActiveVault().listEntries();
-        const match = entries.find((e) => e.id === args.sessionId);
-        if (match) connName = match.name;
-      }
-    } catch { /* Use default name */ }
     state.mcpConnections.set(args.sessionId, {
       session_id: args.sessionId,
       name: connName,

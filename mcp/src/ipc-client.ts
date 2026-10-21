@@ -158,6 +158,9 @@ function getSocketPath(): string {
 // Longer than the app's 60s reveal dialog timeout, so its Deny arrives before ours.
 const REVEAL_WAIT_MS = 75_000;
 
+// Behind a gateway the app can ask two 60s certificate questions (gateway, then computer), plus the connect itself.
+const CONNECTION_OPEN_WAIT_MS = 160_000;
+
 export type KbRequestType =
   | 'KbContext' | 'KbSearch' | 'KbRead' | 'KbWrite' | 'KbLog' | 'KbVerify' | 'KbArchive' | 'KbImportNotes' | 'KbDismissMigration';
 
@@ -400,20 +403,20 @@ export class ConduitClient {
     password: string | null = null,
     sshAuthMethod: string | null = null,
   ): Promise<Record<string, unknown>> {
-    return this.sendRequest({
+    return this.sendRequestWithTimeout({
       type: 'ConnectionOpen',
       payload: { connection_type: connectionType, host, port, credential_id: credentialId, username, password, ssh_auth_method: sshAuthMethod },
-    });
+    }, CONNECTION_OPEN_WAIT_MS);
   }
 
   async connectionOpenEntry(
     entryId: string,
     sshAuthMethod: string | null = null,
   ): Promise<Record<string, unknown>> {
-    return this.sendRequest({
+    return this.sendRequestWithTimeout({
       type: 'ConnectionOpenEntry',
       payload: { entry_id: entryId, ssh_auth_method: sshAuthMethod },
-    });
+    }, CONNECTION_OPEN_WAIT_MS);
   }
 
   async connectionClose(id: string): Promise<void> {

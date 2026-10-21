@@ -3,6 +3,10 @@
  */
 
 import type { RdpGatewayEngineConfig } from './gateway-config.js';
+import type { CertVerdict, HelperCertRequest } from './cert-trust/cert-trust.js';
+
+/** Decides on a certificate the helper could not verify. The signal aborts when the connection is closed. */
+export type CertificateVerifier = (request: HelperCertRequest, signal: AbortSignal) => Promise<CertVerdict>;
 
 export interface SharedFolder {
   name: string;
@@ -30,8 +34,12 @@ export interface RdpEngineConfig {
   desktopScaleFactor?: number;
   deviceScaleFactor?: number;
   enableClipboard?: boolean;
+  /** Allow TLS 1.0/1.1 and servers without secure renegotiation, for the computer's hop. */
+  legacyTls?: boolean;
   /** Set only when the connection goes through an RD Gateway. */
   gateway?: RdpGatewayEngineConfig;
+  /** Without one, every certificate the helper cannot verify is refused. */
+  verifyCertificate?: CertificateVerifier;
 }
 
 export interface RdpBitmapUpdate {

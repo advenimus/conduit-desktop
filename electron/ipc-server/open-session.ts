@@ -98,7 +98,13 @@ export async function openRdpSession(
   await ensureFreeRdpReady();
 
   const sessionId = randomUUID();
-  const session = state.rdpManager.create(sessionId, opts.config);
+  // No one may be at the app: the question waits a minute, then the connect fails with the fix in its message.
+  const config: RdpEngineConfig = {
+    ...opts.config,
+    verifyCertificate: (request, signal) =>
+      state.rdpCertTrust.check(request, { origin: 'agent', connectionName: opts.name, signal }),
+  };
+  const session = state.rdpManager.create(sessionId, config);
 
   // Set window for frame events
   const mainWindow = AppState.getInstance().getMainWindow();

@@ -134,7 +134,7 @@ describe("friendlyConnectionError", () => {
     it("gives the computer's TLS, DNS and transport guidance once the gateway tunnel was up", () => {
       const tls = friendlyConnectionError(atTarget("The connection failed at TLS connect.", TLS_CONNECT_FAILED), "rdp", viaGateway);
       expect(tls).not.toMatch(/gateway/i);
-      expect(tls).toMatch(/certificate/i);
+      expect(tls).toMatch(/this entry's Security settings/i);
       const dns = friendlyConnectionError(atTarget("The DNS host name was not found.", DNS_NAME_NOT_FOUND), "rdp", viaGateway);
       expect(dns).toMatch(/server's hostname/i);
       const transport = friendlyConnectionError(atTarget("The connection transport layer failed.", TRANSPORT_FAILED), "rdp", viaGateway);
@@ -186,10 +186,30 @@ describe("friendlyConnectionError", () => {
       expect(friendly).toMatch(/address|hostname/i);
     });
 
-    it("maps a TLS failure to a gateway certificate hint when the gateway hop failed", () => {
+    it("maps a TLS failure to a gateway hint when the gateway hop failed", () => {
       const friendly = friendlyConnectionError(atGateway("The connection failed at TLS connect.", TLS_CONNECT_FAILED), "rdp", viaGateway);
-      expect(friendly).toMatch(/gateway/i);
-      expect(friendly).toMatch(/certificate/i);
+      expect(friendly).toMatch(/secure connection to the gateway failed/i);
+      expect(friendly).toMatch(/Gateway > Advanced/);
+    });
+
+    it("explains the OpenSSL reason and names the switch on the failed hop", () => {
+      const tls = "error:0A00042E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version";
+      const raw = formatRdpConnectError({ message: "The connection failed at TLS connect.", code: TLS_CONNECT_FAILED, phase: "gateway", tls });
+      const friendly = friendlyConnectionError(raw, "rdp", viaGateway);
+      expect(friendly).toMatch(/^The secure connection to the gateway failed\. The server only offers an old TLS version/);
+      expect(friendly).toContain("gateway's settings (Gateway > Advanced)");
+      expect(connectionErrorText(raw)).toBe(`The connection failed at TLS connect. (${tls})`);
+    });
+
+    it("explains a closed gateway port found by the port check", () => {
+      const raw = formatRdpConnectError({ message: "The connection failed at TLS connect.", code: TLS_CONNECT_FAILED, phase: "gateway", net: "refused" });
+      expect(friendlyConnectionError(raw, "rdp", viaGateway)).toMatch(/gateway failed\. Nothing is listening on that port/);
+    });
+
+    it("shows a refused certificate as worded, without TLS advice", () => {
+      const raw = formatRdpConnectError({ message: "You did not trust the certificate of the gateway gw:443.", phase: "gateway", certRejected: true });
+      expect(friendlyConnectionError(raw, "rdp", viaGateway)).toBe("You did not trust the certificate of the gateway gw:443.");
+      expect(connectionErrorText(raw)).toBe("You did not trust the certificate of the gateway gw:443.");
     });
 
     it("keeps the direct TLS and transport guidance without a gateway", () => {

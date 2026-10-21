@@ -108,5 +108,5 @@ export function connectGateway(
 
 /** One log-safe line; never includes the password. */
 export function describeGateway(gw: RdpGatewayEngineConfig): string {
-  return `gateway=${gw.hostname}:${gw.port} transport=${gw.transport} bypassLocal=${gw.bypassLocal} user=${gw.username ? 'set' : 'none'}`;
+  return `gateway=${gw.hostname}:${gw.port} transport=${gw.transport} bypassLocal=${gw.bypassLocal} legacyTls=${gw.legacyTls} user=${gw.username ? 'set' : 'none'}`;
 }

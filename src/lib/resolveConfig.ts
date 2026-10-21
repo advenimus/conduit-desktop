@@ -38,6 +38,8 @@ export function resolveRdpConfig(
     hostname: entryConfig.hostname,
     sharedFolders: entryConfig.sharedFolders ?? [],
     enableHighDpi: entryConfig.enableHighDpi ?? globalDefaults.enableHighDpi,
+    skipCertVerification: entryConfig.skipCertVerification === true,
+    legacyTls: entryConfig.legacyTls === true,
     gatewayId: gatewayIdOf(entryConfig),
   };
 }

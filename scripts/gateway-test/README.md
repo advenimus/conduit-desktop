@@ -23,6 +23,7 @@ Run these from this folder.
 | `./up.sh` | Makes the test certificate (first run only), builds the desktop image, starts both containers, waits until they are healthy. |
 | `./check-reference.sh` | Checks the rig with stock FreeRDP. A good login must stay connected. A wrong gateway password, a blocked target and a gateway that is down must all fail. A direct connection to the desktop must fail. Prints a PASS/FAIL table. Takes about 30 seconds and opens a few short-lived client windows. |
 | `node helper-smoke.mjs` | Runs the Conduit helper through the gateway and prints a PASS/FAIL table. See below. |
+| `./legacy-up.sh` | Adds old-server TLS fronts next to a running rig (see below). |
 | `./down.sh` | Stops the rig. `./down.sh --purge` also deletes the certificate and the desktop image. |
 
 Settings you can change with environment variables:
@@ -31,6 +32,8 @@ Settings you can change with environment variables:
 - `DOWN_PORT`: a port with nothing on it, used for the "gateway down" case (default `18499`).
 - `HELPER_BIN`: the helper to test. By default the script looks in `freerdp-helper/bundle/darwin/` (the path the dev app uses), then `freerdp-helper/build/`.
 - `CASES`: a comma list of smoke cases to run, for example `CASES=gateway-good,gateway-down`.
+- `LEGACY=1`: also run the old-server cases (start them with `./legacy-up.sh` first).
+- `LEGACY_TLS10_PORT`, `LEGACY_WEAK_PORT`, `LEGACY_RENEG_PORT`: the old-server front ports (defaults `18444`, `18445`, `18446`).
 - `ENABLE_NLA=0`: send `enableNla: false` to the helper. The default is on, like a normal entry. xrdp has no NLA, so FreeRDP falls back to TLS.
 
 Client and helper logs go to `logs/`, which git ignores, as does `certs/`.
@@ -48,7 +51,7 @@ These exist only inside this rig. Never use them anywhere else.
 | Login that works on both | `shareduser` / `SharedTest-Pass1!`, for a gateway set to use the RDP entry's login |
 | Target the gateway refuses | anything else, for example `not-allowed-host` |
 
-The certificate is self-signed for `localhost` and `127.0.0.1`, so clients must skip certificate checks. Conduit's helper already accepts every certificate.
+The certificate is self-signed for `localhost` and `127.0.0.1`. Stock clients must skip certificate checks. Conduit asks once (Trust once, Always trust, Cancel) for the gateway and once for the desktop; the smoke cases skip the check unless they test it.
 
 ## Helper smoke test
 
@@ -62,6 +65,29 @@ The certificate is self-signed for `localhost` and `127.0.0.1`, so clients must 
 | gateway down | Same, with the gateway port pointing at `DOWN_PORT`. |
 | target not allowed | Same, with the target set to `not-allowed-host`. |
 | transport rpc | Same. rdpgw has no RPC transport, so this must fail cleanly. A real Microsoft gateway does support RPC. |
+| certificate asked, trusted | Certificate checks on: the helper asks about the gateway and the desktop, the script trusts both, and it connects. |
+| certificate asked, refused | The script refuses the gateway's certificate, and the helper fails cleanly. |
+
+With `LEGACY=1`:
+
+| Case | Passes when |
+| --- | --- |
+| TLS 1.0 gateway, switch off | The error carries OpenSSL's `tlsv1 alert protocol version`. |
+| TLS 1.0 gateway, switch on | `gateway.legacyTls` connects through to the desktop. |
+| TLS 1.0 gateway, entry switch only | The entry's `legacyTls` does not lower the gateway hop, so it still fails. |
+| SHA-1/1024-bit gateway cert | Connects: a weak certificate passes the TLS handshake and is only a trust question. |
+| no secure renegotiation, off | Fails at TLS connect (FreeRDP logs no OpenSSL reason for this one). |
+| no secure renegotiation, on | With `legacyTls` and the app's `OPENSSL_CONF`, TLS passes and it fails later, because that front is not a gateway. |
+
+## Old-server fronts
+
+`./legacy-up.sh` makes test certificates in `certs/legacy/` and starts `legacytls` (compose profile `legacy`, `legacy/Dockerfile`):
+
+- `127.0.0.1:18444`: TLS 1.0 only, passed on to rdpgw (socat).
+- `127.0.0.1:18445`: TLS 1.2 with a SHA-1 signed, 1024-bit RSA certificate from a test CA, passed on to rdpgw.
+- `127.0.0.1:18446`: GnuTLS with secure renegotiation turned off, answering HTTP only.
+
+Point a gateway entry at one of these ports to see the app's diagnosis and the Allow old TLS switch. `./down.sh` stops it too.
 
 Every case also fails if a password shows up in the helper's stderr.
 

@@ -3,7 +3,7 @@ import { WEB_ENGINE_OPTIONS } from "../../../lib/sessionOptions";
 import DefaultableCheckbox from "../DefaultableCheckbox";
 import DefaultableSelect from "../DefaultableSelect";
 import Field from "../Field";
-import { Callout, TextInput } from "../../ui";
+import { Callout, Checkbox, TextInput } from "../../ui";
 
 const CODE = "rounded bg-code px-1 py-0.5 font-mono text-ink-secondary";
 
@@ -42,6 +42,22 @@ export default function SecurityTab({
           label="NLA (Network Level Auth)"
           onChange={(v) => update({ enableNla: v })}
         />
+
+        <Checkbox
+          checked={rdpConfig.skipCertVerification === true}
+          onChange={(checked) => update({ skipCertVerification: checked || undefined })}
+          description="Connect without checking the server's certificate, and without asking. Use only on a network you trust."
+        >
+          Skip certificate verification
+        </Checkbox>
+
+        <Checkbox
+          checked={rdpConfig.legacyTls === true}
+          onChange={(checked) => update({ legacyTls: checked || undefined })}
+          description="For old servers that only offer TLS 1.0 or 1.1, or lack secure renegotiation. Less secure; turn it on only if the connection fails without it."
+        >
+          Allow old TLS
+        </Checkbox>
 
         {/* Hostname — per-entry only */}
         <Field

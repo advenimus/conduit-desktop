@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { RdpEngineConfig } from '../engine.js';
-import { buildHelperConnectConfig, helperErrorMessage, parseHelperError, parseHelperJson } from '../engines/helper-protocol.js';
+import {
+  buildHelperConnectConfig,
+  helperErrorMessage,
+  parseHelperCertRequest,
+  parseHelperError,
+  parseHelperJson,
+} from '../engines/helper-protocol.js';
 
 const base: RdpEngineConfig = {
   host: '10.0.0.5',
@@ -35,6 +41,7 @@ describe('buildHelperConnectConfig', () => {
         domain: 'CORP',
         transport: 'http',
         bypassLocal: true,
+        legacyTls: true,
       },
     });
     expect(cfg.gateway).toEqual({
@@ -45,7 +52,22 @@ describe('buildHelperConnectConfig', () => {
       domain: 'CORP',
       transport: 'http',
       bypassLocal: true,
+      legacyTls: true,
     });
+  });
+
+  it('sends the computer\'s old-TLS switch and FreeRDP\'s config folder', () => {
+    expect(buildHelperConnectConfig(base)).toMatchObject({ legacyTls: false });
+    expect('configDir' in buildHelperConnectConfig(base)).toBe(false);
+    expect(buildHelperConnectConfig({ ...base, legacyTls: true }, '/data/freerdp')).toMatchObject({
+      legacyTls: true,
+      configDir: '/data/freerdp',
+    });
+  });
+
+  it('never sends the certificate verifier to the helper', () => {
+    const cfg = buildHelperConnectConfig({ ...base, verifyCertificate: async () => ({ accept: true }) });
+    expect(JSON.stringify(cfg)).not.toContain('verify');
   });
 });
 
@@ -87,5 +109,45 @@ describe('parseHelperError', () => {
 
   it('falls back to the raw text for a malformed frame', () => {
     expect(parseHelperError(Buffer.from('boom'))).toEqual({ message: 'boom' });
+  });
+});
+
+describe('parseHelperError TLS reasons', () => {
+  it('keeps the OpenSSL reason', () => {
+    const payload = Buffer.from(JSON.stringify({ message: 'The connection failed at TLS connect.', code: 131080, phase: 'gateway', tls: 'error:0A000102:SSL routines::unsupported protocol' }));
+    expect(parseHelperError(payload)).toEqual({
+      message: 'The connection failed at TLS connect.',
+      code: 131080,
+      phase: 'gateway',
+      tls: 'error:0A000102:SSL routines::unsupported protocol',
+    });
+  });
+
+  it('ignores an empty or non-string reason and caps a long one', () => {
+    expect(parseHelperError(Buffer.from('{"message":"x","tls":""}'))).toEqual({ message: 'x' });
+    expect(parseHelperError(Buffer.from('{"message":"x","tls":5}'))).toEqual({ message: 'x' });
+    expect(parseHelperError(Buffer.from(JSON.stringify({ message: 'x', tls: 'a'.repeat(5000) }))).tls).toHaveLength(1024);
+  });
+});
+
+describe('parseHelperCertRequest', () => {
+  const good = { id: 2, host: 'rdg.example.com', port: 443, hop: 'gateway', mismatch: true, changed: false, commonName: 'x', pem: 'PEM' };
+
+  it('reads a CERT_VERIFY frame', () => {
+    expect(parseHelperCertRequest(Buffer.from(JSON.stringify(good)))).toEqual({
+      id: 2, host: 'rdg.example.com', port: 443, hop: 'gateway', mismatch: true, changed: false, pem: 'PEM',
+    });
+  });
+
+  it('rejects malformed frames', () => {
+    for (const bad of [{ ...good, id: 'x' }, { ...good, host: '' }, { ...good, port: 0 }, { ...good, port: 70000 }, { ...good, hop: 'x' }]) {
+      expect(parseHelperCertRequest(Buffer.from(JSON.stringify(bad)))).toBeNull();
+    }
+    expect(parseHelperCertRequest(Buffer.from('nope'))).toBeNull();
+  });
+
+  it('treats a missing pem as empty, so the certificate is refused as unreadable', () => {
+    const { pem: _pem, ...noPem } = good;
+    expect(parseHelperCertRequest(Buffer.from(JSON.stringify(noPem)))?.pem).toBe('');
   });
 });

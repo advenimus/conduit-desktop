@@ -10,6 +10,7 @@ import { registerSecretHandlers } from './secrets.js';
 import { registerKnowledgeHandlers } from './knowledge.js';
 import { registerFolderHandlers } from './folder.js';
 import { registerRdpHandlers } from './rdp.js';
+import { registerRdpCertHandlers } from './rdp-cert.js';
 import { registerSettingsHandlers } from './settings.js';
 import { registerTerminalHandlers } from './terminal.js';
 import { registerUiStateHandlers } from './ui-state.js';
@@ -63,6 +64,7 @@ export function registerIpcHandlers(): void {
 
   // ── RDP commands ────────────────────────────────────────────────────
   registerRdpHandlers();
+  registerRdpCertHandlers();
 
   // ── VNC commands ────────────────────────────────────────────────────
   registerVncHandlers();

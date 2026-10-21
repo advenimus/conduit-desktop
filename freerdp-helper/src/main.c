@@ -17,11 +17,13 @@
 #ifdef _WIN32
 #include "cliprdr_win32.h"
 #endif
+#include "cert_prompt.h"
 #include "connection.h"
 #include "disp.h"
 #include "input.h"
 #include "output.h"
 #include "protocol.h"
+#include "tls_diag.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -139,6 +141,7 @@ static void command_loop(void) {
                     connection_free(g_instance);
                     g_instance = NULL;
                     protocol_free_command(&cmd);
+                    if (cert_prompt_disconnect_requested()) g_running = false;
                     break;
                 }
 
@@ -263,6 +266,10 @@ static void command_loop(void) {
                 protocol_free_command(&cmd);
                 break;
 
+            case CMD_CERT_RESPONSE:
+                /* An answer that came after its connect step ended. */
+                break;
+
             case CMD_UNKNOWN:
                 fprintf(stderr, "[conduit-freerdp] Unknown command\n");
                 break;
@@ -310,6 +317,10 @@ int main(int argc, char *argv[]) {
 
     /* Initialize output (binary mode on Windows) */
     output_init();
+
+    if (!tls_diag_install()) {
+        fprintf(stderr, "[conduit-freerdp] Could not hook the FreeRDP log; TLS errors will have no reason\n");
+    }
 
 #ifdef _WIN32
     /* Start native clipboard thread (creates hidden HWND for clipboard chain) */

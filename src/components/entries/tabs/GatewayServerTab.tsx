@@ -16,7 +16,9 @@ interface GatewayServerTabProps {
 
 /** The address settings of a gateway object. */
 export default function GatewayServerTab({ config, onChange, usageCount, showErrors }: GatewayServerTabProps) {
-  const [showAdvanced, setShowAdvanced] = useState(config.gatewayTransport !== undefined && config.gatewayTransport !== "auto");
+  const [showAdvanced, setShowAdvanced] = useState(
+    (config.gatewayTransport !== undefined && config.gatewayTransport !== "auto") || config.gatewayLegacyTls === true,
+  );
   const transportId = useId();
   const update = (partial: Partial<RdGatewayConfig>) => onChange({ ...config, ...partial });
 
@@ -81,25 +83,34 @@ export default function GatewayServerTab({ config, onChange, usageCount, showErr
           Advanced
         </Button>
         {showAdvanced && (
-          <Field
-            label="Transport"
-            group
-            htmlFor={transportId}
-            description="Automatic tries HTTP first, then RPC. Change it only if your gateway needs one of them."
-          >
-            <Select
-              id={transportId}
-              value={config.gatewayTransport ?? "auto"}
-              onChange={(e) => {
-                const value = e.target.value as RdpGatewayTransport;
-                update({ gatewayTransport: value === "auto" ? undefined : value });
-              }}
+          <div className="space-y-4">
+            <Field
+              label="Transport"
+              group
+              htmlFor={transportId}
+              description="Automatic tries HTTP first, then RPC. Change it only if your gateway needs one of them."
             >
-              {GATEWAY_TRANSPORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
-          </Field>
+              <Select
+                id={transportId}
+                value={config.gatewayTransport ?? "auto"}
+                onChange={(e) => {
+                  const value = e.target.value as RdpGatewayTransport;
+                  update({ gatewayTransport: value === "auto" ? undefined : value });
+                }}
+              >
+                {GATEWAY_TRANSPORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Select>
+            </Field>
+            <Checkbox
+              checked={config.gatewayLegacyTls === true}
+              onChange={(checked) => update({ gatewayLegacyTls: checked || undefined })}
+              description="For old gateways that only offer TLS 1.0 or 1.1, or lack secure renegotiation. Less secure; turn it on only if the gateway fails without it."
+            >
+              Allow old TLS
+            </Checkbox>
+          </div>
         )}
       </div>
 

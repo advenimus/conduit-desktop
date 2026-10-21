@@ -47,6 +47,7 @@ export function gatewayEntryConfigForSave(
     ...(port !== undefined ? { gatewayPort: port } : {}),
     ...(config.gatewayTransport && config.gatewayTransport !== "auto" ? { gatewayTransport: config.gatewayTransport } : {}),
     ...(config.gatewayBypassLocal === true ? { gatewayBypassLocal: true } : {}),
+    ...(config.gatewayLegacyTls === true ? { gatewayLegacyTls: true } : {}),
     gatewayLoginSource: LOGIN_SOURCES[login],
     ...(login === "saved" && credentialId ? { gatewayCredentialId: credentialId } : {}),
   };

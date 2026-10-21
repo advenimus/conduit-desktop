@@ -6,8 +6,8 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
 if [ "${1:-}" = "--purge" ]; then
-  docker compose down --remove-orphans --rmi local
+  docker compose --profile legacy down --remove-orphans --rmi local
   rm -rf "$DIR/certs"
 else
-  docker compose down --remove-orphans
+  docker compose --profile legacy down --remove-orphans
 fi

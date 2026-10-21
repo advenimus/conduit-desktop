@@ -255,6 +255,8 @@ async function connectEntry(
       domain: cred?.domain ?? entry.domain ?? undefined,
       width: w, height: h,
       enableNla: rdpCfg.enableNla,
+      skipCertVerification: rdpCfg.skipCertVerification,
+      legacyTls: rdpCfg.legacyTls,
       sharedFolders: rdpCfg.sharedFolders?.length ? rdpCfg.sharedFolders : undefined,
       colorDepth: rdpCfg.colorDepth,
       performanceMode: mapQualityToPerformanceMode(rdpCfg.quality),

@@ -13,7 +13,9 @@
  *     0x02 BITMAP_UPDATE → [x:u16-LE][y:u16-LE][w:u16-LE][h:u16-LE][rgba_data...]
  *     0x03 DISCONNECTED → JSON {"error":null|"..."}
  *     0x04 RESIZED      → JSON {"width":N,"height":N}
- *     0xFF ERROR        → JSON {"message":"...","code"?:N,"phase"?:"gateway"|"target"}
+ *     0x0E CERT_VERIFY  → JSON {"id":N,"host","port","hop","mismatch","changed","pem",...}; answered with
+ *                         {"type":"cert_response","id":N,"accept":bool} on stdin
+ *     0xFF ERROR        → JSON {"message":"...","code"?:N,"phase"?:"gateway"|"target","tls"?:"..."}
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -38,8 +40,11 @@ import type {
   OnCursorDefaultCallback,
 } from '../engine.js';
 import { getFreeRdpBinaryPath } from './factory.js';
-import { buildHelperConnectConfig, parseHelperError, parseHelperJson } from './helper-protocol.js';
-import { formatRdpConnectError } from '../connect-error.js';
+import { buildHelperConnectConfig, parseHelperCertRequest, parseHelperError, parseHelperJson } from './helper-protocol.js';
+import { formatRdpConnectError, type RdpConnectErrorInfo } from '../connect-error.js';
+import { prepareHelperTlsFiles } from '../cert-trust/helper-tls-files.js';
+import { probeTcp } from '../net-probe.js';
+import { getDataDir } from '../../env-config.js';
 
 /* Binary protocol message types */
 const MSG_CONNECTED = 0x01;
@@ -55,7 +60,10 @@ const MSG_CLIPBOARD_NATIVE = 0x0A;
 const MSG_CURSOR_SET = 0x0B;
 const MSG_CURSOR_NULL = 0x0C;
 const MSG_CURSOR_DEFAULT = 0x0D;
+const MSG_CERT_VERIFY = 0x0E;
 const MSG_ERROR = 0xFF;
+
+const ERRCONNECT_TLS_CONNECT_FAILED = 0x00020008;
 
 /* Parse state machine for reassembling binary frames from stdout */
 const enum ParseState {
@@ -96,6 +104,12 @@ export class FreeRdpEngine implements RdpEngine {
   private connectResolve: ((dims: DesktopDimensions) => void) | null = null;
   private connectReject: ((err: Error) => void) | null = null;
 
+  private config: RdpEngineConfig | null = null;
+  /** Ends an open certificate question when the connection is closed. */
+  private certAbort: AbortController | null = null;
+  /** Why the last certificate was not trusted; replaces the helper's TLS error. */
+  private certRejection: string | null = null;
+
   get connected(): boolean {
     return this._connected;
   }
@@ -129,6 +143,13 @@ export class FreeRdpEngine implements RdpEngine {
     this.onCursor = onCursor ?? null;
     this.onCursorNull = onCursorNull ?? null;
     this.onCursorDefault = onCursorDefault ?? null;
+    this.config = config;
+    this.certAbort = new AbortController();
+    this.certRejection = null;
+
+    const legacyTls = config.legacyTls === true || config.gateway?.legacyTls === true;
+    const tlsFiles = prepareHelperTlsFiles(getDataDir(), legacyTls);
+    console.log(`[FreeRDP] CA list: ${tlsFiles.env.SSL_CERT_FILE ? 'set' : 'none'}, old TLS: ${legacyTls ? 'allowed' : 'off'}`);
 
     const binaryPath = getFreeRdpBinaryPath();
     const binaryDir = dirname(binaryPath);
@@ -141,6 +162,7 @@ export class FreeRdpEngine implements RdpEngine {
       env: {
         ...process.env,
         OPENSSL_MODULES: join(binaryDir, 'ossl-modules'),
+        ...tlsFiles.env,
       },
     });
 
@@ -169,6 +191,7 @@ export class FreeRdpEngine implements RdpEngine {
       console.log(`[FreeRDP] Process exited: code=${code}, signal=${signal}`);
       this._connected = false;
       this.process = null;
+      this.certAbort?.abort();
 
       if (this.connectReject) {
         this.connectReject(new Error(`FreeRDP process exited unexpectedly (code=${code})`));
@@ -194,7 +217,7 @@ export class FreeRdpEngine implements RdpEngine {
      * to FreeRDP (not the resolved IP) so TLS certificate CN matching works.
      * FreeRDP's own getaddrinfo() works now that we call WSAStartup() early.
      * Behind a gateway the target is often an internal name only the gateway resolves. */
-    const helperConfig = buildHelperConnectConfig(config);
+    const helperConfig = buildHelperConnectConfig(config, tlsFiles.configDir);
     if (!config.gateway) {
       await resolveHostname(helperConfig.host); // diagnostic logging only
     }
@@ -266,6 +289,7 @@ export class FreeRdpEngine implements RdpEngine {
   }
 
   async close(): Promise<void> {
+    this.certAbort?.abort();
     if (this.process) {
       this.sendCommand(JSON.stringify({ type: 'disconnect' }));
 
@@ -524,21 +548,86 @@ export class FreeRdpEngine implements RdpEngine {
         break;
       }
 
-      case MSG_ERROR: {
-        const info = parseHelperError(payload);
-        const message = formatRdpConnectError(info);
-        console.error(`[FreeRDP] Error: ${message}`);
+      case MSG_CERT_VERIFY: {
+        void this.answerCertificate(payload);
+        break;
+      }
 
-        if (this.connectReject) {
-          this.connectReject(new Error(message));
-          this.connectResolve = null;
-          this.connectReject = null;
+      case MSG_ERROR: {
+        const reject = this.connectReject;
+        this.connectResolve = null;
+        this.connectReject = null;
+        const info = parseHelperError(payload);
+        if (!reject) {
+          console.error(`[FreeRDP] Error: ${formatRdpConnectError(info)}`);
+          break;
         }
+        void this.explainError(info).then((explained) => {
+          const message = formatRdpConnectError(explained);
+          console.error(`[FreeRDP] Error: ${message}`);
+          reject(new Error(message));
+        });
         break;
       }
 
       default:
         console.warn(`[FreeRDP] Unknown message type: 0x${type.toString(16)}`);
+    }
+  }
+
+  /** The helper waits on stdin until it gets an answer, so every path sends one. */
+  private async answerCertificate(payload: Buffer): Promise<void> {
+    const id = parseHelperJson(payload)?.id;
+    if (typeof id !== 'number' || !Number.isInteger(id)) {
+      console.error('[FreeRDP] Certificate request without an id; stopping the helper');
+      this.process?.kill();
+      return;
+    }
+
+    const request = parseHelperCertRequest(payload);
+    const verify = this.config?.verifyCertificate;
+    let accept = false;
+    if (!request) {
+      this.certRejection = 'The RDP helper sent a certificate Conduit could not read, so it did not connect.';
+    } else if (!verify) {
+      this.certRejection = `The certificate of ${request.host}:${request.port} could not be checked, so Conduit did not connect.`;
+    } else {
+      try {
+        const verdict = await verify(request, this.certAbort?.signal ?? new AbortController().signal);
+        accept = verdict.accept;
+        this.certRejection = verdict.accept ? null : verdict.message;
+      } catch (e) {
+        console.error('[FreeRDP] Certificate check failed:', e);
+        this.certRejection = `Could not check the certificate of ${request.host}:${request.port}.`;
+      }
+    }
+
+    if (request) {
+      console.log(`[FreeRDP] Certificate of ${request.host}:${request.port} (${request.hop}): ${accept ? 'trusted' : 'not trusted'}`);
+    }
+    this.sendCommand(JSON.stringify({ type: 'cert_response', id, accept }));
+  }
+
+  /** A refused certificate keeps its own wording; a TLS failure with no OpenSSL reason gets a port check. */
+  private async explainError(info: RdpConnectErrorInfo): Promise<RdpConnectErrorInfo> {
+    if (this.certRejection) {
+      return { message: this.certRejection, ...(info.phase ? { phase: info.phase } : {}), certRejected: true };
+    }
+    if (info.code !== ERRCONNECT_TLS_CONNECT_FAILED || info.tls) return info;
+
+    const config = this.config;
+    const hop =
+      info.phase === 'gateway' && config?.gateway
+        ? { host: config.gateway.hostname, port: config.gateway.port }
+        : !info.phase && config && !config.gateway
+          ? { host: config.hostname || config.host, port: config.port }
+          : null;
+    if (!hop) return info;
+    try {
+      return { ...info, net: await probeTcp(hop.host, hop.port) };
+    } catch (e) {
+      console.warn('[FreeRDP] Port check failed:', e);
+      return info;
     }
   }
 }

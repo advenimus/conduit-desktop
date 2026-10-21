@@ -22,6 +22,8 @@ export interface RdGatewayConfig {
   gatewayPort?: number;
   gatewayTransport?: RdpGatewayTransport;
   gatewayBypassLocal?: boolean;
+  /** Allow TLS 1.0/1.1 and no secure renegotiation for this gateway. */
+  gatewayLegacyTls?: boolean;
   gatewayLoginSource?: RdpGatewayLoginSource;
   // In config, not the credential_id column, because team vaults do not sync that column.
   gatewayCredentialId?: string;
@@ -62,6 +64,7 @@ export interface RdpGatewayEngineConfig {
   domain: string;
   transport: RdpGatewayTransport;
   bypassLocal: boolean;
+  legacyTls: boolean;
 }
 
 export class GatewayConfigError extends Error {
@@ -150,6 +153,7 @@ export function readGatewayConfig(config: unknown, legacyCredentialId?: string |
     gatewayPort: validPort(c.gatewayPort) ?? parsed.port ?? RDP_GATEWAY_DEFAULT_PORT,
     gatewayTransport: validTransport(c.gatewayTransport),
     gatewayBypassLocal: c.gatewayBypassLocal === true,
+    gatewayLegacyTls: c.gatewayLegacyTls === true,
     ...loginOf(c, nonEmptyString(legacyCredentialId)),
   };
 }
@@ -202,5 +206,6 @@ export function resolveGatewayEngineConfig(
     domain,
     transport: g.gatewayTransport,
     bypassLocal: g.gatewayBypassLocal,
+    legacyTls: g.gatewayLegacyTls,
   };
 }
