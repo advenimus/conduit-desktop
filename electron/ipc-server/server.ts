@@ -498,7 +498,7 @@ async function dispatchRequest(
               width: 1920,
               height: 1080,
               enableNla: true,
-              skipCertVerification: true,
+              skipCertVerification: false,
             };
 
             const result = await openRdpSession(state, { config, name: `RDP ${host}` });

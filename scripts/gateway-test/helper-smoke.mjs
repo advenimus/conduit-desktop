@@ -5,7 +5,14 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildConnectCommand, createFrameParser, decodeMessage, evaluateCase } from './lib/helper-protocol.mjs';
+import {
+  LEGACY_OPENSSL_CONF,
+  TLS_CONNECT_FAILED,
+  buildConnectCommand,
+  createFrameParser,
+  decodeMessage,
+  evaluateCase,
+} from './lib/helper-protocol.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -15,6 +22,11 @@ const GW_PORT = Number(process.env.GW_PORT || 18443);
 const DOWN_PORT = Number(process.env.DOWN_PORT || 18499);
 const CASE_TIMEOUT_MS = Number(process.env.CASE_TIMEOUT_MS || 30000);
 const ENABLE_NLA = process.env.ENABLE_NLA !== '0';
+const LEGACY = process.env.LEGACY === '1';
+const LEGACY_TLS10_PORT = Number(process.env.LEGACY_TLS10_PORT || 18444);
+const LEGACY_WEAK_PORT = Number(process.env.LEGACY_WEAK_PORT || 18445);
+const LEGACY_RENEG_PORT = Number(process.env.LEGACY_RENEG_PORT || 18446);
+const LEGACY_CONF = join(LOG_DIR, 'openssl-legacy.cnf');
 
 const GW_USER = 'gwuser';
 const GW_PASS = 'GwTest-Pass1!';
@@ -59,6 +71,18 @@ const CASES = [
   { name: 'gateway-down', label: 'gateway down', expect: 'error', cmd: { ...desktop(), gateway: gateway({ port: DOWN_PORT }) } },
   { name: 'gateway-target-denied', label: 'target not allowed', expect: 'error', cmd: { ...desktop({ host: 'not-allowed-host' }), gateway: gateway() } },
   { name: 'gateway-rpc-unsupported', label: 'transport rpc (rdpgw has none)', expect: 'error', cmd: { ...desktop(), gateway: gateway({ transport: 'rpc' }) } },
+  { name: 'cert-trusted', label: 'certificate asked, trusted', expect: 'connect', certAnswer: true, cmd: { ...desktop({ skipCertVerification: false }), gateway: gateway() } },
+  { name: 'cert-refused', label: 'certificate asked, refused', expect: 'error', certAnswer: false, cmd: { ...desktop({ skipCertVerification: false }), gateway: gateway() } },
+];
+
+// Old-server fronts from legacy-up.sh; run with LEGACY=1.
+const LEGACY_CASES = [
+  { name: 'legacy-tls10-off', label: 'TLS 1.0 gateway, switch off', expect: 'error', rules: { tls: /protocol version|unsupported protocol/ }, cmd: { ...desktop(), gateway: gateway({ port: LEGACY_TLS10_PORT }) } },
+  { name: 'legacy-tls10-on', label: 'TLS 1.0 gateway, switch on', expect: 'connect', cmd: { ...desktop(), gateway: gateway({ port: LEGACY_TLS10_PORT, legacyTls: true }) } },
+  { name: 'legacy-tls10-target-only', label: 'TLS 1.0 gateway, entry switch only', expect: 'error', rules: { tls: /protocol version|unsupported protocol/ }, cmd: { ...desktop({ legacyTls: true }), gateway: gateway({ port: LEGACY_TLS10_PORT }) } },
+  { name: 'legacy-weak-cert', label: 'SHA-1/1024-bit gateway cert', expect: 'connect', cmd: { ...desktop(), gateway: gateway({ port: LEGACY_WEAK_PORT }) } },
+  { name: 'legacy-reneg-off', label: 'no secure renegotiation, off', expect: 'error', cmd: { ...desktop(), gateway: gateway({ port: LEGACY_RENEG_PORT }) } },
+  { name: 'legacy-reneg-on', label: 'no secure renegotiation, on', expect: 'error', rules: { notCode: TLS_CONNECT_FAILED }, env: { OPENSSL_CONF: LEGACY_CONF }, cmd: { ...desktop(), gateway: gateway({ port: LEGACY_RENEG_PORT, legacyTls: true }) } },
 ];
 
 function runCase(helper, c) {
@@ -70,7 +94,7 @@ function runCase(helper, c) {
 
     const child = spawn(helper, [], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, OPENSSL_MODULES: join(dirname(helper), 'ossl-modules') },
+      env: { ...process.env, OPENSSL_MODULES: join(dirname(helper), 'ossl-modules'), ...(c.env ?? {}) },
     });
 
     const finish = (note) => {
@@ -88,7 +112,17 @@ function runCase(helper, c) {
       const report = () => {
         clearTimeout(killer);
         writeFileSync(join(LOG_DIR, `${c.name}.helper.log`), stderr);
-        const result = evaluateCase(c.expect, events);
+        const result = evaluateCase(c.expect, events, c.rules);
+        const asked = events.filter((e) => e.kind === 'cert');
+        if (c.certAnswer !== undefined && !asked.length) {
+          result.pass = false;
+          result.detail = `no certificate question; ${result.detail}`;
+        } else if (c.certAnswer === undefined && asked.length) {
+          result.pass = false;
+          result.detail = `unexpected certificate question; ${result.detail}`;
+        } else if (asked.length) {
+          result.detail = `${result.detail}; asked about ${asked.map((e) => `${e.host}:${e.port} (${e.hop})`).join(', ')}`;
+        }
         const leaked = [GW_PASS, DESK_PASS, c.cmd.gateway?.password].filter(
           (s) => s && stderr.includes(s),
         );
@@ -106,6 +140,11 @@ function runCase(helper, c) {
     const parser = createFrameParser((type, payload) => {
       const msg = decodeMessage(type, payload);
       events.push(msg);
+      if (msg.kind === 'cert') {
+        // The helper waits for an answer; a case that expects no question refuses it and fails in the report.
+        child.stdin.write(JSON.stringify({ type: 'cert_response', id: msg.id, accept: c.certAnswer === true }) + '\n');
+        return;
+      }
       const frames = events.filter((e) => e.kind === 'bitmap').length;
       const failed = msg.kind === 'error' || (msg.kind === 'disconnected' && msg.error !== null);
       if ((c.expect === 'connect' && frames >= 1 && events.some((e) => e.kind === 'connected')) || failed) {
@@ -139,8 +178,9 @@ async function main() {
   console.log(`Gateway: 127.0.0.1:${GW_PORT}  target: desktop:3389  NLA: ${ENABLE_NLA ? 'on' : 'off'}\n`);
 
   const only = process.env.CASES ? new Set(process.env.CASES.split(',')) : null;
+  if (LEGACY) writeFileSync(LEGACY_CONF, LEGACY_OPENSSL_CONF);
   const rows = [];
-  for (const c of CASES) {
+  for (const c of LEGACY ? [...CASES, ...LEGACY_CASES] : CASES) {
     if (only && !only.has(c.name)) continue;
     const r = await runCase(helper, c);
     rows.push({ result: r.pass ? 'PASS' : 'FAIL', case: c.label, detail: r.detail });

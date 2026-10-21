@@ -20,7 +20,8 @@
 freerdp *connection_init(const ConnectConfig *config);
 
 /**
- * Connect to the RDP server (blocking).
+ * Connect to the RDP server (blocking). Certificate questions are answered on stdin meanwhile,
+ * so check cert_prompt_disconnect_requested() after a failure.
  * Returns true on success.
  */
 bool connection_connect(freerdp *instance);

@@ -2,6 +2,7 @@
 
 import type { RdpEngineConfig } from '../engine.js';
 import { isRdpErrorPhase, type RdpConnectErrorInfo } from '../connect-error.js';
+import type { HelperCertRequest } from '../cert-trust/cert-trust.js';
 
 export interface HelperGatewayConfig {
   host: string;
@@ -11,9 +12,14 @@ export interface HelperGatewayConfig {
   domain: string;
   transport: 'auto' | 'http' | 'rpc';
   bypassLocal: boolean;
+  legacyTls: boolean;
 }
 
-export function buildHelperConnectConfig(config: RdpEngineConfig): Record<string, unknown> & { host: string; gateway?: HelperGatewayConfig } {
+/** configDir is FreeRDP's config folder (helper-tls-files.ts). */
+export function buildHelperConnectConfig(
+  config: RdpEngineConfig,
+  configDir?: string,
+): Record<string, unknown> & { host: string; gateway?: HelperGatewayConfig } {
   const gw = config.gateway;
   return {
     host: config.hostname || config.host,
@@ -34,6 +40,8 @@ export function buildHelperConnectConfig(config: RdpEngineConfig): Record<string
     desktopScaleFactor: config.desktopScaleFactor ?? 100,
     deviceScaleFactor: config.deviceScaleFactor ?? 100,
     enableClipboard: config.enableClipboard ?? true,
+    legacyTls: config.legacyTls === true,
+    ...(configDir ? { configDir } : {}),
     ...(gw
       ? {
           gateway: {
@@ -44,6 +52,7 @@ export function buildHelperConnectConfig(config: RdpEngineConfig): Record<string
             domain: gw.domain,
             transport: gw.transport,
             bypassLocal: gw.bypassLocal,
+            legacyTls: gw.legacyTls === true,
           },
         }
       : {}),
@@ -71,14 +80,38 @@ export function helperErrorMessage(payload: Buffer): string {
   return errorMessageOf(parseHelperJson(payload), payload);
 }
 
-/** An ERROR frame's message plus the FreeRDP code and failed hop when the helper sent them. */
+const MAX_TLS_REASON_LENGTH = 1024;
+
+/** An ERROR frame's message plus the FreeRDP code, failed hop and OpenSSL reasons when the helper sent them. */
 export function parseHelperError(payload: Buffer): RdpConnectErrorInfo {
   const json = parseHelperJson(payload);
   const code = json?.code;
   const phase = json?.phase;
+  const tls = typeof json?.tls === 'string' ? json.tls.trim().slice(0, MAX_TLS_REASON_LENGTH) : '';
   return {
     message: errorMessageOf(json, payload),
     ...(typeof code === 'number' && Number.isInteger(code) && code >= 0 ? { code } : {}),
     ...(isRdpErrorPhase(phase) ? { phase } : {}),
+    ...(tls ? { tls } : {}),
+  };
+}
+
+/** A CERT_VERIFY frame, or null when it is malformed (the helper is then told not to trust). */
+export function parseHelperCertRequest(payload: Buffer): HelperCertRequest | null {
+  const json = parseHelperJson(payload);
+  if (!json) return null;
+  const { id, host, port, hop, mismatch, changed, pem } = json;
+  if (typeof id !== 'number' || !Number.isInteger(id)) return null;
+  if (typeof host !== 'string' || !host) return null;
+  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) return null;
+  if (hop !== 'gateway' && hop !== 'target') return null;
+  return {
+    id,
+    host,
+    port,
+    hop,
+    mismatch: mismatch === true,
+    changed: changed === true,
+    pem: typeof pem === 'string' ? pem : '',
   };
 }

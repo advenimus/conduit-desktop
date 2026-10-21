@@ -19,3 +19,13 @@ describe("resolveRdpConfig gateway", () => {
     expect(resolved.gatewayId).toBeUndefined();
   });
 });
+
+describe("resolveRdpConfig certificate and TLS settings", () => {
+  it("passes the entry's switches through and treats anything else as off", () => {
+    expect(resolveRdpConfig({ skipCertVerification: true, legacyTls: true }, HARDCODED_RDP_DEFAULTS)).toMatchObject({
+      skipCertVerification: true,
+      legacyTls: true,
+    });
+    expect(resolveRdpConfig({}, HARDCODED_RDP_DEFAULTS)).toMatchObject({ skipCertVerification: false, legacyTls: false });
+  });
+});

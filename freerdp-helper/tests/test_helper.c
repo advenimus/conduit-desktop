@@ -1,7 +1,8 @@
-/* Unit tests for the helper's pure logic (JSON builders, stdin parser); no FreeRDP needed. Run tests/run-tests.sh. */
+/* Unit tests for the helper's pure logic (JSON builders, stdin parser, TLS reasons); no FreeRDP needed. Run tests/run-tests.sh. */
 
 #include "json_out.h"
 #include "protocol.h"
+#include "tls_reason.h"
 #include "cjson/cJSON.h"
 
 #include <stdio.h>
@@ -204,6 +205,122 @@ static void test_validate_gateway(void) {
     CHECK(connect_config_validate(&cfg) != NULL);
 }
 
+
+static void test_error_json_with_tls(void) {
+    char *json = json_build_error_detail("The connection failed at TLS connect.", 0x00020008, "gateway",
+                                         "error:0A00042E:SSL routines::tlsv1 alert protocol version");
+    CHECK_STR(json, "{\"message\":\"The connection failed at TLS connect.\",\"code\":131080,\"phase\":\"gateway\","
+                    "\"tls\":\"error:0A00042E:SSL routines::tlsv1 alert protocol version\"}");
+    json_out_free(json);
+
+    json = json_build_error_detail("x", 0, NULL, "");
+    CHECK_STR(json, "{\"message\":\"x\"}");
+    json_out_free(json);
+}
+
+static void test_cert_request_json(void) {
+    CertRequest req = {
+        .id = 7, .host = "rdg.example.com", .port = 443, .common_name = "rdg.example.com",
+        .subject = "CN=rdg.example.com", .issuer = "CN=Corp \"Root\" CA",
+        .pem = "-----BEGIN CERTIFICATE-----\nAAA\n-----END CERTIFICATE-----\n",
+        .gateway = true, .mismatch = false, .changed = false,
+    };
+    char *json = json_build_cert_request(&req);
+    cJSON *root = cJSON_Parse(json);
+    CHECK(root != NULL);
+    CHECK(cJSON_GetObjectItemCaseSensitive(root, "id")->valueint == 7);
+    CHECK_STR(cJSON_GetObjectItemCaseSensitive(root, "host")->valuestring, "rdg.example.com");
+    CHECK(cJSON_GetObjectItemCaseSensitive(root, "port")->valueint == 443);
+    CHECK_STR(cJSON_GetObjectItemCaseSensitive(root, "hop")->valuestring, "gateway");
+    CHECK(cJSON_IsFalse(cJSON_GetObjectItemCaseSensitive(root, "mismatch")));
+    CHECK_STR(cJSON_GetObjectItemCaseSensitive(root, "issuer")->valuestring, "CN=Corp \"Root\" CA");
+    CHECK_STR(cJSON_GetObjectItemCaseSensitive(root, "pem")->valuestring, req.pem);
+    cJSON_Delete(root);
+    json_out_free(json);
+
+    CertRequest target = { .id = 1, .port = 3389, .mismatch = true, .changed = true };
+    json = json_build_cert_request(&target);
+    root = cJSON_Parse(json);
+    CHECK(root != NULL);
+    CHECK_STR(cJSON_GetObjectItemCaseSensitive(root, "hop")->valuestring, "target");
+    CHECK_STR(cJSON_GetObjectItemCaseSensitive(root, "host")->valuestring, "");
+    CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "mismatch")));
+    CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(root, "changed")));
+    cJSON_Delete(root);
+    json_out_free(json);
+}
+
+static void test_parse_cert_response(void) {
+    Command cmd;
+    CHECK(parse_line("{\"type\":\"cert_response\",\"id\":3,\"accept\":true}", &cmd));
+    CHECK(cmd.type == CMD_CERT_RESPONSE);
+    CHECK(cmd.data.cert_response.id == 3);
+    CHECK(cmd.data.cert_response.accept);
+    protocol_free_command(&cmd);
+
+    CHECK(parse_line("{\"type\":\"cert_response\",\"id\":4,\"accept\":\"yes\"}", &cmd));
+    CHECK(cmd.type == CMD_CERT_RESPONSE);
+    CHECK(!cmd.data.cert_response.accept);
+    protocol_free_command(&cmd);
+
+    CHECK(parse_line("{\"type\":\"cert_response\"}", &cmd));
+    CHECK(cmd.data.cert_response.id == -1);
+    CHECK(!cmd.data.cert_response.accept);
+    protocol_free_command(&cmd);
+}
+
+static void test_parse_legacy_tls_and_config_dir(void) {
+    Command cmd;
+    CHECK(parse_line("{\"type\":\"connect\",\"config\":{\"host\":\"pc1\",\"legacyTls\":true,"
+                     "\"configDir\":\"/tmp/conduit freerdp\",\"gateway\":{\"host\":\"rdg\",\"legacyTls\":true}}}", &cmd));
+    CHECK(cmd.data.connect.legacy_tls);
+    CHECK_STR(cmd.data.connect.config_dir, "/tmp/conduit freerdp");
+    CHECK(cmd.data.connect.gateway.legacy_tls);
+    protocol_free_command(&cmd);
+
+    CHECK(parse_line("{\"type\":\"connect\",\"config\":{\"host\":\"pc1\",\"gateway\":{\"host\":\"rdg\"}}}", &cmd));
+    CHECK(!cmd.data.connect.legacy_tls);
+    CHECK(cmd.data.connect.config_dir == NULL);
+    CHECK(!cmd.data.connect.gateway.legacy_tls);
+    protocol_free_command(&cmd);
+}
+
+static void test_tls_reason_from_log(void) {
+    char out[TLS_REASON_MAX];
+    CHECK(tls_reason_from_log("[BIO_do_handshake] 803FC9F001000000:error:0A00042E:SSL routines:ssl3_read_bytes:"
+                              "tlsv1 alert protocol version:ssl/record/rec_layer_s3.c:908:SSL alert number 70 [131]",
+                              out, sizeof(out)));
+    CHECK_STR(out, "error:0A00042E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version:"
+                   "ssl/record/rec_layer_s3.c:908:SSL alert number 70");
+
+    CHECK(tls_reason_from_log("[BIO_do_handshake] something odd", out, sizeof(out)));
+    CHECK_STR(out, "something odd");
+
+    CHECK(!tls_reason_from_log("BIO_do_handshake failed", out, sizeof(out)));
+    CHECK(!tls_reason_from_log("[BIO_do_handshake]  [0]", out, sizeof(out)));
+    CHECK(!tls_reason_from_log(NULL, out, sizeof(out)));
+
+    char tiny[8];
+    CHECK(tls_reason_from_log("[BIO_do_handshake] error:0A000102:SSL routines::unsupported protocol [9]", tiny, sizeof(tiny)));
+    CHECK_STR(tiny, "error:0");
+}
+
+static void test_tls_reason_append(void) {
+    char buf[40] = "";
+    tls_reason_append(buf, sizeof(buf), "first");
+    tls_reason_append(buf, sizeof(buf), "second");
+    tls_reason_append(buf, sizeof(buf), "first");
+    tls_reason_append(buf, sizeof(buf), "");
+    CHECK_STR(buf, "first; second");
+
+    tls_reason_append(buf, sizeof(buf), "a reason that is much too long to fit");
+    CHECK(strlen(buf) == sizeof(buf) - 1);
+    CHECK(strncmp(buf, "first; second; a reason", 23) == 0);
+
+    tls_reason_append(buf, sizeof(buf), "more");
+    CHECK(strlen(buf) == sizeof(buf) - 1);
+}
+
 int main(void) {
     test_error_json_plain();
     test_error_json_with_code();
@@ -220,6 +337,12 @@ int main(void) {
     test_parse_gateway_transport_values();
     test_parse_gateway_null_is_no_gateway();
     test_validate_gateway();
+    test_error_json_with_tls();
+    test_cert_request_json();
+    test_parse_cert_response();
+    test_parse_legacy_tls_and_config_dir();
+    test_tls_reason_from_log();
+    test_tls_reason_append();
 
     if (g_failures) {
         fprintf(stderr, "%d of %d checks failed\n", g_failures, g_checks);

@@ -115,6 +115,7 @@ describe('readGatewayConfig / describeGatewayAddress', () => {
       gatewayPort: 443,
       gatewayTransport: 'auto',
       gatewayBypassLocal: false,
+      gatewayLegacyTls: false,
       gatewayLoginSource: 'own',
     });
   });
@@ -192,7 +193,15 @@ describe('resolveGatewayEngineConfig', () => {
       domain: 'CORP',
       transport: 'auto',
       bypassLocal: false,
+      legacyTls: false,
     });
+  });
+
+  it('passes the old-TLS switch through only when it is exactly true', () => {
+    const on = gateway({ config: { gatewayHostname: 'gw', gatewayLegacyTls: true } });
+    const junk = gateway({ config: { gatewayHostname: 'gw', gatewayLegacyTls: 'yes' } });
+    expect(resolveGatewayEngineConfig('gw-1', on, host).legacyTls).toBe(true);
+    expect(resolveGatewayEngineConfig('gw-1', junk, host).legacyTls).toBe(false);
   });
 
   it('uses the RDP entry\'s login when set to', () => {

@@ -67,7 +67,8 @@ describe('buildRdpEngineConfigFromEntry', () => {
       width: 1920,
       height: 1080,
       enableNla: true,
-      skipCertVerification: true,
+      skipCertVerification: false,
+      legacyTls: false,
       performanceMode: 'balanced',
       enableClipboard: true,
       enableBitmapCache: true,
@@ -75,6 +76,13 @@ describe('buildRdpEngineConfigFromEntry', () => {
       frameRate: 30,
     });
     expect(cfg.sharedFolders).toBeUndefined();
+  });
+
+  it('honors the entry\'s certificate and old-TLS settings', () => {
+    const cfg = buildRdpEngineConfigFromEntry({ ...base, entryConfig: { skipCertVerification: true, legacyTls: true } });
+    expect(cfg).toMatchObject({ skipCertVerification: true, legacyTls: true });
+    const junk = buildRdpEngineConfigFromEntry({ ...base, entryConfig: { skipCertVerification: 'yes', legacyTls: 1 } as never });
+    expect(junk).toMatchObject({ skipCertVerification: false, legacyTls: false });
   });
 
   it('honors stored entry settings', () => {
@@ -165,6 +173,7 @@ describe('buildRdpEngineConfigFromEntry gateway', () => {
       domain: 'GW',
       transport: 'http',
       bypassLocal: true,
+      legacyTls: false,
     });
     expect(cfg.username).toBe('CORP\\alice');
   });

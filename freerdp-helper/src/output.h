@@ -16,14 +16,19 @@
  *   0x0B CURSOR_SET   - [hotspotX:u16][hotspotY:u16][width:u16][height:u16][rgba_data...]
  *   0x0C CURSOR_NULL  - (empty) hide cursor
  *   0x0D CURSOR_DEFAULT - (empty) system default cursor
- *   0xFF ERROR        - JSON: {"message":"...","code":N,"phase":"gateway"|"target"} (code when non-zero, phase with a gateway)
+ *   0x0E CERT_VERIFY  - JSON: {"id":N,"host":"...","port":N,"hop":"gateway"|"target","mismatch":bool,"changed":bool,
+ *                              "commonName","subject","issuer","pem"}; Electron answers {"type":"cert_response","id":N,"accept":bool}
+ *   0xFF ERROR        - JSON: {"message":"...","code":N,"phase":"gateway"|"target","tls":"..."} (code when non-zero,
+ *                              phase with a gateway, tls when OpenSSL logged a handshake failure)
  */
 
 #ifndef OUTPUT_H
 #define OUTPUT_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include "json_out.h"
 
 #define MSG_TYPE_CONNECTED     0x01
 #define MSG_TYPE_BITMAP_UPDATE 0x02
@@ -38,6 +43,7 @@
 #define MSG_TYPE_CURSOR_SET              0x0B
 #define MSG_TYPE_CURSOR_NULL             0x0C
 #define MSG_TYPE_CURSOR_DEFAULT          0x0D
+#define MSG_TYPE_CERT_VERIFY             0x0E
 #define MSG_TYPE_ERROR                   0xFF
 
 /**
@@ -77,6 +83,12 @@ void output_send_error_code(const char *message, uint32_t code);
 
 /* Send ERROR with a code and, when not NULL, the hop that failed ("gateway" or "target"). */
 void output_send_error_phase(const char *message, uint32_t code, const char *phase);
+
+/* Send ERROR with a code, the failed hop and OpenSSL's handshake failure reasons (each left out when NULL or empty). */
+void output_send_error_detail(const char *message, uint32_t code, const char *phase, const char *tls);
+
+/* Send CERT_VERIFY. False when the request could not be built. */
+bool output_send_cert_request(const CertRequest *req);
 
 /**
  * Send CLIPBOARD_TEXT message with UTF-8 text from the remote desktop.

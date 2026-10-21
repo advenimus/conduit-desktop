@@ -23,6 +23,8 @@ export interface RdpEntryConfigFields extends RdpEntryGatewayFields {
   enableNla?: boolean;
   hostname?: string;
   sharedFolders?: { name: string; path: string; readOnly?: boolean }[];
+  skipCertVerification?: boolean;
+  legacyTls?: boolean;
 }
 
 const NO_GATEWAYS: GatewayVault = {
@@ -101,7 +103,8 @@ export function buildRdpEngineConfigFromEntry(opts: {
     width,
     height,
     enableNla: cfg.enableNla ?? true,
-    skipCertVerification: true,
+    skipCertVerification: cfg.skipCertVerification === true,
+    legacyTls: cfg.legacyTls === true,
     colorDepth: cfg.colorDepth,
     performanceMode: mapQualityToPerformanceMode(cfg.quality),
     sharedFolders: cfg.sharedFolders?.length ? cfg.sharedFolders : undefined,

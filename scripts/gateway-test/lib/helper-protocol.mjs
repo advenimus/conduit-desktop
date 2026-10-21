@@ -9,8 +9,24 @@ export const MSG = Object.freeze({
   CURSOR_SET: 0x0b,
   CURSOR_NULL: 0x0c,
   CURSOR_DEFAULT: 0x0d,
+  CERT_VERIFY: 0x0e,
   ERROR: 0xff,
 });
+
+export const TLS_CONNECT_FAILED = 0x00020008;
+
+// Same text as LEGACY_OPENSSL_CONF in electron/services/rdp/cert-trust/helper-tls-files.ts (a test keeps them equal).
+export const LEGACY_OPENSSL_CONF = `openssl_conf = conduit_conf
+
+[conduit_conf]
+ssl_conf = ssl_sect
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+Options = UnsafeLegacyServerConnect
+`;
 
 export function buildConnectCommand({
   host,
@@ -21,6 +37,8 @@ export function buildConnectCommand({
   width = 1024,
   height = 768,
   enableNla = true,
+  skipCertVerification = true,
+  legacyTls = false,
   gateway,
 }) {
   const config = {
@@ -32,13 +50,14 @@ export function buildConnectCommand({
     width,
     height,
     enableNla,
-    skipCertVerification: true,
+    skipCertVerification,
     enableGfx: true,
     enableH264: true,
     drives: [],
     desktopScaleFactor: 100,
     deviceScaleFactor: 100,
     enableClipboard: true,
+    legacyTls,
   };
   if (gateway) {
     config.gateway = {
@@ -49,6 +68,7 @@ export function buildConnectCommand({
       domain: gateway.domain ?? '',
       transport: gateway.transport ?? 'auto',
       bypassLocal: gateway.bypassLocal ?? false,
+      legacyTls: gateway.legacyTls ?? false,
     };
   }
   return JSON.stringify({ type: 'connect', config }) + '\n';
@@ -102,7 +122,13 @@ export function decodeMessage(type, payload) {
       const clean = ok && value !== null && typeof value.message === 'string' && value.message.length > 0;
       const msg = { kind: 'error', message: clean ? value.message : payload.toString('utf8'), clean };
       if (clean && typeof value.code === 'number') msg.code = value.code;
+      if (clean && typeof value.tls === 'string') msg.tls = value.tls;
       return msg;
+    }
+    case MSG.CERT_VERIFY: {
+      const { ok, value } = parseJson(payload);
+      if (!ok || value === null || typeof value.id !== 'number') return { kind: 'cert', id: -1, clean: false };
+      return { kind: 'cert', id: value.id, host: value.host, port: value.port, hop: value.hop, mismatch: value.mismatch === true, clean: true };
     }
     case MSG.DISCONNECTED: {
       const { ok, value } = parseJson(payload);
@@ -115,11 +141,25 @@ export function decodeMessage(type, payload) {
 }
 
 function describeError(e) {
-  if (e.kind === 'error') return e.code !== undefined ? `${e.message} (code ${e.code})` : e.message;
+  if (e.kind === 'error') {
+    const base = e.code !== undefined ? `${e.message} (code ${e.code})` : e.message;
+    return e.tls ? `${base} tls: ${e.tls}` : base;
+  }
   return `disconnected: ${e.error}`;
 }
 
-export function evaluateCase(expect, events) {
+/** Extra rules for an expected failure: tls must match a regex, or the code must not be notCode. */
+function checkFailure(failure, rules) {
+  if (rules.tls && !(failure.tls && rules.tls.test(failure.tls))) {
+    return `expected an OpenSSL reason matching ${rules.tls}`;
+  }
+  if (rules.notCode !== undefined && failure.code === rules.notCode) {
+    return `failed with code ${rules.notCode}, which this case must get past`;
+  }
+  return null;
+}
+
+export function evaluateCase(expect, events, rules = {}) {
   const connected = events.find((e) => e.kind === 'connected');
   const frames = events.filter((e) => e.kind === 'bitmap').length;
   const failures = events.filter(
@@ -137,5 +177,7 @@ export function evaluateCase(expect, events) {
   if (!failures.length) return { pass: false, detail: 'no error reported' };
   const unclean = failures.find((e) => !e.clean);
   if (unclean) return { pass: false, detail: `error was not clean JSON: ${String(describeError(unclean)).slice(0, 120)}` };
+  const problem = checkFailure(failures[0], rules);
+  if (problem) return { pass: false, detail: `${problem}; got ${describeError(failures[0])}` };
   return { pass: true, detail: describeError(failures[0]) };
 }

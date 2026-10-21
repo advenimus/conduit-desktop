@@ -77,6 +77,7 @@ static void parse_gateway(cJSON *config, GatewayConfig *gw, bool *has_gateway) {
     gw->domain = safe_strdup(cjson_get_string(obj, "domain"));
     gw->transport = gateway_transport_from_string(cjson_get_string(obj, "transport"));
     gw->bypass_local = cjson_get_bool(obj, "bypassLocal", false);
+    gw->legacy_tls = cjson_get_bool(obj, "legacyTls", false);
     scrub_json_string(obj, "password");
 }
 
@@ -131,6 +132,8 @@ bool protocol_read_command(Command *cmd) {
             cmd->data.connect.desktop_scale_factor = cjson_get_int(config, "desktopScaleFactor", 100);
             cmd->data.connect.device_scale_factor = cjson_get_int(config, "deviceScaleFactor", 100);
             cmd->data.connect.enable_clipboard = cjson_get_bool(config, "enableClipboard", true);
+            cmd->data.connect.legacy_tls = cjson_get_bool(config, "legacyTls", false);
+            cmd->data.connect.config_dir = safe_strdup(cjson_get_string(config, "configDir"));
             scrub_json_string(config, "password");
             parse_gateway(config, &cmd->data.connect.gateway, &cmd->data.connect.has_gateway);
 
@@ -204,6 +207,10 @@ bool protocol_read_command(Command *cmd) {
     } else if (strcmp(type, "clipboard_request_files") == 0) {
         cmd->type = CMD_CLIPBOARD_REQUEST_FILES;
         cmd->data.clipboard_request_files.temp_dir = safe_strdup(cjson_get_string(json, "tempDir"));
+    } else if (strcmp(type, "cert_response") == 0) {
+        cmd->type = CMD_CERT_RESPONSE;
+        cmd->data.cert_response.id = cjson_get_int(json, "id", -1);
+        cmd->data.cert_response.accept = cjson_get_bool(json, "accept", false);
     } else {
         cmd->type = CMD_UNKNOWN;
     }
@@ -231,6 +238,7 @@ void protocol_free_command(Command *cmd) {
         free(cmd->data.connect.username);
         secure_free_string(cmd->data.connect.password);
         free(cmd->data.connect.domain);
+        free(cmd->data.connect.config_dir);
         free(cmd->data.connect.gateway.host);
         free(cmd->data.connect.gateway.username);
         secure_free_string(cmd->data.connect.gateway.password);

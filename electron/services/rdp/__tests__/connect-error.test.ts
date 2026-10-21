@@ -28,3 +28,22 @@ describe('formatRdpConnectError / parseRdpConnectError', () => {
     expect(parseRdpConnectError(raw)).toEqual({ message: 'Connection failed', code: 6 });
   });
 });
+
+describe('TLS diagnostics in the marker', () => {
+  const tls = 'error:0A00042E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version:ssl/record/rec_layer_s3.c:908:SSL alert number 70';
+
+  it('round-trips an OpenSSL reason with spaces, colons and brackets', () => {
+    const info = { message: 'The connection failed at TLS connect.', code: 0x00020008, phase: 'gateway' as const, tls: `${tls} [x]` };
+    expect(parseRdpConnectError(formatRdpConnectError(info))).toEqual(info);
+  });
+
+  it('round-trips a port check and a rejected certificate', () => {
+    const info = { message: 'You chose not to trust it.', phase: 'gateway' as const, certRejected: true, net: 'refused' as const };
+    expect(parseRdpConnectError(formatRdpConnectError(info))).toEqual(info);
+  });
+
+  it('drops an unknown port check and a broken encoding', () => {
+    expect(parseRdpConnectError('x [rdp-error net=bogus]')).toEqual({ message: 'x' });
+    expect(parseRdpConnectError('x [rdp-error code=0x00020008 tls=%E0%A4%A]')).toEqual({ message: 'x', code: 0x00020008 });
+  });
+});

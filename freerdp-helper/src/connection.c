@@ -10,11 +10,13 @@
  */
 
 #include "connection.h"
+#include "cert_prompt.h"
 #include "cliprdr.h"
 #include "disp.h"
 #include "output.h"
 #include "pointer.h"
 #include "json_out.h"
+#include "tls_diag.h"
 #include <freerdp/freerdp.h>
 #include <freerdp/gdi/gdi.h>
 #include <freerdp/gdi/gfx.h>
@@ -37,14 +39,30 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── Certificate callbacks (always accept — headless, no user prompt) ── */
+/* Returns 2 (this connection only) so FreeRDP's own certificate store is never written; Electron keeps trust. */
+
+static DWORD ask_about_certificate(const char *host, UINT16 port, const char *common_name,
+                                   const char *subject, const char *issuer, const char *fingerprint,
+                                   DWORD flags, bool changed) {
+    const CertRequest req = {
+        .host = host,
+        .port = port,
+        .common_name = common_name,
+        .subject = subject,
+        .issuer = issuer,
+        .pem = (flags & VERIFY_CERT_FLAG_FP_IS_PEM) ? fingerprint : NULL,
+        .gateway = (flags & VERIFY_CERT_FLAG_GATEWAY) != 0,
+        .mismatch = (flags & VERIFY_CERT_FLAG_MISMATCH) != 0,
+        .changed = changed,
+    };
+    return cert_prompt_ask(&req) ? 2 : 0;
+}
 
 static DWORD cb_verify_certificate(freerdp *instance, const char *host, UINT16 port,
                                     const char *common_name, const char *subject,
                                     const char *issuer, const char *fingerprint, DWORD flags) {
-    (void)instance; (void)host; (void)port; (void)common_name;
-    (void)subject; (void)issuer; (void)fingerprint; (void)flags;
-    return 1; /* Accept temporarily (for this session) */
+    (void)instance;
+    return ask_about_certificate(host, port, common_name, subject, issuer, fingerprint, flags, false);
 }
 
 static DWORD cb_verify_changed_certificate(freerdp *instance, const char *host, UINT16 port,
@@ -52,10 +70,8 @@ static DWORD cb_verify_changed_certificate(freerdp *instance, const char *host, 
                                             const char *issuer, const char *new_fingerprint,
                                             const char *old_subject, const char *old_issuer,
                                             const char *old_fingerprint, DWORD flags) {
-    (void)instance; (void)host; (void)port; (void)common_name;
-    (void)subject; (void)issuer; (void)new_fingerprint;
-    (void)old_subject; (void)old_issuer; (void)old_fingerprint; (void)flags;
-    return 1;
+    (void)instance; (void)old_subject; (void)old_issuer; (void)old_fingerprint;
+    return ask_about_certificate(host, port, common_name, subject, issuer, new_fingerprint, flags, true);
 }
 
 /* ── Forward declarations ──────────────────────────────────────────── */
@@ -319,17 +335,29 @@ static BOOL apply_gateway_settings(rdpSettings *settings, const GatewayConfig *g
     return TRUE;
 }
 
-/* Gateway code writes to its own TLS sockets, so the first transport write is RDP data to the target. */
+/* OpenSSL security level 1 refuses TLS 1.0/1.1 and SHA-1 handshakes; 0 lets old servers in. */
+static UINT32 tls_sec_level(bool legacy_tls) {
+    return legacy_tls ? 0 : 1;
+}
+
+/* Gateway code writes to its own TLS sockets, so the first transport write is RDP data to the target.
+ * That write (the X.224 request) comes before the target's TLS, so the target's TLS level is set there. */
 static pTransportRWFkt s_default_write_pdu = NULL;
 static volatile BOOL s_target_reached = FALSE;
+static rdpSettings *s_settings = NULL;
+static bool s_target_legacy_tls = false;
 
 static int write_pdu_noting_target(rdpTransport *transport, wStream *s) {
+    if (!s_target_reached && s_settings) {
+        freerdp_settings_set_uint32(s_settings, FreeRDP_TlsSecLevel, tls_sec_level(s_target_legacy_tls));
+    }
     s_target_reached = TRUE;
     return s_default_write_pdu ? s_default_write_pdu(transport, s) : -1;
 }
 
 static void track_target_reached(rdpContext *context) {
     s_target_reached = FALSE;
+    s_settings = context->settings;
     const rdpTransportIo *current = freerdp_get_io_callbacks(context);
     if (!current || current->WritePdu == write_pdu_noting_target) return;
     rdpTransportIo io = *current;
@@ -338,6 +366,21 @@ static void track_target_reached(rdpContext *context) {
     if (!freerdp_set_io_callbacks(context, &io)) {
         fprintf(stderr, "[conduit-freerdp] Could not track the gateway phase; errors will not name the failed hop\n");
         s_default_write_pdu = NULL;
+    }
+}
+
+static void apply_tls_settings(rdpSettings *settings, const ConnectConfig *config) {
+    s_target_legacy_tls = config->legacy_tls;
+    const bool first_hop_legacy = config->has_gateway ? config->gateway.legacy_tls : config->legacy_tls;
+    freerdp_settings_set_uint32(settings, FreeRDP_TlsSecLevel, tls_sec_level(first_hop_legacy));
+    freerdp_settings_set_bool(settings, FreeRDP_CertificateCallbackPreferPEM, TRUE);
+    if (config->config_dir && config->config_dir[0]) {
+        freerdp_settings_set_string(settings, FreeRDP_ConfigPath, config->config_dir);
+    }
+    if (config->legacy_tls || (config->has_gateway && config->gateway.legacy_tls)) {
+        fprintf(stderr, "[conduit-freerdp] Old TLS allowed for:%s%s\n",
+                config->has_gateway && config->gateway.legacy_tls ? " gateway" : "",
+                config->legacy_tls ? " computer" : "");
     }
 }
 
@@ -415,6 +458,7 @@ freerdp *connection_init(const ConnectConfig *config) {
     if (config->skip_cert_verification) {
         freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, TRUE);
     }
+    apply_tls_settings(settings, config);
 
     /* ── RD Gateway ── */
     if (config->has_gateway && !apply_gateway_settings(settings, &config->gateway)) {
@@ -481,7 +525,12 @@ bool connection_connect(freerdp *instance) {
         freerdp_settings_get_bool(instance->context->settings, FreeRDP_GatewayEnabled);
     if (gateway_enabled) track_target_reached(instance->context);
 
-    if (!freerdp_connect(instance)) {
+    tls_diag_reset();
+    cert_prompt_begin();
+    const BOOL connected = freerdp_connect(instance);
+    cert_prompt_end();
+
+    if (!connected) {
         UINT32 error = freerdp_get_last_error(instance->context);
         const char *error_str = error != FREERDP_ERROR_SUCCESS
             ? freerdp_get_last_error_string(error) : NULL;
@@ -494,9 +543,11 @@ bool connection_connect(freerdp *instance) {
         const char *error_name = freerdp_get_last_error_name(error);
         const char *phase = s_default_write_pdu
             ? connect_error_phase(gateway_enabled, s_target_reached) : NULL;
-        fprintf(stderr, "[conduit-freerdp] Connection failed: %s (0x%08X %s) phase=%s\n",
-                error_str, error, error_name ? error_name : "?", phase ? phase : "none");
-        output_send_error_phase(error_str, error, phase);
+        const char *tls = tls_diag_reasons();
+        fprintf(stderr, "[conduit-freerdp] Connection failed: %s (0x%08X %s) phase=%s tls=%s\n",
+                error_str, error, error_name ? error_name : "?", phase ? phase : "none",
+                tls[0] ? tls : "none");
+        output_send_error_detail(error_str, error, phase, tls);
         return false;
     }
 

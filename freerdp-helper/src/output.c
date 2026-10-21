@@ -246,6 +246,18 @@ void output_send_error_code(const char *message, uint32_t code) {
 }
 
 void output_send_error_phase(const char *message, uint32_t code, const char *phase) {
-    send_json(MSG_TYPE_ERROR, json_build_error_phase(message, code, phase),
+    output_send_error_detail(message, code, phase, NULL);
+}
+
+void output_send_error_detail(const char *message, uint32_t code, const char *phase, const char *tls) {
+    send_json(MSG_TYPE_ERROR, json_build_error_detail(message, code, phase, tls),
               "{\"message\":\"Unknown error\"}");
+}
+
+bool output_send_cert_request(const CertRequest *req) {
+    char *json = json_build_cert_request(req);
+    if (!json) return false;
+    output_send(MSG_TYPE_CERT_VERIFY, json, (uint32_t)strlen(json));
+    json_out_free(json);
+    return true;
 }

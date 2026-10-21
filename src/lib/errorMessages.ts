@@ -1,5 +1,5 @@
 import type { SessionType } from "../stores/sessionStore";
-import { parseRdpConnectError, type RdpConnectErrorInfo } from "./rdpConnectError";
+import { parseRdpConnectError, rdpTlsAdvice, type RdpConnectErrorInfo } from "./rdpConnectError";
 
 /**
  * Marker the main process appends when it has confirmed macOS blocked the
@@ -30,6 +30,8 @@ const POSSIBLE_LOCAL_NETWORK_BLOCK =
 export function mayBeLocalNetworkBlock(raw: string): boolean {
   return POSSIBLE_LOCAL_NETWORK_BLOCK.test(raw);
 }
+
+const RDP_TLS_LEAD = "The secure (TLS) connection to the server failed.";
 
 const patterns: [RegExp, string][] = [
   [/All configured authentication methods failed/i, "Authentication failed — check your username, password, or SSH key"],
@@ -80,7 +82,7 @@ const rdpPatterns: [RegExp, string][] = [
   // TLS handshake / certificate problems.
   [
     /TLS|certificate|SSL handshake|ERRCONNECT_TLS/i,
-    "The secure (TLS) connection to the server failed. The certificate may be untrusted or the server's security settings may be incompatible. You can enable 'Skip certificate verification' for this connection if you trust the host.",
+    `${RDP_TLS_LEAD} Check the host and port. If the server is old, try "Allow old TLS" in this entry's Security settings.`,
   ],
   // Name resolution.
   [
@@ -126,8 +128,8 @@ const gatewayCodePatterns: [RegExp, string][] = [
 
 const GATEWAY_DNS_MESSAGE =
   "The gateway's address could not be found. Check the gateway server name, and that DNS or your VPN can reach it.";
-const GATEWAY_TLS_MESSAGE =
-  "The secure connection to the gateway failed. Check the gateway server name and port, and that the gateway's certificate is valid.";
+const GATEWAY_TLS_LEAD = "The secure connection to the gateway failed.";
+const GATEWAY_TLS_MESSAGE = `${GATEWAY_TLS_LEAD} Check the gateway server name and port. If the gateway is old, try "Allow old TLS" in the gateway's settings (Gateway > Advanced).`;
 const GATEWAY_UNREACHABLE_MESSAGE =
   "Could not reach the gateway. Check the gateway server name and port, and that your network or VPN can reach it.";
 
@@ -165,9 +167,10 @@ function rdpTablesFor(info: RdpConnectErrorInfo, gateway: boolean): [RegExp, str
   return [gatewayCodePatterns, gatewayOnlyPatterns, rdpPatterns];
 }
 
-/** The error text without the code and hop marker the main process adds to RDP connect errors. */
+/** The error text without the marker the main process adds to RDP connect errors, plus OpenSSL's reason when there is one. */
 export function connectionErrorText(raw: string): string {
-  return parseRdpConnectError(raw).message;
+  const info = parseRdpConnectError(raw);
+  return info.tls ? `${info.message} (${info.tls})` : info.message;
 }
 
 export interface FriendlyErrorOptions {
@@ -188,8 +191,17 @@ export function friendlyConnectionError(raw: string, type?: SessionType, options
   const text = info.message;
   const gatewayConfig = GATEWAY_CONFIG_ERROR.exec(text);
   if (gatewayConfig) return gatewayConfig[1];
+  if (info.certRejected) return text;
 
   const gateway = type === "rdp" && options?.gateway === true;
+  // TLS diagnostics come only with a failed handshake, so the advice replaces the general hint.
+  const advice = type === "rdp" ? rdpTlsAdvice(info, gateway) : undefined;
+  if (advice) return `${gateway && info.phase === "gateway" ? GATEWAY_TLS_LEAD : RDP_TLS_LEAD} ${advice}`;
+  return friendlyText(info, type, gateway);
+}
+
+function friendlyText(info: RdpConnectErrorInfo, type: SessionType | undefined, gateway: boolean): string {
+  const text = info.message;
   const byCode = gateway && info.phase === "gateway" && info.code !== undefined ? GATEWAY_PHASE_CODES.get(info.code) : undefined;
   if (byCode && !gatewayCodePatterns.some(([re]) => re.test(text))) return byCode;
 

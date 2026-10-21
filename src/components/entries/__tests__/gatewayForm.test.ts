@@ -31,6 +31,15 @@ describe("gatewayEntryConfigForSave", () => {
     });
   });
 
+  it("keeps the old-TLS switch only when it is on", () => {
+    expect(gatewayEntryConfigForSave({ gatewayHostname: "gw", gatewayLegacyTls: true }, "typed")).toEqual({
+      gatewayHostname: "gw",
+      gatewayLegacyTls: true,
+      gatewayLoginSource: "own",
+    });
+    expect(gatewayEntryConfigForSave({ gatewayHostname: "gw", gatewayLegacyTls: false }, "typed")).not.toHaveProperty("gatewayLegacyTls");
+  });
+
   it("drops defaults and stray keys", () => {
     const config = { gatewayHostname: "gw", gatewayTransport: "auto", gatewayBypassLocal: false, resolution: "1920x1080" } as never;
     expect(gatewayEntryConfigForSave(config, "typed")).toEqual({ gatewayHostname: "gw", gatewayLoginSource: "own" });

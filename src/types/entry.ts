@@ -22,6 +22,9 @@ export interface RdpEntryConfig extends RdpEntryGatewayFields {
   hostname?: string;
   sharedFolders: SharedFolder[];
   enableHighDpi?: boolean;
+  skipCertVerification?: boolean;
+  /** Allow TLS 1.0/1.1 and servers without secure renegotiation (computer hop only). */
+  legacyTls?: boolean;
 }
 
 export const DEFAULT_RDP_CONFIG: RdpEntryConfig = {

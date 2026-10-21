@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  LEGACY_OPENSSL_CONF,
   MSG,
+  TLS_CONNECT_FAILED,
   buildConnectCommand,
   createFrameParser,
   decodeMessage,
@@ -76,6 +78,7 @@ describe('buildConnectCommand', () => {
       domain: '',
       transport: 'auto',
       bypassLocal: false,
+      legacyTls: false,
     });
   });
 });
@@ -167,5 +170,37 @@ describe('evaluateCase', () => {
 
   it('does not count a clean disconnect with no error as a failure report', () => {
     expect(evaluateCase('error', [{ kind: 'disconnected', error: null, clean: true }]).pass).toBe(false);
+  });
+});
+
+describe('certificate questions and TLS reasons', () => {
+  it('decodes a CERT_VERIFY frame and an ERROR with an OpenSSL reason', () => {
+    expect(decodeMessage(MSG.CERT_VERIFY, json({ id: 3, host: 'h', port: 443, hop: 'gateway', mismatch: true, pem: 'P' }))).toEqual({
+      kind: 'cert', id: 3, host: 'h', port: 443, hop: 'gateway', mismatch: true, clean: true,
+    });
+    expect(decodeMessage(MSG.CERT_VERIFY, Buffer.from('nope'))).toEqual({ kind: 'cert', id: -1, clean: false });
+    expect(decodeMessage(MSG.ERROR, json({ message: 'm', code: 1, tls: 'error:x' }))).toEqual({
+      kind: 'error', message: 'm', clean: true, code: 1, tls: 'error:x',
+    });
+  });
+
+  it('checks the OpenSSL reason and a code the case must get past', () => {
+    const tlsFail = [{ kind: 'error', message: 'TLS', clean: true, code: TLS_CONNECT_FAILED, tls: 'tlsv1 alert protocol version' }];
+    expect(evaluateCase('error', tlsFail, { tls: /protocol version/ }).pass).toBe(true);
+    expect(evaluateCase('error', tlsFail, { tls: /renegotiation/ }).pass).toBe(false);
+    expect(evaluateCase('error', tlsFail, { notCode: TLS_CONNECT_FAILED }).pass).toBe(false);
+    expect(evaluateCase('error', [{ kind: 'error', message: 'nego', clean: true, code: 0x2000c }], { notCode: TLS_CONNECT_FAILED }).pass).toBe(true);
+  });
+
+  it('sends the certificate and old-TLS switches', () => {
+    const cfg = JSON.parse(
+      buildConnectCommand({ host: 'd', port: 3389, username: 'u', password: 'p', skipCertVerification: false, legacyTls: true, gateway: { host: 'g', port: 1, username: 'gu', password: 'gp', legacyTls: true } }),
+    ).config;
+    expect(cfg).toMatchObject({ skipCertVerification: false, legacyTls: true, gateway: { legacyTls: true } });
+  });
+
+  it('uses the same old-server OpenSSL settings as the app', async () => {
+    const app = await import('../../../electron/services/rdp/cert-trust/helper-tls-files.js');
+    expect(LEGACY_OPENSSL_CONF).toBe(app.LEGACY_OPENSSL_CONF);
   });
 });

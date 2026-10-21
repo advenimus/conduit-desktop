@@ -193,7 +193,7 @@ describe('connectGateway', () => {
       entry({
         id: 'gw',
         credential_type: 'rd_gateway',
-        config: { gatewayHostname: 'gw.corp.example', gatewayPort: 8443, gatewayTransport: 'http', gatewayBypassLocal: true },
+        config: { gatewayHostname: 'gw.corp.example', gatewayPort: 8443, gatewayTransport: 'http', gatewayBypassLocal: true, gatewayLegacyTls: true },
         username: 'GW\\gwuser',
         password: 'gw-pw',
       }),
@@ -206,6 +206,7 @@ describe('connectGateway', () => {
       domain: 'GW',
       transport: 'http',
       bypassLocal: true,
+      legacyTls: true,
     });
   });
 
@@ -272,8 +273,9 @@ describe('describeGateway', () => {
       domain: '',
       transport: 'auto',
       bypassLocal: false,
+      legacyTls: true,
     });
-    expect(line).toBe('gateway=gw:443 transport=auto bypassLocal=false user=set');
+    expect(line).toBe('gateway=gw:443 transport=auto bypassLocal=false legacyTls=true user=set');
     expect(line).not.toContain('top-secret');
   });
 });

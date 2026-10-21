@@ -48,6 +48,7 @@ import CreateTeamVaultDialog from "./components/vault/CreateTeamVaultDialog";
 import TeamVaultUnlock from "./components/vault/TeamVaultUnlock";
 import DeviceAuthApprovalDialog from "./components/vault/DeviceAuthApprovalDialog";
 import RevealApprovalDialog from "./components/ai/RevealApprovalDialog";
+import CertificatePromptDialog from "./components/sessions/CertificatePromptDialog";
 import VaultSettingsDialog from "./components/vault/VaultSettingsDialog";
 import FeedbackDialog from "./components/feedback/FeedbackDialog";
 import SyncLayer from "./components/sync/SyncLayer";
@@ -1298,6 +1299,8 @@ function App() {
         )}
 
         <RevealApprovalDialog />
+
+        <CertificatePromptDialog />
 
         <SyncLayer />
       </div>

@@ -5,6 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(conduit-freerdp
     src/main.c
+    src/cert_prompt.c
     src/cliprdr.c
     src/cliprdr_file.c
     src/connection.c
@@ -14,6 +15,8 @@ add_executable(conduit-freerdp
     src/output.c
     src/pointer.c
     src/protocol.c
+    src/tls_diag.c
+    src/tls_reason.c
     src/cjson/cJSON.c
 )
 

@@ -55,6 +55,11 @@
   - The gateway editor says how many RDP entries use it, and deleting one in use says how many entries it affects
   - Gateways show in the sidebar with their own icon and are left out of every login picker
   - The connecting screen names the gateway, and gateway failures (login, unreachable, refused by policy, certificate) get their own error messages
+  - Gateway Advanced has **Allow old TLS** for gateways that only offer TLS 1.0/1.1 or lack secure renegotiation
+- **Certificate trust (TOFU)**: a host or gateway certificate this device does not trust, or one for another name, asks Trust once / Always trust / Cancel, showing host, issuer, subject, validity and SHA-256 fingerprint. Always trust is kept per host:port on this device (`rdp-trusted-certificates.json`, not synced). A changed certificate shows a red warning with both fingerprints. Certificates trusted by the OS (Keychain, Windows store, company CAs) and the bundled CA list connect without a question
+  - MCP-opened RDP connections get the same question in the app; with no answer in 60 seconds (or no window) they fail with a message naming Always trust and Skip certificate verification
+- **TLS diagnostics**: a failed secure connection shows the OpenSSL reason under the error and plain advice (old TLS version, weak certificate, no secure renegotiation, not TLS, closed by the server). With no OpenSSL reason, a port check tells a closed or unreachable port from a server that dropped the handshake
+- RDP entry Security tab: **Skip certificate verification** and **Allow old TLS** (computer hop only)
   - iOS shows a gateway as a regular credential and connects RDP entries straight to the computer
 
 ### VNC (Virtual Network Computing)

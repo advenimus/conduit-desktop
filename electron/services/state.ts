@@ -36,6 +36,10 @@ import { McpGatekeeper } from './mcp-gatekeeper.js';
 import { CommandExecutor } from './command/executor.js';
 import { NetworkVaultWatcher } from './vault/network-watcher.js';
 import { ApprovalManager } from './reveal-approvals.js';
+import { CertPromptManager } from './rdp/cert-trust/cert-prompts.js';
+import { RdpCertTrust } from './rdp/cert-trust/cert-trust.js';
+import { CertTrustStore } from './rdp/cert-trust/trust-store.js';
+import { isTrustedRoot } from './rdp/cert-trust/helper-tls-files.js';
 
 // ---------- types ----------
 
@@ -77,6 +81,8 @@ export class AppState {
   vncManager: VncSessionManager;
   engineManager: EngineManager;
   approvalManager: ApprovalManager;
+  rdpCertPrompts: CertPromptManager;
+  rdpCertTrust: RdpCertTrust;
   authService: AuthService;
   teamService: TeamService;
   teamVaultManager: TeamVaultManager;
@@ -151,6 +157,13 @@ export class AppState {
     this.vncManager = new VncSessionManager();
     this.engineManager = new EngineManager();
     this.approvalManager = new ApprovalManager();
+    this.rdpCertPrompts = new CertPromptManager();
+    this.rdpCertTrust = new RdpCertTrust(
+      new CertTrustStore(() => path.join(this.getDataDir(), 'rdp-trusted-certificates.json')),
+      this.rdpCertPrompts,
+      () => new Date(),
+      isTrustedRoot,
+    );
     this.authService = new AuthService();
     this.teamService = new TeamService(this.authService);
     this.teamVaultManager = new TeamVaultManager(this.authService);

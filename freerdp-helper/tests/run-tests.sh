@@ -19,6 +19,7 @@ mkdir -p "$OUT_DIR"
     "$SCRIPT_DIR/test_helper.c" \
     "$PROJECT_DIR/src/json_out.c" \
     "$PROJECT_DIR/src/protocol.c" \
+    "$PROJECT_DIR/src/tls_reason.c" \
     "$OUT_DIR/cJSON.o" \
     -o "$OUT_DIR/test_helper"
 
