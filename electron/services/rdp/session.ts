@@ -116,7 +116,7 @@ export class RdpSession {
           this.handleBitmapUpdate(update);
         },
         // Close callback
-        (error: string | null) => {
+        (error: string | null, details) => {
           const wasConnecting = this.state === 'connecting';
           this.state = 'disconnected';
           if (error) {
@@ -128,6 +128,7 @@ export class RdpSession {
               sessionId: this.id,
               status: 'disconnected',
               error: error || null,
+              ended: details?.endedByRemote === true,
             });
           }
           // If we're still waiting to resolve the connect promise, this is unexpected

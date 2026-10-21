@@ -60,6 +60,16 @@ export function parseHelperJson(payload: Buffer): Record<string, unknown> | null
   }
 }
 
+/** A DISCONNECTED frame: the error text, and the server's ERRINFO reason when the helper sent one. */
+export function parseHelperDisconnect(payload: Buffer): { error: string | null; errorInfo: number | null } {
+  const json = parseHelperJson(payload);
+  if (!json) return { error: payload.toString().trim() || null, errorInfo: null };
+  return {
+    error: typeof json.error === 'string' && json.error ? json.error : null,
+    errorInfo: typeof json.errorInfo === 'number' ? json.errorInfo : null,
+  };
+}
+
 function errorMessageOf(json: Record<string, unknown> | null, payload: Buffer): string {
   if (json && typeof json.message === 'string' && json.message) return json.message;
   const raw = payload.toString().trim();

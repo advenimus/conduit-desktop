@@ -5,7 +5,7 @@ import { useTeamStore } from "../../../stores/teamStore";
 import { useVaultStore } from "../../../stores/vaultStore";
 import { openFolderView } from "../../../lib/openDashboard";
 import { Button, Card, Kbd, ListRow, SearchInput } from "../../ui";
-import { EntryIcon, FolderIcon, openHomeEntry, typeLabel } from "./entryDisplay";
+import { EntryIcon, FolderIcon, TYPE_LABELS, entryTypeLabel, openHomeEntry } from "./entryDisplay";
 import { searchQuick, type QuickResult } from "./quickSearch";
 import { selectEntries, selectFolders } from "./storeSelectors";
 
@@ -105,7 +105,7 @@ export default function QuickBar() {
                   tabIndex={-1}
                   selected={index === active}
                   leading={result.kind === "folder" ? <FolderIcon folder={result.folder} /> : <EntryIcon entry={result.entry} />}
-                  meta={result.kind === "folder" ? typeLabel("folder") : typeLabel(result.entry.entry_type)}
+                  meta={result.kind === "folder" ? TYPE_LABELS.folder : entryTypeLabel(result.entry)}
                   onMouseEnter={() => setActive(index)}
                   onClick={() => choose(result)}
                 >

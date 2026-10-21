@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import EntryTree from "../EntryTree";
 import { useEntryStore } from "../../../stores/entryStore";
+import { useSessionStore } from "../../../stores/sessionStore";
 import { useSyncStore } from "../../../stores/syncStore";
 import { useTeamStore } from "../../../stores/teamStore";
 import { useTierStore } from "../../../stores/tierStore";
@@ -241,6 +242,122 @@ describe("EntryTree View Info", () => {
     expect(items.find((i) => i.id === "view_info")).toMatchObject({ label: "View Info", icon: "infoCircle" });
     await waitFor(() => expect(openers.openDashboardForEntry).toHaveBeenCalledWith("e1"));
     expect(openers.openFolderView).not.toHaveBeenCalled();
+  });
+});
+
+describe("EntryTree double-click", () => {
+  const CRED = { id: "c1", name: "Domain Admin", entry_type: "credential", credential_type: null, folder_id: null, sort_order: 5, is_favorite: false } as unknown as EntryMeta;
+  const GW = { id: "g1", name: "Office", entry_type: "credential", credential_type: "rd_gateway", folder_id: null, sort_order: 6, is_favorite: false } as unknown as EntryMeta;
+  const openOrFocusEntry = vi.fn(async () => undefined);
+  const openEntry = vi.fn(async () => undefined);
+  const edits: unknown[] = [];
+  const onEdit = (e: Event) => edits.push((e as CustomEvent).detail);
+
+  beforeEach(() => {
+    openOrFocusEntry.mockClear();
+    openEntry.mockClear();
+    edits.length = 0;
+    document.addEventListener("conduit:edit-entry", onEdit);
+    useSessionStore.setState({ sessions: [] } as never);
+  });
+  afterEach(() => document.removeEventListener("conduit:edit-entry", onEdit));
+
+  function withEntries(opts: Parameters<typeof setup>[0] = {}) {
+    setup(opts);
+    useEntryStore.setState({ entries: [...ENTRIES, CRED, GW], openOrFocusEntry, openEntry } as never);
+  }
+
+  it.each([["Domain Admin", "c1"], ["Office", "g1"]])("opens the edit dialog for %s", async (name, id) => {
+    withEntries();
+    render(<EntryTree />);
+    fireEvent.doubleClick(rowOf(await screen.findByText(name).then((el) => el.textContent!)));
+    expect(edits).toEqual([id]);
+    expect(openOrFocusEntry).not.toHaveBeenCalled();
+  });
+
+  it("shows a credential's info instead when the vault is view-only", async () => {
+    withEntries({ vaultType: "team", role: "viewer" });
+    render(<EntryTree />);
+    fireEvent.doubleClick(rowOf(await screen.findByText("Domain Admin").then((el) => el.textContent!)));
+    expect(edits).toEqual([]);
+    expect(openers.openDashboardForEntry).toHaveBeenCalledWith("c1");
+  });
+
+  it("does not edit or show a credential the plan locks", async () => {
+    withEntries({ locked: ["c1"] });
+    render(<EntryTree />);
+    fireEvent.doubleClick(rowOf(await screen.findByText("Domain Admin").then((el) => el.textContent!)));
+    expect(edits).toEqual([]);
+    expect(openers.openDashboardForEntry).not.toHaveBeenCalledWith("c1");
+  });
+
+  it("connects a connection entry, or switches to its open tab", async () => {
+    withEntries();
+    render(<EntryTree />);
+    fireEvent.doubleClick(rowOf(await screen.findByText("Locked Box").then((el) => el.textContent!)));
+    expect(openOrFocusEntry).toHaveBeenCalledWith("e4");
+    expect(openEntry).not.toHaveBeenCalled();
+    expect(edits).toEqual([]);
+  });
+
+  it("leaves folders to their single-click expand", async () => {
+    withEntries();
+    render(<EntryTree />);
+    fireEvent.doubleClick(rowOf(await screen.findByText("Production").then((el) => el.textContent!)));
+    expect(edits).toEqual([]);
+    expect(openOrFocusEntry).not.toHaveBeenCalled();
+  });
+});
+
+describe("EntryTree open items with a session open", () => {
+  const openOrFocusEntry = vi.fn(async () => undefined);
+  const openEntry = vi.fn(async () => undefined);
+
+  beforeEach(() => {
+    openOrFocusEntry.mockClear();
+    openEntry.mockClear();
+  });
+
+  function withSession(entryId: string, type: "ssh" | "rdp") {
+    setup();
+    useEntryStore.setState({ openOrFocusEntry, openEntry } as never);
+    useSessionStore.setState({ sessions: [{ id: `s-${entryId}`, type, title: "x", status: "connected", entryId }] } as never);
+  }
+
+  it("offers Go to Session and Open New Session on an SSH entry with a tab open", async () => {
+    withSession("e1", "ssh");
+    render(<EntryTree />);
+    await screen.findByText("web-01");
+    const items = await menuFor("web-01", "open_new");
+    expect(items.slice(0, 2).map((i) => [i.id, i.label])).toEqual([["open", "Go to Session"], ["open_new", "Open New Session"]]);
+    await waitFor(() => expect(openEntry).toHaveBeenCalledWith("e1"));
+  });
+
+  it("switches to the open tab from Go to Session", async () => {
+    withSession("e1", "ssh");
+    render(<EntryTree />);
+    await screen.findByText("web-01");
+    await menuFor("web-01", "open");
+    await waitFor(() => expect(openOrFocusEntry).toHaveBeenCalledWith("e1"));
+    expect(openEntry).not.toHaveBeenCalled();
+  });
+
+  it("offers no second session on RDP, which would drop the first", async () => {
+    withSession("e4", "rdp");
+    render(<EntryTree />);
+    const items = await menuFor(await screen.findByText("Locked Box").then((el) => el.textContent!));
+    expect(items[0]).toMatchObject({ id: "open", label: "Go to Session" });
+    expect(items.some((i) => i.id === "open_new")).toBe(false);
+  });
+
+  it("keeps Open Session when nothing is open", async () => {
+    setup();
+    useSessionStore.setState({ sessions: [] } as never);
+    render(<EntryTree />);
+    await screen.findByText("web-01");
+    const items = await menuFor("web-01");
+    expect(items[0]).toMatchObject({ id: "open", label: "Open Session" });
+    expect(items.some((i) => i.id === "open_new")).toBe(false);
   });
 });
 

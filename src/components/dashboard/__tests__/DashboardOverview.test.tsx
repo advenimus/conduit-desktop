@@ -144,6 +144,14 @@ describe("DashboardOverview (Home)", () => {
     expect(customize).toHaveClass("h-control-sm");
   });
 
+  it("counts RD Gateways on their own, not as credentials", async () => {
+    await setup({
+      entries: [...ENTRIES, entry({ id: "g", name: "Office", entry_type: "credential", credential_type: "rd_gateway" })],
+    });
+    act(() => useVaultStore.setState({ credentials: [{ id: "c", credential_type: null }, { id: "g", credential_type: "rd_gateway" }] } as never));
+    expect(screen.getByText("6 entries · 1 credential · 1 gateway · 2 folders")).toBeInTheDocument();
+  });
+
   it("shows every section in order when each has something to show", async () => {
     await setup({ maxConnections: 3 });
     await screen.findByText("Recently connected");

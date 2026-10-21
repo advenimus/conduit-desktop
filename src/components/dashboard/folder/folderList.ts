@@ -1,4 +1,5 @@
 import type { EntryMeta, EntryType, FolderData } from "../../../types/entry";
+import { entryTypeLabel } from "../../entries/entryIcons";
 import type { ReachabilityResult } from "../../../types/dashboard";
 import { STATUS_RANK, UNCHECKED_RANK } from "../reachability/reachabilityCopy";
 import { isCheckable } from "../reachability/reachabilityTarget";
@@ -11,16 +12,6 @@ export const FOLDER_SORT_OPTIONS: readonly { readonly value: FolderSort; readonl
   { value: "last-connected", label: "Last connected" },
   { value: "status", label: "Status" },
 ];
-
-export const ENTRY_TYPE_LABELS: Readonly<Record<EntryType, string>> = {
-  ssh: "SSH",
-  rdp: "RDP",
-  vnc: "VNC",
-  web: "Web",
-  command: "Command",
-  document: "Document",
-  credential: "Credential",
-};
 
 const CONNECTION_TYPES: ReadonlySet<EntryType> = new Set(["ssh", "rdp", "vnc", "web"]);
 
@@ -87,7 +78,7 @@ export function sortFolderItems(items: readonly FolderListItem[], sort: FolderSo
       case "name":
         return 0;
       case "type":
-        return ENTRY_TYPE_LABELS[a.entry.entry_type].localeCompare(ENTRY_TYPE_LABELS[b.entry.entry_type]);
+        return entryTypeLabel(a.entry).localeCompare(entryTypeLabel(b.entry));
       case "last-connected":
         return compareLastConnected(ctx, a, b);
       case "status":

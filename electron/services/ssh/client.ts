@@ -52,6 +52,8 @@ export class SshSession extends EventEmitter {
   private client: Client;
   private channel: ClientChannel | null = null;
   private _connected = false;
+  private exitCode: number | null = null;
+  private closeEmitted = false;
 
   constructor(private config: SshConfig) {
     super();
@@ -96,7 +98,7 @@ export class SshSession extends EventEmitter {
       this.client.on('close', () => {
         this._connected = false;
         this.channel = null;
-        this.emit('close');
+        this.emitCloseOnce();
       });
 
       this.client.on('error', (err) => {
@@ -175,10 +177,17 @@ export class SshSession extends EventEmitter {
             this.emit('data', data);
           });
 
+          // A signal kill reports (null, signal), so only a numeric status is a shell that exited by itself.
+          channel.on('exit', (code: number | null) => {
+            if (typeof code === 'number') this.exitCode = code;
+          });
+
           channel.on('close', () => {
             this._connected = false;
             this.channel = null;
-            this.emit('close');
+            // The shell was this connection's only channel.
+            this.client.end();
+            this.emitCloseOnce();
           });
 
           resolve();
@@ -212,5 +221,17 @@ export class SshSession extends EventEmitter {
 
   get connected(): boolean {
     return this._connected;
+  }
+
+  // Ending the client after the shell's channel closes fires the client's own close too.
+  private emitCloseOnce(): void {
+    if (this.closeEmitted) return;
+    this.closeEmitted = true;
+    this.emit('close');
+  }
+
+  /** The remote shell exited with a status ("exit", Ctrl+D), as opposed to a dropped connection or a killed shell. */
+  get endedByRemote(): boolean {
+    return this.exitCode !== null;
   }
 }

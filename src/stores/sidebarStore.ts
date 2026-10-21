@@ -2,7 +2,8 @@ import { create } from "zustand";
 import { useSessionStore } from "./sessionStore";
 import { toast } from "../components/common/Toast";
 
-export const SIDEBAR_MIN_WIDTH = 200;
+// Room for the floating header beside the macOS window buttons, so its buttons never spill onto the tabs.
+export const SIDEBAR_MIN_WIDTH = 220;
 export const SIDEBAR_MAX_WIDTH = 500;
 const SIDEBAR_DEFAULT_WIDTH = 250;
 export const MIN_CONTENT_WIDTH = 480;

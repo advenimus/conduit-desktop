@@ -27,6 +27,7 @@ import ChangePasswordDialog from "./components/vault/ChangePasswordDialog";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useAppearance } from "./lib/appearance/useAppearance";
 import { useSessionStore, type SessionType } from "./stores/sessionStore";
+import { applyRdpStatus, applyTerminalStatus } from "./lib/sessionStatusEvents";
 import { useLayoutStore, findLeaf } from "./stores/layoutStore";
 import { useEntryStore } from "./stores/entryStore";
 import { useVaultStore } from "./stores/vaultStore";
@@ -768,20 +769,12 @@ function App() {
       }
     );
 
-    // Listen for terminal mid-session disconnects
+    // Mid-session ends: a finished session closes its tab, a drop shows the error screen
     const unlistenTerminalStatus = window.electron.on("terminal:status", (payload: unknown) => {
-      const data = payload as { sessionId: string; status: string; error: string | null };
-      const store = useSessionStore.getState();
-      const session = store.sessions.find(s => s.id === data.sessionId);
-      if (!session) return;
-      if (data.status === 'disconnected') {
-        // Local shell clean exit → just close the tab
-        if (session.type === 'local_shell' && !data.error) {
-          store.removeSession(data.sessionId);
-        } else {
-          store.updateSessionStatus(data.sessionId, 'disconnected', data.error);
-        }
-      }
+      applyTerminalStatus(payload as Parameters<typeof applyTerminalStatus>[0]);
+    });
+    const unlistenRdpStatus = window.electron.on("rdp:status", (payload: unknown) => {
+      applyRdpStatus(payload as Parameters<typeof applyRdpStatus>[0]);
     });
 
     // Listen for VNC mid-session disconnects
@@ -952,6 +945,7 @@ function App() {
       document.removeEventListener("conduit:folder-permissions", handleFolderPermissions);
       unlistenMcpCreated();
       unlistenTerminalStatus();
+      unlistenRdpStatus();
       unlistenVncStatus();
       unlistenWebStatus();
       unlistenEntriesRefreshed();

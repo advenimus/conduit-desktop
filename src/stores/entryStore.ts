@@ -13,6 +13,8 @@ import { toast } from "../components/common/Toast";
 import { disposeTerminalEntry } from "../components/sessions/TerminalView";
 import { errorText } from "../lib/errorText";
 import { isHiddenEntry } from "../lib/kb";
+import { sessionForEntry } from "../lib/entrySessions";
+import { focusSession } from "../lib/focusSession";
 
 /**
  * Map UI quality setting to RDP performance mode.
@@ -182,6 +184,8 @@ interface EntryState {
   ) => Promise<{ moved: number; failed: number }>;
   moveFolders: (ids: string[], parentId: string | null) => Promise<{ moved: number; failed: number }>;
   openEntry: (id: string) => Promise<void>;
+  /** Switches to the entry's open tab (reconnecting it in place if it dropped), or opens one. */
+  openOrFocusEntry: (id: string) => Promise<void>;
   openEntryWithCredential: (id: string, credentialId: string) => Promise<void>;
   reconnectSession: (sessionId: string) => Promise<void>;
   reconnectRdpSession: (entryId: string) => Promise<void>;
@@ -688,6 +692,24 @@ export const useEntryStore = create<EntryState>((set, get) => ({
     } finally {
       openingEntries.delete(id);
     }
+  },
+
+  openOrFocusEntry: async (id) => {
+    const session = sessionForEntry(useSessionStore.getState().sessions, id);
+    if (!session) {
+      await get().openEntry(id);
+      return;
+    }
+    useSidebarStore.getState().autoCollapse();
+    focusSession(session.id);
+    // A finished command keeps its output and its own Re-run button; reconnecting would leave it stuck connecting.
+    if (session.status !== "disconnected" || session.type === "command") return;
+    // reconnectSession marks the tab connecting before openEntry refuses a locked entry, so refuse first.
+    if (useTierStore.getState().isEntryLocked(id)) {
+      toast.error("This entry is locked — upgrade your plan to access it");
+      return;
+    }
+    await get().reconnectSession(session.id);
   },
 
   openEntryWithCredential: async (id, credentialId) => {

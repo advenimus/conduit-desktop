@@ -48,7 +48,8 @@ export interface DesktopDimensions {
 }
 
 export type OnBitmapCallback = (update: RdpBitmapUpdate) => void;
-export type OnCloseCallback = (error: string | null) => void;
+/** endedByRemote: the user signed out, or the remote computer ended the session on purpose. */
+export type OnCloseCallback = (error: string | null, details?: { endedByRemote: boolean }) => void;
 export type OnResizeCallback = (dims: DesktopDimensions) => void;
 export type OnClipboardCallback = (text: string) => void;
 

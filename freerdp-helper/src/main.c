@@ -80,9 +80,9 @@ static DWORD WINAPI event_loop_thread(LPVOID arg) {
         }
     }
 
-    /* Send disconnected notification */
+    /* Send disconnected notification, with the server's reason so a sign-out reads apart from a dropped link */
     if (g_running) {
-        output_send_disconnected(NULL);
+        output_send_disconnected(NULL, freerdp_error_info(instance));
     }
 
     fprintf(stderr, "[conduit-freerdp] Event loop thread exiting (g_running=%d g_connected=%d)\n",

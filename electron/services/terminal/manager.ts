@@ -250,7 +250,7 @@ export class TerminalManager {
     } else {
       entry.session.on('close', () => {
         this.removeSession(sessionId, entry);
-        this.sendStatus(sessionId, entry.lastError);
+        this.sendStatus(sessionId, entry.lastError, !entry.lastError && entry.session.endedByRemote);
       });
     }
 
@@ -574,13 +574,14 @@ export class TerminalManager {
     entry.mirror.dispose();
   }
 
-  private sendStatus(sessionId: string, error: string | null): void {
+  private sendStatus(sessionId: string, error: string | null, ended = false): void {
     const win = this.getMainWindow();
     if (win && !win.isDestroyed()) {
       win.webContents.send('terminal:status', {
         sessionId,
         status: 'disconnected',
         error,
+        ended,
       });
     }
   }

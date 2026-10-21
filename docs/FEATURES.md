@@ -53,7 +53,7 @@
   - Gateway login: type one in (password stored encrypted), link a saved credential, or use the login of the RDP entry that connects through it
   - RDP entry Gateway tab: No gateway or one of the vault's gateways, plus New gateway... to make one on the spot. A deleted gateway shows a warning
   - The gateway editor says how many RDP entries use it, and deleting one in use says how many entries it affects
-  - Gateways show in the sidebar with their own icon and are left out of every login picker
+  - Gateways show as "RD Gateway" with their own icon everywhere: sidebar and its search, info view and its tab, Home search and favorites, folder views. Home counts them apart from credentials, and they are left out of every login picker
   - The connecting screen names the gateway, and gateway failures (login, unreachable, refused by policy, certificate) get their own error messages
   - iOS shows a gateway as a regular credential and connects RDP entries straight to the computer
 
@@ -222,6 +222,8 @@ A structured memory that agents and the user build up about every asset. Data co
 - **Recursive folder deletion**: Deleting a folder deletes all its contents (subfolders + entries) with a confirmation dialog showing the total item count
 - Multi-delete with count confirmation dialog (Delete/Backspace key)
 - Multi-select context menu with batch delete option
+- **Double-click**: connects a connection entry, or switches to its open tab instead of connecting again (a dropped tab reconnects in place). Opens a document or command. Opens the edit dialog of a credential or RD Gateway (its info view on a view-only team vault). Folders open and close with a single click
+- **Open New Session**: with an SSH or web entry already open, the context menu offers Go to Session and Open New Session; RDP and VNC offer Go to Session, since a second login would drop the first. Home, folder views and the info view's Open Session also switch to an open tab
 - Click empty tree area to clear selection
 - Drag disabled in search/favorites flat-list mode
 - Favorite/star marking with visual star indicator in tree
@@ -859,6 +861,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - Error tooltip on tab status dot (hover red dot to see error message)
 - Mid-session disconnect detection: SSH drops, VNC server closes, and web load failures update UI in real-time
 - Local shell auto-close: clean exit (code 0) removes tab; non-zero shows error overlay
+- **Ended sessions close their tab**: an SSH shell that exits ("exit", Ctrl+D) or an RDP session ended on the remote computer (sign out, or a disconnect chosen there: server ERRINFO logoff or RPC-initiated disconnect) closes its tab, also in the background. Dropped connections and errors keep the error screen; a dropped RDP tab turns red and reconnects when opened again. VNC is unchanged (its servers give no reason)
 
 ### Home Dashboard
 - **Pinned Home tab**: always the first tab of the first pane while a vault is open; it has no close button, cannot be dragged away, and comes back after a lock or a vault switch
@@ -977,7 +980,7 @@ Team administration is handled on conduitdesktop.com. The desktop app is team-aw
 - **Beta update channel** (see `docs/BETA_CHANNEL.md`): Settings > General > Updates shows the current version, a "Get beta updates" switch that takes effect at once, and a Check for updates button
   - Beta builds carry a `-beta.N` version and are GitHub pre-releases. They use the normal production account and data
   - A beta build turns beta updates on by itself until the user changes the switch. Turning it off never downgrades: the app moves to the next regular release when it comes out
-  - Beta builds show a small Beta pill in the title bar (the side bar header when it is open, the first tab row when it is closed) and the About dialog; clicking it opens Send Feedback
+  - Beta builds show a small Beta pill (the side bar's top area when it is open, the first tab row when it is closed) and the About dialog; clicking it opens Send Feedback. On macOS the pill sits on the vault name row, so the side bar's top buttons stay clear of the window buttons and the tabs
   - What's New does not open on its own for a beta that has no release notes entry
 
 ---

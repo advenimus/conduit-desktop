@@ -60,7 +60,7 @@ void output_send_bitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
 /**
  * Send DISCONNECTED message.
  */
-void output_send_disconnected(const char *error);
+void output_send_disconnected(const char *error, uint32_t error_info);
 
 /**
  * Send RESIZED message.

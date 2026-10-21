@@ -148,8 +148,8 @@ static void send_json(uint32_t type, char *json, const char *fallback) {
     }
 }
 
-void output_send_disconnected(const char *error) {
-    send_json(MSG_TYPE_DISCONNECTED, json_build_disconnected(error),
+void output_send_disconnected(const char *error, uint32_t error_info) {
+    send_json(MSG_TYPE_DISCONNECTED, json_build_disconnected(error, error_info),
               error ? "{\"error\":\"Disconnected\"}" : "{\"error\":null}");
 }
 

@@ -105,12 +105,17 @@ static void test_error_json_long_message_not_truncated_into_bad_json(void) {
 }
 
 static void test_disconnected_json(void) {
-    char *json = json_build_disconnected(NULL);
+    char *json = json_build_disconnected(NULL, 0);
     CHECK_STR(json, "{\"error\":null}");
     json_out_free(json);
 
-    json = json_build_disconnected("bad \"quote\"");
+    json = json_build_disconnected("bad \"quote\"", 0);
     CHECK_STR(json, "{\"error\":\"bad \\\"quote\\\"\"}");
+    json_out_free(json);
+
+    /* ERRINFO_LOGOFF_BY_USER: the server's reason, so Electron can tell a sign-out from a dropped link. */
+    json = json_build_disconnected(NULL, 0x0C);
+    CHECK_STR(json, "{\"error\":null,\"errorInfo\":12}");
     json_out_free(json);
 }
 

@@ -15,8 +15,9 @@ char *json_build_error_phase(const char *message, uint32_t code, const char *pha
 /* Which hop a failed connect broke at: NULL without a gateway, "target" once the gateway tunnel carried RDP data. */
 const char *connect_error_phase(bool gateway_enabled, bool target_reached);
 
-/* {"error":null} or {"error":"..."}; a heap string for json_out_free, or NULL when out of memory. */
-char *json_build_disconnected(const char *error);
+/* {"error":null} or {"error":"..."}, plus "errorInfo":N (the server's ERRINFO code) when non-zero;
+   a heap string for json_out_free, or NULL when out of memory. */
+char *json_build_disconnected(const char *error, uint32_t error_info);
 
 void json_out_free(char *json);
 

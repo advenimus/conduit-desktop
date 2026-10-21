@@ -2,6 +2,7 @@ import KnowledgeBadge, { useKnowledgeCounts } from "../knowledge/KnowledgeBadge"
 import NewArticleDialog from "../knowledge/NewArticleDialog";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useEntryStore } from "../../stores/entryStore";
+import { useSessionStore } from "../../stores/sessionStore";
 import { useTierStore } from "../../stores/tierStore";
 import { useVaultStore } from "../../stores/vaultStore";
 import { useTeamStore } from "../../stores/teamStore";
@@ -26,6 +27,7 @@ import {
 } from "../../lib/icons";
 import { TREE_INDENT_PX, cx } from "../ui";
 import { errorText } from "../../lib/errorText";
+import { canOpenAnotherSession, doubleClickAction, sessionForEntry } from "../../lib/entrySessions";
 
 interface TreeNode {
   id: string;
@@ -132,6 +134,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
     toggleSelectedEntry,
     clearSelection,
     openEntry,
+    openOrFocusEntry,
     openEntryWithCredential,
     deleteEntry,
     deleteFolder,
@@ -343,21 +346,38 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
     setMultiDeleteConfirm(null);
   }, [multiDeleteConfirm, deleteFolder, deleteEntry, clearSelection]);
 
-  const handleDoubleClick = useCallback((node: TreeNode) => {
-    if (node.kind === "entry" && node.entryType !== "credential") {
-      if (isEntryLocked(node.id)) {
-        toast.error("This entry is locked — upgrade your plan to access it");
-        return;
-      }
-      // Double-click opens just this entry; clear multi-selection
-      setSelectedEntry(node.id);
-      openEntry(node.id);
-    }
-  }, [openEntry, isEntryLocked, setSelectedEntry]);
-
   const handleEdit = useCallback((nodeId: string) => {
     document.dispatchEvent(new CustomEvent("conduit:edit-entry", { detail: nodeId }));
   }, []);
+
+  /** Team vaults follow the folder's role, falling back to viewer while permissions load. */
+  const canEditIn = useCallback((folderId: string | null | undefined) => {
+    if (vaultType !== "team") return true;
+    const role = getEffectiveRole(folderId ?? undefined) ?? "viewer";
+    return role === "admin" || role === "editor";
+  }, [vaultType, getEffectiveRole]);
+
+  const handleDoubleClick = useCallback((node: TreeNode) => {
+    if (node.kind !== "entry") return;
+    const entry = entries.find((e) => e.id === node.id);
+    if (!entry) return;
+    if (isEntryLocked(node.id)) {
+      toast.error("This entry is locked — upgrade your plan to access it");
+      return;
+    }
+    const action = doubleClickAction(entry, { canEdit: canEditIn(entry.folder_id) });
+    if (action === "edit") {
+      handleEdit(node.id);
+      return;
+    }
+    if (action === "info") {
+      openDashboardForEntry(node.id);
+      return;
+    }
+    // Double-click opens just this entry; clear multi-selection
+    setSelectedEntry(node.id);
+    void openOrFocusEntry(node.id);
+  }, [entries, canEditIn, handleEdit, openOrFocusEntry, isEntryLocked, setSelectedEntry]);
 
   const handleCopyHost = useCallback(async (nodeId: string) => {
     const entry = entries.find((e) => e.id === nodeId);
@@ -572,7 +592,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
       const parentFolderId = entry?.folder_id;
       // For team vaults, use effective role; fall back to "viewer" if null (permissions still loading)
       const role = vaultType === "team" ? (getEffectiveRole(parentFolderId ?? undefined) ?? "viewer") : "admin";
-      const canEdit = role === "admin" || role === "editor";
+      const canEdit = canEditIn(parentFolderId);
       const isConnection = node.entryType !== "credential";
       const isCredential = node.entryType === "credential";
       const locked = isEntryLocked(node.id);
@@ -595,7 +615,11 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         }
       } else {
         if (isConnection) {
-          items.push({ id: "open", label: "Open Session", icon: "playerPlay" });
+          const openSession = sessionForEntry(useSessionStore.getState().sessions, node.id);
+          items.push({ id: "open", label: openSession ? "Go to Session" : "Open Session", icon: "playerPlay" });
+          if (openSession && node.entryType && canOpenAnotherSession(node.entryType)) {
+            items.push({ id: "open_new", label: "Open New Session", icon: "plus" });
+          }
           const openWithChildren: PopupMenuItem[] = [
             { id: "open_external", label: "Open External", icon: "externalLink" },
           ];
@@ -664,7 +688,10 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         document.dispatchEvent(new CustomEvent("conduit:edit-folder", { detail: node.id }));
         break;
       case "open":
-        openEntry(node.id);
+        void openOrFocusEntry(node.id);
+        break;
+      case "open_new":
+        void openEntry(node.id);
         break;
       case "view_info":
         if (node.kind === "folder") openFolderView(node.id);
@@ -767,7 +794,7 @@ export default function EntryTree({ searchQuery, showFavoritesOnly }: EntryTreeP
         handleDelete(node);
         break;
     }
-  }, [entries, selectedEntryIds, setSelectedEntry, openEntry, openEntryWithCredential, startRename, handleDelete, handleEdit, handleCopyHost, handleCopyUsername, handleCopyPassword, handleToggleFavorite, duplicateEntry, isEntryLocked, vaultType, getEffectiveRole, canManagePerms, getEntry]);
+  }, [entries, selectedEntryIds, setSelectedEntry, openEntry, openOrFocusEntry, openEntryWithCredential, startRename, handleDelete, handleEdit, handleCopyHost, handleCopyUsername, handleCopyPassword, handleToggleFavorite, duplicateEntry, isEntryLocked, vaultType, getEffectiveRole, canEditIn, canManagePerms, getEntry]);
 
   // Set of favorite entry IDs for quick lookup
   const favoriteIds = useMemo(
