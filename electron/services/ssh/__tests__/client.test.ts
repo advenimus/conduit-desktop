@@ -28,13 +28,22 @@ class FakeClient extends EventEmitter {
     this.connectOpts = opts;
   }
 
-  shell() {
-    /* unused in these tests */
+  channel: FakeChannel | null = null;
+  ended = false;
+
+  shell(_opts: unknown, cb: (err: Error | null, channel: FakeChannel) => void) {
+    this.channel = new FakeChannel();
+    cb(null, this.channel);
   }
 
   end() {
-    /* noop */
+    this.ended = true;
   }
+}
+
+class FakeChannel extends EventEmitter {
+  stderr = new EventEmitter();
+  close() {}
 }
 
 const instances: FakeClient[] = [];
@@ -151,5 +160,60 @@ describe('SshSession public-key auth', () => {
 
     const client = instances[0];
     expect(client.connectOpts?.privateKey).toBe('line1\nline2\n');
+  });
+});
+
+describe('SshSession end of the remote shell', () => {
+  beforeEach(() => {
+    instances.length = 0;
+  });
+
+  async function openSession() {
+    const session = new SshSession({ host: 'h', auth: { type: 'password', username: 'u', password: 'p' } });
+    const connecting = session.connect();
+    await flush();
+    const client = instances[instances.length - 1];
+    client.emit('ready');
+    await connecting;
+    return { session, client };
+  }
+
+  it('marks an exit with a status as ended on purpose and closes the connection', async () => {
+    const { session, client } = await openSession();
+    const closed = vi.fn();
+    session.on('close', closed);
+    client.channel!.emit('exit', 0);
+    client.channel!.emit('close');
+    expect(session.endedByRemote).toBe(true);
+    expect(closed).toHaveBeenCalled();
+    expect(client.ended).toBe(true);
+  });
+
+  it('counts a non-zero exit status too, since a shell exits with its last command\'s status', async () => {
+    const { session, client } = await openSession();
+    client.channel!.emit('exit', 1);
+    client.channel!.emit('close');
+    expect(session.endedByRemote).toBe(true);
+  });
+
+  it('does not count a shell killed by a signal or a dropped connection', async () => {
+    const killed = await openSession();
+    killed.client.channel!.emit('exit', null, 'KILL', false, '');
+    killed.client.channel!.emit('close');
+    expect(killed.session.endedByRemote).toBe(false);
+
+    const dropped = await openSession();
+    dropped.client.emit('close');
+    expect(dropped.session.endedByRemote).toBe(false);
+  });
+
+  it('reports the close once, though ending the client after the shell closes fires a second close', async () => {
+    const { session, client } = await openSession();
+    const closed = vi.fn();
+    session.on('close', closed);
+    client.channel!.emit('exit', 0);
+    client.channel!.emit('close');
+    client.emit('close');
+    expect(closed).toHaveBeenCalledTimes(1);
   });
 });

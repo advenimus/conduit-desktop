@@ -27,7 +27,6 @@ import { showContextMenu } from "../../utils/contextMenu";
 import { blankAreaMenu, headerCreateMenu, parseCreateAction, runCreateAction } from "../entries/createMenu";
 
 const CREATE_DISABLED_REASON = "View-only access";
-const INSET_TITLE_BAR = hasInsetTitleBar();
 
 const TRIAL_TONES = {
   urgent: { box: "bg-danger-bg border-danger-border text-danger", icon: "text-danger" },
@@ -36,6 +35,7 @@ const TRIAL_TONES = {
 } as const;
 
 export default function Sidebar() {
+  const insetTitleBar = hasInsetTitleBar();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -317,9 +317,9 @@ export default function Sidebar() {
           onClose={animatedCollapse}
           onTogglePin={togglePin}
         />
-        {!INSET_TITLE_BAR && vaultSwitcher}
-        <BetaPill className="mx-1" />
-        {INSET_TITLE_BAR && <div className="flex-1" />}
+        {!insetTitleBar && vaultSwitcher}
+        {!insetTitleBar && <BetaPill className="mx-1" />}
+        {insetTitleBar && <div className="flex-1" />}
         <div className="flex shrink-0 items-center gap-1">
           <IconButton
             icon={showFavoritesOnly ? "starFilled" : "star"}
@@ -348,10 +348,14 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* The macOS window buttons take the header's start, so the vault name gets a row of its own. */}
-      {INSET_TITLE_BAR && (
-        <div className={cx("flex h-8 shrink-0 items-center px-1", isTeamVaultActive && "border-l-2 border-l-team-border-strong bg-team")}>
+      {/* The macOS window buttons take the header's start, so the vault name and the Beta pill get a row of their own. */}
+      {insetTitleBar && (
+        <div
+          data-cv-sidebar-vault-row
+          className={cx("flex h-8 shrink-0 items-center px-1", isTeamVaultActive && "border-l-2 border-l-team-border-strong bg-team")}
+        >
           {vaultSwitcher}
+          <BetaPill className="mx-1" />
         </div>
       )}
 

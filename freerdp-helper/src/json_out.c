@@ -33,13 +33,13 @@ const char *connect_error_phase(bool gateway_enabled, bool target_reached) {
     return target_reached ? "target" : "gateway";
 }
 
-char *json_build_disconnected(const char *error) {
+char *json_build_disconnected(const char *error, uint32_t error_info) {
     cJSON *root = cJSON_CreateObject();
     if (!root) return NULL;
 
     cJSON *item = error ? cJSON_AddStringToObject(root, "error", error)
                         : cJSON_AddNullToObject(root, "error");
-    if (!item) {
+    if (!item || (error_info && !cJSON_AddNumberToObject(root, "errorInfo", (double)error_info))) {
         cJSON_Delete(root);
         return NULL;
     }

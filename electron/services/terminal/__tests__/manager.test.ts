@@ -32,6 +32,7 @@ const fakes = await vi.hoisted(async () => {
     static last: FakeSshSession | null = null;
     written: Buffer[] = [];
     connected = true;
+    endedByRemote = false;
     constructor() {
       super();
       FakeSshSession.last = this;
@@ -258,6 +259,42 @@ describe('TerminalManager agent operations', () => {
   it('throws SESSION_NOT_FOUND for unknown sessions', async () => {
     await expect(manager.execute('nope', { command: 'ls', timeoutMs: 1_000, shell: 'auto' }))
       .rejects.toMatchObject({ code: 'SESSION_NOT_FOUND' });
+  });
+});
+
+describe('TerminalManager SSH session end', () => {
+  async function sshStatuses(end: (ssh: InstanceType<typeof fakes.FakeSshSession>) => void) {
+    const statuses: unknown[] = [];
+    const win = { isDestroyed: () => false, webContents: { send: (c: string, p: unknown) => c === 'terminal:status' && statuses.push(p) } };
+    const manager = new TerminalManager(() => win as never);
+    try {
+      const id = await manager.createSshSession({ host: 'h', auth: { type: 'password', username: 'u', password: 'p' } });
+      manager.startReading(id);
+      end(fakes.FakeSshSession.last!);
+      return { id, statuses };
+    } finally {
+      manager.dispose();
+    }
+  }
+
+  it('says the remote shell ended on purpose after it exits with a status', async () => {
+    const { id, statuses } = await sshStatuses((ssh) => {
+      ssh.endedByRemote = true;
+      ssh.emit('close');
+    });
+    expect(statuses[0]).toEqual({ sessionId: id, status: 'disconnected', error: null, ended: true });
+  });
+
+  it('reports a drop or an error as a disconnect, not an end', async () => {
+    const dropped = await sshStatuses((ssh) => ssh.emit('close'));
+    expect(dropped.statuses[0]).toMatchObject({ error: null, ended: false });
+
+    const failed = await sshStatuses((ssh) => {
+      ssh.endedByRemote = true;
+      ssh.emit('error', new Error('read ECONNRESET'));
+      ssh.emit('close');
+    });
+    expect(failed.statuses[0]).toMatchObject({ error: 'read ECONNRESET', ended: false });
   });
 });
 

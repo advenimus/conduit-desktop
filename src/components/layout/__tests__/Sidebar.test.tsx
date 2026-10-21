@@ -14,6 +14,11 @@ import { openHome } from "../../../lib/openHome";
 
 vi.mock("../../../lib/openHome", () => ({ openHome: vi.fn() }));
 
+const insetTitleBar = vi.hoisted(() => ({ on: false }));
+vi.mock("../../../lib/titleBar", () => ({ hasInsetTitleBar: () => insetTitleBar.on }));
+const appVersion = vi.hoisted(() => ({ value: "0.19.0" }));
+vi.mock("../../../lib/appVersion", () => ({ getAppVersion: async () => appVersion.value }));
+
 const showContextMenu = vi.hoisted(() => vi.fn(async (..._args: unknown[]): Promise<string | null> => null));
 vi.mock("../../../utils/contextMenu", () => ({ showContextMenu }));
 
@@ -524,5 +529,32 @@ describe("Sidebar cards", () => {
     fireEvent.click(within(card).getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByText("Create your first team vault")).toBeNull();
     expect(localStorage.getItem("conduit:team-onboarding-dismissed")).toBe("true");
+  });
+});
+
+describe("Sidebar Beta pill", () => {
+  beforeEach(() => {
+    appVersion.value = "0.19.0-beta.1";
+  });
+
+  afterEach(() => {
+    appVersion.value = "0.19.0";
+    insetTitleBar.on = false;
+  });
+
+  const pill = () => screen.queryByRole("button", { name: "Beta" });
+
+  it("sits in the header when the window has its own title bar", async () => {
+    setup();
+    expect(header().contains(await screen.findByRole("button", { name: "Beta" }))).toBe(true);
+  });
+
+  it("moves to the vault row under the macOS window buttons, so the header buttons keep inside the side bar", async () => {
+    insetTitleBar.on = true;
+    setup();
+    await screen.findByRole("button", { name: "Beta" });
+    expect(header().contains(pill())).toBe(false);
+    const vaultRow = document.querySelector("[data-cv-vault-switcher]")!.closest("[data-cv-sidebar-vault-row]") as HTMLElement;
+    expect(vaultRow.contains(pill())).toBe(true);
   });
 });

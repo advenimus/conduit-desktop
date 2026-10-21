@@ -3,7 +3,7 @@ import { generateTotpCode, type TotpResult } from "../../lib/totp";
 import { useEntryStore } from "../../stores/entryStore";
 import { useSessionStore } from "../../stores/sessionStore";
 import { entryInfoSessionId } from "../../lib/dashboardSessions";
-import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
+import { entryKindOf, getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import { toast } from "../common/Toast";
 import { invoke } from "../../lib/electron";
 import MarkdownRenderer from "../markdown/MarkdownRenderer";
@@ -22,7 +22,8 @@ import { errorText } from "../../lib/errorText";
 import ReachabilityRow from "./entry/ReachabilityRow";
 import ConnectionHistorySection from "./entry/ConnectionHistorySection";
 import { isCheckable } from "./reachability/reachabilityTarget";
-import { typeLabel } from "./home/entryDisplay";
+import { entryTypeLabel } from "./home/entryDisplay";
+import { describeGatewayAddress } from "../../lib/rdpGateway";
 
 const HISTORY_TYPES: ReadonlySet<string> = new Set(["ssh", "rdp", "vnc", "web", "command"]);
 
@@ -58,7 +59,7 @@ function formatRelativeDate(dateStr: string): string {
 }
 
 export default function EntryDashboard({ entryId }: EntryDashboardProps) {
-  const { entries, openEntry, updateEntry, getEntry, resolveCredential } = useEntryStore();
+  const { entries, openOrFocusEntry, updateEntry, getEntry, resolveCredential } = useEntryStore();
   const entry = entries.find((e) => e.id === entryId);
 
   const [fullEntry, setFullEntry] = useState<EntryFull | null>(null);
@@ -121,8 +122,10 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
     );
   }
 
-  const Icon = getEntryIcon(entry.entry_type, false, entry.icon);
-  const colorResult = getEntryColor(entry.entry_type, entry.color);
+  const kind = entryKindOf(entry);
+  const Icon = getEntryIcon(kind, false, entry.icon);
+  const colorResult = getEntryColor(kind, entry.color);
+  const gatewayAddress = kind === "rd_gateway" ? describeGatewayAddress(entry.config) : "";
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -145,7 +148,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
       if (sessions.some((s) => s.id === dashboardSessionId)) {
         closeSession(dashboardSessionId);
       }
-      openEntry(entryId);
+      void openOrFocusEntry(entryId);
     }
   };
 
@@ -179,7 +182,7 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-title font-semibold text-ink truncate">{entry.name}</h2>
-            <p className="text-label text-ink-muted">{typeLabel(entry.entry_type)}</p>
+            <p className="text-label text-ink-muted">{entryTypeLabel(entry)}</p>
           </div>
           <div className="flex items-center gap-0.5">
             <IconButton
@@ -239,6 +242,16 @@ export default function EntryDashboard({ entryId }: EntryDashboardProps) {
                 value={`${entry.host}${entry.port ? `:${entry.port}` : ""}`}
                 actions={
                   <IconButton size="sm" icon="copy" label="Copy host" onClick={() => copyToClipboard(entry.host!, "Host")} />
+                }
+              />
+            )}
+            {gatewayAddress && (
+              <DetailRow
+                label="Gateway server"
+                icon={<ServerIcon size={16} />}
+                value={gatewayAddress}
+                actions={
+                  <IconButton size="sm" icon="copy" label="Copy gateway server" onClick={() => copyToClipboard(gatewayAddress, "Gateway server")} />
                 }
               />
             )}

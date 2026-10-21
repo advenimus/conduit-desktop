@@ -17,7 +17,7 @@ import WelcomeBlock from "./home/WelcomeBlock";
 import { countConnections } from "./home/entryDisplay";
 import { bumpHistoryVersion } from "./home/homeFeeds";
 import { useHomeSettings } from "./home/useHomeSettings";
-import { selectCredentialCount, selectEntries, selectFolders } from "./home/storeSelectors";
+import { selectCredentialCount, selectEntries, selectFolders, selectGatewayCount } from "./home/storeSelectors";
 
 /**
  * Home (docs/DASHBOARD.md 4): header, quick bar, then the cards; a hidden or empty card takes no
@@ -28,6 +28,7 @@ export default function DashboardOverview({ active = true }: { active?: boolean 
   const entries = useEntryStore(selectEntries);
   const folders = useEntryStore(selectFolders);
   const credentialCount = useVaultStore(selectCredentialCount);
+  const gatewayCount = useVaultStore(selectGatewayCount);
   const { settings, loaded } = useHomeSettings();
 
   if (entries.length === 0 && folders.length === 0) return <WelcomeBlock />;
@@ -41,6 +42,7 @@ export default function DashboardOverview({ active = true }: { active?: boolean 
         <HomeHeader
           entryCount={entries.length}
           credentialCount={credentialCount}
+          gatewayCount={gatewayCount}
           folderCount={folders.length}
           onHistoryCleared={bumpHistoryVersion}
         />
@@ -63,11 +65,13 @@ export default function DashboardOverview({ active = true }: { active?: boolean 
 function HomeHeader({
   entryCount,
   credentialCount,
+  gatewayCount,
   folderCount,
   onHistoryCleared,
 }: {
   entryCount: number;
   credentialCount: number;
+  gatewayCount: number;
   folderCount: number;
   onHistoryCleared: () => void;
 }) {
@@ -80,6 +84,7 @@ function HomeHeader({
         <p className="text-body text-ink-muted mt-1">
           {entryCount} {entryCount === 1 ? "entry" : "entries"} &middot;{" "}
           {credentialCount} {credentialCount === 1 ? "credential" : "credentials"} &middot;{" "}
+          {gatewayCount > 0 && <>{gatewayCount} {gatewayCount === 1 ? "gateway" : "gateways"} &middot;{" "}</>}
           {folderCount} {folderCount === 1 ? "folder" : "folders"}
         </p>
       </div>

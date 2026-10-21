@@ -1,10 +1,10 @@
 import type { EntryType } from "../../types/entry";
-import { getEntryColor, getEntryIcon } from "../entries/entryIcons";
+import { entryKindOf, getEntryColor, getEntryIcon, type EntryKind } from "../entries/entryIcons";
 import { cx } from "../ui";
 import { TYPE_LABELS } from "./home/entryDisplay";
 
 /** One order for the type tiles of Home Overview and the folder view. */
-export const TYPE_TILE_ORDER: readonly EntryType[] = ["ssh", "rdp", "vnc", "web", "command", "document", "credential"];
+export const TYPE_TILE_ORDER: readonly EntryKind[] = ["ssh", "rdp", "vnc", "web", "command", "document", "credential", "rd_gateway"];
 
 /** A tile per type with a count above zero, in TYPE_TILE_ORDER; nothing when every count is zero. */
 export default function TypeTiles({
@@ -13,7 +13,7 @@ export default function TypeTiles({
   className,
 }: {
   counts: Readonly<Partial<Record<string, number>>>;
-  types?: readonly EntryType[];
+  types?: readonly EntryKind[];
   className?: string;
 }) {
   const shown = TYPE_TILE_ORDER.filter((type) => types.includes(type) && (counts[type] ?? 0) > 0);
@@ -37,8 +37,13 @@ export default function TypeTiles({
   );
 }
 
-export function countByType(entries: readonly { entry_type: string }[]): Partial<Record<string, number>> {
-  const counts: Record<string, number> = {};
-  for (const e of entries) counts[e.entry_type] = (counts[e.entry_type] ?? 0) + 1;
+export function countByType(
+  entries: readonly { entry_type: EntryType; credential_type?: string | null }[],
+): Partial<Record<EntryKind, number>> {
+  const counts: Partial<Record<EntryKind, number>> = {};
+  for (const e of entries) {
+    const kind = entryKindOf(e);
+    counts[kind] = (counts[kind] ?? 0) + 1;
+  }
   return counts;
 }

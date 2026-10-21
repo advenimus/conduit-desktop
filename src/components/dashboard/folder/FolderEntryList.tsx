@@ -1,6 +1,6 @@
 import { useEntryStore } from "../../../stores/entryStore";
 import { openDashboardForEntry } from "../../../lib/openDashboard";
-import { getEntryColor, getEntryIcon } from "../../entries/entryIcons";
+import { entryKindOf, getEntryColor, getEntryIcon } from "../../entries/entryIcons";
 import { Badge, IconButton, ListRow } from "../../ui";
 import { formatRelativeTime } from "../relativeTime";
 import { reachabilityText } from "../reachability/reachabilityCopy";
@@ -16,13 +16,14 @@ interface FolderEntryListProps {
 
 function openItem({ entry }: FolderListItem) {
   if (entry.entry_type === "credential") openDashboardForEntry(entry.id);
-  else void useEntryStore.getState().openEntry(entry.id);
+  else void useEntryStore.getState().openOrFocusEntry(entry.id);
 }
 
 function FolderEntryRow({ item, lastConnected, reachability }: { item: FolderListItem } & Omit<FolderEntryListProps, "items">) {
   const { entry } = item;
-  const Icon = getEntryIcon(entry.entry_type, false, entry.icon);
-  const color = getEntryColor(entry.entry_type, entry.color);
+  const kind = entryKindOf(entry);
+  const Icon = getEntryIcon(kind, false, entry.icon);
+  const color = getEntryColor(kind, entry.color);
   const result = reachability.results[entry.id];
   const last = lastConnected.get(entry.id);
   const badge = result ? reachabilityText(result) : null;

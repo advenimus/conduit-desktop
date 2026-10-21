@@ -15,7 +15,7 @@ import { useSessionStore, type Session, type SessionType } from "../../stores/se
 import { useLayoutStore, findLeaf } from "../../stores/layoutStore";
 import { useEntryStore } from "../../stores/entryStore";
 import { useSidebarStore, selectIsDockedOpen } from "../../stores/sidebarStore";
-import { getEntryIcon, getEntryColor } from "../entries/entryIcons";
+import { entryKindOf, getEntryIcon, getEntryColor } from "../entries/entryIcons";
 import { showContextMenu, type PopupMenuItem } from "../../utils/contextMenu";
 import { invoke } from "../../lib/electron";
 import { connectionErrorText } from "../../lib/errorMessages";
@@ -537,8 +537,9 @@ function TabIcon({ session }: { session: Session }) {
   }
 
   if (entry) {
-    const Icon = getEntryIcon(entry.entry_type, false, entry.icon);
-    const colorResult = getEntryColor(entry.entry_type, entry.color);
+    const kind = entryKindOf(entry);
+    const Icon = getEntryIcon(kind, false, entry.icon);
+    const colorResult = getEntryColor(kind, entry.color);
     return (
       <span className="flex">
         <Icon size={16} className={colorResult.className} style={colorResult.style} />

@@ -377,30 +377,7 @@ export default function RdpView({ sessionId, entryId: _entryId, isActive = true,
     };
   }, [sessionId]);
 
-  // Listen for session status changes (e.g., unexpected disconnect from resize crash)
-  useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
-
-    listen<{ sessionId: string; status: string; error: string | null }>(
-      "rdp:status",
-      (event) => {
-        if (event.payload.sessionId === sessionId) {
-          if (event.payload.status === "disconnected") {
-            // Ignore disconnect events while reconnecting — the reconnect flow
-            // triggers rdp_disconnect which emits this event, but we don't want
-            // to show the error screen during the reconnection process.
-            const session = useSessionStore.getState().sessions.find((s) => s.id === sessionId);
-            if (session?.metadata?.reconnecting) return;
-
-            setError(event.payload.error || "Session disconnected");
-            isConnected.current = false;
-          }
-        }
-      }
-    ).then((fn) => { unlisten = fn; });
-
-    return () => { if (unlisten) unlisten(); };
-  }, [sessionId]);
+  // A mid-session drop reaches this view as status/connectionError props (applyRdpStatus in App.tsx).
 
   // Listen for server-initiated resize events (RDPEDISP)
   useEffect(() => {

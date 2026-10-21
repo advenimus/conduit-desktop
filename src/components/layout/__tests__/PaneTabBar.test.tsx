@@ -10,7 +10,7 @@ import { useSidebarStore } from "../../../stores/sidebarStore";
 import { useEntryStore } from "../../../stores/entryStore";
 import { useTierStore } from "../../../stores/tierStore";
 import { showContextMenu, type PopupMenuItem } from "../../../utils/contextMenu";
-import { HOME_SESSION_ID, folderViewSessionId } from "../../../lib/dashboardSessions";
+import { HOME_SESSION_ID, entryInfoSessionId, folderViewSessionId } from "../../../lib/dashboardSessions";
 
 // The real one caches the version per window; these tests change it between renders.
 vi.mock("../../../lib/appVersion", () => ({ getAppVersion: async () => window.electron.invoke("app_get_version") }));
@@ -387,6 +387,21 @@ describe("PaneTabBar Home tab", () => {
     expect(tab("s-term").hasAttribute("data-drop-target")).toBe(true);
     fireEvent.drop(tab(HOME_SESSION_ID), { dataTransfer });
     expect(findLeaf(useLayoutStore.getState().root, PANE)?.sessionIds).toEqual([HOME_SESSION_ID, "s-rdp", "s-term", "s-doc", "s-web"]);
+  });
+});
+
+describe("PaneTabBar RD Gateway info tab", () => {
+  it("shows the gateway icon, not the credential key", () => {
+    const infoTab: Session = { id: entryInfoSessionId("g1"), type: "dashboard", title: "Office (Info)", status: "connected", entryId: "g1" };
+    const { tab } = setup({ sessions: [infoTab], active: infoTab.id });
+    act(() =>
+      useEntryStore.setState({
+        entries: [{ id: "g1", name: "Office", entry_type: "credential", credential_type: "rd_gateway", icon: null, color: null }],
+      } as never),
+    );
+    const icon = tab(infoTab.id).querySelector("svg")!;
+    expect(icon.getAttribute("class")).toContain("lucide-network");
+    expect(icon.getAttribute("class")).toContain("text-entry-rdp");
   });
 });
 

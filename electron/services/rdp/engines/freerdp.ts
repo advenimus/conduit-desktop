@@ -38,7 +38,8 @@ import type {
   OnCursorDefaultCallback,
 } from '../engine.js';
 import { getFreeRdpBinaryPath } from './factory.js';
-import { buildHelperConnectConfig, parseHelperError, parseHelperJson } from './helper-protocol.js';
+import { buildHelperConnectConfig, parseHelperDisconnect, parseHelperError } from './helper-protocol.js';
+import { isRemoteSessionEnd } from '../session-end.js';
 import { formatRdpConnectError } from '../connect-error.js';
 
 /* Binary protocol message types */
@@ -396,13 +397,13 @@ export class FreeRdpEngine implements RdpEngine {
       }
 
       case MSG_DISCONNECTED: {
-        const json = parseHelperJson(payload);
+        const { error, errorInfo } = parseHelperDisconnect(payload);
         this._connected = false;
 
-        if (this.onClose) {
-          const error = json ? json.error : payload.toString().trim();
-          this.onClose(typeof error === 'string' && error ? error : null);
-        }
+        // Reported once: the process exit that follows the kill below must not report a second, error close.
+        const onClose = this.onClose;
+        this.onClose = null;
+        onClose?.(error, { endedByRemote: !error && isRemoteSessionEnd(errorInfo) });
 
         // Kill the zombie process — event loop has exited but command_loop is still alive
         if (this.process) {

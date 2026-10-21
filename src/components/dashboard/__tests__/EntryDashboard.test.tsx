@@ -70,6 +70,23 @@ describe("EntryDashboard (restyle)", () => {
     expect(within(web.container.querySelector("h2")!.closest(".border-b") as HTMLElement).getByText("Web")).toBeInTheDocument();
   });
 
+  it("names an RD Gateway as one, with the gateway icon and its server, not as a credential", async () => {
+    const { container } = await setup(
+      entry({
+        id: "g1",
+        name: "Office",
+        entry_type: "credential",
+        credential_type: "rd_gateway",
+        config: { gatewayHostname: "gw.example.com", gatewayPort: 8443 },
+      }),
+    );
+    const header = container.querySelector("h2")!.closest(".border-b") as HTMLElement;
+    expect(within(header).getByText("RD Gateway")).toBeInTheDocument();
+    expect(within(header).queryByText("Credential")).toBeNull();
+    expect(header.querySelector("svg.lucide-network")).not.toBeNull();
+    expect(screen.getByText("gw.example.com:8443")).toBeInTheDocument();
+  });
+
   it("sits on the editor surface with no legacy surfaces", async () => {
     const { container } = await setup();
     expect(container.firstElementChild).toHaveClass("bg-editor");
