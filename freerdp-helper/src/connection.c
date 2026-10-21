@@ -442,6 +442,11 @@ freerdp *connection_init(const ConnectConfig *config) {
     freerdp_settings_set_bool(settings, FreeRDP_SupportDisplayControl, TRUE);
     freerdp_settings_set_bool(settings, FreeRDP_DynamicResolutionUpdate, TRUE);
 
+    /* ── Audio ── */
+    /* Loads the rdpsnd channel. No backend is named: rdpsnd tries its built-in
+     * list and keeps the first that opens, which is "mac" on macOS. */
+    freerdp_settings_set_bool(settings, FreeRDP_AudioPlayback, TRUE);
+
     /* ── Software GDI ── */
     freerdp_settings_set_bool(settings, FreeRDP_SoftwareGdi, TRUE);
 
