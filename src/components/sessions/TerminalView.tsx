@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import { invoke, listen, type UnlistenFn } from "../../lib/electron";
 import { getTerminalTheme } from "../../lib/terminalTheme";
 import { AGENT_NEWLINE_SEQUENCE, isAgentNewlineKey, type AgentZoom } from "../../lib/agentTerminalKeys";
 import { AGENT_TERMINAL_ATTR, AGENT_ZOOM_EVENT } from "../../lib/zoomKeys";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { buildTerminalFontStack } from "../../lib/terminalFont";
+import { createPathLinkProvider, openTerminalLink } from "../../lib/terminalLinks";
 import { useTerminalFontFamily } from "../../hooks/useTerminalFontFamily";
 import "@xterm/xterm/css/xterm.css";
 
@@ -104,11 +106,19 @@ export default function TerminalView({
       theme: getTerminalTheme(),
       scrollback: termDefaults.scrollback,
       convertEol: true,
+      ...(isAgentTerminal && {
+        linkHandler: { allowNonHttpProtocols: true, activate: (_event, text) => void openTerminalLink(text) },
+      }),
     });
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     fitAddonRef.current = fitAddon;
+
+    if (isAgentTerminal) {
+      term.loadAddon(new WebLinksAddon((_event, uri) => void openTerminalLink(uri)));
+      term.registerLinkProvider(createPathLinkProvider(term, (target) => void openTerminalLink(target)));
+    }
 
     term.open(termElement);
 

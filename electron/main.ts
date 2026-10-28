@@ -23,6 +23,7 @@ import { lockVaultFromMain } from './ipc/vault.js';
 import { startVaultIdleLock } from './ipc/vault-idle.js';
 import { appQuitFlush } from './services/vault/app-quit-flush.js';
 import { devServerUrl } from './services/env-config.js';
+import { installExternalLinkGuard } from './services/external-link-guard.js';
 import { describeDeepLink } from './services/deep-link-log.js';
 import { attachStartupWindow, initStartupVault, noteLaunchUrl, noteSecondInstance } from './ipc/startup-vault.js';
 import { installZoomKeys, registerAppZoomKeyHandler, stepAppZoom } from './ipc/zoom-keys.js';
@@ -33,6 +34,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
+
+function isAppUrl(url: string): boolean {
+  try {
+    if (isDev) return new URL(url).origin === new URL(devServerUrl()).origin;
+    return fileURLToPath(url).startsWith(path.join(__dirname, '../dist'));
+  } catch {
+    return false;
+  }
+}
 
 // Fix process.env.PATH for packaged apps on macOS/Linux.
 // Packaged Electron apps launched from Finder inherit a minimal PATH that
@@ -795,6 +805,10 @@ function createWindow(): BrowserWindow {
   attachStartupWindow(mainWindow);
   reportFullScreen(mainWindow);
   installZoomKeys(mainWindow);
+  installExternalLinkGuard(mainWindow.webContents, {
+    isOwnUrl: isAppUrl,
+    openExternal: (url) => shell.openExternal(url),
+  });
 
   if (isDev) {
     mainWindow.loadURL(devServerUrl());

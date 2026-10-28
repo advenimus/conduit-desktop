@@ -37,6 +37,7 @@ import { registerStartupVaultHandlers } from './startup-vault.js';
 import { registerSyncHandlers } from './sync.js';
 import { registerSyncReviewHandlers } from './sync-review.js';
 import { registerDashboardHandlers } from './dashboard.js';
+import { registerOpenTargetHandlers } from './open-target.js';
 
 export function registerIpcHandlers(): void {
   const state = AppState.getInstance();
@@ -136,4 +137,7 @@ export function registerIpcHandlers(): void {
 
   // ── Home dashboard: connection history, password ages, AI activity, reachability ──
   registerDashboardHandlers();
+
+  // ── Open a link or file path from a terminal in the system app ──
+  registerOpenTargetHandlers();
 }
